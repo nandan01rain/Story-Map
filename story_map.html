@@ -166,6 +166,8 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .ledger-status.open{color:var(--gold);}
 .ledger-status .ls-jump{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;}
 .ledger-status .ls-jump:hover{color:var(--text);}
+.ledger-edit-btn{background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;padding:2px 4px;align-self:center;}
+.ledger-edit-btn:hover{color:var(--gold);}
 
 #thread-view-body{flex:1;overflow-y:auto;padding:24px;}
 .thread-section{max-width:700px;margin:0 auto 32px;}
@@ -192,6 +194,8 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .mythic-touch-snippet{font-family:'Spectral',serif;font-style:italic;font-size:14.5px;color:var(--text-dim);}
 .mythic-touch-note{font-size:13px;color:var(--text);margin-top:6px;}
 .mythic-touch-loc{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:6px;}
+.mythic-touch-edit{background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;padding:2px 4px;align-self:flex-start;margin-top:2px;}
+.mythic-touch-edit:hover{color:var(--gold);}
 
 #trash-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
 #trash-view.show{display:flex;}
@@ -212,6 +216,7 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 /* modals */
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(5,6,14,0.72);backdrop-filter:blur(3px);}
 .modal.show{display:flex;}
+#annotation-modal{z-index:90;}
 .modal-panel{width:600px;max-height:78vh;background:var(--panel);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
 .modal-panel h2{font-family:'Cinzel',serif;font-size:16px;letter-spacing:.03em;padding:18px 22px 12px;margin:0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 .modal-panel h2 button{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;}
@@ -284,6 +289,9 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 
 .anno-bullet{display:flex;align-items:flex-start;gap:14px;padding:18px 0;border-top:1px solid rgba(255,255,255,0.06);width:100%;max-width:680px;margin:0 auto;}
 .anno-bullet-text{cursor:pointer;}
+.anno-bullet-actions{display:flex;gap:6px;flex-shrink:0;align-items:flex-start;padding-top:2px;}
+.anno-bullet-edit{background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;flex-shrink:0;line-height:1;padding:0 4px;}
+.anno-bullet-edit:hover{color:var(--gold);}
 .anno-bullet-remove{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;flex-shrink:0;line-height:1;padding:0 4px;}
 .anno-bullet-remove:hover{color:var(--danger);}
 .anno-bullet:first-child{border-top:none;}
@@ -400,7 +408,9 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 /* mark toolbar */
 .mark-toolbar{display:flex;gap:6px;}
 .mark-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;border-radius:4px;padding:7px 12px;cursor:pointer;border:1px solid var(--border);background:var(--panel-2);color:var(--text);}
-.mb-count{background:rgba(255,255,255,0.1);border-radius:8px;padding:1px 6px;font-size:10px;font-family:'JetBrains Mono',monospace;margin-left:2px;}
+.mb-count{background:rgba(255,255,255,0.1);border-radius:8px;padding:1px 6px;font-size:10px;font-family:'JetBrains Mono',monospace;margin-left:2px;cursor:pointer;}
+.mb-count:hover{background:rgba(255,255,255,0.25);}
+.mb-count.active{background:var(--gold);color:#1a1204;}
 .mark-btn:hover{filter:brightness(1.2);}
 .mark-plant{border-color:#4a7a3a;} .mark-plant:hover{background:rgba(74,122,58,0.25);}
 .mark-reveal{border-color:var(--ember);} .mark-reveal:hover{background:rgba(184,84,46,0.2);}
@@ -408,13 +418,40 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 
 /* highlight layer + textarea combo */
 #editor-body{display:flex;gap:0;flex:1;overflow:hidden;padding:0;}
+#editor-anno-panel{width:0;flex:0 0 auto;overflow:hidden;background:var(--panel);border-left:1px solid var(--border);transition:width .2s ease;display:flex;flex-direction:column;}
+#editor-anno-panel.show{width:290px;}
+#editor-anno-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg-alt);flex-shrink:0;white-space:nowrap;}
+#editor-anno-panel-title{font-family:'Cinzel',serif;font-size:13px;letter-spacing:.02em;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#editor-anno-panel-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;line-height:1;padding:0 2px;flex-shrink:0;}
+#editor-anno-panel-close:hover{color:var(--gold);}
+#editor-anno-panel-body{flex:1;overflow-y:auto;padding:4px 16px 20px;width:290px;}
+.anno-panel-row{display:flex;align-items:flex-start;gap:8px;padding:12px 0;border-top:1px solid rgba(255,255,255,0.06);cursor:pointer;}
+.anno-panel-row:first-child{border-top:none;}
+.anno-panel-row:hover .anno-panel-snippet{color:var(--gold);}
+.anno-panel-text{flex:1;min-width:0;}
+.anno-panel-snippet{font-family:'Spectral',serif;font-style:italic;font-size:12.5px;line-height:1.5;color:var(--text-dim);word-wrap:break-word;}
+.anno-panel-label{font-size:11.5px;line-height:1.4;margin-top:5px;color:var(--text);word-wrap:break-word;}
+.anno-panel-actions{display:flex;gap:4px;flex-shrink:0;}
+.anno-panel-edit{background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;padding:0 2px;}
+.anno-panel-edit:hover{color:var(--gold);}
+.anno-panel-remove{background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;flex-shrink:0;line-height:1;padding:0 2px;}
+.anno-panel-remove:hover{color:var(--danger);}
+/* inline label editor — shared by the side panel and all full-screen annotation browsers */
+.anno-label-edit-row{display:flex;flex-direction:column;gap:6px;width:100%;}
+.anno-label-edit-input{width:100%;box-sizing:border-box;background:var(--bg-alt);border:1px solid var(--gold);color:var(--text);border-radius:6px;padding:8px 9px;font-size:12px;line-height:1.5;font-family:'Inter',sans-serif;resize:vertical;}
+.anno-label-edit-input:focus{outline:none;}
+.anno-label-edit-actions{display:flex;gap:8px;justify-content:flex-end;}
+.anno-label-edit-save{background:none;border:none;color:var(--teal);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;flex-shrink:0;}
+.anno-label-edit-save:hover{color:var(--gold);}
+.anno-label-edit-cancel{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;flex-shrink:0;}
+.anno-label-edit-cancel:hover{color:var(--danger);}
 #editor-highlight-wrap{position:relative;flex:1;overflow-y:auto;padding:36px 24px;display:flex;justify-content:center;}
-#editor-highlight-layer, #editor-textarea{
+#editor-content{
   width:100%;max-width:760px;font-family:'Spectral',serif;font-size:16.5px;line-height:1.85;
-  white-space:pre-wrap;word-wrap:break-word;
+  letter-spacing:normal;white-space:pre-wrap;word-wrap:break-word;box-sizing:border-box;
+  background:none;border:none;padding:0;margin:0;color:var(--text);caret-color:var(--text);outline:none;min-height:100%;
 }
-#editor-highlight-layer{position:absolute;top:36px;left:50%;transform:translateX(-50%);color:var(--text);pointer-events:none;padding:0;min-height:100%;}
-#editor-textarea{position:relative;background:none;border:none;color:transparent;caret-color:var(--text);resize:none;outline:none;min-height:calc(100% - 72px);}
+#editor-content:empty:before{content:attr(data-placeholder);color:var(--text-dim);pointer-events:none;}
 mark.hl-plant{background:rgba(74,122,58,0.35);color:var(--text);border-radius:2px;}
 mark.hl-reveal{background:rgba(184,84,46,0.35);color:var(--text);border-radius:2px;}
 mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2px;}
@@ -492,6 +529,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
         </label>
         <input type="checkbox" id="ai-toggle-input" style="display:none;">
       </div>
+      <button class="btn primary" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
       <button class="btn" id="sign-out-btn" style="display:none;">Sign out</button>
     </div>
   </header>
@@ -755,17 +793,23 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
   <div id="editor-head">
     <div class="et" id="editor-title"></div>
     <div class="mark-toolbar">
-      <button class="mark-btn mark-plant" id="mark-plant-btn" title="Flag the selected text as a plant">🌱 Plant <span class="mb-count" id="mb-count-plant">0</span></button>
-      <button class="mark-btn mark-reveal" id="mark-reveal-btn" title="Flag the selected text as a reveal">⚡ Reveal <span class="mb-count" id="mb-count-reveal">0</span></button>
-      <button class="mark-btn mark-note" id="mark-note-btn" title="Flag the selected text as a subtext note">📜 Note <span class="mb-count" id="mb-count-note">0</span></button>
+      <button class="mark-btn mark-plant" id="mark-plant-btn" title="Flag the selected text as a plant">🌱 Plant <span class="mb-count" id="mb-count-plant" title="View flagged plants">0</span></button>
+      <button class="mark-btn mark-reveal" id="mark-reveal-btn" title="Flag the selected text as a reveal">⚡ Reveal <span class="mb-count" id="mb-count-reveal" title="View flagged reveals">0</span></button>
+      <button class="mark-btn mark-note" id="mark-note-btn" title="Flag the selected text as a subtext note">📜 Note <span class="mb-count" id="mb-count-note" title="View flagged notes">0</span></button>
     </div>
     <button class="btn small" id="version-history-btn">🕐 History</button>
     <button class="btn small" id="editor-close">Close</button>
   </div>
   <div id="editor-body">
     <div id="editor-highlight-wrap">
-      <div id="editor-highlight-layer" aria-hidden="true"></div>
-      <textarea id="editor-textarea" spellcheck="false" placeholder="Start writing..."></textarea>
+      <div id="editor-content" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Chapter text" data-placeholder="Start writing..."></div>
+    </div>
+    <div id="editor-anno-panel">
+      <div id="editor-anno-panel-head">
+        <div id="editor-anno-panel-title"></div>
+        <button id="editor-anno-panel-close" title="Close">×</button>
+      </div>
+      <div id="editor-anno-panel-body"></div>
     </div>
   </div>
   <div id="editor-foot">
@@ -826,6 +870,7 @@ let noteSaveTimer = null;
 let viewMode = 'map';
 let selectedChapterId = null;
 let editorChapterId = null;
+let editorIsComposing = false;
 let layoutBands = [];
 let bandRects = [];
 let lastPositions = [];
@@ -836,12 +881,12 @@ function seedData(){
   chapters = []; scenes = []; actLabels = {}; nextId = 1;
   documents = []; stickyNotes = []; aiEnabled = false;
   const mkCh = (book, act, order, title, status) => {
-    const id = nextId++;
+    const id = crypto.randomUUID();
     chapters.push({id, book, act, order, title, status, content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
     return id;
   };
   const mkSc = (chapterId, order, title, status, summary, requires, provides, notes) => {
-    scenes.push({id:nextId++, chapterId, order, title, status, summary, requires:requires||[], provides:provides||[], notes:notes||'', deferredRequires:[], pov:''});
+    scenes.push({id:crypto.randomUUID(), chapterId, order, title, status, summary, requires:requires||[], provides:provides||[], notes:notes||'', deferredRequires:[], pov:''});
   };
 
   // ---- BOOK ONE ----
@@ -1239,7 +1284,7 @@ Nobody argues with the shape of that thought. The machine by the bed keeps its s
   });
 
   stickyNotes.push({
-    id: nextId++,
+    id: crypto.randomUUID(),
     content: "The Hunter is the one who gave Zia her scar — the only fight she ever lost, back at the academy when she was 11 and he was ~16. Explains the mirror-scar motif (hers vs Dev's, from Durga). Haven't locked the exact age-gap phrasing (\"3 years ahead\" vs the 5-year age math) or where the scar actually sits on her face. Not ready for the Bible yet — park it here until it's settled.",
     createdAt: Date.now() - 1000*60*60*26,
     rotation: -2.4
@@ -1322,9 +1367,118 @@ function loadData(){
   });
 }
 function saveData(){
-  return Promise.resolve().then(() => {
-    localStorage.setItem('storymap-v2', JSON.stringify({chapters, scenes, actLabels, nextId, documents, aiEnabled, stickyNotes, viewMode, chapterWordTargets, trash}));
-  }).catch(()=>{});
+  return window.sbClient.auth.getUser().then(({ data, error: userError }) => {
+    const user = data && data.user;
+    if(userError || !user) throw userError || new Error('No signed-in user');
+    const userId = user.id;
+
+    const chapterRows = chapters.map(ch => ({
+      id: ch.id, user_id: userId, book: ch.book, act: ch.act, order: ch.order,
+      title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
+      annotations: ch.annotations || [], versions: ch.versions || [],
+      updated_at: new Date().toISOString()
+    }));
+
+    const chapterUpsert = chapterRows.length
+      ? window.sbClient.from('chapters').upsert(chapterRows)
+      : Promise.resolve({ error: null });
+
+    return chapterUpsert.then(chapterRes => {
+      if(chapterRes.error) throw chapterRes.error;
+
+      const sceneRows = scenes.map(s => ({
+        id: s.id, user_id: userId, chapter_id: s.chapterId, order: s.order,
+        title: s.title, status: s.status, summary: s.summary || '',
+        requires: s.requires || [], provides: s.provides || [],
+        deferred_requires: s.deferredRequires || [], notes: s.notes || '', pov: s.pov || '',
+        updated_at: new Date().toISOString()
+      }));
+
+      const documentRows = documents.map(d => ({
+        id: d.id, user_id: userId, title: d.title, type: d.type, content: d.content || '',
+        updated_at: new Date().toISOString()
+      }));
+
+      const stickyNoteRows = stickyNotes.map(n => ({
+        id: n.id, user_id: userId, content: n.content || '',
+        created_at: new Date(n.createdAt || Date.now()).toISOString(),
+        rotation: Number(n.rotation) || 0
+      }));
+
+      const trashRows = trash.map(t => {
+        const { id, type, deletedAt, ...payload } = t;
+        return { id, user_id: userId, type, payload, deleted_at: new Date(deletedAt || Date.now()).toISOString() };
+      });
+
+      const settingsRow = {
+        user_id: userId, act_labels: actLabels || {},
+        chapter_word_targets: chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS,
+        ai_enabled: !!aiEnabled, view_mode: viewMode || 'map'
+      };
+
+      return Promise.all([
+        sceneRows.length ? window.sbClient.from('scenes').upsert(sceneRows) : Promise.resolve({ error: null }),
+        documentRows.length ? window.sbClient.from('documents').upsert(documentRows) : Promise.resolve({ error: null }),
+        stickyNoteRows.length ? window.sbClient.from('sticky_notes').upsert(stickyNoteRows) : Promise.resolve({ error: null }),
+        trashRows.length ? window.sbClient.from('trash').upsert(trashRows) : Promise.resolve({ error: null }),
+        window.sbClient.from('user_settings').upsert(settingsRow)
+      ]).then(results => {
+        results.forEach(res => { if(res.error) throw res.error; });
+      });
+    });
+  }).catch(err => {
+    console.error('saveData failed:', err);
+  });
+}
+
+async function uploadLocalDataToSupabase(){
+  const raw = localStorage.getItem('storymap-v2');
+  if(!raw) throw new Error("No local data found in this browser's storage (storymap-v2 is empty).");
+  const local = JSON.parse(raw);
+
+  const chapterIdMap = {};
+  (local.chapters || []).forEach(ch => { chapterIdMap[ch.id] = crypto.randomUUID(); });
+
+  chapters = (local.chapters || []).map(ch => ({
+    id: chapterIdMap[ch.id], book: ch.book, act: ch.act, order: ch.order,
+    title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
+    annotations: (ch.annotations || []).map(a => (
+      a.linkedPlant && chapterIdMap[a.linkedPlant.chapterId]
+        ? { ...a, linkedPlant: { ...a.linkedPlant, chapterId: chapterIdMap[a.linkedPlant.chapterId] } }
+        : a
+    )),
+    versions: ch.versions || []
+  }));
+
+  scenes = (local.scenes || [])
+    .filter(s => chapterIdMap[s.chapterId])
+    .map(s => ({
+      id: crypto.randomUUID(), chapterId: chapterIdMap[s.chapterId], order: s.order,
+      title: s.title, status: s.status, summary: s.summary || '',
+      requires: s.requires || [], provides: s.provides || [],
+      deferredRequires: s.deferredRequires || [], notes: s.notes || '', pov: s.pov || ''
+    }));
+
+  documents = (local.documents || []).map(d => ({
+    id: crypto.randomUUID(), title: d.title, type: d.type, content: d.content || ''
+  }));
+
+  stickyNotes = (local.stickyNotes || []).map(n => ({
+    id: crypto.randomUUID(), content: n.content || '', createdAt: n.createdAt || Date.now(),
+    rotation: Number(n.rotation) || 0
+  }));
+
+  trash = (local.trash || []).map(t => {
+    const { id, ...rest } = t;
+    return { id: crypto.randomUUID(), ...rest };
+  });
+
+  actLabels = local.actLabels || {};
+  chapterWordTargets = local.chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS;
+  aiEnabled = !!local.aiEnabled;
+  viewMode = local.viewMode || 'map';
+
+  await saveData();
 }
 
 function wordCount(text){
@@ -1392,6 +1546,7 @@ function render(){
   renderListView();
   applyViewMode();
   if(document.getElementById('continuity-modal').classList.contains('show')) renderContinuity();
+  document.getElementById('upload-local-data-btn').style.display = chapters.length === 0 ? '' : 'none';
 }
 function applyViewMode(){
   document.getElementById('map-wrap').style.display = viewMode==='map' ? 'block' : 'none';
@@ -1454,13 +1609,13 @@ function renderListView(){
   container.querySelectorAll('[data-drawer]').forEach(el => {
     el.addEventListener('click', (e) => {
       if(e.target.closest('[data-editor]')) return;
-      openDrawer(parseInt(el.dataset.drawer));
+      openDrawer(el.dataset.drawer);
     });
   });
   container.querySelectorAll('[data-editor]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      openEditor(parseInt(el.dataset.editor));
+      openEditor(el.dataset.editor);
     });
   });
 }
@@ -1851,7 +2006,7 @@ document.getElementById('d-status').addEventListener('click', e=>{
 document.getElementById('add-scene-to-chapter').addEventListener('click', ()=>{
   const ch = chapters.find(c=>c.id===selectedChapterId);
   const maxOrder = Math.max(0, ...scenes.filter(s=>s.chapterId===ch.id).map(s=>s.order));
-  scenes.push({id:nextId++, chapterId:ch.id, order:maxOrder+1, title:'New scene', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
+  scenes.push({id:crypto.randomUUID(), chapterId:ch.id, order:maxOrder+1, title:'New scene', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
   renderChapterScenes(ch);
 });
 document.getElementById('d-save').addEventListener('click', async ()=>{
@@ -1892,9 +2047,9 @@ document.getElementById('confirm-add-chapter').addEventListener('click', async (
   const book = parseInt(document.getElementById('new-ch-book').value);
   const act = parseInt(document.getElementById('new-ch-act').value) || 1;
   const maxOrder = Math.max(0, ...chapters.filter(c=>c.book===book && c.act===act).map(c=>c.order));
-  const id = nextId++;
+  const id = crypto.randomUUID();
   chapters.push({id, book, act, order:maxOrder+1, title:'New chapter', status:'idea', content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
-  scenes.push({id:nextId++, chapterId:id, order:1, title:'New chapter', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
+  scenes.push({id:crypto.randomUUID(), chapterId:id, order:1, title:'New chapter', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
   await saveData();
   document.getElementById('add-modal').classList.remove('show');
   render();
@@ -1918,12 +2073,12 @@ function openActModal(book, act){
     </div>`;
   }).join('') || '<div class="modal-empty">No chapters in this act yet.</div>';
   list.querySelectorAll('[data-jump]').forEach(el=>el.addEventListener('click', ()=>{
-    jumpToChapter(parseInt(el.dataset.jump));
+    jumpToChapter(el.dataset.jump);
     document.getElementById('act-modal').classList.remove('show');
   }));
   list.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click', ()=>{
     document.getElementById('act-modal').classList.remove('show');
-    openEditor(parseInt(el.dataset.open));
+    openEditor(el.dataset.open);
   }));
   document.getElementById('act-modal').classList.add('show');
 }
@@ -2024,14 +2179,52 @@ let pendingMarkType = null;
 let pendingMarkText = null;
 let pendingMarkRange = null;
 
+/* ---------- CONTENTEDITABLE <-> PLAIN TEXT HELPERS ----------
+   The editor's DOM is kept to a flat sequence of text nodes and <mark> wrappers
+   only — no <br> or block elements are ever allowed in — so a plain-text
+   character offset always corresponds exactly to walking text nodes in order.
+   That's what makes caret save/restore around a full innerHTML rebuild possible. */
+function getPlainTextRange(el, start, end){
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let node, pos = 0, startNode=null, startOffset=0, endNode=null, endOffset=0;
+  while((node = walker.nextNode())){
+    const len = node.data.length;
+    if(startNode===null && pos + len >= start){ startNode = node; startOffset = start - pos; }
+    if(pos + len >= end){ endNode = node; endOffset = end - pos; break; }
+    pos += len;
+  }
+  if(!startNode || !endNode) return null;
+  const range = document.createRange();
+  range.setStart(startNode, startOffset);
+  range.setEnd(endNode, endOffset);
+  return range;
+}
+function getCaretOffset(el){
+  const sel = window.getSelection();
+  if(!sel || sel.rangeCount===0) return null;
+  const range = sel.getRangeAt(0);
+  if(!el.contains(range.startContainer)) return null;
+  const pre = document.createRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(range.startContainer, range.startOffset);
+  return pre.toString().length;
+}
+function setCaretOffset(el, offset){
+  const range = getPlainTextRange(el, offset, offset);
+  if(!range) return;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 function openEditor(chapterId){
   editorChapterId = chapterId;
   const ch = chapters.find(c=>c.id===chapterId);
   if(!ch.annotations) ch.annotations = [];
+  closeEditorAnnoPanel();
   document.getElementById('editor-title').textContent = `${ch.title} — ${BOOKS[ch.book]}, ${chapterLabel(ch.book, ch.act)}`;
-  document.getElementById('editor-textarea').value = ch.content || '';
+  setEditorContent(ch.content || '');
   updateEditorWC();
-  renderHighlightLayer();
   updateMarkCounts(ch);
   document.getElementById('editor-status').textContent = '';
   document.getElementById('editor').classList.add('show');
@@ -2039,10 +2232,11 @@ function openEditor(chapterId){
 function closeEditor(){
   document.getElementById('editor').classList.remove('show');
   editorChapterId = null;
+  closeEditorAnnoPanel();
 }
 function updateEditorWC(){
   const ch = chapters.find(c=>c.id===editorChapterId);
-  const text = document.getElementById('editor-textarea').value;
+  const text = document.getElementById('editor-content').textContent;
   const wc = wordCount(text);
   const [cwMin, cwMax] = chapterWordTargets[ch.book] || [null,null];
   const flag = wcFlag(wc, cwMin, cwMax);
@@ -2051,13 +2245,13 @@ function updateEditorWC(){
   document.getElementById('editor-wc').innerHTML = html;
 }
 
-/* ---------- HIGHLIGHT LAYER (plants / reveals / notes rendered inline) ---------- */
-function renderHighlightLayer(){
+/* ---------- INLINE ANNOTATION MARKS (plants / reveals / notes rendered inline) ---------- */
+function renderAnnotatedContent(){
   const ch = chapters.find(c=>c.id===editorChapterId);
-  const text = document.getElementById('editor-textarea').value;
-  const layer = document.getElementById('editor-highlight-layer');
+  const el = document.getElementById('editor-content');
+  const text = el.textContent;
   if(!ch || !ch.annotations || ch.annotations.length===0){
-    layer.innerHTML = escapeHtml(text).replace(/\n/g,'<br>');
+    el.innerHTML = escapeHtml(text);
     return;
   }
   // find first-occurrence ranges for each annotation snippet, skip if not found or overlapping
@@ -2081,31 +2275,78 @@ function renderHighlightLayer(){
     pos = r.end;
   });
   html += escapeHtml(text.slice(pos));
-  layer.innerHTML = html.replace(/\n/g, '<br>');
+  el.innerHTML = html;
+}
+function setEditorContent(text){
+  const el = document.getElementById('editor-content');
+  el.textContent = text;
+  renderAnnotatedContent();
+}
+function reRenderEditorKeepingCaret(){
+  const el = document.getElementById('editor-content');
+  const offset = getCaretOffset(el);
+  renderAnnotatedContent();
+  if(offset !== null) setCaretOffset(el, offset);
 }
 
 let editorSaveTimer = null;
-document.getElementById('editor-textarea').addEventListener('input', () => {
+function handleEditorContentChanged(){
+  if(editorIsComposing) return;
   updateEditorWC();
-  renderHighlightLayer();
+  reRenderEditorKeepingCaret();
   document.getElementById('editor-status').textContent = 'Unsaved changes…';
   clearTimeout(editorSaveTimer);
   editorSaveTimer = setTimeout(async () => {
     await autosaveChapter();
   }, 1200);
+}
+document.getElementById('editor-content').addEventListener('input', handleEditorContentChanged);
+document.getElementById('editor-content').addEventListener('compositionstart', () => { editorIsComposing = true; });
+document.getElementById('editor-content').addEventListener('compositionend', () => { editorIsComposing = false; });
+// contenteditable has no selectionStart/End equivalent of a textarea's Enter handling —
+// force plain '\n' line breaks instead of the browser's default <div>/<br> insertion,
+// so the DOM never contains anything but text nodes and <mark> wrappers.
+document.getElementById('editor-content').addEventListener('beforeinput', (e) => {
+  if(e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak'){
+    e.preventDefault();
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const nl = document.createTextNode('\n');
+    range.insertNode(nl);
+    range.setStartAfter(nl);
+    range.setEndAfter(nl);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    handleEditorContentChanged();
+  }
+});
+// force plain-text paste — accepting rich HTML would break the flat text-node/<mark> model
+document.getElementById('editor-content').addEventListener('paste', (e) => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  const sel = window.getSelection();
+  if(!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const node = document.createTextNode(text);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.setEndAfter(node);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  handleEditorContentChanged();
 });
 async function autosaveChapter(){
   const ch = chapters.find(c=>c.id===editorChapterId);
   if(!ch) return;
   pushVersionSnapshot(ch);
-  ch.content = document.getElementById('editor-textarea').value;
+  ch.content = document.getElementById('editor-content').textContent;
   await saveData();
-  renderMap();
   document.getElementById('editor-status').textContent = 'Autosaved.';
+  renderMap();
 }
-document.getElementById('editor-textarea').addEventListener('scroll', () => {
-  document.getElementById('editor-highlight-layer').style.top = (36 - document.getElementById('editor-textarea').scrollTop) + 'px';
-});
 document.getElementById('editor-close').addEventListener('click', async () => {
   clearTimeout(editorSaveTimer);
   await autosaveChapter();
@@ -2115,7 +2356,7 @@ document.getElementById('editor-save').addEventListener('click', async ()=>{
   clearTimeout(editorSaveTimer);
   const ch = chapters.find(c=>c.id===editorChapterId);
   pushVersionSnapshot(ch);
-  ch.content = document.getElementById('editor-textarea').value;
+  ch.content = document.getElementById('editor-content').textContent;
   await saveData();
   document.getElementById('editor-status').textContent = 'Saved.';
   renderMap();
@@ -2202,7 +2443,7 @@ document.getElementById('search-input').addEventListener('input', (e) => runSear
 function sequentialAnnotations(ch, type){
   const anns = (ch.annotations||[]).filter(a => a.type === type);
   return anns.map(a => {
-    const idx = (ch.content||'').indexOf(a.text);
+    const idx = a.text ? (ch.content||'').indexOf(a.text) : -2; // -2: no anchor text — sorts before positioned notes, still ahead of not-found (-1)
     return {...a, idx};
   }).sort((a,b) => {
     if(a.idx === -1 && b.idx === -1) return 0;
@@ -2211,6 +2452,72 @@ function sequentialAnnotations(ch, type){
     return a.idx - b.idx;
   });
 }
+/* ---------- ANNOTATION LABEL EDITING (shared by the side panel + all full-screen browsers) ---------- */
+async function saveAnnotationLabel(chapterId, annotationId, newLabel){
+  const ch = chapters.find(c=>c.id===chapterId);
+  if(!ch) return;
+  const a = (ch.annotations||[]).find(x=>x.id===annotationId);
+  if(!a) return;
+  a.label = newLabel;
+  await saveData();
+}
+function beginInlineLabelEdit(host, currentLabel, onConfirm, onCancel){
+  host.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'anno-label-edit-row';
+  const input = document.createElement('textarea');
+  input.rows = 3;
+  input.className = 'anno-label-edit-input';
+  input.value = currentLabel || '';
+  input.placeholder = 'Label…';
+  const actions = document.createElement('div');
+  actions.className = 'anno-label-edit-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'anno-label-edit-save';
+  saveBtn.title = 'Save';
+  saveBtn.textContent = '✓';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'anno-label-edit-cancel';
+  cancelBtn.title = 'Cancel';
+  cancelBtn.textContent = '×';
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  row.appendChild(input);
+  row.appendChild(actions);
+  host.appendChild(row);
+  input.focus();
+  input.select();
+  const confirmEdit = () => onConfirm(input.value.trim());
+  input.addEventListener('click', e => e.stopPropagation());
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); confirmEdit(); }
+    else if(e.key === 'Escape'){ e.preventDefault(); onCancel(); }
+  });
+  saveBtn.addEventListener('click', (e) => { e.stopPropagation(); confirmEdit(); });
+  cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); onCancel(); });
+}
+// pencilBtn: the ✎ button; rowEl: that row's container (must contain a [data-label-container] host);
+// rerenderFn: called after both a successful save and a cancel, to redraw that view.
+function wireLabelEditButton(pencilBtn, rowEl, chapterId, annotationId, rerenderFn){
+  pencilBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const ch = chapters.find(c=>c.id===chapterId);
+    const a = ch && (ch.annotations||[]).find(x=>x.id===annotationId);
+    if(!a || !rowEl) return;
+    const labelContainer = rowEl.querySelector('[data-label-container]');
+    if(!labelContainer) return;
+    beginInlineLabelEdit(labelContainer, a.label || '',
+      async (newValue) => {
+        await saveAnnotationLabel(chapterId, annotationId, newValue);
+        rerenderFn();
+      },
+      () => rerenderFn()
+    );
+  });
+}
+
 function renderDrawerAnnotationWidgets(ch){
   const container = document.getElementById('d-annotations-widgets');
   const types = [
@@ -2244,16 +2551,22 @@ function openAnnotationBrowser(chapterId, type){
       <div class="anno-bullet">
         <div class="anno-bullet-num">${i+1}.</div>
         <div class="anno-bullet-text" data-jump-annotation="${a.id}">
-          <div class="anno-bullet-snippet">"${escapeHtml(a.text)}"${a.idx===-1?' <span style="color:var(--danger);font-style:normal;">(text since edited — can\'t auto-jump)</span>':''}</div>
-          ${a.label ? `<div class="anno-bullet-label">${escapeHtml(a.label)}</div>` : ''}
+          <div class="anno-bullet-snippet">${a.text ? `"${escapeHtml(a.text)}"${a.idx===-1?' <span style="color:var(--danger);font-style:normal;">(text since edited — can\'t auto-jump)</span>':''}` : '🌐 General note — whole chapter'}</div>
+          <div class="anno-bullet-label-wrap" data-label-container>${a.label ? `<div class="anno-bullet-label">${escapeHtml(a.label)}</div>` : ''}</div>
         </div>
-        <button class="anno-bullet-remove" data-remove-annotation="${a.id}" title="Delete this flag">×</button>
+        <div class="anno-bullet-actions">
+          <button class="anno-bullet-edit" data-edit-annotation="${a.id}" title="Edit label">✎</button>
+          <button class="anno-bullet-remove" data-remove-annotation="${a.id}" title="Delete this flag">×</button>
+        </div>
       </div>`).join('');
   body.querySelectorAll('[data-jump-annotation]').forEach(el => {
     el.addEventListener('click', () => {
       document.getElementById('annotation-browser').classList.remove('show');
       jumpToAnnotationInEditor(chapterId, parseInt(el.dataset.jumpAnnotation));
     });
+  });
+  body.querySelectorAll('[data-edit-annotation]').forEach(el => {
+    wireLabelEditButton(el, el.closest('.anno-bullet'), chapterId, parseInt(el.dataset.editAnnotation), () => openAnnotationBrowser(chapterId, type));
   });
   body.querySelectorAll('[data-remove-annotation]').forEach(el => {
     el.addEventListener('click', async (e) => {
@@ -2273,25 +2586,35 @@ document.getElementById('annotation-browser-close').addEventListener('click', ()
 function jumpToAnnotationInEditor(chapterId, annotationId){
   closeDrawer();
   openEditor(chapterId);
-  setTimeout(() => {
-    const ch = chapters.find(c=>c.id===chapterId);
-    const ann = (ch.annotations||[]).find(a=>a.id===annotationId);
-    if(!ann) return;
-    const ta = document.getElementById('editor-textarea');
-    const idx = ta.value.indexOf(ann.text);
-    if(idx === -1){
-      document.getElementById('editor-status').textContent = 'That flagged text has since changed — could not locate it.';
-      return;
-    }
-    const before = ta.value.slice(0, idx);
-    const lineCount = (before.match(/\n/g)||[]).length;
-    const lineHeightPx = 16.5 * 1.85;
-    const wrap = document.getElementById('editor-highlight-wrap');
-    ta.scrollTop = Math.max(0, lineCount * lineHeightPx - wrap.clientHeight/2.5);
-    document.getElementById('editor-highlight-layer').style.top = (36 - ta.scrollTop) + 'px';
-    ta.focus();
-    ta.setSelectionRange(idx, idx + ann.text.length);
-  }, 80);
+  setTimeout(() => { jumpToAnnotationInline(annotationId); }, 80);
+}
+// Lighter variant for callers where the editor is already open (e.g. the in-editor
+// annotation panel) — skips closeDrawer()/openEditor() and just finds, scrolls to,
+// and selects the annotation's text in the currently-open editor.
+function jumpToAnnotationInline(annotationId){
+  const ch = chapters.find(c=>c.id===editorChapterId);
+  if(!ch) return;
+  const ann = (ch.annotations||[]).find(a=>a.id===annotationId);
+  if(!ann) return;
+  if(!ann.text) return; // chapter-level note — nothing to locate, just leave the editor open
+  const el = document.getElementById('editor-content');
+  const text = el.textContent;
+  const idx = text.indexOf(ann.text);
+  if(idx === -1){
+    document.getElementById('editor-status').textContent = 'That flagged text has since changed — could not locate it.';
+    return;
+  }
+  const range = getPlainTextRange(el, idx, idx + ann.text.length);
+  if(!range) return;
+  const wrap = document.getElementById('editor-highlight-wrap');
+  const wrapRect = wrap.getBoundingClientRect();
+  const rangeRect = range.getBoundingClientRect();
+  const delta = (rangeRect.top - wrapRect.top) - wrap.clientHeight/2.5;
+  wrap.scrollTop = Math.max(0, wrap.scrollTop + delta);
+  el.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
 }
 
 /* ---------- CHAPTER-LENGTH TARGETS (book-level) ---------- */
@@ -2333,7 +2656,7 @@ document.getElementById('d-open-targets').addEventListener('click', () => {
 
 /* ---------- VERSION HISTORY ---------- */
 function pushVersionSnapshot(ch){
-  const current = document.getElementById('editor-textarea').value;
+  const current = document.getElementById('editor-content').textContent;
   if(current === ch.content) return; // nothing changed, don't spam history
   if(!ch.versions) ch.versions = [];
   if(!ch.content || !ch.content.trim()) return; // don't snapshot "nothing"
@@ -2361,9 +2684,8 @@ function renderVersionList(){
       if(!confirm('Restore this version? Your current text in the editor will be replaced (this itself will be saved to history first).')) return;
       pushVersionSnapshot(ch);
       const idx = parseInt(btn.dataset.restore);
-      document.getElementById('editor-textarea').value = versions[idx].content;
+      setEditorContent(versions[idx].content);
       updateEditorWC();
-      renderHighlightLayer();
       document.getElementById('editor-status').textContent = 'Restored — remember to Save.';
       document.getElementById('version-modal').classList.remove('show');
     });
@@ -2422,7 +2744,7 @@ function renderLinkCandidates(query){
   });
   list.querySelectorAll('[data-link-chapter]').forEach(el => {
     el.addEventListener('click', () => {
-      selectedLinkedPlant = {chapterId: parseInt(el.dataset.linkChapter), annotationId: parseInt(el.dataset.linkAnno)};
+      selectedLinkedPlant = {chapterId: el.dataset.linkChapter, annotationId: parseInt(el.dataset.linkAnno)};
       renderLinkCandidates(document.getElementById('annotation-link-search').value);
     });
   });
@@ -2435,14 +2757,16 @@ document.getElementById('annotation-label-input').addEventListener('input', () =
 });
 
 function beginMark(type){
-  const ta = document.getElementById('editor-textarea');
-  const start = ta.selectionStart, end = ta.selectionEnd;
-  if(start === end){
+  const el = document.getElementById('editor-content');
+  const sel = window.getSelection();
+  const hasSelection = !!(sel && sel.rangeCount > 0 && !sel.isCollapsed &&
+    el.contains(sel.getRangeAt(0).startContainer) && el.contains(sel.getRangeAt(0).endContainer));
+  if(!hasSelection && type !== 'note'){
     alert('Select some text in the chapter first, then click ' + type + '.');
     return;
   }
   pendingMarkType = type;
-  pendingMarkText = ta.value.substring(start, end);
+  pendingMarkText = hasSelection ? sel.getRangeAt(0).toString() : '';
   selectedLinkedPlant = null;
   const titles = {plant:'Flag as Plant', reveal:'Flag as Reveal', note:'Flag as Note'};
   const prompts = {
@@ -2457,7 +2781,7 @@ function beginMark(type){
   };
   document.getElementById('annotation-modal-title').textContent = titles[type];
   document.getElementById('annotation-label-prompt').textContent = prompts[type];
-  document.getElementById('annotation-selected-text').textContent = pendingMarkText;
+  document.getElementById('annotation-selected-text').textContent = pendingMarkText || 'This note applies to the whole chapter.';
   document.getElementById('annotation-label-input').value = '';
   document.getElementById('annotation-feed-note').textContent = feedNotes[type];
 
@@ -2521,7 +2845,7 @@ document.getElementById('annotation-save-btn').addEventListener('click', async (
     let targetScene = chScenes[0];
     const sceneRow = document.getElementById('annotation-scene-row');
     if(sceneRow.style.display !== 'none'){
-      const selId = parseInt(document.getElementById('annotation-scene-select').value);
+      const selId = document.getElementById('annotation-scene-select').value;
       targetScene = scenes.find(s=>s.id===selId) || targetScene;
     }
     if(targetScene){
@@ -2532,11 +2856,87 @@ document.getElementById('annotation-save-btn').addEventListener('click', async (
   }
 
   document.getElementById('annotation-modal').classList.remove('show');
-  renderHighlightLayer();
+  renderAnnotatedContent();
   updateMarkCounts(ch);
+  renderEditorAnnoPanel();
   await saveData();
   renderMap();
 });
+
+/* ---------- IN-EDITOR ANNOTATION SIDE PANEL ---------- */
+function toggleEditorAnnoPanel(type){
+  const panel = document.getElementById('editor-anno-panel');
+  if(panel.classList.contains('show') && panel.dataset.type === type){
+    panel.classList.remove('show');
+    panel.dataset.type = '';
+    updateMarkBadgeActiveState();
+    return;
+  }
+  panel.dataset.type = type;
+  panel.classList.add('show');
+  updateMarkBadgeActiveState();
+  renderEditorAnnoPanel();
+}
+function updateMarkBadgeActiveState(){
+  const panel = document.getElementById('editor-anno-panel');
+  const activeType = panel.classList.contains('show') ? panel.dataset.type : '';
+  ['plant','reveal','note'].forEach(t => {
+    document.getElementById('mb-count-'+t).classList.toggle('active', t === activeType);
+  });
+}
+function closeEditorAnnoPanel(){
+  const panel = document.getElementById('editor-anno-panel');
+  panel.classList.remove('show');
+  panel.dataset.type = '';
+  updateMarkBadgeActiveState();
+}
+function renderEditorAnnoPanel(){
+  const panel = document.getElementById('editor-anno-panel');
+  const type = panel.dataset.type;
+  if(!type || !panel.classList.contains('show')) return;
+  const ch = chapters.find(c=>c.id===editorChapterId);
+  if(!ch) return;
+  const meta = ANNOTATION_TYPE_META[type];
+  document.getElementById('editor-anno-panel-title').textContent = `${meta.icon} ${meta.label}`;
+  const items = sequentialAnnotations(ch, type);
+  const body = document.getElementById('editor-anno-panel-body');
+  body.innerHTML = items.length === 0
+    ? `<div class="anno-empty">None flagged yet.</div>`
+    : items.map(a => `
+      <div class="anno-panel-row" data-jump-annotation="${a.id}">
+        <div class="anno-panel-text">
+          <div class="anno-panel-snippet">${a.text ? `"${escapeHtml(a.text)}"${a.idx===-1?' <span style="color:var(--danger);font-style:normal;">(text since edited)</span>':''}` : '🌐 General note — whole chapter'}</div>
+          <div class="anno-panel-label-wrap" data-label-container>${a.label ? `<div class="anno-panel-label">${escapeHtml(a.label)}</div>` : ''}</div>
+        </div>
+        <div class="anno-panel-actions">
+          <button class="anno-panel-edit" data-edit-annotation="${a.id}" title="Edit label">✎</button>
+          <button class="anno-panel-remove" data-remove-annotation="${a.id}" title="Delete this flag">×</button>
+        </div>
+      </div>`).join('');
+  body.querySelectorAll('[data-jump-annotation]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if(e.target.closest('[data-remove-annotation]') || e.target.closest('[data-edit-annotation]')) return;
+      jumpToAnnotationInline(parseInt(el.dataset.jumpAnnotation));
+    });
+  });
+  body.querySelectorAll('[data-edit-annotation]').forEach(el => {
+    wireLabelEditButton(el, el.closest('.anno-panel-row'), editorChapterId, parseInt(el.dataset.editAnnotation), renderEditorAnnoPanel);
+  });
+  body.querySelectorAll('[data-remove-annotation]').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if(!confirm('Delete this flag? The text itself stays — only the flag is removed.')) return;
+      ch.annotations = ch.annotations.filter(a => a.id !== parseInt(el.dataset.removeAnnotation));
+      await saveData();
+      renderEditorAnnoPanel();
+      updateMarkCounts(ch);
+    });
+  });
+}
+document.getElementById('mb-count-plant').addEventListener('click', (e) => { e.stopPropagation(); toggleEditorAnnoPanel('plant'); });
+document.getElementById('mb-count-reveal').addEventListener('click', (e) => { e.stopPropagation(); toggleEditorAnnoPanel('reveal'); });
+document.getElementById('mb-count-note').addEventListener('click', (e) => { e.stopPropagation(); toggleEditorAnnoPanel('note'); });
+document.getElementById('editor-anno-panel-close').addEventListener('click', closeEditorAnnoPanel);
 
 /* ---------- MARK BUTTON BADGE COUNTS ---------- */
 function updateMarkCounts(ch){
@@ -2554,7 +2954,7 @@ document.getElementById('editor-save-sync').addEventListener('click', async ()=>
     return;
   }
   const ch = chapters.find(c=>c.id===editorChapterId);
-  const currentText = document.getElementById('editor-textarea').value;
+  const currentText = document.getElementById('editor-content').textContent;
   const estWords = wordCount(currentText) + 200; // + rough prompt scaffolding
   const est = estimateApiCost(estWords, 150);
   if(!confirm(`This will send this chapter's text to Claude to refresh scene summaries. Estimated cost: ${fmtCost(est)}. Continue?`)) return;
@@ -2655,7 +3055,7 @@ function renderDocumentsList(){
   list.querySelectorAll('[data-open]').forEach(el => {
     el.addEventListener('click', () => {
       document.getElementById('documents-modal').classList.remove('show');
-      openDocEditor(parseInt(el.dataset.open));
+      openDocEditor(el.dataset.open);
     });
   });
 }
@@ -2671,7 +3071,7 @@ document.getElementById('documents-modal').addEventListener('click', e => {
 });
 document.getElementById('new-doc-btn').addEventListener('click', async () => {
   const type = document.getElementById('new-doc-type').value;
-  const doc = {id: nextId++, title: type === 'Master Bible' ? 'Master Bible' : 'New ' + type, type, content: ''};
+  const doc = {id: crypto.randomUUID(), title: type === 'Master Bible' ? 'Master Bible' : 'New ' + type, type, content: ''};
   documents.push(doc);
   await saveData();
   document.getElementById('documents-modal').classList.remove('show');
@@ -2726,7 +3126,7 @@ document.getElementById('check-bible-btn').addEventListener('click', async () =>
     return;
   }
   const ch = chapters.find(c => c.id === editorChapterId);
-  const content = document.getElementById('editor-textarea').value;
+  const content = document.getElementById('editor-content').textContent;
   if(!content.trim()){
     alert('Nothing written in this chapter yet.');
     return;
@@ -2846,13 +3246,13 @@ function renderNotesBoard(){
   grid.querySelectorAll('[data-open]').forEach(el => {
     el.addEventListener('click', (e) => {
       if(e.target.dataset.remove) return; // handled separately
-      openNoteEditor(parseInt(el.dataset.open));
+      openNoteEditor(el.dataset.open);
     });
   });
   grid.querySelectorAll('[data-remove]').forEach(el => {
     el.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const id = parseInt(el.dataset.remove);
+      const id = el.dataset.remove;
       stickyNotes = stickyNotes.filter(n => n.id !== id);
       renderNotesBoard();
       updateNotesBadge();
@@ -2860,7 +3260,7 @@ function renderNotesBoard(){
     });
   });
   document.getElementById('new-note-tile').addEventListener('click', async () => {
-    const note = {id: nextId++, content: '', createdAt: Date.now(), rotation: (Math.random()*6-3).toFixed(1)};
+    const note = {id: crypto.randomUUID(), content: '', createdAt: Date.now(), rotation: (Math.random()*6-3).toFixed(1)};
     stickyNotes.push(note);
     updateNotesBadge();
     await saveData();
@@ -2978,7 +3378,7 @@ function openPovBrowser(povName){
   body.querySelectorAll('[data-open-chapter]').forEach(el => {
     el.addEventListener('click', () => {
       document.getElementById('pov-browser').classList.remove('show');
-      openDrawer(parseInt(el.dataset.openChapter));
+      openDrawer(el.dataset.openChapter);
     });
   });
   document.getElementById('pov-browser').classList.add('show');
@@ -3022,16 +3422,20 @@ function renderLedger(){
     <div class="ledger-row">
       <div class="ledger-plant" data-jump-chapter="${p.chapter.id}" data-jump-anno="${p.annotation.id}">
         <div class="ledger-snippet">"${escapeHtml(truncate(p.annotation.text, 100))}"</div>
-        <div class="ledger-loc">${BOOKS[p.chapter.book]} · ${escapeHtml(chapterLabel(p.chapter.book,p.chapter.act))} · ${escapeHtml(p.chapter.title)}${p.annotation.label?' — '+escapeHtml(p.annotation.label):''}</div>
+        <div class="ledger-loc">${BOOKS[p.chapter.book]} · ${escapeHtml(chapterLabel(p.chapter.book,p.chapter.act))} · ${escapeHtml(p.chapter.title)}<span class="ledger-label-wrap" data-label-container>${p.annotation.label?' — '+escapeHtml(p.annotation.label):''}</span></div>
       </div>
+      <button class="ledger-edit-btn" data-edit-annotation="${p.annotation.id}" data-edit-chapter="${p.chapter.id}" title="Edit label">✎</button>
       <div class="ledger-status ${reveal?'paid':'open'}">${statusHtml}</div>
     </div>`;
   }).join('');
   body.querySelectorAll('[data-jump-chapter]').forEach(el => {
     el.addEventListener('click', () => {
       document.getElementById('ledger-view').classList.remove('show');
-      jumpToAnnotationInEditor(parseInt(el.dataset.jumpChapter), parseInt(el.dataset.jumpAnno));
+      jumpToAnnotationInEditor(el.dataset.jumpChapter, parseInt(el.dataset.jumpAnno));
     });
+  });
+  body.querySelectorAll('[data-edit-annotation]').forEach(el => {
+    wireLabelEditButton(el, el.closest('.ledger-row'), el.dataset.editChapter, parseInt(el.dataset.editAnnotation), renderLedger);
   });
 }
 document.getElementById('ledger-btn').addEventListener('click', () => {
@@ -3128,7 +3532,7 @@ function renderThreadView(chapterId){
   body.querySelectorAll('[data-jump-drawer]').forEach(el => {
     el.addEventListener('click', () => {
       document.getElementById('thread-view').classList.remove('show');
-      openDrawer(parseInt(el.dataset.jumpDrawer));
+      openDrawer(el.dataset.jumpDrawer);
     });
   });
 }
@@ -3200,16 +3604,20 @@ function openMythicBrowser(threadName){
       <div class="mythic-touch" data-jump-chapter="${t.chapter.id}" data-jump-anno="${t.annotation.id}">
         <div class="mythic-touch-num">${i+1}.</div>
         <div>
-          <div class="mythic-touch-snippet">"${escapeHtml(t.annotation.text)}"</div>
-          ${t.annotation.label ? `<div class="mythic-touch-note">${escapeHtml(t.annotation.label)}</div>` : ''}
+          <div class="mythic-touch-snippet">${t.annotation.text ? `"${escapeHtml(t.annotation.text)}"` : '🌐 General note — whole chapter'}</div>
+          <div class="mythic-touch-note-wrap" data-label-container>${t.annotation.label ? `<div class="mythic-touch-note">${escapeHtml(t.annotation.label)}</div>` : ''}</div>
           <div class="mythic-touch-loc">${BOOKS[t.chapter.book]} · ${escapeHtml(chapterLabel(t.chapter.book,t.chapter.act))} · ${escapeHtml(t.chapter.title)}</div>
         </div>
+        <button class="mythic-touch-edit" data-edit-annotation="${t.annotation.id}" data-edit-chapter="${t.chapter.id}" title="Edit label">✎</button>
       </div>`).join('');
   body.querySelectorAll('[data-jump-chapter]').forEach(el => {
     el.addEventListener('click', () => {
       document.getElementById('mythic-browser').classList.remove('show');
-      jumpToAnnotationInEditor(parseInt(el.dataset.jumpChapter), parseInt(el.dataset.jumpAnno));
+      jumpToAnnotationInEditor(el.dataset.jumpChapter, parseInt(el.dataset.jumpAnno));
     });
+  });
+  body.querySelectorAll('[data-edit-annotation]').forEach(el => {
+    wireLabelEditButton(el, el.closest('.mythic-touch'), el.dataset.editChapter, parseInt(el.dataset.editAnnotation), () => openMythicBrowser(threadName));
   });
   document.getElementById('mythic-browser').classList.add('show');
 }
@@ -3285,18 +3693,18 @@ function updateTrashBadge(){
 function trashChapter(chapterId){
   const ch = chapters.find(c=>c.id===chapterId);
   const chScenes = scenes.filter(s=>s.chapterId===chapterId);
-  trash.unshift({id:nextId++, type:'chapter', deletedAt:Date.now(), chapter: JSON.parse(JSON.stringify(ch)), scenes: JSON.parse(JSON.stringify(chScenes))});
+  trash.unshift({id:crypto.randomUUID(), type:'chapter', deletedAt:Date.now(), chapter: JSON.parse(JSON.stringify(ch)), scenes: JSON.parse(JSON.stringify(chScenes))});
   scenes = scenes.filter(s=>s.chapterId!==chapterId);
   chapters = chapters.filter(c=>c.id!==chapterId);
   updateTrashBadge();
 }
 function trashScene(scene){
-  trash.unshift({id:nextId++, type:'scene', deletedAt:Date.now(), scene: JSON.parse(JSON.stringify(scene)), chapterId: scene.chapterId});
+  trash.unshift({id:crypto.randomUUID(), type:'scene', deletedAt:Date.now(), scene: JSON.parse(JSON.stringify(scene)), chapterId: scene.chapterId});
   scenes = scenes.filter(s=>s.id!==scene.id);
   updateTrashBadge();
 }
 function trashDocument(doc){
-  trash.unshift({id:nextId++, type:'document', deletedAt:Date.now(), document: JSON.parse(JSON.stringify(doc))});
+  trash.unshift({id:crypto.randomUUID(), type:'document', deletedAt:Date.now(), document: JSON.parse(JSON.stringify(doc))});
   documents = documents.filter(d=>d.id!==doc.id);
   updateTrashBadge();
 }
@@ -3326,7 +3734,7 @@ function renderTrashView(){
   }).join('');
   body.querySelectorAll('[data-restore]').forEach(el => {
     el.addEventListener('click', async () => {
-      const id = parseInt(el.dataset.restore);
+      const id = el.dataset.restore;
       const entry = trash.find(t=>t.id===id);
       if(!entry) return;
       if(entry.type === 'chapter'){
@@ -3351,7 +3759,7 @@ function renderTrashView(){
   body.querySelectorAll('[data-forget]').forEach(el => {
     el.addEventListener('click', async () => {
       if(!confirm('Permanently delete this? There is no way to get it back after this.')) return;
-      const id = parseInt(el.dataset.forget);
+      const id = el.dataset.forget;
       trash = trash.filter(t=>t.id!==id);
       updateTrashBadge();
       await saveData();
@@ -3373,6 +3781,30 @@ document.getElementById('trash-empty-btn').addEventListener('click', async () =>
   updateTrashBadge();
   await saveData();
   renderTrashView();
+});
+
+document.getElementById('upload-local-data-btn').addEventListener('click', async () => {
+  if(!confirm("Upload your saved local data from this browser to your account? This is meant to be done once.")) return;
+  const btn = document.getElementById('upload-local-data-btn');
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  try{
+    await uploadLocalDataToSupabase();
+    await loadData();
+    renderAiToggle();
+    updateNotesBadge();
+    refreshPovSuggestions();
+    refreshThreadSuggestions();
+    updateTrashBadge();
+    render();
+    alert('Upload complete.');
+  } catch(err){
+    console.error('Upload failed:', err);
+    alert('Upload failed: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Upload my saved data';
+  }
 });
 
 /* ---------- INIT ---------- */
