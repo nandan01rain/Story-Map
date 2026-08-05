@@ -1,0 +1,1325 @@
+{
+  "chapters": [
+    {
+      "id": 1,
+      "book": 0,
+      "act": 1,
+      "order": 1,
+      "title": "The Ditch — Kal Finds Dev",
+      "status": "final",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 3,
+      "book": 0,
+      "act": 1,
+      "order": 3,
+      "title": "Dev, Kal & Amara — The Trio Forms",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 5,
+      "book": 0,
+      "act": 1,
+      "order": 2,
+      "title": "The Red Coat Introduced",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 7,
+      "book": 0,
+      "act": 1,
+      "order": 4,
+      "title": "Kal Fired — The End of 'The Right Way'",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 9,
+      "book": 0,
+      "act": 1,
+      "order": 5,
+      "title": "Dev's Robin Hood Turn",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 11,
+      "book": 0,
+      "act": 1,
+      "order": 6,
+      "title": "The Relic Quest Ignites",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 13,
+      "book": 0,
+      "act": 1,
+      "order": 7,
+      "title": "Amara Recruited — The Wanted Poster Collision",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 15,
+      "book": 0,
+      "act": 1,
+      "order": 8,
+      "title": "Ch 13 — The Last Night",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 17,
+      "book": 0,
+      "act": 1,
+      "order": 9,
+      "title": "Ch 14 — The Truth Will Out",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 19,
+      "book": 0,
+      "act": 1,
+      "order": 10,
+      "title": "Ch 15 — Up Up and Away",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 21,
+      "book": 0,
+      "act": 2,
+      "order": 1,
+      "title": "Ocean Ecology — Coen Joins",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 23,
+      "book": 0,
+      "act": 2,
+      "order": 2,
+      "title": "Smuggler's Capital — Zia Joins",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 25,
+      "book": 0,
+      "act": 2,
+      "order": 3,
+      "title": "Amara & Kal — the name Eva",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 27,
+      "book": 0,
+      "act": 2,
+      "order": 4,
+      "title": "Agricultural Ecology — Wren Joins, the East/West Split",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 29,
+      "book": 0,
+      "act": 2,
+      "order": 5,
+      "title": "The Harvest Festival Dance",
+      "status": "drafted",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 31,
+      "book": 0,
+      "act": 2,
+      "order": 6,
+      "title": "Desert Ecology — Nadir Joins, Sheltered by a Family",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 33,
+      "book": 0,
+      "act": 2,
+      "order": 7,
+      "title": "Dev & Amara — The Faith Discussion",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 35,
+      "book": 0,
+      "act": 2,
+      "order": 8,
+      "title": "Zia's Real Capture & Dev's Waterfall Fall",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 37,
+      "book": 0,
+      "act": 2,
+      "order": 9,
+      "title": "Kailash — The Crew Reaches the Source",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 39,
+      "book": 0,
+      "act": 2,
+      "order": 10,
+      "title": "The Murals Discovered",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 41,
+      "book": 0,
+      "act": 2,
+      "order": 11,
+      "title": "Noah Is Awakened",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 43,
+      "book": 0,
+      "act": 2,
+      "order": 12,
+      "title": "The Hunter Closes In",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 45,
+      "book": 0,
+      "act": 2,
+      "order": 13,
+      "title": "The Broadcast",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 47,
+      "book": 0,
+      "act": 2,
+      "order": 14,
+      "title": "Retreat to the Catacombs",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 49,
+      "book": 0,
+      "act": 2,
+      "order": 15,
+      "title": "The Garden Campfire — The Parijaat Dome",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 51,
+      "book": 0,
+      "act": 2,
+      "order": 16,
+      "title": "The Disconnection Conversation",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 53,
+      "book": 0,
+      "act": 3,
+      "order": 1,
+      "title": "The Commission of Inquiry Forms",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 55,
+      "book": 0,
+      "act": 3,
+      "order": 2,
+      "title": "Amara Enters Sequestration",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 57,
+      "book": 0,
+      "act": 3,
+      "order": 3,
+      "title": "The Crew Disperses",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 59,
+      "book": 0,
+      "act": 3,
+      "order": 4,
+      "title": "The Year Passes — Letters Only",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 61,
+      "book": 0,
+      "act": 3,
+      "order": 5,
+      "title": "Eva Is Born",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 63,
+      "book": 0,
+      "act": 3,
+      "order": 6,
+      "title": "Amara Resumes Public Life",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 65,
+      "book": 0,
+      "act": 3,
+      "order": 7,
+      "title": "Amara's Death",
+      "status": "final",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 67,
+      "book": 0,
+      "act": 3,
+      "order": 8,
+      "title": "Dev Arrives Too Late",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 69,
+      "book": 0,
+      "act": 3,
+      "order": 9,
+      "title": "The Funeral — Noah Embodies",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 71,
+      "book": 0,
+      "act": 3,
+      "order": 10,
+      "title": "The Argument — Kal Exits",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 73,
+      "book": 0,
+      "act": 3,
+      "order": 11,
+      "title": "Book One Close — The Peacock Feather",
+      "status": "outline",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 75,
+      "book": 0,
+      "act": 3,
+      "order": 12,
+      "title": "Zia's Father Breaks Cover — The Order Revealed",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 77,
+      "book": 1,
+      "act": 1,
+      "order": 1,
+      "title": "Cold Open — Zia, Kal, and the Hunter",
+      "status": "outline",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 79,
+      "book": 1,
+      "act": 1,
+      "order": 2,
+      "title": "Noah's Death",
+      "status": "outline",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 81,
+      "book": 2,
+      "act": 2,
+      "order": 1,
+      "title": "The Vigil — Krishna Vision",
+      "status": "drafted",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 83,
+      "book": 2,
+      "act": 2,
+      "order": 2,
+      "title": "Flowers",
+      "status": "drafted",
+      "content": "Zia finally opens her eyes. The light is too bright, then not bright enough, then normal. She looks around — pale walls, the hum of some machine keeping count of something inside her.\n\nNadir's face appears above her. \"There you are. How do you feel? Do you need more anesthetic?\"\n\n\"Is that your go-to line, waiter?\"\n\nNadir doesn't even blink. \"Every table gets the same service. Yours just tips worse.\" She checks something on the monitor without waiting for a comeback. \"Seriously. How do you feel?\"\n\nZia takes stock before answering properly. Numbness across her gut, a little to the left, and underneath it a slow, patient throb that promises to get louder later. \"No,\" she says. \"I don't want to make an even bigger fool of myself than I already did yesterday. Dev's never going to let anyone forget it.\"\n\n\"Might actually be an improvement on you,\" Nadir says.\n\nZia doesn't answer that. The embarrassment isn't really about yesterday. Yesterday was nothing — a few slurred words and a thumbs-up she couldn't hold steady. The real humiliation is underneath it, and it isn't going anywhere just because the drugs have worn off.\n\nShe knows, rationally, that it wasn't a fair fight. Kal caught a direct strike to the neck with his bare hand, snapped the blade off at the hilt, and drove the broken half through her armor with enough force that the entry wound looked more like something a gun would leave than a knife. That isn't a threat she could have trained for. Nobody trains for a man who can do that. And it's terrifying in a way that has nothing to do with pride — because if Kal can do that, then so can every soldier the Empire's been quietly building toward this. An entire army of it. And Kal knows them. Knows their positions, their instincts, their weaknesses. Knows Dev better than almost anyone alive.\n\nBut underneath the fear is something uglier, and she doesn't like how much space it's taking up: she got beaten. Not outmaneuvered, not outnumbered — overpowered, cleanly, humiliatingly, in front of everyone. Her body took the wound. Her ego took worse.\n\nShe's angrier at Kal than she has any right to be. Angrier than the situation calls for, given everything else there is to be angry about. She thinks, not for the first time, that she should have ended him back in the woods, after she brought down the Hunter herself, Kal on the ground beside her. She had the chance and didn't take it. But she knows she could never have done it. He was a broken, grieving man then, more dangerous to himself than to anyone else.\n\nThat man isn't who put a knife through her stomach three days ago.\n\nWhat unsettles her more, though, is Dev. The memory comes back in pieces, distorted by whatever they had her on — Dev in the air, longer than a jump should carry him. Dev picking up one soldier and using him as a weapon against another. A man's skull meeting a wall in a way that isn't survivable. Dev's fist connecting with Kal hard enough to put him fifteen feet from where he'd been standing.\n\nHis eyes weren't the amber she knew. They were lit orange-gold, like something behind them was burning.\n\nIt didn't look like Dev. It didn't look like anything Dev should be capable of.\n\nEither that, she thinks, or the anesthetic has a hallucinogenic streak nobody warned me about.\n\nOne thing she's sure of: there's a great deal to unpack, and none of it is going to wait politely for her to feel better first.\n\nDev walks in. He looks freshened up — a black shirt and loose threaded trousers that reached the ankles, the usual brown tool belt and pocketwatch, the batons noticeably absent since the hospital doesn't allow weapons, and the same rust red trench coat. He looked tired, like he'd gotten a day's sleep and it still wasn't enough. Bags under his eyes. The only surprise was a bunch of flowers. Very out of character. He seemed a lot more muted today, none of the usual nervous energy or the performative humor. He seemed embarrassed, shy even.\n\n\"Are those for me?\" she asks, half smiling.\n\nHe looks down at the flowers and answers, \"Yes, I didn't know what else to bring you. By the looks of it you won't be having anything solid for a while.\"\n\n\"So you bring me flowers — arguably the first time a living person has received flowers from you — and it's only because I can't 'have anything solid'?\"\n\nHe frowns. \"Oh, I don't know. I'll throw it out if you don't like it.\"\n\n\"No, they're pretty. Thank you.\"\n\nDev sets the flowers down on the bedside table and starts fidgeting with his pocket watch.\n\nIt's a rare treat to find him this flustered.\n\nHe shuffles a couple steps forward, still fidgeting, and asks, \"How are you feeling?\"\n\nZia turns onto her side to face him, one hand tucked under her chin. \"Skewered,\" she replies.\n\nDev nods. He finally leaves his watch, meets her eyes, and goes down on his knee beside the bed. \"I have to tell you something.\"\n\n\"I can see that.\"\n\n\"Why do you feel the need to give me a taste of my own medicine now?\"\n\n\"Oh, I don't know — perhaps the fact that I was almost impaled saving you, after you ran off alone for a 'peace negotiation' with representatives of a xenophobic empire? I'd say you have a lot more medicine left to taste.\"\n\nDev doesn't reply and suddenly appears very interested in the blank white tiles on the floor.\n\n\"Well?\" she asks.\n\n\"What?\" Dev looks up suddenly.\n\nShe smiles. \"What did you have to tell me which demanded flowers as an aperitif?\"\n\nDev flashes a nervous smile, sighs, and says, \"I'm sorry. Not just for the trap, but for everything. But I thought I could reason with Kal — with the girl. She is my sister, after all.\"\n\n\"A sister who sees you for what you are. The single greatest threat to her claim. She's tried to kill you twice now and very nearly succeeded both times. This is not someone you can afford to go soft on, Dev. Whatever she was to you, the only thing that matters right now is that we are at war, and they are on the other side. Kal was my friend too. But whoever he was to us, that man is gone. The only one that remains is a murderer who will stop at nothing to burn down everything we've built to achieve. And now he finally has the means to do it. We cannot reason with them.\"\n\n\"You think I don't know that?\" Dev's voice comes out harder than he means it to. \"You think I went in there not knowing exactly what they are?\"\n\n\"I think you went in there hoping they weren't.\"\n\n\"And you think hoping is the same as being an idiot.\" He's on his feet now, though neither of them noticed him stand. \"Durga offered a deal in there. Step aside, let the throne go to her cleanly, and there's no war. No bloodshed. No fight we'd almost certainly lose.\" A short, hard breath. \"She called it a deal where nobody loses anything.\"\n\nZia goes still. \"You didn't tell me that.\"\n\n\"Because it doesn't matter. I said no.\" His jaw works. \"You know why? Because the Empire doesn't have people. It has cogs. Everyone in it doing exactly what they're built to do, and not one of them with a voice to say otherwise. That's not a nation, that's a machine wearing a crown. And you want me to hand over everything we have — the mess, the arguing, the fact that people get to be wrong out loud — for that? For 'efficient'? I'd rather lose.\"\n\n\"Nobody said you were wrong to refuse it —\"\n\n\"I'm not finished.\" He stops, breathes, and when he starts again his voice has dropped into something rawer. \"You know what kills me? Kal never wanted any of this. He wanted the yard job. The wage. Whatever scraps of the ladder they'd let a man like him climb, honestly, one rung at a time. He never wanted a war. He never wanted a throne.\" A humorless breath. \"And the day there was nothing honest left for him to climb — that was me. My mouth. Something I said to Harl that I couldn't take back, and Kal paid for it, and everything after that — the district, the anonymous handouts, all of it — I told myself it was virtue. Maybe it was just the only door I left open for him. I don't actually know anymore if I made him what he became, or if I just gave him the first shove.\"\n\nHe looks at his hands like they did it.\n\n\"Last time he asked me something like that — years ago now, right before he walked out after that argument with you — he asked if I had anything to say for myself, now that something was actually on the line.\" A short, humorless huff. \"Like I've only ever talked my way through things that didn't matter. Maybe he's right. Maybe I only know how to run my mouth when nothing's actually at stake.\"\n\n\"Dev —\"\n\n\"I'm still not finished.\" The words come out through his teeth now. \"Everyone who's ever gotten close enough to know me wants me dead or wishes they'd never met me. Kal raised me and now he'd cut my throat given the chance. Durga's my blood and she's tried it twice. Amara's dead, because of what I am. You—\" His voice cracks straight through the word and he has to stop.\n\nZia doesn't move. Doesn't fill the silence.\n\n\"You went down in front of me,\" he says, quieter now, and worse for it. \"And for three days I didn't know if I was going to lose you the same way I lost her. So don't tell me I don't know what's at stake. I know exactly what it costs. I just don't know how to—\" He stops again, shakes his head like he's trying to throw the sentence out of himself. \"I don't know how to let anyone stand that close to me without also handing them a knife.\"\n\nHe's not looking at her anymore.\n\n\"If I lean on someone and they leave,\" he says, so quiet it's almost not for her at all, \"I don't get back up from that. So I don't lean. I know I've been horrible about it. To you. I know that. I just don't know another way to check how much I can survive losing.\"\n\nThe room is very quiet. Somewhere down the hall, a cart wheels past.\n\nZia lets the silence sit for a moment before she speaks, and when she does, her voice has lost its edge — not softened, just quieter.\n\n\"I was supposed to run, you know. Years ago.\" She's looking somewhere past him, not quite at him. \"Day we got the sixth key. Plan was simple — vanish with it, let the six of you take the fall. No keys on you, no proof it wasn't you who stole them. Hunted for the rest of your lives while I disappeared clean.\" A short breath. \"Thought it'd be cake. A handful of trusting idiots, and it only took half my attention to play all of them.\"\n\nA beat.\n\n\"Then I got sloppy instead. Got caught. No keys on me by then, nothing to trade, nobody coming for the girl who was two days from selling out the only people who'd ever treated her like she mattered. Three days tied to a chair, plenty of time to sit with that.\" A short, humorless breath. \"You came anyway. Every key already in hand. Nothing left to gain from me at all.\"\n\nShe doesn't dress it up beyond that. Lets it sit.\n\n\"Then you went into that river trying to pull me out of a mess I made, and you didn't come up.\" Her hand goes still against the sheet. \"However long it was, it was long enough I started believing it — that you'd drowned, and it was because of me. Because I made you spend everything you had saving someone who was about to burn all of you for a clean exit. That's not carelessness, Dev. That's the kind of guilt that sits on your chest at night and tells you exactly whose fault it is.\"\n\n\"Kal's the one who told me it wasn't my fault. Told me it wasn't yours either. Said you'd never let any of us get left behind, and then he wouldn't move from that riverbank until they found you — alive or not.\" A pause. \"That's the same man who put a blade in your throat three days ago. The same one who put me in this bed. And he's not going to stop.\"\n\n\"Kal is where he is because of Kal.\" Flat, immediate, no room in it for argument. \"Every choice between that yard and that throne, he made himself. You handed a man an insult he mostly deserved. He's the one who chose everything after.\" A beat. \"The choice to wait at that riverbank for someone he was near certain was dead. And the choice, years later, to put a blade to that same person's throat. Both his. Don't flatter yourself into thinking you're big enough to have caused either one alone.\" Another beat. \"And if you actually think you're the reason he turned into what he is — then he was never the only one you changed.\"\n\nShe keeps going before he can answer.\n\n\"Coen used to say the tide doesn't answer to anyone. Spent his whole life making sure nothing could hold him — no crew, no cause, no port worth staying in. Five years now, he hasn't left. Not because you gave him a rank. Because you made staying feel like something he chose, instead of something that could own him.\"\n\nShe shifts, wincing, and keeps going.\n\n\"Wren spent her whole life being told her books were useless, the family disappointment nobody wanted at the table. You were the first person who acted like she wasn't wrong about anything. Now half the crew asks her before they ask anyone else.\" A beat. \"Nadir buried a friend for telling the truth and decided the whole world ran on a machine nobody could fix. She still doesn't believe that's changed. She just can't stop stitching people back together long enough to notice she's wrong.\"\n\n\"And then there's the god doing community service in the Undertow, teaching structural engineers how aqueducts work, or whatever else needs teaching that week.\" A beat. \"He looks ten. Doesn't even blink at it. Everyone else in the room does.\" She lets that hang a second. \"I still don't know how that came about, and at this point I've stopped asking.\"\n\nShe lets the humor drain back out before she continues.\n\n\"There was a night I danced badly in front of half the Agricultural ecology at the Harvest Festival and didn't want to disappear afterward. First time in my life I felt like a person instead of a blade my father kept sharpened. You didn't even mean to do that to me. You just did.\" Her hand finds his. \"You've never once tried to rule any of us, Dev. Kal wants a throne because he's decided people can't be trusted with their own judgment — left alone, they choose wrong, and innocents die for it, so the whole rotten system has to be broken down and rebuilt under someone who knows better. That's the exact philosophy that built the Concord in the first place. You've spent this whole war making sure people still get to choose — to rise or fall on their own terms, even badly, even wrong. That's the part you keep missing about yourself.\"\n\nShe looks at him steadily.\n\n\"Amara saw your worth before any of us did.\" Her voice doesn't waver on the name. \"She never once blamed you for what her choice cost. So don't you dare make her the reason you stopped letting the rest of us close.\"\n\nA beat.\n\n\"That's not nothing, Dev.\" A pause. \"No one does this alone. You least of all.\"\n\nDev almost laughs. \"Thank you for the vote of confidence.\"\n\n\"I mean it as one.\" Flat. \"You don't have to do it alone — that's the whole point of the rest of us being here. And you don't get to decide who lives or dies keeping you upright. That was never your call to make.\" A beat. \"That's ours.\"\n\n\"You think the only way to keep people safe is to stop needing them. It's not. Some of us already decided we're not going anywhere. So try not to get it killed.\"\n\nDev keeps looking down. Zia could see his shoulders relaxing, a light exhale, like a long-standing burden finally dropped. Then he looks at her for a long moment, finally making eye contact, and the corner of his mouth twitches. \"You were gonna run away? Hanging us out to dry? Winter herself couldn't be this cold. And with my flowers unclaimed?\" He reaches out to the table, picks them up like holding a baby. Zia can't help but smile. \"Tragic. Truly, I have tears in my e—\"\n\nZia leans forward and kisses him. Slow, unhurried, deliberate. When she pulls back, his expression is somewhere between stunned and something close to relief.\n\n\"There,\" she says. \"Now you don't need flowers to say things. You can just say them.\"\n\n\"Okay.\" Dev says, his voice two octaves higher than usual.\n\n\"Now if you'll excuse me, I need some more anesthetic.\"\n\n\"Well that makes two of us,\" comes a voice from the doorway. Nadir's standing there, looking like she meant every word she said. Coen's staring with a mix of expressions that have yet to be deciphered.\n\nZia calls out to him. \"What's up, sailor?\"\n\nNo response.",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": "",
+      "annotations": []
+    },
+    {
+      "id": 85,
+      "book": 2,
+      "act": 2,
+      "order": 3,
+      "title": "Battle Plans",
+      "status": "drafted",
+      "content": "Nadir comes back in with a tray, humming something two ecologies don't share a name for. She checks the line into Zia's arm, adjusts something, and doesn't ask about the flowers or the redness still sitting high on Dev's ears. Professional to the point of mercy.\n\nCoen finally steps past the doorframe instead of just haunting it. He doesn't say anything about what he walked in on. He drags a stool over, sits it backward, and folds his arms across the top of it — which, for Coen, is roughly the equivalent of a long speech.\n\n\"So,\" Zia says, mostly to give him an out. \"You going to tell me what I missed, or are we just going to sit here.\"\n\n\"Not much.\" Coen tips his head toward Dev. \"He turned into something out of a bad campfire story. Put a man through a wall.\"\n\nDev, still holding the ghost of the earlier smile, looks distinctly less pleased about this conversation. \"It wasn't that dramatic.\"\n\n\"He was already going through the wall,\" Coen says, unbothered. \"You just helped.\"\n\n\"I don't remember most of it,\" Dev says. Quieter now. \"I remember being furious. And then I remember being on the ground, and everyone looking at me like I'd grown a second head.\"\n\n\"Eyes went gold,\" Coen adds, like he's reading it off a list. \"Not amber-in-sunlight gold. Lit-from-inside gold. Durga looked like she'd seen a ghost wearing her brother's face. Which, credit to her, is roughly accurate.\"\n\nNobody asks him what came after — the collapse, the seventy-two hours on the floor outside this room, whatever he found on the other side of that exhaustion. Zia watches him not offer it, and doesn't push. Whatever he saw in that gap belongs to him. She'll let him keep it, for now.\n\n\"Good news, he's got an upgrade,\" Coen says, flat, already moving past it. \"Bad news, whatever army's coming probably does too.\"\n\nThat's what does it — pulls the room off the last thread of levity and back down into the actual size of the problem. Nadir stops fussing with the tray.\n\n\"We don't know their numbers,\" Zia says, and it's a relief, almost, to be back on ground she knows how to stand on. Facts. Not feelings. \"We know Kal's enhanced. We don't know if that's unique to him or standard issue for whoever's coming next.\"\n\n\"Durga's still out there,\" Dev says. \"Whatever she is now — enemy, prisoner of her own choices, I don't know — she's the only person who might actually tell us the truth about what they've got.\"\n\n\"She tried to kill you twice,\" Coen says. Not unkindly. Just a fact, laid next to the others.\n\n\"I'm aware.\"\n\nThe conversation has the particular grimness of people doing math they don't like the answer to, and for a moment nobody says anything at all, just the low hum of Nadir's equipment filling the space where a plan should be.\n\nWhich is when the door bangs open hard enough to rattle the tray.\n\nWren is standing in the doorway looking like she lost a fight with an entire barn. Hay in her hair, hay down the collar of her coat, one boot untied, breathing like she ran the last mile of whatever journey put her in this state. There's a piece of straw stuck directly to her glasses.\n\n\"Is she alive.\" It isn't a question so much as a demand for the universe to confirm it. \"Someone tell me she's alive, I got the news three villages over and I have been traveling for two days and I may have committed several crimes involving a freight car that I would like officially struck from the record —\"\n\n\"I'm alive,\" Zia says.\n\nWren doesn't seem to hear this. She crosses the room in four strides, grabs Zia's face in both hands — hay falling onto the blanket in the process — and studies her with the intensity of someone checking a structural beam for hairline cracks.\n\n\"You look terrible.\"\n\n\"Thank you.\"\n\n\"No, I mean it, you look like you got run through with — wait, did you get run through? Someone said stabbed, someone else said run through, I need the actual mechanism of injury, this matters for —\"\n\n\"Wren.\" Coen, gently. \"Breathe.\"\n\nWren straightens up, takes a visibly effortful breath, and promptly loses about half her composure again anyway. \"I rode in a grain car. For eleven hours.\"\n\n\"There was probably a goat,\" Dev says, entirely straight-faced.\n\nWren stares at him. \"There was a goat. How did you—\"\n\n\"There's always a goat,\" Dev says, with the weary authority of a man who has clearly never once ridden in a grain car and is making this up on the spot.\n\nNadir, without looking up from the chart she's now updating, says, \"You're covered in hay and you smell like a stable. Sit down before you fall down.\"\n\nWren sits. Immediately. The chaos drains out of her all at once, the way it always does once she's confirmed the thing she was actually afraid of hasn't happened, and what's left behind is just a very tired, very relieved girl with straw in her hair, blinking at the room like she's only now noticing it's full of people who also look like they've been through something.\n\n\"Okay,\" she says, quieter. \"Okay. Good. You're — okay.\" She looks around properly for the first time, clocks the tension still sitting under everything, and her face changes. \"What did I walk into.\"\n\nZia glances at Coen. Coen glances at Dev.\n\n\"Sit tight,\" Zia says. \"You're going to want to hear this from the start.\"\n\nThe retelling takes the better part of an hour. Coen does most of the talking, flat and factual, filling in the parts he actually witnessed; Dev picks up where Coen wasn't present, though he keeps his own account clipped, skating past anything that isn't strictly necessary. Zia corrects them twice, both times without lifting her head off the pillow — once when Coen rounds the negotiating party up to \"a small army,\" and she tells him, eyes still closed, that it was eleven soldiers and he knows it; once when Dev glosses past the moment Kal's blade found her as \"it happened fast,\" and she says, flatly, \"it happened exactly as fast as it needed to,\" and lets the room sit with that instead of the softer version.\n\nBy the end of it, Wren has stopped fidgeting entirely, which is somehow more alarming than the hay had been.\n\nShe doesn't say anything for a long moment. Then she stands up so fast the stool scrapes.\n\n\"Okay. Okay, no, hang on—\" She's already pacing, already talking with her hands. \"You said the eyes changed. Color, not just brightness?\"\n\n\"Orange-gold,\" Dev says warily. \"Why?\"\n\n\"Because that's not adrenaline. Adrenaline doesn't do pigment.\" Wren jabs a finger at nothing in particular. \"Whatever's in you — the coat serum, the bloodline, whatever the actual mechanism is — it's not just juicing your muscles. It's routing through something with a visible physiological signature, which means it's systemic, which means—\" she stops, spins back around— \"which means it's probably not new. It's probably always been there, dormant, and the fight just switched it on. The question is whether it switches back off, or whether you've just permanently changed what your body defaults to.\"\n\n\"Comforting,\" Dev says.\n\n\"I'm not here to comfort you, I'm here to figure out if you're about to become a structural hazard.\" She's not really looking at him anymore, she's looking at some middle distance where the theory lives. \"If it's adrenaline-gated, it should reset once your body reads the threat as over. If it's trauma-gated instead — if it needed you to actually believe you were about to lose someone — that's worse. That means it might not care whether the threat's real. It just needs you to think it is.\"\n\nThe room goes quiet in a different way than before.\n\n\"There's one way to find out,\" Wren says, already reaching for the tray.\n\n\"Wren—\" Nadir starts.\n\nToo late. Wren snatches a pair of tweezers off the tray and lobs them at Dev's head with absolutely no warning, hard and fast and entirely without malice, purely in the spirit of data collection.\n\nDev's hand closes around them an inch from his own eye without him appearing to have decided to move at all.\n\nEveryone stares. Dev stares hardest, at his own fist, like it's a stranger's.\n\n\"See,\" Wren says, delighted, already scribbling something invisible in the air with her finger like she's taking notes she'll transcribe later. \"Still active. Baseline reflex, no visible trigger, no eye-color change — so it's not fully engaged, just elevated. That's useful. That's really useful.\"\n\n\"You threw surgical instruments at a man recovering from cardiac-adjacent exertion,\" Nadir says, in the tone of someone filing a complaint she already knows will go nowhere.\n\n\"He caught it fine.\"\n\n\"That's not the metric I was worried about.\"\n\nDev sets the tweezers down very carefully on the bedside table, next to the flowers, like he's not entirely sure either of them is safe to be near right now. \"Can we agree that from now on, testing my reflexes involves a conversation first?\"\n\n\"Where's the data in that,\" Wren mutters, but she sits back down.\n\nThe humor doesn't quite hold, though — it thins out fast, the way it does when a joke's already done the job of saying the thing nobody wanted to say plainly. Wren's grin fades somewhere in the silence after, and when she speaks again her voice has lost its bounce entirely.\n\n\"If this happened to you from nothing but grief and a bad afternoon,\" she says, quietly now, \"and Kal's had years to figure out how to turn his on on purpose —\" She doesn't finish it. Doesn't need to.\n\nNobody argues with the shape of that thought. The machine by the bed keeps its steady, unbothered rhythm, indifferent to what everyone in the room has just understood at the same time.",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 87,
+      "book": 2,
+      "act": 3,
+      "order": 1,
+      "title": "Kal's Coup",
+      "status": "outline",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 89,
+      "book": 2,
+      "act": 3,
+      "order": 2,
+      "title": "Eva Joins the Crew",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 91,
+      "book": 3,
+      "act": 1,
+      "order": 1,
+      "title": "The Despair Beat",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 93,
+      "book": 3,
+      "act": 1,
+      "order": 2,
+      "title": "Durga Reclaims the Throne",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    },
+    {
+      "id": 95,
+      "book": 4,
+      "act": 1,
+      "order": 1,
+      "title": "Kal's Death — Amara, Eva, the Pendant",
+      "status": "drafted",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": "Cut any objective-world confirmation of Amara's presence (no hair movement, no glance from Eva)."
+    },
+    {
+      "id": 97,
+      "book": 4,
+      "act": 1,
+      "order": 2,
+      "title": "The Village — Ending",
+      "status": "idea",
+      "content": "",
+      "wordMin": null,
+      "wordMax": null,
+      "notes": ""
+    }
+  ],
+  "scenes": [
+    {
+      "id": 2,
+      "chapterId": 1,
+      "order": 1,
+      "title": "The Ditch — Kal Finds Dev",
+      "status": "final",
+      "summary": "Kal (7) finds Dev (4) dying in a ditch, wrapped in an oversized red coat.",
+      "requires": [],
+      "provides": [
+        "Two-knuckle head-tap gesture established",
+        "The red coat introduced",
+        "Dev's left-brow scar visible"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 4,
+      "chapterId": 3,
+      "order": 1,
+      "title": "Dev, Kal & Amara — The Trio Forms",
+      "status": "idea",
+      "summary": "Eli's mentorship, early Undertow life, the found-family baseline before anything breaks.",
+      "requires": [],
+      "provides": [
+        "Found-family baseline established"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 6,
+      "chapterId": 5,
+      "order": 1,
+      "title": "The Red Coat Introduced",
+      "status": "idea",
+      "summary": "The coat appears as an unexplained artifact.",
+      "requires": [],
+      "provides": [
+        "The coat as a mystery object"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 8,
+      "chapterId": 7,
+      "order": 1,
+      "title": "Kal Fired — The End of 'The Right Way'",
+      "status": "idea",
+      "summary": "Kal loses his honest job defending Dev and Eli from Harl.",
+      "requires": [],
+      "provides": [
+        "Kal's honest-path door closes",
+        "Dev's guilt — surfaces in Book Three"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 10,
+      "chapterId": 9,
+      "order": 1,
+      "title": "Dev's Robin Hood Turn",
+      "status": "idea",
+      "summary": "Anonymous district charity begins. Kal notices, says nothing.",
+      "requires": [],
+      "provides": [
+        "Robin Hood behaviour — cracks Zia open in Act Two"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 12,
+      "chapterId": 11,
+      "order": 1,
+      "title": "The Relic Quest Ignites",
+      "status": "idea",
+      "summary": "Six keys, the prophecy.",
+      "requires": [],
+      "provides": [
+        "The six-key quest structure"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 14,
+      "chapterId": 13,
+      "order": 1,
+      "title": "Amara Recruited — The Wanted Poster Collision",
+      "status": "idea",
+      "summary": "Amara joins through collision, not convenience.",
+      "requires": [],
+      "provides": [
+        "Amara joins the crew"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 16,
+      "chapterId": 15,
+      "order": 1,
+      "title": "Ch 13 — The Last Night",
+      "status": "idea",
+      "summary": "Eli caught sneaking out; his blessing, the sealed puzzle-lock and letter.",
+      "requires": [],
+      "provides": [
+        "Eli's sealed puzzle-lock and letter",
+        "Eli's blessing"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 18,
+      "chapterId": 17,
+      "order": 1,
+      "title": "Ch 14 — The Truth Will Out",
+      "status": "idea",
+      "summary": "Dawn raid, paint charges, the confetti exposé of the contractors. Dev broadcasts from the clock tower.",
+      "requires": [],
+      "provides": [
+        "Amara's transparency doctrine — origin",
+        "The pattern that gets her killed"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 20,
+      "chapterId": 19,
+      "order": 1,
+      "title": "Ch 15 — Up Up and Away",
+      "status": "idea",
+      "summary": "The chase, Kal's torches lit hours ahead, the seven-seat vehicle found.",
+      "requires": [
+        "Eli's sealed puzzle-lock and letter"
+      ],
+      "provides": [
+        "Act One threshold crossed"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 22,
+      "chapterId": 21,
+      "order": 1,
+      "title": "Ocean Ecology — Coen Joins",
+      "status": "idea",
+      "summary": "First mild signs of religious exploitation.",
+      "requires": [],
+      "provides": [
+        "Coen joins the crew",
+        "First signs of the religious-exploitation ladder"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 24,
+      "chapterId": 23,
+      "order": 1,
+      "title": "Smuggler's Capital — Zia Joins",
+      "status": "idea",
+      "summary": "The staged rescue. Zia's cover holds.",
+      "requires": [],
+      "provides": [
+        "Zia joins the crew, cover intact"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 26,
+      "chapterId": 25,
+      "order": 1,
+      "title": "Amara & Kal — the name Eva",
+      "status": "idea",
+      "summary": "A quiet happy beat. Amara teases Kal; he half-admits a name he's thought of. \"Eva, maybe.\"",
+      "requires": [],
+      "provides": [
+        "The name Eva established as Kal's own suggestion"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 28,
+      "chapterId": 27,
+      "order": 1,
+      "title": "Agricultural Ecology — Wren Joins, the East/West Split",
+      "status": "idea",
+      "summary": "West is spiritual, East is dogmatic. Wren is from the East — the family's black sheep.",
+      "requires": [],
+      "provides": [
+        "Wren joins the crew",
+        "Agricultural East/West split established",
+        "Wren's black-sheep backstory grounded"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 30,
+      "chapterId": 29,
+      "order": 1,
+      "title": "The Harvest Festival Dance",
+      "status": "drafted",
+      "summary": "Dev identifies Zia's contradiction without softening. Both are bad dancers. Zia feels a joy she has no category for.",
+      "requires": [],
+      "provides": [
+        "Zia's first involuntary emotional crack"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 32,
+      "chapterId": 31,
+      "order": 1,
+      "title": "Desert Ecology — Nadir Joins, Sheltered by a Family",
+      "status": "idea",
+      "summary": "The theocratic insurgency backdrop. The crew is sheltered by a family at real risk to themselves.",
+      "requires": [],
+      "provides": [
+        "Nadir joins the crew",
+        "Desert theocratic insurgency backdrop established"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 34,
+      "chapterId": 33,
+      "order": 1,
+      "title": "Dev & Amara — The Faith Discussion",
+      "status": "idea",
+      "summary": "The water-carrying boy. Amara: 'there is good and evil in everyone.' Dev lands on faith-as-placebo, not conversion.",
+      "requires": [
+        "Desert theocratic insurgency backdrop established"
+      ],
+      "provides": [
+        "'There is good and evil in everyone' — planted for Book Five",
+        "'It's not the faith, it's what you make of it' — saga thesis"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 36,
+      "chapterId": 35,
+      "order": 1,
+      "title": "Zia's Real Capture & Dev's Waterfall Fall",
+      "status": "idea",
+      "summary": "Dev's 3-day presumed death. Kal's riverbank vigil. Dev's unremarked meeting with Zia's own father.",
+      "requires": [],
+      "provides": [
+        "Dev's 3-day presumed death",
+        "Kal's riverbank vigil — plant for Book Three's guilt confession",
+        "Zia's unmarked meeting with her own father"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 38,
+      "chapterId": 37,
+      "order": 1,
+      "title": "Kailash — The Crew Reaches the Source",
+      "status": "idea",
+      "summary": "",
+      "requires": [],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 40,
+      "chapterId": 39,
+      "order": 1,
+      "title": "The Murals Discovered",
+      "status": "idea",
+      "summary": "Noah's dual nature. The intimacy of five centuries of memory.",
+      "requires": [],
+      "provides": [
+        "Noah's dual nature revealed"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 42,
+      "chapterId": 41,
+      "order": 1,
+      "title": "Noah Is Awakened",
+      "status": "idea",
+      "summary": "The child, not a vault.",
+      "requires": [
+        "Noah's dual nature revealed"
+      ],
+      "provides": [
+        "Noah awakened"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 44,
+      "chapterId": 43,
+      "order": 1,
+      "title": "The Hunter Closes In",
+      "status": "idea",
+      "summary": "",
+      "requires": [],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 46,
+      "chapterId": 45,
+      "order": 1,
+      "title": "The Broadcast",
+      "status": "idea",
+      "summary": "Noah reveals the truth, face never shown. Hunter ordered to break off.",
+      "requires": [
+        "Noah awakened"
+      ],
+      "provides": [
+        "Noah's public reveal",
+        "Origin of the 'extremist attack' cover story"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 48,
+      "chapterId": 47,
+      "order": 1,
+      "title": "Retreat to the Catacombs",
+      "status": "idea",
+      "summary": "",
+      "requires": [],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 50,
+      "chapterId": 49,
+      "order": 1,
+      "title": "The Garden Campfire — The Parijaat Dome",
+      "status": "idea",
+      "summary": "Unhurried at last. Noah bonds with the crew, falls back in love with humanity.",
+      "requires": [
+        "Noah's public reveal"
+      ],
+      "provides": [
+        "Noah's emotional basis for staying",
+        "Parijaat tree symbolism"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 52,
+      "chapterId": 51,
+      "order": 1,
+      "title": "The Disconnection Conversation",
+      "status": "idea",
+      "summary": "Noah chooses to stay and deliberate embodiment. Amara smiles and leaves.",
+      "requires": [
+        "Noah's emotional basis for staying"
+      ],
+      "provides": [
+        "Noah's decision to deliberate embodiment"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 54,
+      "chapterId": 53,
+      "order": 1,
+      "title": "The Commission of Inquiry Forms",
+      "status": "idea",
+      "summary": "The broadcast forces a formal cross-ecology investigative body into being.",
+      "requires": [
+        "Noah's public reveal"
+      ],
+      "provides": [
+        "Public accountability mechanism established"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 56,
+      "chapterId": 55,
+      "order": 1,
+      "title": "Amara Enters Sequestration",
+      "status": "idea",
+      "summary": "Her father houses and guards her himself — publicly read as grief, really distrust of institutions.",
+      "requires": [
+        "Public accountability mechanism established"
+      ],
+      "provides": [
+        "Amara's sequestration cover established",
+        "Her father's true motive — concealed"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 58,
+      "chapterId": 57,
+      "order": 1,
+      "title": "The Crew Disperses",
+      "status": "idea",
+      "summary": "Wren, Coen, Nadir to their ecologies. Dev and Kal to the Undertow. Nadir secretly recalled.",
+      "requires": [
+        "Amara's sequestration cover established"
+      ],
+      "provides": [
+        "Nadir's secret recall — concealed from Dev and Kal"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 60,
+      "chapterId": 59,
+      "order": 1,
+      "title": "The Year Passes — Letters Only",
+      "status": "idea",
+      "summary": "No physical contact with Amara. Dev & Zia's real bonding stretch.",
+      "requires": [
+        "Nadir's secret recall — concealed from Dev and Kal"
+      ],
+      "provides": [
+        "Dev & Zia's year of bonding"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 62,
+      "chapterId": 61,
+      "order": 1,
+      "title": "Eva Is Born",
+      "status": "idea",
+      "summary": "Total secrecy — known only to Nadir and Amara's father.",
+      "requires": [
+        "Nadir's secret recall — concealed from Dev and Kal",
+        "The name Eva established as Kal's own suggestion"
+      ],
+      "provides": [
+        "Eva born"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 64,
+      "chapterId": 63,
+      "order": 1,
+      "title": "Amara Resumes Public Life",
+      "status": "idea",
+      "summary": "About three months post-birth.",
+      "requires": [
+        "Eva born"
+      ],
+      "provides": [
+        "Amara re-enters public view"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 66,
+      "chapterId": 65,
+      "order": 1,
+      "title": "Amara's Death",
+      "status": "final",
+      "summary": "Amara dies protecting the crew. Her third and final spent smile. \"Eee—\"",
+      "requires": [
+        "Amara's recurring smile established"
+      ],
+      "provides": [
+        "Amara's smile spent for the last time",
+        "The unfinished word — later revealed as Eva"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 68,
+      "chapterId": 67,
+      "order": 1,
+      "title": "Dev Arrives Too Late",
+      "status": "idea",
+      "summary": "Farthest away. No goodbye.",
+      "requires": [
+        "Amara's Death"
+      ],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 70,
+      "chapterId": 69,
+      "order": 1,
+      "title": "The Funeral — Noah Embodies",
+      "status": "idea",
+      "summary": "Wren tells Noah. Noah embodies permanently, revealed only to the crew.",
+      "requires": [
+        "Amara's Death"
+      ],
+      "provides": [
+        "Noah's permanent embodiment"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 72,
+      "chapterId": 71,
+      "order": 1,
+      "title": "The Argument — Kal Exits",
+      "status": "idea",
+      "summary": "Held under government 'protective' guard. Kal's fury turns on Dev. Dev has no answer. Kal walks out.",
+      "requires": [
+        "Noah's permanent embodiment"
+      ],
+      "provides": [
+        "Kal leaves the crew",
+        "Kal's fury directed at Dev, not Zia"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 74,
+      "chapterId": 73,
+      "order": 1,
+      "title": "Book One Close — The Peacock Feather",
+      "status": "outline",
+      "summary": "The Order surfaces. Strange on first read, detonates on reread.",
+      "requires": [],
+      "provides": [
+        "The Order as a live thread"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 76,
+      "chapterId": 75,
+      "order": 1,
+      "title": "Zia's Father Breaks Cover — The Order Revealed",
+      "status": "idea",
+      "summary": "His first question is about the keys, not her grief. Everything recontextualizes.",
+      "requires": [
+        "Kal leaves the crew"
+      ],
+      "provides": [
+        "The Order revealed to Zia",
+        "Opens Book Two's chess match"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 78,
+      "chapterId": 77,
+      "order": 1,
+      "title": "Cold Open — Zia, Kal, and the Hunter",
+      "status": "outline",
+      "summary": "Weeks after Book One. Zia and Kal hunt down the Hunter together.",
+      "requires": [],
+      "provides": [
+        "Zia's academy history surfaces — the Hunter's true identity"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 80,
+      "chapterId": 79,
+      "order": 1,
+      "title": "Noah's Death",
+      "status": "outline",
+      "summary": "",
+      "requires": [],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 82,
+      "chapterId": 81,
+      "order": 1,
+      "title": "The Vigil — Krishna Vision",
+      "status": "drafted",
+      "summary": "72 hrs outside Zia's room, bloodstained, refuses to move. Collapses from exhaustion. Krishna's voice bleeds into Nadir's real voice as he wakes.",
+      "requires": [
+        "Dev's first use of power (exhaustion cost)"
+      ],
+      "provides": [
+        "Dev's private, unconfirmed cosmology",
+        "No more room for regrets — his motive for the confession"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 84,
+      "chapterId": 83,
+      "order": 1,
+      "title": "Dev & Zia — the Confession",
+      "status": "drafted",
+      "summary": "Flowers, banter, the argument, the stalled confession, the kiss.",
+      "requires": [
+        "Head-tap NOT relevant here — but: the unfinished Eee/Eva word (echo material)",
+        "Krishna vision just occurred"
+      ],
+      "provides": [
+        "Reciprocal romantic acknowledgment",
+        "Reversion to teasing afterward, per the inverted code"
+      ],
+      "notes": "",
+      "deferredRequires": []
+    },
+    {
+      "id": 86,
+      "chapterId": 85,
+      "order": 1,
+      "title": "Nadir, Coen & Wren Debrief",
+      "status": "drafted",
+      "summary": "The awakening debrief, Wren's trauma-gated theory, the tweezers test, the Kal-dread landing line.",
+      "requires": [],
+      "provides": [
+        "Wren's activation theory established"
+      ],
+      "notes": "Wren's theory (trauma-gated vs adrenaline-gated) — decide if this pays off mechanically later or stays speculative color.",
+      "pov": "",
+      "deferredRequires": []
+    },
+    {
+      "id": 88,
+      "chapterId": 87,
+      "order": 1,
+      "title": "Kal's Coup",
+      "status": "outline",
+      "summary": "Seeds doubt about Durga, waits for her overreach, exposes Dev's identity publicly, crushes rival generals, spares them as a masterstroke.",
+      "requires": [
+        "Dev's identity known only to Kal since Book Two"
+      ],
+      "provides": [
+        "Durga branded a traitor, joins the crew distrusted"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 90,
+      "chapterId": 89,
+      "order": 1,
+      "title": "Eva Joins the Crew",
+      "status": "idea",
+      "summary": "Book Four close. Not a grief-ending — a hope-tinged one.",
+      "requires": [],
+      "provides": [
+        "Eva established on-page as a real, present character"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 92,
+      "chapterId": 91,
+      "order": 1,
+      "title": "The Despair Beat",
+      "status": "idea",
+      "summary": "Straight arithmetic defeat before a single blow lands.",
+      "requires": [],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 94,
+      "chapterId": 93,
+      "order": 1,
+      "title": "Durga Reclaims the Throne",
+      "status": "idea",
+      "summary": "Her honor-code mechanic fractures the Empire from within.",
+      "requires": [
+        "Honor-code mechanic planted in Book Three"
+      ],
+      "provides": [],
+      "notes": ""
+    },
+    {
+      "id": 96,
+      "chapterId": 95,
+      "order": 1,
+      "title": "Kal's Death — Amara, Eva, the Pendant",
+      "status": "drafted",
+      "summary": "Dev lands the fatal blow. Kal's vision of Amara as he sees Eva. The pendant handed over. The head-tap repeated. \"Eva\" — his last word, spoken whole.",
+      "requires": [
+        "Two-knuckle head-tap (Book One, Ch.1)",
+        "The name Eva planted as Kal's own suggestion",
+        "The unfinished Eee— from Amara's death"
+      ],
+      "provides": [
+        "Amara's touch — never shown to move the physical world",
+        "Eee/Eva — completed"
+      ],
+      "notes": ""
+    },
+    {
+      "id": 98,
+      "chapterId": 97,
+      "order": 1,
+      "title": "The Village — Ending",
+      "status": "idea",
+      "summary": "An old man repairing a fence. Children with the names of the dead. Peace proves the case.",
+      "requires": [],
+      "provides": [],
+      "notes": ""
+    }
+  ],
+  "actLabels": {},
+  "nextId": 100,
+  "documents": [],
+  "aiEnabled": false,
+  "stickyNotes": [
+    {
+      "id": 99,
+      "content": "",
+      "createdAt": 1785861741758,
+      "rotation": "1.5"
+    }
+  ],
+  "viewMode": "list",
+  "chapterWordTargets": [
+    [
+      2500,
+      4500
+    ],
+    [
+      2500,
+      4500
+    ],
+    [
+      2500,
+      4500
+    ],
+    [
+      2500,
+      4500
+    ],
+    [
+      2500,
+      4500
+    ]
+  ],
+  "trash": [],
+  "exportedAt": "2026-08-05T04:38:13.402Z"
+}
