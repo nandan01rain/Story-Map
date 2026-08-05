@@ -1247,22 +1247,79 @@ Nobody argues with the shape of that thought. The machine by the bed keeps its s
 }
 
 /* ---------- STORAGE ---------- */
+const DEFAULT_CHAPTER_WORD_TARGETS = [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
+
 function loadData(){
-  return Promise.resolve()
-    .then(() => {
-      const raw = localStorage.getItem('storymap-v2');
-      if(raw === null) throw new Error('no data');
-      const parsed = JSON.parse(raw);
-      chapters = parsed.chapters; scenes = parsed.scenes;
-      actLabels = parsed.actLabels || {}; nextId = parsed.nextId;
-      documents = parsed.documents || [];
-      aiEnabled = parsed.aiEnabled || false;
-      stickyNotes = parsed.stickyNotes || [];
-      viewMode = parsed.viewMode || (window.innerWidth < 700 ? 'list' : 'map');
-      chapterWordTargets = parsed.chapterWordTargets || [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
-      trash = parsed.trash || [];
-    })
-    .catch(() => { seedData(); return saveData(); });
+  return window.sbClient.auth.getUser().then(({ data, error: userError }) => {
+    const user = data && data.user;
+    if(userError || !user) throw userError || new Error('No signed-in user');
+    const userId = user.id;
+
+    return Promise.all([
+      window.sbClient.from('chapters').select('*').eq('user_id', userId),
+      window.sbClient.from('scenes').select('*').eq('user_id', userId),
+      window.sbClient.from('documents').select('*').eq('user_id', userId),
+      window.sbClient.from('sticky_notes').select('*').eq('user_id', userId),
+      window.sbClient.from('trash').select('*').eq('user_id', userId),
+      window.sbClient.from('user_settings').select('*').eq('user_id', userId).maybeSingle()
+    ]).then(([chaptersRes, scenesRes, documentsRes, stickyNotesRes, trashRes, settingsRes]) => {
+      [chaptersRes, scenesRes, documentsRes, stickyNotesRes, trashRes, settingsRes].forEach(res => {
+        if(res.error) throw res.error;
+      });
+
+      chapters = chaptersRes.data.map(row => ({
+        id: row.id, book: row.book, act: row.act, order: row.order,
+        title: row.title, status: row.status, content: row.content, notes: row.notes,
+        annotations: row.annotations || [], versions: row.versions || []
+      }));
+
+      scenes = scenesRes.data.map(row => ({
+        id: row.id, chapterId: row.chapter_id, order: row.order,
+        title: row.title, status: row.status, summary: row.summary,
+        requires: row.requires || [], provides: row.provides || [],
+        deferredRequires: row.deferred_requires || [], notes: row.notes, pov: row.pov
+      }));
+
+      documents = documentsRes.data.map(row => ({
+        id: row.id, title: row.title, type: row.type, content: row.content
+      }));
+
+      stickyNotes = stickyNotesRes.data.map(row => ({
+        id: row.id, content: row.content,
+        createdAt: new Date(row.created_at).getTime(),
+        rotation: Number(row.rotation)
+      }));
+
+      trash = trashRes.data.map(row => ({
+        id: row.id, type: row.type,
+        deletedAt: new Date(row.deleted_at).getTime(),
+        ...row.payload
+      }));
+
+      const settingsPromise = settingsRes.data
+        ? Promise.resolve(settingsRes.data)
+        : window.sbClient.from('user_settings').insert({ user_id: userId }).select().single()
+            .then(({ data, error }) => { if(error) throw error; return data; });
+
+      return settingsPromise.then(settings => {
+        actLabels = settings.act_labels || {};
+        chapterWordTargets = settings.chapter_word_targets || DEFAULT_CHAPTER_WORD_TARGETS;
+        aiEnabled = settings.ai_enabled || false;
+        viewMode = settings.view_mode || (window.innerWidth < 700 ? 'list' : 'map');
+
+        let maxNestedId = 0;
+        chapters.forEach(ch => {
+          (ch.annotations || []).forEach(a => { if(typeof a.id === 'number' && a.id > maxNestedId) maxNestedId = a.id; });
+        });
+        nextId = maxNestedId + 1;
+      });
+    });
+  }).catch(err => {
+    console.error('loadData failed:', err);
+    chapters = []; scenes = []; documents = []; stickyNotes = []; trash = [];
+    actLabels = {}; chapterWordTargets = DEFAULT_CHAPTER_WORD_TARGETS;
+    aiEnabled = false; viewMode = (window.innerWidth < 700 ? 'list' : 'map'); nextId = 1;
+  });
 }
 function saveData(){
   return Promise.resolve().then(() => {
@@ -3362,6 +3419,7 @@ function initApp(){
 <script>
 (function(){
   const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.sbClient = sbClient;
 
   const authScreen = document.getElementById('auth-screen');
   const appRoot = document.getElementById('app');
