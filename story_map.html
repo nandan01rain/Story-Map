@@ -429,10 +429,43 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 .anno-item .anno-remove:hover{color:var(--danger);}
 
 .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--text-dim);font-family:'Spectral',serif;font-size:15px;font-style:italic;}
+
+#auth-screen{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%, var(--bg-alt), var(--bg));}
+#auth-card{width:340px;max-width:90vw;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:32px 28px;box-shadow:0 8px 30px rgba(0,0,0,0.5);}
+#auth-card h1{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:19px;margin:0;color:var(--text);text-align:center;text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+#auth-card h1 span{display:block;color:var(--gold);font-weight:400;font-style:italic;font-size:12px;font-family:'Spectral',serif;margin-top:5px;letter-spacing:0;}
+#auth-form{margin-top:24px;display:flex;flex-direction:column;gap:14px;}
+#auth-form label{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;display:block;}
+#auth-form input{width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:'Inter',sans-serif;}
+#auth-form input:focus{outline:none;border-color:var(--gold);}
+#auth-error{font-size:12px;color:var(--danger);min-height:16px;line-height:1.4;}
+#auth-submit-btn{width:100%;padding:10px 14px;font-size:13px;}
+#auth-toggle-row{margin-top:18px;text-align:center;font-size:12px;color:var(--text-dim);}
+#auth-toggle-btn{background:none;border:none;color:var(--gold);cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;text-decoration:underline;padding:0;margin-left:4px;}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="auth-screen">
+  <div id="auth-card">
+    <h1>The Trail to Kailash<span>Sign in to continue</span></h1>
+    <form id="auth-form">
+      <div>
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" required autocomplete="email">
+      </div>
+      <div>
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" required autocomplete="current-password">
+      </div>
+      <div id="auth-error"></div>
+      <button type="submit" class="btn primary" id="auth-submit-btn">Sign in</button>
+    </form>
+    <div id="auth-toggle-row">
+      <span id="auth-toggle-text">Need an account?</span><button type="button" id="auth-toggle-btn">Create one</button>
+    </div>
+  </div>
+</div>
+<div id="app" style="display:none;">
   <header>
     <h1>The Trail to Kailash<span>Book → Act → Chapter → Scene</span></h1>
     <div class="header-actions">
@@ -459,6 +492,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
         </label>
         <input type="checkbox" id="ai-toggle-input" style="display:none;">
       </div>
+      <button class="btn" id="sign-out-btn" style="display:none;">Sign out</button>
     </div>
   </header>
   <div id="map-wrap">
@@ -3317,8 +3351,86 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-tagAiGatedButtons();
-loadData().then(() => { renderAiToggle(); updateNotesBadge(); refreshPovSuggestions(); refreshThreadSuggestions(); updateTrashBadge(); render(); });
+function initApp(){
+  tagAiGatedButtons();
+  loadData().then(() => { renderAiToggle(); updateNotesBadge(); refreshPovSuggestions(); refreshThreadSuggestions(); updateTrashBadge(); render(); });
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+(function(){
+  const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const authScreen = document.getElementById('auth-screen');
+  const appRoot = document.getElementById('app');
+  const authForm = document.getElementById('auth-form');
+  const emailInput = document.getElementById('auth-email');
+  const passwordInput = document.getElementById('auth-password');
+  const errorEl = document.getElementById('auth-error');
+  const submitBtn = document.getElementById('auth-submit-btn');
+  const toggleBtn = document.getElementById('auth-toggle-btn');
+  const toggleText = document.getElementById('auth-toggle-text');
+  const signOutBtn = document.getElementById('sign-out-btn');
+
+  let mode = 'signin';
+  let appStarted = false;
+
+  function setMode(next){
+    mode = next;
+    submitBtn.textContent = mode === 'signin' ? 'Sign in' : 'Create account';
+    toggleText.textContent = mode === 'signin' ? 'Need an account?' : 'Already have one?';
+    toggleBtn.textContent = mode === 'signin' ? 'Create one' : 'Sign in';
+    errorEl.textContent = '';
+  }
+
+  function showApp(){
+    authScreen.style.display = 'none';
+    appRoot.style.display = 'flex';
+    signOutBtn.style.display = '';
+    if(!appStarted){
+      appStarted = true;
+      initApp();
+    }
+  }
+
+  function showAuth(){
+    appRoot.style.display = 'none';
+    authScreen.style.display = 'flex';
+    signOutBtn.style.display = 'none';
+  }
+
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.textContent = '';
+    submitBtn.disabled = true;
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    const { error } = mode === 'signin'
+      ? await sbClient.auth.signInWithPassword({ email, password })
+      : await sbClient.auth.signUp({ email, password });
+    submitBtn.disabled = false;
+    if(error){
+      errorEl.textContent = error.message;
+      return;
+    }
+    if(mode === 'signup'){
+      errorEl.textContent = 'Check your email to confirm your account, then sign in.';
+      setMode('signin');
+    }
+  });
+
+  toggleBtn.addEventListener('click', () => setMode(mode === 'signin' ? 'signup' : 'signin'));
+
+  signOutBtn.addEventListener('click', async () => {
+    await sbClient.auth.signOut();
+  });
+
+  sbClient.auth.onAuthStateChange((_event, session) => {
+    if(session){ showApp(); } else { showAuth(); }
+  });
+})();
 </script>
 </body>
 </html>
