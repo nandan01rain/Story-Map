@@ -207,6 +207,51 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .tr-title{font-family:'Spectral',serif;font-size:14.5px;}
 .tr-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:2px;}
 
+#reader-select-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
+#reader-select-view.show{display:flex;}
+#reader-select-body{flex:1;overflow-y:auto;padding:30px 24px;}
+.reader-select-row{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:560px;margin:0 auto 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px 20px;cursor:pointer;}
+.reader-select-row:hover{border-color:var(--gold);}
+.reader-select-row-name{font-family:'Cinzel',serif;font-size:15px;color:var(--text);}
+.reader-select-row-meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);flex-shrink:0;}
+
+#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
+#reader-view.show{display:flex;}
+#reader-progress{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);}
+#reader-chapter-select, #reader-font-select, #reader-size-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:'Inter',sans-serif;max-width:170px;}
+#reader-page-area{flex:1;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
+#reader-page-viewport{position:relative;overflow:hidden;width:100%;height:100%;background:var(--bg);}
+#reader-page-area.portrait{padding:20px 0;}
+#reader-page-area.portrait #reader-page-viewport{aspect-ratio:3/4;width:auto;max-width:100%;box-shadow:0 0 40px rgba(0,0,0,0.4);}
+#reader-page-content{position:absolute;top:0;left:0;height:100%;box-sizing:border-box;color:var(--text);padding:40px 0;}
+.reader-chapter{padding:0 60px;}
+.reader-chapter-heading{font-family:'Cinzel',serif;font-size:19px;letter-spacing:.02em;color:var(--text);margin:0 0 16px;text-align:center;break-after:avoid-column;}
+.reader-chapter:not(:first-child){break-before:column;-webkit-column-break-before:always;}
+.reader-chapter:not(:first-child) .reader-chapter-heading{margin-top:50px;}
+.reader-outline-label{display:block;width:fit-content;margin:0 auto 16px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);border:1px solid var(--border);border-radius:10px;padding:3px 10px;}
+.reader-prose{line-height:1.85;}
+.reader-prose p{margin:0 0 1.2em;}
+.reader-prose.reader-outline-text{font-style:italic;color:var(--text-dim);}
+.reader-page-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.35);border:1px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;line-height:1;padding:0;}
+#reader-bookmark-marker{position:absolute;top:14px;right:14px;font-size:22px;display:none;z-index:3;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));pointer-events:none;}
+#reader-bookmark-marker.show{display:block;}
+.reader-page-nav:hover{border-color:var(--gold);color:var(--gold);}
+#reader-prev-btn{left:16px;}
+#reader-next-btn{right:16px;}
+#reader-resume-prompt{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:5;}
+#reader-resume-prompt.show{display:flex;}
+#reader-resume-card{background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:22px 26px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.5);max-width:90%;}
+#reader-resume-text{font-family:'Spectral',serif;font-size:14px;color:var(--text);margin-bottom:16px;}
+#reader-resume-actions{display:flex;gap:10px;justify-content:center;}
+#reader-foot{display:flex;align-items:center;gap:14px;padding:10px 20px;border-top:1px solid var(--border);background:var(--bg-alt);flex-shrink:0;}
+#reader-foot #reader-progress{flex-shrink:0;white-space:nowrap;}
+#reader-position-slider{flex:1;min-width:0;}
+
+#epub-export-modal .box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px;width:340px;}
+#epub-export-modal h3{font-family:'Cinzel',serif;margin:0 0 14px;font-size:15px;letter-spacing:.03em;}
+#epub-export-modal label{display:block;font-size:10px;color:var(--text-dim);text-transform:uppercase;margin:10px 0 4px;font-family:'JetBrains Mono',monospace;}
+#epub-export-modal select{width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px;font-size:13px;font-family:'Inter',sans-serif;}
+
 #drawer-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;}
 #drawer-foot button{flex:1;min-width:110px;}
 
@@ -583,11 +628,13 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       <button class="btn" id="ledger-btn">📖 Ledger</button>
       <button class="btn" id="mythic-index-btn">🧭 Mythic Threads</button>
       <button class="btn" id="documents-btn">📚 Documents</button>
+      <button class="btn" id="reader-open-btn">📕 Read</button>
       <button class="btn" id="notes-board-btn">📌 Notes <span id="notes-count-badge">0</span></button>
       <button class="btn" id="trash-btn">🗑 Trash <span id="trash-count-badge" class="zero">0</span></button>
       <button class="btn" id="continuity-btn">⛓ Continuity check</button>
       <button class="btn primary" id="add-chapter-btn">+ Add chapter</button>
       <button class="btn" id="export-btn">⬇ Export</button>
+      <button class="btn" id="export-epub-btn">⬇ Export as eBook</button>
       <button class="btn" id="import-btn">⬆ Import</button>
       <input type="file" id="import-file-input" accept="application/json" style="display:none;">
       <div id="view-toggle-wrap">
@@ -826,6 +873,78 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
   <div id="trash-body"></div>
 </div>
 
+<div id="reader-select-view">
+  <div class="editor-head-style">
+    <div class="et" style="font-family:'Cinzel',serif;font-size:16px;letter-spacing:.02em;flex:1;">📕 Read</div>
+    <button class="btn small" id="reader-select-close">Close</button>
+  </div>
+  <div id="reader-select-body"></div>
+</div>
+
+<div id="reader-view">
+  <div class="editor-head-style">
+    <button class="btn small" id="reader-back-btn">‹ Books</button>
+    <div id="reader-title" style="font-family:'Cinzel',serif;font-size:16px;letter-spacing:.02em;flex:1;"></div>
+    <select id="reader-chapter-select" title="Jump to chapter"></select>
+    <select id="reader-aspect-select" title="View">
+      <option value="landscape">Landscape</option>
+      <option value="portrait">Portrait</option>
+    </select>
+    <select id="reader-font-select" title="Font">
+      <option value="'Spectral',serif">Spectral</option>
+      <option value="'Georgia',serif">Georgia</option>
+      <option value="'Inter',sans-serif">Inter</option>
+    </select>
+    <select id="reader-size-select" title="Text size">
+      <option value="14">14</option>
+      <option value="16">16</option>
+      <option value="18" selected>18</option>
+      <option value="20">20</option>
+      <option value="22">22</option>
+      <option value="24">24</option>
+      <option value="28">28</option>
+    </select>
+    <select id="reader-align-select" title="Align">
+      <option value="left">Left</option>
+      <option value="center">Center</option>
+      <option value="right">Right</option>
+      <option value="justify">Justify</option>
+    </select>
+    <button class="btn small" id="reader-close">Close</button>
+  </div>
+  <div id="reader-page-area">
+    <div id="reader-page-viewport">
+      <div id="reader-page-content"></div>
+      <div id="reader-bookmark-marker" title="Bookmarked page">🔖</div>
+      <button id="reader-prev-btn" class="reader-page-nav" aria-label="Previous page">‹</button>
+      <button id="reader-next-btn" class="reader-page-nav reader-page-nav-right" aria-label="Next page">›</button>
+      <div id="reader-resume-prompt">
+        <div id="reader-resume-card">
+          <div id="reader-resume-text"></div>
+          <div id="reader-resume-actions">
+            <button class="btn small" id="reader-resume-dismiss-btn">Start from page 1</button>
+            <button class="btn small primary" id="reader-resume-btn">Resume</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="reader-foot">
+    <button class="btn small" id="reader-bookmark-btn">🔖 Bookmark this page</button>
+    <input type="range" id="reader-position-slider" min="0" max="0" value="0">
+    <div id="reader-progress"></div>
+  </div>
+</div>
+
+<div class="modal" id="epub-export-modal">
+  <div class="box">
+    <h3>Export as eBook</h3>
+    <label>What to export</label>
+    <select id="epub-export-scope"></select>
+    <button class="btn primary" style="width:100%;margin-top:16px;" id="epub-export-confirm-btn">Download .epub</button>
+  </div>
+</div>
+
 <datalist id="pov-suggestions"></datalist>
 <datalist id="thread-suggestions"></datalist>
 
@@ -935,6 +1054,7 @@ let scenes = [];
 let actLabels = {};
 let nextId = 1;
 let currentProjectId = null;
+let currentProjectName = null;
 let documents = [];
 let aiEnabled = false;
 let docEditorId = null;
@@ -1428,6 +1548,7 @@ function loadData(){
         chapterWordTargets = settings.chapter_word_targets || DEFAULT_CHAPTER_WORD_TARGETS;
         aiEnabled = settings.ai_enabled || false;
         viewMode = settings.view_mode || (window.innerWidth < 700 ? 'list' : 'map');
+        projectBookmarks = settings.bookmarks || {};
 
         let maxNestedId = 0;
         chapters.forEach(ch => {
@@ -1441,6 +1562,7 @@ function loadData(){
     chapters = []; scenes = []; documents = []; stickyNotes = []; trash = [];
     actLabels = {}; chapterWordTargets = DEFAULT_CHAPTER_WORD_TARGETS;
     aiEnabled = false; viewMode = (window.innerWidth < 700 ? 'list' : 'map'); nextId = 1;
+    projectBookmarks = {};
   });
 }
 function saveData(){
@@ -1491,7 +1613,8 @@ function saveData(){
       const settingsRow = {
         project_id: currentProjectId, act_labels: actLabels || {},
         chapter_word_targets: chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS,
-        ai_enabled: !!aiEnabled, view_mode: viewMode || 'map'
+        ai_enabled: !!aiEnabled, view_mode: viewMode || 'map',
+        bookmarks: projectBookmarks || {}
       };
 
       return Promise.all([
@@ -3709,6 +3832,356 @@ document.getElementById('mythic-browser-close').addEventListener('click', () => 
   document.getElementById('mythic-browser').classList.remove('show');
 });
 
+/* ---------- BOOK COMPILER (shared by the Reader and the eBook export) ---------- */
+function compileBook(bookIndices){
+  const title = currentProjectName || 'Untitled Project';
+  const sections = bookIndices.map(bookIndex => {
+    const bookChapters = chapters
+      .filter(c => c.book === bookIndex)
+      .sort((a,b) => a.act - b.act || a.order - b.order)
+      .map(ch => {
+        const hasProse = (ch.status === 'drafted' || ch.status === 'final') && ch.content && ch.content.trim();
+        if(hasProse){
+          return { title: ch.title, content: ch.content, isOutlineOnly: false, summaryFallback: '' };
+        }
+        const chScenes = scenes.filter(s => s.chapterId === ch.id).sort((a,b) => a.order - b.order);
+        const summaries = chScenes.map(s => (s.summary||'').trim()).filter(Boolean);
+        const summaryFallback = summaries.length ? summaries.join('\n\n') : 'No summary written yet.';
+        return { title: ch.title, content: '', isOutlineOnly: true, summaryFallback };
+      });
+    return { bookName: BOOKS[bookIndex], chapters: bookChapters };
+  });
+  return { title, sections };
+}
+function textToParagraphsHtml(text){
+  return (text || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+    .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('');
+}
+
+/* ---------- READER ---------- */
+let readerFontFamily = "'Spectral',serif";
+let readerFontSizePt = '18';
+let readerAspectMode = 'landscape';
+let readerTextAlign = 'left';
+let readerCurrentBookIndex = null;
+let readerCurrentPage = 0;
+let readerTotalPages = 1;
+let readerPageStepPx = 0;
+let readerChapterStartPages = [];
+let readerResizeTimer = null;
+let projectBookmarks = {};
+
+function openReaderBookSelect(){
+  const body = document.getElementById('reader-select-body');
+  body.innerHTML = BOOKS.map((b, i) => {
+    const count = chapters.filter(c => c.book === i).length;
+    return `<div class="reader-select-row" data-book-index="${i}">
+      <div class="reader-select-row-name">${escapeHtml(b)}</div>
+      <div class="reader-select-row-meta">${count} chapter${count===1?'':'s'}</div>
+    </div>`;
+  }).join('');
+  body.querySelectorAll('[data-book-index]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.getElementById('reader-select-view').classList.remove('show');
+      openPaginatedReader(parseInt(el.dataset.bookIndex));
+    });
+  });
+  document.getElementById('reader-select-view').classList.add('show');
+}
+
+function openPaginatedReader(bookIndex){
+  readerCurrentBookIndex = bookIndex;
+  const compiled = compileBook([bookIndex]);
+  const section = compiled.sections[0];
+  document.getElementById('reader-title').textContent = `📕 ${compiled.title} — ${section.bookName}`;
+
+  const chapterSelect = document.getElementById('reader-chapter-select');
+  chapterSelect.innerHTML = section.chapters.length
+    ? section.chapters.map((ch, i) => `<option value="${i}">${escapeHtml(ch.title)}</option>`).join('')
+    : '<option value="">(no chapters yet)</option>';
+
+  const contentEl = document.getElementById('reader-page-content');
+  let html = '';
+  section.chapters.forEach(ch => {
+    const bodyText = ch.isOutlineOnly ? ch.summaryFallback : ch.content;
+    html += `<div class="reader-chapter">
+      <h2 class="reader-chapter-heading">${escapeHtml(ch.title)}</h2>
+      ${ch.isOutlineOnly ? '<div class="reader-outline-label">Outline — not yet drafted</div>' : ''}
+      <div class="reader-prose${ch.isOutlineOnly ? ' reader-outline-text' : ''}">${textToParagraphsHtml(bodyText)}</div>
+    </div>`;
+  });
+  contentEl.innerHTML = html || '<div class="reader-chapter"><div class="reader-prose reader-outline-text">This book has no chapters yet.</div></div>';
+
+  document.getElementById('reader-font-select').value = readerFontFamily;
+  document.getElementById('reader-size-select').value = readerFontSizePt;
+  document.getElementById('reader-align-select').value = readerTextAlign;
+  applyReaderStyle();
+  applyReaderAspectMode();
+
+  readerCurrentPage = 0;
+  document.getElementById('reader-view').classList.add('show');
+  recalculateReaderPagination();
+
+  hideReaderResumePrompt();
+  const savedPage = projectBookmarks[bookIndex];
+  if(typeof savedPage === 'number' && savedPage > 0){
+    showReaderResumePrompt(savedPage);
+  }
+}
+
+function recalculateReaderPagination(){
+  const viewport = document.getElementById('reader-page-viewport');
+  const contentEl = document.getElementById('reader-page-content');
+  const vw = viewport.clientWidth;
+  if(vw <= 0) return;
+  contentEl.style.columnWidth = vw + 'px';
+  contentEl.style.columnGap = vw + 'px';
+  readerPageStepPx = vw * 2;
+
+  const scrollW = contentEl.scrollWidth;
+  readerTotalPages = Math.max(1, Math.round((scrollW + vw) / readerPageStepPx));
+
+  readerChapterStartPages = Array.from(contentEl.querySelectorAll('.reader-chapter'))
+    .map(el => Math.floor(el.offsetLeft / readerPageStepPx));
+
+  if(readerCurrentPage >= readerTotalPages) readerCurrentPage = readerTotalPages - 1;
+  if(readerCurrentPage < 0) readerCurrentPage = 0;
+  applyReaderPageTransform();
+  updateReaderProgressLabel();
+}
+function applyReaderPageTransform(){
+  document.getElementById('reader-page-content').style.transform = `translateX(-${readerCurrentPage * readerPageStepPx}px)`;
+}
+function updateReaderProgressLabel(){
+  let chapterIdx = 0;
+  readerChapterStartPages.forEach((startPage, i) => { if(startPage <= readerCurrentPage) chapterIdx = i; });
+  const chapterSelect = document.getElementById('reader-chapter-select');
+  if(readerChapterStartPages.length) chapterSelect.value = chapterIdx;
+  document.getElementById('reader-progress').textContent = readerChapterStartPages.length
+    ? `Chapter ${chapterIdx+1} of ${readerChapterStartPages.length} — Page ${readerCurrentPage+1} of ${readerTotalPages}`
+    : '';
+  const slider = document.getElementById('reader-position-slider');
+  slider.max = Math.max(0, readerTotalPages - 1);
+  slider.value = readerCurrentPage;
+  updateReaderBookmarkMarker();
+}
+function updateReaderBookmarkMarker(){
+  const isBookmarked = readerCurrentBookIndex !== null && projectBookmarks[readerCurrentBookIndex] === readerCurrentPage;
+  document.getElementById('reader-bookmark-marker').classList.toggle('show', isBookmarked);
+}
+function readerGoToPage(page){
+  readerCurrentPage = Math.max(0, Math.min(page, readerTotalPages - 1));
+  applyReaderPageTransform();
+  updateReaderProgressLabel();
+}
+function readerNextPage(){ readerGoToPage(readerCurrentPage + 1); }
+function readerPrevPage(){ readerGoToPage(readerCurrentPage - 1); }
+function applyReaderStyle(){
+  const contentEl = document.getElementById('reader-page-content');
+  contentEl.style.fontFamily = readerFontFamily;
+  contentEl.style.fontSize = readerFontSizePt + 'px';
+  contentEl.style.textAlign = readerTextAlign;
+}
+function applyReaderAspectMode(){
+  document.getElementById('reader-page-area').classList.toggle('portrait', readerAspectMode === 'portrait');
+  document.getElementById('reader-aspect-select').value = readerAspectMode;
+}
+function setReaderAspectMode(mode){
+  readerAspectMode = mode;
+  applyReaderAspectMode();
+  recalculateReaderPagination();
+}
+function showReaderResumePrompt(savedPage){
+  document.getElementById('reader-resume-text').textContent = `Resume from page ${savedPage+1}?`;
+  document.getElementById('reader-resume-btn').onclick = () => {
+    readerGoToPage(savedPage);
+    hideReaderResumePrompt();
+  };
+  document.getElementById('reader-resume-prompt').classList.add('show');
+}
+function hideReaderResumePrompt(){
+  document.getElementById('reader-resume-prompt').classList.remove('show');
+}
+
+document.getElementById('reader-open-btn').addEventListener('click', openReaderBookSelect);
+document.getElementById('reader-select-close').addEventListener('click', () => {
+  document.getElementById('reader-select-view').classList.remove('show');
+});
+document.getElementById('reader-back-btn').addEventListener('click', () => {
+  document.getElementById('reader-view').classList.remove('show');
+  openReaderBookSelect();
+});
+document.getElementById('reader-close').addEventListener('click', () => {
+  document.getElementById('reader-view').classList.remove('show');
+});
+document.getElementById('reader-font-select').addEventListener('change', (e) => {
+  readerFontFamily = e.target.value;
+  applyReaderStyle();
+  recalculateReaderPagination();
+});
+document.getElementById('reader-size-select').addEventListener('change', (e) => {
+  readerFontSizePt = e.target.value;
+  applyReaderStyle();
+  recalculateReaderPagination();
+});
+document.getElementById('reader-chapter-select').addEventListener('change', (e) => {
+  const idx = parseInt(e.target.value);
+  if(!isNaN(idx) && readerChapterStartPages[idx] !== undefined) readerGoToPage(readerChapterStartPages[idx]);
+});
+document.getElementById('reader-prev-btn').addEventListener('click', readerPrevPage);
+document.getElementById('reader-next-btn').addEventListener('click', readerNextPage);
+document.addEventListener('keydown', (e) => {
+  if(!document.getElementById('reader-view').classList.contains('show')) return;
+  const tag = e.target.tagName;
+  if(tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if(e.key === 'ArrowRight'){ e.preventDefault(); readerNextPage(); }
+  else if(e.key === 'ArrowLeft'){ e.preventDefault(); readerPrevPage(); }
+});
+window.addEventListener('resize', () => {
+  if(!document.getElementById('reader-view').classList.contains('show')) return;
+  clearTimeout(readerResizeTimer);
+  readerResizeTimer = setTimeout(recalculateReaderPagination, 150);
+});
+document.getElementById('reader-aspect-select').addEventListener('change', (e) => setReaderAspectMode(e.target.value));
+document.getElementById('reader-align-select').addEventListener('change', (e) => {
+  readerTextAlign = e.target.value;
+  applyReaderStyle();
+});
+document.getElementById('reader-position-slider').addEventListener('input', (e) => {
+  const page = parseInt(e.target.value);
+  document.getElementById('reader-progress').textContent = `Page ${page+1} of ${readerTotalPages}`;
+});
+document.getElementById('reader-position-slider').addEventListener('change', (e) => {
+  readerGoToPage(parseInt(e.target.value));
+});
+document.getElementById('reader-bookmark-btn').addEventListener('click', (e) => {
+  if(readerCurrentBookIndex === null) return;
+  const alreadyBookmarked = projectBookmarks[readerCurrentBookIndex] === readerCurrentPage;
+  if(alreadyBookmarked){
+    delete projectBookmarks[readerCurrentBookIndex];
+  } else {
+    projectBookmarks[readerCurrentBookIndex] = readerCurrentPage;
+  }
+  saveData();
+  updateReaderBookmarkMarker();
+  const btn = e.target;
+  const original = btn.textContent;
+  btn.textContent = alreadyBookmarked ? 'Bookmark removed' : 'Bookmarked!';
+  setTimeout(() => { btn.textContent = original; }, 1500);
+});
+document.getElementById('reader-resume-dismiss-btn').addEventListener('click', hideReaderResumePrompt);
+
+/* ---------- EBOOK (EPUB) EXPORT ---------- */
+function buildChapterXhtml(title, bodyText, isOutline){
+  const paragraphsHtml = textToParagraphsHtml(bodyText);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"/><title>${escapeHtml(title)}</title></head>
+<body>
+<h1>${escapeHtml(title)}</h1>
+${isOutline ? '<p><em>(Outline — not yet drafted)</em></p>' : ''}
+${paragraphsHtml || '<p></p>'}
+</body>
+</html>`;
+}
+async function buildEpubBlob(compiled){
+  const zip = new JSZip();
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+  zip.folder('META-INF').file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+  const oebps = zip.folder('OEBPS');
+  const flatChapters = [];
+  compiled.sections.forEach(section => section.chapters.forEach(ch => flatChapters.push(ch)));
+
+  const manifestItems = [];
+  const spineItems = [];
+  const navPoints = [];
+  flatChapters.forEach((ch, i) => {
+    const n = i + 1;
+    const fileName = `chapter${n}.xhtml`;
+    const bodyText = ch.isOutlineOnly ? ch.summaryFallback : ch.content;
+    oebps.file(fileName, buildChapterXhtml(ch.title, bodyText, ch.isOutlineOnly));
+    manifestItems.push(`<item id="chap${n}" href="${fileName}" media-type="application/xhtml+xml"/>`);
+    spineItems.push(`<itemref idref="chap${n}"/>`);
+    navPoints.push(`<navPoint id="navpoint-${n}" playOrder="${n}"><navLabel><text>${escapeHtml(ch.title)}</text></navLabel><content src="${fileName}"/></navPoint>`);
+  });
+
+  const uuid = crypto.randomUUID();
+  oebps.file('content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <dc:title>${escapeHtml(compiled.title)}</dc:title>
+    <dc:language>en</dc:language>
+    <dc:identifier id="BookId" opf:scheme="UUID">urn:uuid:${uuid}</dc:identifier>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+${manifestItems.map(x=>'    '+x).join('\n')}
+  </manifest>
+  <spine toc="ncx">
+${spineItems.map(x=>'    '+x).join('\n')}
+  </spine>
+</package>`);
+
+  oebps.file('toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:${uuid}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${escapeHtml(compiled.title)}</text></docTitle>
+  <navMap>
+${navPoints.map(x=>'    '+x).join('\n')}
+  </navMap>
+</ncx>`);
+
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' });
+}
+document.getElementById('export-epub-btn').addEventListener('click', () => {
+  const scopeSelect = document.getElementById('epub-export-scope');
+  scopeSelect.innerHTML = `<option value="all">Whole project (all books)</option>` +
+    BOOKS.map((b,i) => `<option value="${i}">${escapeHtml(b)}</option>`).join('');
+  document.getElementById('epub-export-modal').classList.add('show');
+});
+document.getElementById('epub-export-modal').addEventListener('click', e => {
+  if(e.target.id === 'epub-export-modal') e.target.classList.remove('show');
+});
+document.getElementById('epub-export-confirm-btn').addEventListener('click', async () => {
+  const scopeVal = document.getElementById('epub-export-scope').value;
+  const bookIndices = scopeVal === 'all' ? BOOKS.map((_,i)=>i) : [parseInt(scopeVal)];
+  const btn = document.getElementById('epub-export-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Building…';
+  try{
+    const compiled = compileBook(bookIndices);
+    const blob = await buildEpubBlob(compiled);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const rawName = bookIndices.length === 1 ? compiled.sections[0].bookName : compiled.title;
+    const safeTitle = (rawName || 'book').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'book';
+    a.download = `${safeTitle}.epub`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('epub-export-modal').classList.remove('show');
+  } catch(err){
+    alert('Could not build the eBook: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download .epub';
+  }
+});
+
 /* ---------- EXPORT / IMPORT ---------- */
 document.getElementById('export-btn').addEventListener('click', () => {
   const payload = {chapters, scenes, actLabels, nextId, documents, aiEnabled, stickyNotes, viewMode, chapterWordTargets, trash, exportedAt: new Date().toISOString()};
@@ -3931,6 +4404,7 @@ function initApp(){
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 <script src="supabase-config.js"></script>
 <script>
 (function(){
@@ -3998,20 +4472,29 @@ function initApp(){
     loadProjectOptions();
   }
 
-  function enterProject(projectId){
+  async function enterProject(projectId){
     currentProjectId = projectId;
     projectScreen.style.display = 'none';
     appRoot.style.display = 'flex';
     signOutBtn.style.display = '';
     switchProjectBtn.style.display = '';
-    updateAppProjectName(projectId);
-    initApp();
+
+    const project = await updateAppProjectName(projectId);
+    const projectType = (project && project.project_type) || 'writing';
+
+    // Branch point for future project types — 'writing' (the full chapter/scene/
+    // editor app) is the only one that exists today. A future non-writing project
+    // type would get its own init path here instead of falling into initApp() below.
+    if(projectType === 'writing'){
+      initApp();
+    }
   }
 
   async function updateAppProjectName(projectId){
     const nameEl = document.getElementById('app-project-name');
-    const { data, error } = await sbClient.from('projects').select('name').eq('id', projectId).single();
-    if(!error && data) nameEl.textContent = data.name;
+    const { data, error } = await sbClient.from('projects').select('name, project_type').eq('id', projectId).single();
+    if(!error && data){ nameEl.textContent = data.name; currentProjectName = data.name; }
+    return !error && data ? data : null;
   }
 
   function setProjectControlsEnabled(enabled){
@@ -4124,7 +4607,7 @@ function initApp(){
       projectErrorEl.textContent = 'Could not confirm your session — try signing in again.';
       return;
     }
-    const { data, error } = await sbClient.from('projects').insert({ user_id: user.id, name }).select().single();
+    const { data, error } = await sbClient.from('projects').insert({ user_id: user.id, name, project_type: 'writing' }).select().single();
     projectNewBtn.disabled = false;
     if(error){ projectErrorEl.textContent = error.message; return; }
     projectNewNameInput.value = '';
