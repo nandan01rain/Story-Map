@@ -17,7 +17,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, var(--bg-alt), var(--bg));flex-shrink:0;z-index:5;box-shadow:0 1px 0 rgba(198,154,58,0.08);}
 header h1{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:19px;margin:0;letter-spacing:0.02em;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
-header h1 span{color:var(--gold);font-weight:400;font-style:italic;font-size:13px;font-family:'Spectral',serif;display:block;margin-top:3px;letter-spacing:0;}
+header h1 .header-tagline{color:var(--gold);font-weight:400;font-style:italic;font-size:13px;font-family:'Spectral',serif;display:block;margin-top:3px;letter-spacing:0;}
 .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;row-gap:8px;}
 #notes-count-badge, #trash-count-badge{display:inline-block;background:var(--gold);color:#1a1204;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;border-radius:9px;padding:1px 6px;margin-left:5px;min-width:14px;text-align:center;}
 #notes-count-badge.zero, #trash-count-badge.zero{background:var(--panel-2);color:var(--text-dim);}
@@ -217,6 +217,7 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(5,6,14,0.72);backdrop-filter:blur(3px);}
 .modal.show{display:flex;}
 #annotation-modal{z-index:90;}
+#version-modal{z-index:90;}
 .modal-panel{width:600px;max-height:78vh;background:var(--panel);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
 .modal-panel h2{font-family:'Cinzel',serif;font-size:16px;letter-spacing:.03em;padding:18px 22px 12px;margin:0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 .modal-panel h2 button{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;}
@@ -340,7 +341,7 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 
 @media (max-width: 700px){
   header h1{font-size:15px;}
-  header h1 span{display:none;}
+  header h1 .header-tagline{display:none;}
   .header-actions{flex-wrap:wrap;gap:6px;}
   button.btn{padding:7px 10px;font-size:11px;}
   #legend{display:none;}
@@ -479,6 +480,36 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 #auth-submit-btn{width:100%;padding:10px 14px;font-size:13px;}
 #auth-toggle-row{margin-top:18px;text-align:center;font-size:12px;color:var(--text-dim);}
 #auth-toggle-btn{background:none;border:none;color:var(--gold);cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;text-decoration:underline;padding:0;margin-left:4px;}
+
+/* project home screen — a full page, shown after login (or after switching), before entering a project */
+#project-screen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;background:var(--bg);overflow-y:auto;}
+#project-home-header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, var(--bg-alt), var(--bg));flex-shrink:0;}
+#project-home-header h1{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:19px;margin:0;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+#project-home-body{flex:1;display:flex;justify-content:center;padding:60px 24px;}
+#project-home-panel{width:480px;max-width:100%;}
+#project-home-panel h2{font-family:'Cinzel',serif;font-size:16px;letter-spacing:.03em;color:var(--text);margin:0 0 18px;}
+#project-select-row{display:flex;gap:8px;}
+#project-select-row select{flex:1;min-width:0;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:'Spectral',serif;}
+#project-select-row select:focus{outline:none;border-color:var(--gold);}
+#project-select-row button:disabled{opacity:0.4;cursor:not-allowed;}
+#project-rename-host{margin-top:14px;background:var(--bg-alt);border:1px solid var(--border);border-radius:6px;padding:12px 14px;}
+#project-error{font-size:12px;color:var(--danger);min-height:16px;line-height:1.4;margin-top:12px;}
+#project-new-section{margin-top:36px;padding-top:24px;border-top:1px solid var(--border);}
+#project-new-form{margin-top:8px;display:flex;gap:8px;}
+#project-new-form input{flex:1;min-width:0;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:13px;font-family:'Inter',sans-serif;}
+#project-new-form input:focus{outline:none;border-color:var(--gold);}
+
+/* delete-project confirmation modal */
+#delete-project-modal{z-index:110;}
+#delete-project-modal .box{background:var(--panel);border:1px solid var(--danger);border-radius:10px;padding:24px;width:380px;max-width:90vw;}
+#delete-project-modal h3{font-family:'Cinzel',serif;margin:0 0 12px;font-size:16px;letter-spacing:.03em;color:var(--danger);}
+#delete-project-warning{font-size:13px;line-height:1.5;color:var(--text);margin:0 0 16px;}
+#delete-project-modal label{display:block;font-size:10px;color:var(--text-dim);text-transform:uppercase;margin:0 0 6px;font-family:'JetBrains Mono',monospace;}
+#delete-project-modal input{width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;box-sizing:border-box;}
+#delete-project-modal input:focus{outline:none;border-color:var(--gold);}
+#delete-project-actions{display:flex;gap:10px;margin-top:16px;}
+#delete-project-actions .btn{flex:1;}
+#delete-project-confirm-btn:disabled{opacity:0.4;cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -502,9 +533,50 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
     </div>
   </div>
 </div>
+<div id="project-screen" style="display:none;">
+  <header id="project-home-header">
+    <h1>StoryMap</h1>
+    <button class="btn" id="project-home-signout-btn">Sign out</button>
+  </header>
+  <div id="project-home-body">
+    <div id="project-home-panel">
+      <h2>Your projects</h2>
+      <div id="project-select-row">
+        <select id="project-select"></select>
+        <button class="btn primary" id="project-open-btn">Open</button>
+        <button class="btn" id="project-rename-btn">Rename</button>
+        <button class="btn danger" id="project-delete-btn">Delete</button>
+      </div>
+      <div id="project-rename-host" style="display:none;">
+        <div class="mini-label">Renaming</div>
+        <div id="project-rename-target"></div>
+      </div>
+      <div id="project-error"></div>
+      <div id="project-new-section">
+        <div class="mini-label">Start something new</div>
+        <form id="project-new-form">
+          <input type="text" id="project-new-name" placeholder="New project name" required>
+          <button type="submit" class="btn primary" id="project-new-btn">+ New project</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="delete-project-modal">
+  <div class="box" id="delete-project-box">
+    <h3>Delete project</h3>
+    <p id="delete-project-warning"></p>
+    <label>Type the project name to confirm</label>
+    <input type="text" id="delete-project-confirm-input" autocomplete="off">
+    <div id="delete-project-actions">
+      <button class="btn" id="delete-project-cancel-btn">Cancel</button>
+      <button class="btn danger" id="delete-project-confirm-btn" disabled>Delete forever</button>
+    </div>
+  </div>
+</div>
 <div id="app" style="display:none;">
   <header>
-    <h1>The Trail to Kailash<span>Book → Act → Chapter → Scene</span></h1>
+    <h1><span id="app-project-name">The Trail to Kailash</span><span class="header-tagline">Book → Act → Chapter → Scene</span></h1>
     <div class="header-actions">
       <button class="btn" id="search-btn">🔍 Search</button>
       <button class="btn" id="pov-index-btn">👁 POV</button>
@@ -530,6 +602,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
         <input type="checkbox" id="ai-toggle-input" style="display:none;">
       </div>
       <button class="btn primary" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
+      <button class="btn" id="switch-project-btn" style="display:none;">Switch project</button>
       <button class="btn" id="sign-out-btn" style="display:none;">Sign out</button>
     </div>
   </header>
@@ -861,6 +934,7 @@ let chapters = [];
 let scenes = [];
 let actLabels = {};
 let nextId = 1;
+let currentProjectId = null;
 let documents = [];
 let aiEnabled = false;
 let docEditorId = null;
@@ -870,6 +944,7 @@ let noteSaveTimer = null;
 let viewMode = 'map';
 let selectedChapterId = null;
 let editorChapterId = null;
+let editorReturnTo = null;
 let editorIsComposing = false;
 let layoutBands = [];
 let bandRects = [];
@@ -882,11 +957,11 @@ function seedData(){
   documents = []; stickyNotes = []; aiEnabled = false;
   const mkCh = (book, act, order, title, status) => {
     const id = crypto.randomUUID();
-    chapters.push({id, book, act, order, title, status, content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
+    chapters.push({id, projectId: currentProjectId, book, act, order, title, status, content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
     return id;
   };
   const mkSc = (chapterId, order, title, status, summary, requires, provides, notes) => {
-    scenes.push({id:crypto.randomUUID(), chapterId, order, title, status, summary, requires:requires||[], provides:provides||[], notes:notes||'', deferredRequires:[], pov:''});
+    scenes.push({id:crypto.randomUUID(), projectId: currentProjectId, chapterId, order, title, status, summary, requires:requires||[], provides:provides||[], notes:notes||'', deferredRequires:[], pov:''});
   };
 
   // ---- BOOK ONE ----
@@ -1285,6 +1360,7 @@ Nobody argues with the shape of that thought. The machine by the bed keeps its s
 
   stickyNotes.push({
     id: crypto.randomUUID(),
+    projectId: currentProjectId,
     content: "The Hunter is the one who gave Zia her scar — the only fight she ever lost, back at the academy when she was 11 and he was ~16. Explains the mirror-scar motif (hers vs Dev's, from Durga). Haven't locked the exact age-gap phrasing (\"3 years ahead\" vs the 5-year age math) or where the scar actually sits on her face. Not ready for the Bible yet — park it here until it's settled.",
     createdAt: Date.now() - 1000*60*60*26,
     rotation: -2.4
@@ -1299,51 +1375,52 @@ function loadData(){
     const user = data && data.user;
     if(userError || !user) throw userError || new Error('No signed-in user');
     const userId = user.id;
+    if(!currentProjectId) throw new Error('No project selected');
 
     return Promise.all([
-      window.sbClient.from('chapters').select('*').eq('user_id', userId),
-      window.sbClient.from('scenes').select('*').eq('user_id', userId),
-      window.sbClient.from('documents').select('*').eq('user_id', userId),
-      window.sbClient.from('sticky_notes').select('*').eq('user_id', userId),
-      window.sbClient.from('trash').select('*').eq('user_id', userId),
-      window.sbClient.from('user_settings').select('*').eq('user_id', userId).maybeSingle()
+      window.sbClient.from('chapters').select('*').eq('user_id', userId).eq('project_id', currentProjectId),
+      window.sbClient.from('scenes').select('*').eq('user_id', userId).eq('project_id', currentProjectId),
+      window.sbClient.from('documents').select('*').eq('user_id', userId).eq('project_id', currentProjectId),
+      window.sbClient.from('sticky_notes').select('*').eq('user_id', userId).eq('project_id', currentProjectId),
+      window.sbClient.from('trash').select('*').eq('user_id', userId).eq('project_id', currentProjectId),
+      window.sbClient.from('project_settings').select('*').eq('project_id', currentProjectId).maybeSingle()
     ]).then(([chaptersRes, scenesRes, documentsRes, stickyNotesRes, trashRes, settingsRes]) => {
       [chaptersRes, scenesRes, documentsRes, stickyNotesRes, trashRes, settingsRes].forEach(res => {
         if(res.error) throw res.error;
       });
 
       chapters = chaptersRes.data.map(row => ({
-        id: row.id, book: row.book, act: row.act, order: row.order,
+        id: row.id, projectId: row.project_id, book: row.book, act: row.act, order: row.order,
         title: row.title, status: row.status, content: row.content, notes: row.notes,
         annotations: row.annotations || [], versions: row.versions || []
       }));
 
       scenes = scenesRes.data.map(row => ({
-        id: row.id, chapterId: row.chapter_id, order: row.order,
+        id: row.id, projectId: row.project_id, chapterId: row.chapter_id, order: row.order,
         title: row.title, status: row.status, summary: row.summary,
         requires: row.requires || [], provides: row.provides || [],
         deferredRequires: row.deferred_requires || [], notes: row.notes, pov: row.pov
       }));
 
       documents = documentsRes.data.map(row => ({
-        id: row.id, title: row.title, type: row.type, content: row.content
+        id: row.id, projectId: row.project_id, title: row.title, type: row.type, content: row.content
       }));
 
       stickyNotes = stickyNotesRes.data.map(row => ({
-        id: row.id, content: row.content,
+        id: row.id, projectId: row.project_id, content: row.content,
         createdAt: new Date(row.created_at).getTime(),
         rotation: Number(row.rotation)
       }));
 
       trash = trashRes.data.map(row => ({
-        id: row.id, type: row.type,
+        id: row.id, projectId: row.project_id, type: row.type,
         deletedAt: new Date(row.deleted_at).getTime(),
         ...row.payload
       }));
 
       const settingsPromise = settingsRes.data
         ? Promise.resolve(settingsRes.data)
-        : window.sbClient.from('user_settings').insert({ user_id: userId }).select().single()
+        : window.sbClient.from('project_settings').insert({ project_id: currentProjectId }).select().single()
             .then(({ data, error }) => { if(error) throw error; return data; });
 
       return settingsPromise.then(settings => {
@@ -1371,9 +1448,10 @@ function saveData(){
     const user = data && data.user;
     if(userError || !user) throw userError || new Error('No signed-in user');
     const userId = user.id;
+    if(!currentProjectId) throw new Error('No project selected');
 
     const chapterRows = chapters.map(ch => ({
-      id: ch.id, user_id: userId, book: ch.book, act: ch.act, order: ch.order,
+      id: ch.id, user_id: userId, project_id: currentProjectId, book: ch.book, act: ch.act, order: ch.order,
       title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
       annotations: ch.annotations || [], versions: ch.versions || [],
       updated_at: new Date().toISOString()
@@ -1387,7 +1465,7 @@ function saveData(){
       if(chapterRes.error) throw chapterRes.error;
 
       const sceneRows = scenes.map(s => ({
-        id: s.id, user_id: userId, chapter_id: s.chapterId, order: s.order,
+        id: s.id, user_id: userId, project_id: currentProjectId, chapter_id: s.chapterId, order: s.order,
         title: s.title, status: s.status, summary: s.summary || '',
         requires: s.requires || [], provides: s.provides || [],
         deferred_requires: s.deferredRequires || [], notes: s.notes || '', pov: s.pov || '',
@@ -1395,23 +1473,23 @@ function saveData(){
       }));
 
       const documentRows = documents.map(d => ({
-        id: d.id, user_id: userId, title: d.title, type: d.type, content: d.content || '',
+        id: d.id, user_id: userId, project_id: currentProjectId, title: d.title, type: d.type, content: d.content || '',
         updated_at: new Date().toISOString()
       }));
 
       const stickyNoteRows = stickyNotes.map(n => ({
-        id: n.id, user_id: userId, content: n.content || '',
+        id: n.id, user_id: userId, project_id: currentProjectId, content: n.content || '',
         created_at: new Date(n.createdAt || Date.now()).toISOString(),
         rotation: Number(n.rotation) || 0
       }));
 
       const trashRows = trash.map(t => {
-        const { id, type, deletedAt, ...payload } = t;
-        return { id, user_id: userId, type, payload, deleted_at: new Date(deletedAt || Date.now()).toISOString() };
+        const { id, type, deletedAt, projectId, ...payload } = t;
+        return { id, user_id: userId, project_id: currentProjectId, type, payload, deleted_at: new Date(deletedAt || Date.now()).toISOString() };
       });
 
       const settingsRow = {
-        user_id: userId, act_labels: actLabels || {},
+        project_id: currentProjectId, act_labels: actLabels || {},
         chapter_word_targets: chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS,
         ai_enabled: !!aiEnabled, view_mode: viewMode || 'map'
       };
@@ -1421,7 +1499,7 @@ function saveData(){
         documentRows.length ? window.sbClient.from('documents').upsert(documentRows) : Promise.resolve({ error: null }),
         stickyNoteRows.length ? window.sbClient.from('sticky_notes').upsert(stickyNoteRows) : Promise.resolve({ error: null }),
         trashRows.length ? window.sbClient.from('trash').upsert(trashRows) : Promise.resolve({ error: null }),
-        window.sbClient.from('user_settings').upsert(settingsRow)
+        window.sbClient.from('project_settings').upsert(settingsRow)
       ]).then(results => {
         results.forEach(res => { if(res.error) throw res.error; });
       });
@@ -1440,7 +1518,7 @@ async function uploadLocalDataToSupabase(){
   (local.chapters || []).forEach(ch => { chapterIdMap[ch.id] = crypto.randomUUID(); });
 
   chapters = (local.chapters || []).map(ch => ({
-    id: chapterIdMap[ch.id], book: ch.book, act: ch.act, order: ch.order,
+    id: chapterIdMap[ch.id], projectId: currentProjectId, book: ch.book, act: ch.act, order: ch.order,
     title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
     annotations: (ch.annotations || []).map(a => (
       a.linkedPlant && chapterIdMap[a.linkedPlant.chapterId]
@@ -1453,24 +1531,24 @@ async function uploadLocalDataToSupabase(){
   scenes = (local.scenes || [])
     .filter(s => chapterIdMap[s.chapterId])
     .map(s => ({
-      id: crypto.randomUUID(), chapterId: chapterIdMap[s.chapterId], order: s.order,
+      id: crypto.randomUUID(), projectId: currentProjectId, chapterId: chapterIdMap[s.chapterId], order: s.order,
       title: s.title, status: s.status, summary: s.summary || '',
       requires: s.requires || [], provides: s.provides || [],
       deferredRequires: s.deferredRequires || [], notes: s.notes || '', pov: s.pov || ''
     }));
 
   documents = (local.documents || []).map(d => ({
-    id: crypto.randomUUID(), title: d.title, type: d.type, content: d.content || ''
+    id: crypto.randomUUID(), projectId: currentProjectId, title: d.title, type: d.type, content: d.content || ''
   }));
 
   stickyNotes = (local.stickyNotes || []).map(n => ({
-    id: crypto.randomUUID(), content: n.content || '', createdAt: n.createdAt || Date.now(),
+    id: crypto.randomUUID(), projectId: currentProjectId, content: n.content || '', createdAt: n.createdAt || Date.now(),
     rotation: Number(n.rotation) || 0
   }));
 
   trash = (local.trash || []).map(t => {
     const { id, ...rest } = t;
-    return { id: crypto.randomUUID(), ...rest };
+    return { id: crypto.randomUUID(), projectId: currentProjectId, ...rest };
   });
 
   actLabels = local.actLabels || {};
@@ -2006,7 +2084,7 @@ document.getElementById('d-status').addEventListener('click', e=>{
 document.getElementById('add-scene-to-chapter').addEventListener('click', ()=>{
   const ch = chapters.find(c=>c.id===selectedChapterId);
   const maxOrder = Math.max(0, ...scenes.filter(s=>s.chapterId===ch.id).map(s=>s.order));
-  scenes.push({id:crypto.randomUUID(), chapterId:ch.id, order:maxOrder+1, title:'New scene', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
+  scenes.push({id:crypto.randomUUID(), projectId: currentProjectId, chapterId:ch.id, order:maxOrder+1, title:'New scene', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
   renderChapterScenes(ch);
 });
 document.getElementById('d-save').addEventListener('click', async ()=>{
@@ -2048,8 +2126,8 @@ document.getElementById('confirm-add-chapter').addEventListener('click', async (
   const act = parseInt(document.getElementById('new-ch-act').value) || 1;
   const maxOrder = Math.max(0, ...chapters.filter(c=>c.book===book && c.act===act).map(c=>c.order));
   const id = crypto.randomUUID();
-  chapters.push({id, book, act, order:maxOrder+1, title:'New chapter', status:'idea', content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
-  scenes.push({id:crypto.randomUUID(), chapterId:id, order:1, title:'New chapter', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
+  chapters.push({id, projectId: currentProjectId, book, act, order:maxOrder+1, title:'New chapter', status:'idea', content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
+  scenes.push({id:crypto.randomUUID(), projectId: currentProjectId, chapterId:id, order:1, title:'New chapter', status:'idea', summary:'', requires:[], provides:[], notes:'', deferredRequires:[], pov:''});
   await saveData();
   document.getElementById('add-modal').classList.remove('show');
   render();
@@ -2078,6 +2156,7 @@ function openActModal(book, act){
   }));
   list.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click', ()=>{
     document.getElementById('act-modal').classList.remove('show');
+    editorReturnTo = {type:'actModal', book, act};
     openEditor(el.dataset.open);
   }));
   document.getElementById('act-modal').classList.add('show');
@@ -2351,6 +2430,11 @@ document.getElementById('editor-close').addEventListener('click', async () => {
   clearTimeout(editorSaveTimer);
   await autosaveChapter();
   closeEditor();
+  if(editorReturnTo && editorReturnTo.type === 'actModal'){
+    const returnTo = editorReturnTo;
+    editorReturnTo = null;
+    openActModal(returnTo.book, returnTo.act);
+  }
 });
 document.getElementById('editor-save').addEventListener('click', async ()=>{
   clearTimeout(editorSaveTimer);
@@ -3071,7 +3155,7 @@ document.getElementById('documents-modal').addEventListener('click', e => {
 });
 document.getElementById('new-doc-btn').addEventListener('click', async () => {
   const type = document.getElementById('new-doc-type').value;
-  const doc = {id: crypto.randomUUID(), title: type === 'Master Bible' ? 'Master Bible' : 'New ' + type, type, content: ''};
+  const doc = {id: crypto.randomUUID(), projectId: currentProjectId, title: type === 'Master Bible' ? 'Master Bible' : 'New ' + type, type, content: ''};
   documents.push(doc);
   await saveData();
   document.getElementById('documents-modal').classList.remove('show');
@@ -3260,7 +3344,7 @@ function renderNotesBoard(){
     });
   });
   document.getElementById('new-note-tile').addEventListener('click', async () => {
-    const note = {id: crypto.randomUUID(), content: '', createdAt: Date.now(), rotation: (Math.random()*6-3).toFixed(1)};
+    const note = {id: crypto.randomUUID(), projectId: currentProjectId, content: '', createdAt: Date.now(), rotation: (Math.random()*6-3).toFixed(1)};
     stickyNotes.push(note);
     updateNotesBadge();
     await saveData();
@@ -3693,18 +3777,18 @@ function updateTrashBadge(){
 function trashChapter(chapterId){
   const ch = chapters.find(c=>c.id===chapterId);
   const chScenes = scenes.filter(s=>s.chapterId===chapterId);
-  trash.unshift({id:crypto.randomUUID(), type:'chapter', deletedAt:Date.now(), chapter: JSON.parse(JSON.stringify(ch)), scenes: JSON.parse(JSON.stringify(chScenes))});
+  trash.unshift({id:crypto.randomUUID(), projectId: currentProjectId, type:'chapter', deletedAt:Date.now(), chapter: JSON.parse(JSON.stringify(ch)), scenes: JSON.parse(JSON.stringify(chScenes))});
   scenes = scenes.filter(s=>s.chapterId!==chapterId);
   chapters = chapters.filter(c=>c.id!==chapterId);
   updateTrashBadge();
 }
 function trashScene(scene){
-  trash.unshift({id:crypto.randomUUID(), type:'scene', deletedAt:Date.now(), scene: JSON.parse(JSON.stringify(scene)), chapterId: scene.chapterId});
+  trash.unshift({id:crypto.randomUUID(), projectId: currentProjectId, type:'scene', deletedAt:Date.now(), scene: JSON.parse(JSON.stringify(scene)), chapterId: scene.chapterId});
   scenes = scenes.filter(s=>s.id!==scene.id);
   updateTrashBadge();
 }
 function trashDocument(doc){
-  trash.unshift({id:crypto.randomUUID(), type:'document', deletedAt:Date.now(), document: JSON.parse(JSON.stringify(doc))});
+  trash.unshift({id:crypto.randomUUID(), projectId: currentProjectId, type:'document', deletedAt:Date.now(), document: JSON.parse(JSON.stringify(doc))});
   documents = documents.filter(d=>d.id!==doc.id);
   updateTrashBadge();
 }
@@ -3854,6 +3938,7 @@ function initApp(){
   window.sbClient = sbClient;
 
   const authScreen = document.getElementById('auth-screen');
+  const projectScreen = document.getElementById('project-screen');
   const appRoot = document.getElementById('app');
   const authForm = document.getElementById('auth-form');
   const emailInput = document.getElementById('auth-email');
@@ -3863,9 +3948,27 @@ function initApp(){
   const toggleBtn = document.getElementById('auth-toggle-btn');
   const toggleText = document.getElementById('auth-toggle-text');
   const signOutBtn = document.getElementById('sign-out-btn');
+  const switchProjectBtn = document.getElementById('switch-project-btn');
+  const projectHomeSignOutBtn = document.getElementById('project-home-signout-btn');
+  const projectSelect = document.getElementById('project-select');
+  const projectOpenBtn = document.getElementById('project-open-btn');
+  const projectRenameBtn = document.getElementById('project-rename-btn');
+  const projectDeleteBtn = document.getElementById('project-delete-btn');
+  const projectRenameHost = document.getElementById('project-rename-host');
+  const projectRenameTarget = document.getElementById('project-rename-target');
+  const projectErrorEl = document.getElementById('project-error');
+  const projectNewForm = document.getElementById('project-new-form');
+  const projectNewNameInput = document.getElementById('project-new-name');
+  const projectNewBtn = document.getElementById('project-new-btn');
+  const deleteModal = document.getElementById('delete-project-modal');
+  const deleteWarningEl = document.getElementById('delete-project-warning');
+  const deleteConfirmInput = document.getElementById('delete-project-confirm-input');
+  const deleteConfirmBtn = document.getElementById('delete-project-confirm-btn');
+  const deleteCancelBtn = document.getElementById('delete-project-cancel-btn');
 
   let mode = 'signin';
-  let appStarted = false;
+  let lastProjects = [];
+  let deleteTargetProject = null;
 
   function setMode(next){
     mode = next;
@@ -3875,21 +3978,158 @@ function initApp(){
     errorEl.textContent = '';
   }
 
-  function showApp(){
-    authScreen.style.display = 'none';
-    appRoot.style.display = 'flex';
-    signOutBtn.style.display = '';
-    if(!appStarted){
-      appStarted = true;
-      initApp();
-    }
-  }
-
   function showAuth(){
     appRoot.style.display = 'none';
+    projectScreen.style.display = 'none';
     authScreen.style.display = 'flex';
     signOutBtn.style.display = 'none';
+    switchProjectBtn.style.display = 'none';
+    currentProjectId = null;
   }
+
+  function showProjectScreen(){
+    closeDrawer();
+    authScreen.style.display = 'none';
+    appRoot.style.display = 'none';
+    projectScreen.style.display = 'flex';
+    signOutBtn.style.display = 'none';
+    switchProjectBtn.style.display = 'none';
+    projectRenameHost.style.display = 'none';
+    loadProjectOptions();
+  }
+
+  function enterProject(projectId){
+    currentProjectId = projectId;
+    projectScreen.style.display = 'none';
+    appRoot.style.display = 'flex';
+    signOutBtn.style.display = '';
+    switchProjectBtn.style.display = '';
+    updateAppProjectName(projectId);
+    initApp();
+  }
+
+  async function updateAppProjectName(projectId){
+    const nameEl = document.getElementById('app-project-name');
+    const { data, error } = await sbClient.from('projects').select('name').eq('id', projectId).single();
+    if(!error && data) nameEl.textContent = data.name;
+  }
+
+  function setProjectControlsEnabled(enabled){
+    projectOpenBtn.disabled = !enabled;
+    projectRenameBtn.disabled = !enabled;
+    projectDeleteBtn.disabled = !enabled;
+  }
+
+  async function loadProjectOptions(preserveSelection){
+    const previousValue = preserveSelection ? projectSelect.value : null;
+    projectErrorEl.textContent = '';
+    projectRenameHost.style.display = 'none';
+    projectSelect.innerHTML = '<option value="">Loading…</option>';
+    setProjectControlsEnabled(false);
+    const { data: userData, error: userError } = await sbClient.auth.getUser();
+    const user = userData && userData.user;
+    if(userError || !user){
+      projectSelect.innerHTML = '<option value=""></option>';
+      projectErrorEl.textContent = 'Could not confirm your session — try signing in again.';
+      return;
+    }
+    const { data, error } = await sbClient.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
+    if(error){
+      projectSelect.innerHTML = '<option value=""></option>';
+      projectErrorEl.textContent = error.message;
+      return;
+    }
+    lastProjects = data || [];
+    if(lastProjects.length === 0){
+      projectSelect.innerHTML = '<option value="">No projects yet — create one below</option>';
+      return;
+    }
+    projectSelect.innerHTML = lastProjects.map(p => `<option value="${escapeAttr(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+    setProjectControlsEnabled(true);
+    if(previousValue && lastProjects.some(p => p.id === previousValue)) projectSelect.value = previousValue;
+  }
+
+  projectOpenBtn.addEventListener('click', () => {
+    const projectId = projectSelect.value;
+    if(!projectId) return;
+    enterProject(projectId);
+  });
+
+  projectRenameBtn.addEventListener('click', () => {
+    const projectId = projectSelect.value;
+    const project = lastProjects.find(p => p.id === projectId);
+    if(!project) return;
+    projectRenameHost.style.display = 'block';
+    beginInlineLabelEdit(projectRenameTarget, project.name,
+      async (newName) => {
+        projectRenameHost.style.display = 'none';
+        if(!newName || newName === project.name) return;
+        const { error } = await sbClient.from('projects').update({ name: newName }).eq('id', projectId);
+        if(error){ projectErrorEl.textContent = error.message; return; }
+        await loadProjectOptions(true);
+        if(currentProjectId === projectId) updateAppProjectName(projectId);
+      },
+      () => { projectRenameHost.style.display = 'none'; }
+    );
+  });
+
+  projectDeleteBtn.addEventListener('click', () => {
+    const projectId = projectSelect.value;
+    const project = lastProjects.find(p => p.id === projectId);
+    if(!project) return;
+    deleteTargetProject = project;
+    deleteWarningEl.innerHTML = `This will permanently delete <b>${escapeHtml(project.name)}</b> — every chapter, scene, document, and sticky note inside it. This cannot be undone; there is no trash or recovery step for this.`;
+    deleteConfirmInput.value = '';
+    deleteConfirmBtn.disabled = true;
+    deleteModal.classList.add('show');
+    deleteConfirmInput.focus();
+  });
+
+  deleteConfirmInput.addEventListener('input', () => {
+    deleteConfirmBtn.disabled = !deleteTargetProject || deleteConfirmInput.value !== deleteTargetProject.name;
+  });
+
+  function closeDeleteModal(){
+    deleteModal.classList.remove('show');
+    deleteTargetProject = null;
+  }
+  deleteCancelBtn.addEventListener('click', closeDeleteModal);
+  deleteModal.addEventListener('click', (e) => { if(e.target.id === 'delete-project-modal') closeDeleteModal(); });
+
+  deleteConfirmBtn.addEventListener('click', async () => {
+    if(!deleteTargetProject || deleteConfirmInput.value !== deleteTargetProject.name) return;
+    deleteConfirmBtn.disabled = true;
+    const { error } = await sbClient.from('projects').delete().eq('id', deleteTargetProject.id);
+    if(error){
+      projectErrorEl.textContent = error.message;
+      deleteConfirmBtn.disabled = false;
+      return;
+    }
+    const deletedId = deleteTargetProject.id;
+    closeDeleteModal();
+    if(currentProjectId === deletedId) currentProjectId = null;
+    await loadProjectOptions();
+  });
+
+  projectNewForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    projectErrorEl.textContent = '';
+    const name = projectNewNameInput.value.trim();
+    if(!name) return;
+    projectNewBtn.disabled = true;
+    const { data: userData, error: userError } = await sbClient.auth.getUser();
+    const user = userData && userData.user;
+    if(userError || !user){
+      projectNewBtn.disabled = false;
+      projectErrorEl.textContent = 'Could not confirm your session — try signing in again.';
+      return;
+    }
+    const { data, error } = await sbClient.from('projects').insert({ user_id: user.id, name }).select().single();
+    projectNewBtn.disabled = false;
+    if(error){ projectErrorEl.textContent = error.message; return; }
+    projectNewNameInput.value = '';
+    enterProject(data.id);
+  });
 
   authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -3917,8 +4157,21 @@ function initApp(){
     await sbClient.auth.signOut();
   });
 
+  projectHomeSignOutBtn.addEventListener('click', async () => {
+    await sbClient.auth.signOut();
+  });
+
+  switchProjectBtn.addEventListener('click', () => {
+    currentProjectId = null;
+    showProjectScreen();
+  });
+
   sbClient.auth.onAuthStateChange((_event, session) => {
-    if(session){ showApp(); } else { showAuth(); }
+    if(session){
+      if(!currentProjectId){ showProjectScreen(); }
+    } else {
+      showAuth();
+    }
   });
 })();
 </script>
