@@ -425,6 +425,14 @@ button.btn.small{padding:5px 10px;font-size:11px;}
   #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-wrap:wrap;}
 }
 
+/* Touch devices only: the halo circle is invisible (fill:none) so by default it
+   isn't hit-testable at all, leaving a dead zone between the small solid core
+   circle and the halo's visual radius that falls through to the act-cluster
+   rect underneath. Desktop mouse hit-testing is intentionally left untouched. */
+@media (pointer: coarse){
+  .node circle.halo{ pointer-events: all; }
+}
+
 /* ---------- NOTES BOARD (sticky-note idea capture) ---------- */
 #notes-board{position:fixed;inset:0;background:
   radial-gradient(ellipse at 30% 20%, rgba(198,154,58,0.06), transparent 55%),
@@ -1982,9 +1990,10 @@ function renderMap(){
 
     g.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
-      e.preventDefault();
+      const isTouch = e.pointerType === 'touch';
+      if(isTouch) e.preventDefault();
       const startPt = svgPoint(e);
-      dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false };
+      dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false, isTouch, startTime: performance.now() };
       g.setPointerCapture(e.pointerId);
       g.classList.add('dragging');
       svg.appendChild(g);
@@ -1993,7 +2002,8 @@ function renderMap(){
       if(!dragState || dragState.g!==g) return;
       const p = svgPoint(e);
       const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
-      if(Math.abs(dx)>10 || Math.abs(dy)>10) dragState.moved = true;
+      const threshold = dragState.isTouch ? 10 : 4;
+      if(Math.abs(dx)>threshold || Math.abs(dy)>threshold) dragState.moved = true;
       if(dragState.moved){
         g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
         updateDropHighlight(dragState.baseX+dx);
@@ -2001,14 +2011,20 @@ function renderMap(){
     });
     g.addEventListener('pointerup', (e) => {
       if(!dragState || dragState.g!==g) return;
-      e.preventDefault();
+      if(dragState.isTouch) e.preventDefault();
       const wasMoved = dragState.moved;
+      // Touch disambiguates tap-vs-drag by movement AND duration (a quick,
+      // near-stationary touch is a tap even with a hair of jitter); mouse
+      // keeps its original movement-only behavior, unchanged.
+      const isTap = dragState.isTouch
+        ? (!wasMoved && (performance.now() - dragState.startTime) < 500)
+        : !wasMoved;
       const p = svgPoint(e);
       const finalX = dragState.baseX + (p.x - dragState.startX);
       g.classList.remove('dragging');
       clearDropHighlight();
       dragState = null;
-      if(wasMoved) handleDrop(chapter, finalX);
+      if(!isTap) handleDrop(chapter, finalX);
       else openDrawer(chapter.id);
     });
 
