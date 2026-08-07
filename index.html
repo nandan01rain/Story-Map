@@ -21,6 +21,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 header h1{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:19px;margin:0;letter-spacing:0.02em;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
 header h1 .header-tagline{color:var(--gold);font-weight:400;font-style:italic;font-size:13px;font-family:'Spectral',serif;display:block;margin-top:3px;letter-spacing:0;}
 .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;row-gap:8px;}
+#header-menu-btn{display:none;}
 #notes-count-badge, #trash-count-badge{display:inline-block;background:var(--gold);color:#1a1204;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;border-radius:9px;padding:1px 6px;margin-left:5px;min-width:14px;text-align:center;}
 #notes-count-badge.zero, #trash-count-badge.zero{background:var(--panel-2);color:var(--text-dim);}
 #ai-toggle-wrap{margin-left:6px;}
@@ -291,6 +292,9 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 #editor.show{display:flex;}
 #editor-head{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--bg-alt);}
 #editor-head .et{font-family:'Cinzel',serif;font-size:16px;font-weight:600;flex:1;letter-spacing:.02em;}
+#editor-menu-btn{display:none;}
+#editor-menu-panel{display:contents;}
+#editor-close{flex-shrink:0;}
 #editor-foot{display:flex;align-items:center;gap:14px;padding:12px 24px;border-top:1px solid var(--border);background:var(--bg-alt);}
 #editor-wc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);}
 #editor-wc .flag{margin-left:8px;padding:2px 8px;border-radius:8px;font-size:10px;}
@@ -389,9 +393,36 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 @media (max-width: 700px){
   header h1{font-size:15px;}
   header h1 .header-tagline{display:none;}
+  header{position:relative;}
   .header-actions{flex-wrap:wrap;gap:6px;}
   button.btn{padding:7px 10px;font-size:11px;}
   #legend{display:none;}
+
+  #header-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-size:16px;order:-3;}
+  #view-toggle-wrap{order:-2;}
+  #add-chapter-btn{order:-1;}
+  .header-actions .hdr-collapsible{display:none;order:1;}
+  .header-actions.menu-open{
+    position:absolute;top:100%;left:0;right:0;
+    flex-direction:column;align-items:stretch;gap:6px;
+    background:var(--panel);border:1px solid var(--border);
+    padding:10px;z-index:30;max-height:80vh;overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  .header-actions.menu-open .hdr-collapsible{display:flex;}
+
+  #editor-head{position:relative;}
+  #editor-head .et{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  #editor-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-size:16px;}
+  #editor-menu-panel{display:none;}
+  #editor-head.menu-open #editor-menu-panel{
+    display:flex;flex-direction:column;align-items:stretch;gap:6px;
+    position:absolute;top:100%;left:0;right:0;
+    background:var(--panel);border:1px solid var(--border);
+    padding:10px;z-index:30;max-height:70vh;overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-wrap:wrap;}
 }
 
 /* ---------- NOTES BOARD (sticky-note idea capture) ---------- */
@@ -624,35 +655,36 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="app" style="display:none;">
   <header>
     <h1><span id="app-project-name">The Trail to Kailash</span><span class="header-tagline">Book → Act → Chapter → Scene</span></h1>
-    <div class="header-actions">
-      <button class="btn" id="search-btn">🔍 Search</button>
-      <button class="btn" id="pov-index-btn">👁 POV</button>
-      <button class="btn" id="ledger-btn">📖 Ledger</button>
-      <button class="btn" id="mythic-index-btn">🧭 Mythic Threads</button>
-      <button class="btn" id="documents-btn">📚 Documents</button>
-      <button class="btn" id="reader-open-btn">📕 Read</button>
-      <button class="btn" id="notes-board-btn">📌 Notes <span id="notes-count-badge">0</span></button>
-      <button class="btn" id="trash-btn">🗑 Trash <span id="trash-count-badge" class="zero">0</span></button>
-      <button class="btn" id="continuity-btn">⛓ Continuity check</button>
+    <div class="header-actions" id="header-actions">
+      <button class="btn" id="header-menu-btn" aria-label="Menu" aria-expanded="false">☰</button>
+      <button class="btn hdr-collapsible" id="search-btn">🔍 Search</button>
+      <button class="btn hdr-collapsible" id="pov-index-btn">👁 POV</button>
+      <button class="btn hdr-collapsible" id="ledger-btn">📖 Ledger</button>
+      <button class="btn hdr-collapsible" id="mythic-index-btn">🧭 Mythic Threads</button>
+      <button class="btn hdr-collapsible" id="documents-btn">📚 Documents</button>
+      <button class="btn hdr-collapsible" id="reader-open-btn">📕 Read</button>
+      <button class="btn hdr-collapsible" id="notes-board-btn">📌 Notes <span id="notes-count-badge">0</span></button>
+      <button class="btn hdr-collapsible" id="trash-btn">🗑 Trash <span id="trash-count-badge" class="zero">0</span></button>
+      <button class="btn hdr-collapsible" id="continuity-btn">⛓ Continuity check</button>
       <button class="btn primary" id="add-chapter-btn">+ Add chapter</button>
-      <button class="btn" id="export-btn">⬇ Export</button>
-      <button class="btn" id="export-epub-btn">⬇ Export as eBook</button>
-      <button class="btn" id="import-btn">⬆ Import</button>
+      <button class="btn hdr-collapsible" id="export-btn">⬇ Export</button>
+      <button class="btn hdr-collapsible" id="export-epub-btn">⬇ Export as eBook</button>
+      <button class="btn hdr-collapsible" id="import-btn">⬆ Import</button>
       <input type="file" id="import-file-input" accept="application/json" style="display:none;">
       <div id="view-toggle-wrap">
         <button class="view-toggle-btn" id="view-map-btn">🗺 Map</button>
         <button class="view-toggle-btn" id="view-list-btn">📋 List</button>
       </div>
-      <div id="ai-toggle-wrap">
+      <div id="ai-toggle-wrap" class="hdr-collapsible">
         <label id="ai-toggle-label" for="ai-toggle-input">
           <span id="ai-toggle-dot"></span>
           AI Assistant
         </label>
         <input type="checkbox" id="ai-toggle-input" style="display:none;">
       </div>
-      <button class="btn primary" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
-      <button class="btn" id="switch-project-btn" style="display:none;">Switch project</button>
-      <button class="btn" id="sign-out-btn" style="display:none;">Sign out</button>
+      <button class="btn primary hdr-collapsible" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
+      <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;">Switch project</button>
+      <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;">Sign out</button>
     </div>
   </header>
   <div id="map-wrap">
@@ -986,12 +1018,15 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="editor">
   <div id="editor-head">
     <div class="et" id="editor-title"></div>
-    <div class="mark-toolbar">
-      <button class="mark-btn mark-plant" id="mark-plant-btn" title="Flag the selected text as a plant">🌱 Plant <span class="mb-count" id="mb-count-plant" title="View flagged plants">0</span></button>
-      <button class="mark-btn mark-reveal" id="mark-reveal-btn" title="Flag the selected text as a reveal">⚡ Reveal <span class="mb-count" id="mb-count-reveal" title="View flagged reveals">0</span></button>
-      <button class="mark-btn mark-note" id="mark-note-btn" title="Flag the selected text as a subtext note">📜 Note <span class="mb-count" id="mb-count-note" title="View flagged notes">0</span></button>
+    <button class="btn small" id="editor-menu-btn" aria-label="Menu" aria-expanded="false">☰</button>
+    <div id="editor-menu-panel">
+      <div class="mark-toolbar">
+        <button class="mark-btn mark-plant" id="mark-plant-btn" title="Flag the selected text as a plant">🌱 Plant <span class="mb-count" id="mb-count-plant" title="View flagged plants">0</span></button>
+        <button class="mark-btn mark-reveal" id="mark-reveal-btn" title="Flag the selected text as a reveal">⚡ Reveal <span class="mb-count" id="mb-count-reveal" title="View flagged reveals">0</span></button>
+        <button class="mark-btn mark-note" id="mark-note-btn" title="Flag the selected text as a subtext note">📜 Note <span class="mb-count" id="mb-count-note" title="View flagged notes">0</span></button>
+      </div>
+      <button class="btn small" id="version-history-btn">🕐 History</button>
     </div>
-    <button class="btn small" id="version-history-btn">🕐 History</button>
     <button class="btn small" id="editor-close">Close</button>
   </div>
   <div id="editor-body">
@@ -1947,6 +1982,7 @@ function renderMap(){
 
     g.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
+      e.preventDefault();
       const startPt = svgPoint(e);
       dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false };
       g.setPointerCapture(e.pointerId);
@@ -1957,7 +1993,7 @@ function renderMap(){
       if(!dragState || dragState.g!==g) return;
       const p = svgPoint(e);
       const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
-      if(Math.abs(dx)>4 || Math.abs(dy)>4) dragState.moved = true;
+      if(Math.abs(dx)>10 || Math.abs(dy)>10) dragState.moved = true;
       if(dragState.moved){
         g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
         updateDropHighlight(dragState.baseX+dx);
@@ -1965,6 +2001,7 @@ function renderMap(){
     });
     g.addEventListener('pointerup', (e) => {
       if(!dragState || dragState.g!==g) return;
+      e.preventDefault();
       const wasMoved = dragState.moved;
       const p = svgPoint(e);
       const finalX = dragState.baseX + (p.x - dragState.startX);
@@ -2553,6 +2590,23 @@ async function autosaveChapter(){
   document.getElementById('editor-status').textContent = 'Autosaved.';
   renderMap();
 }
+document.getElementById('editor-menu-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const head = document.getElementById('editor-head');
+  const isOpen = head.classList.toggle('menu-open');
+  document.getElementById('editor-menu-btn').setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+document.getElementById('editor-menu-panel').addEventListener('click', () => {
+  document.getElementById('editor-head').classList.remove('menu-open');
+  document.getElementById('editor-menu-btn').setAttribute('aria-expanded', 'false');
+});
+document.addEventListener('click', (e) => {
+  const head = document.getElementById('editor-head');
+  if(head.classList.contains('menu-open') && !head.contains(e.target)){
+    head.classList.remove('menu-open');
+    document.getElementById('editor-menu-btn').setAttribute('aria-expanded', 'false');
+  }
+});
 document.getElementById('editor-close').addEventListener('click', async () => {
   clearTimeout(editorSaveTimer);
   await autosaveChapter();
@@ -2636,6 +2690,25 @@ function runSearch(query){
     });
   });
 }
+document.getElementById('header-menu-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const actions = document.getElementById('header-actions');
+  const isOpen = actions.classList.toggle('menu-open');
+  document.getElementById('header-menu-btn').setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+document.getElementById('header-actions').addEventListener('click', (e) => {
+  if(e.target.closest('.hdr-collapsible')){
+    document.getElementById('header-actions').classList.remove('menu-open');
+    document.getElementById('header-menu-btn').setAttribute('aria-expanded', 'false');
+  }
+});
+document.addEventListener('click', (e) => {
+  const actions = document.getElementById('header-actions');
+  if(actions.classList.contains('menu-open') && !actions.contains(e.target)){
+    actions.classList.remove('menu-open');
+    document.getElementById('header-menu-btn').setAttribute('aria-expanded', 'false');
+  }
+});
 document.getElementById('search-btn').addEventListener('click', () => {
   document.getElementById('search-modal').classList.add('show');
   document.getElementById('search-input').value = '';
