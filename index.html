@@ -1116,6 +1116,35 @@ let bandRects = [];
 let lastPositions = [];
 let dragState = null;
 
+/* ========== TEMP TOUCH-DEBUG OVERLAY — diagnosis only, safe to delete this whole block ========== */
+const DEBUG_TOUCH_OVERLAY = true;
+const debugTouchState = { count: 0, pointerType: '-', target: '-', outcome: '-', error: '' };
+let debugTouchEl = null;
+if(DEBUG_TOUCH_OVERLAY){
+  debugTouchEl = document.createElement('div');
+  debugTouchEl.id = 'touch-debug-overlay';
+  debugTouchEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.78);color:#7CFC7C;font-family:monospace;font-size:12px;line-height:1.55;padding:8px 12px;white-space:pre-wrap;pointer-events:none;';
+  document.body.appendChild(debugTouchEl);
+  debugTouchLog({});
+}
+function debugTouchLog(patch){
+  if(!DEBUG_TOUCH_OVERLAY) return;
+  Object.assign(debugTouchState, patch);
+  if(!debugTouchEl) return;
+  debugTouchEl.textContent =
+    `[TOUCH DEBUG] pointerdown count: ${debugTouchState.count}\n` +
+    `last pointerType: ${debugTouchState.pointerType}\n` +
+    `last target: ${debugTouchState.target}\n` +
+    `last outcome: ${debugTouchState.outcome}` +
+    (debugTouchState.error ? `\nERROR: ${debugTouchState.error}` : '');
+}
+function debugTouchDescribeEl(el){
+  if(!el || !el.getAttribute) return String(el);
+  if(el.tagName && el.tagName.toLowerCase() === 'g') return 'g (node wrapper)';
+  return el.getAttribute('class') || el.tagName || '?';
+}
+/* ========== END TEMP TOUCH-DEBUG OVERLAY SETUP ========== */
+
 /* ---------- SEED DATA ---------- */
 function seedData(){
   chapters = []; scenes = []; actLabels = {}; nextId = 1;
@@ -1948,14 +1977,20 @@ function renderMap(){
     r.setAttribute('width', ac.x2-ac.x1); r.setAttribute('height', BAND_H-140);
     r.setAttribute('rx', 12); r.setAttribute('class','act-cluster-rect');
     r.style.cursor = 'pointer';
-    r.addEventListener('click', () => openActModal(ac.book, ac.act));
+    r.addEventListener('click', () => {
+      if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `act popup opened (book ${ac.book}, act ${ac.act}) [via rect]` });
+      openActModal(ac.book, ac.act);
+    });
     svg.appendChild(r);
 
     const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
     lbl.setAttribute('x', ac.x1 + (ac.x2-ac.x1)/2); lbl.setAttribute('y', 85);
     lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('class','act-band-label');
     lbl.textContent = chapterLabel(ac.book, ac.act);
-    lbl.addEventListener('click', () => openActModal(ac.book, ac.act));
+    lbl.addEventListener('click', () => {
+      if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `act popup opened (book ${ac.book}, act ${ac.act}) [via label]` });
+      openActModal(ac.book, ac.act);
+    });
     svg.appendChild(lbl);
   });
 
@@ -2038,43 +2073,61 @@ function renderMap(){
     // touch, so a tap dead-on the number/label/etc. must still resolve to
     // this same handler rather than depending on bubbling through skipped text.
     const handlePointerDown = (e) => {
-      e.stopPropagation();
-      const isTouch = e.pointerType === 'touch';
-      if(isTouch) e.preventDefault();
-      const startPt = svgPoint(e);
-      dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false, isTouch, startTime: performance.now() };
-      g.setPointerCapture(e.pointerId);
-      g.classList.add('dragging');
-      svg.appendChild(g);
+      try{
+        e.stopPropagation();
+        const isTouch = e.pointerType === 'touch';
+        if(isTouch) e.preventDefault();
+        const startPt = svgPoint(e);
+        dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false, isTouch, startTime: performance.now() };
+        g.setPointerCapture(e.pointerId);
+        g.classList.add('dragging');
+        svg.appendChild(g);
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ count: debugTouchState.count+1, pointerType: e.pointerType, target: debugTouchDescribeEl(e.currentTarget), outcome: '(pointer down, awaiting up)', error: '' });
+      } catch(err){
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointerdown: ' + err.message });
+      }
     };
     const handlePointerMove = (e) => {
-      if(!dragState || dragState.g!==g) return;
-      const p = svgPoint(e);
-      const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
-      const threshold = dragState.isTouch ? 10 : 4;
-      if(Math.abs(dx)>threshold || Math.abs(dy)>threshold) dragState.moved = true;
-      if(dragState.moved){
-        g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
-        updateDropHighlight(dragState.baseX+dx);
+      try{
+        if(!dragState || dragState.g!==g) return;
+        const p = svgPoint(e);
+        const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
+        const threshold = dragState.isTouch ? 10 : 4;
+        if(Math.abs(dx)>threshold || Math.abs(dy)>threshold) dragState.moved = true;
+        if(dragState.moved){
+          g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
+          updateDropHighlight(dragState.baseX+dx);
+        }
+      } catch(err){
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointermove: ' + err.message });
       }
     };
     const handlePointerUp = (e) => {
-      if(!dragState || dragState.g!==g) return;
-      if(dragState.isTouch) e.preventDefault();
-      const wasMoved = dragState.moved;
-      // Touch disambiguates tap-vs-drag by movement AND duration (a quick,
-      // near-stationary touch is a tap even with a hair of jitter); mouse
-      // keeps its original movement-only behavior, unchanged.
-      const isTap = dragState.isTouch
-        ? (!wasMoved && (performance.now() - dragState.startTime) < 500)
-        : !wasMoved;
-      const p = svgPoint(e);
-      const finalX = dragState.baseX + (p.x - dragState.startX);
-      g.classList.remove('dragging');
-      clearDropHighlight();
-      dragState = null;
-      if(!isTap) handleDrop(chapter, finalX);
-      else openDrawer(chapter.id);
+      try{
+        if(!dragState || dragState.g!==g) return;
+        if(dragState.isTouch) e.preventDefault();
+        const wasMoved = dragState.moved;
+        // Touch disambiguates tap-vs-drag by movement AND duration (a quick,
+        // near-stationary touch is a tap even with a hair of jitter); mouse
+        // keeps its original movement-only behavior, unchanged.
+        const isTap = dragState.isTouch
+          ? (!wasMoved && (performance.now() - dragState.startTime) < 500)
+          : !wasMoved;
+        const p = svgPoint(e);
+        const finalX = dragState.baseX + (p.x - dragState.startX);
+        g.classList.remove('dragging');
+        clearDropHighlight();
+        dragState = null;
+        if(!isTap){
+          if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: wasMoved ? `started drag (chapter ${chapter.id})` : `ignored - threshold/time not met (chapter ${chapter.id})` });
+          handleDrop(chapter, finalX);
+        } else {
+          if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `opened chapter ${chapter.id}` });
+          openDrawer(chapter.id);
+        }
+      } catch(err){
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointerup: ' + err.message });
+      }
     };
     [g, halo, core, icon, label, sceneCountEl].filter(Boolean).forEach(el => {
       el.addEventListener('pointerdown', handlePointerDown);
