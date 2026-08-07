@@ -52,7 +52,7 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .act-band-label:hover{fill:#e0b955;text-decoration:underline;}
 .trail-path{fill:none;stroke:var(--border);stroke-width:2;stroke-dasharray:1,8;stroke-linecap:round;}
 
-.node{cursor:grab;touch-action:none;}
+.node{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
 .node.dragging{cursor:grabbing;opacity:0.88;}
 .node circle.halo{fill:none;stroke-width:1;opacity:0;transition:opacity .15s;}
 .node:hover circle.halo{opacity:0.35;}
@@ -1988,46 +1988,6 @@ function renderMap(){
     g.setAttribute('transform', `translate(${x},${y})`);
     g.style.touchAction = 'none';
 
-    g.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      const isTouch = e.pointerType === 'touch';
-      if(isTouch) e.preventDefault();
-      const startPt = svgPoint(e);
-      dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false, isTouch, startTime: performance.now() };
-      g.setPointerCapture(e.pointerId);
-      g.classList.add('dragging');
-      svg.appendChild(g);
-    });
-    g.addEventListener('pointermove', (e) => {
-      if(!dragState || dragState.g!==g) return;
-      const p = svgPoint(e);
-      const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
-      const threshold = dragState.isTouch ? 10 : 4;
-      if(Math.abs(dx)>threshold || Math.abs(dy)>threshold) dragState.moved = true;
-      if(dragState.moved){
-        g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
-        updateDropHighlight(dragState.baseX+dx);
-      }
-    });
-    g.addEventListener('pointerup', (e) => {
-      if(!dragState || dragState.g!==g) return;
-      if(dragState.isTouch) e.preventDefault();
-      const wasMoved = dragState.moved;
-      // Touch disambiguates tap-vs-drag by movement AND duration (a quick,
-      // near-stationary touch is a tap even with a hair of jitter); mouse
-      // keeps its original movement-only behavior, unchanged.
-      const isTap = dragState.isTouch
-        ? (!wasMoved && (performance.now() - dragState.startTime) < 500)
-        : !wasMoved;
-      const p = svgPoint(e);
-      const finalX = dragState.baseX + (p.x - dragState.startX);
-      g.classList.remove('dragging');
-      clearDropHighlight();
-      dragState = null;
-      if(!isTap) handleDrop(chapter, finalX);
-      else openDrawer(chapter.id);
-    });
-
     const halo = document.createElementNS('http://www.w3.org/2000/svg','circle');
     halo.setAttribute('class','halo'); halo.setAttribute('r', 25);
     g.appendChild(halo);
@@ -2047,11 +2007,12 @@ function renderMap(){
     g.appendChild(label);
 
     const sceneN = scenes.filter(s=>s.chapterId===chapter.id).length;
+    let sceneCountEl = null;
     if(sceneN > 1){
-      const sc = document.createElementNS('http://www.w3.org/2000/svg','text');
-      sc.setAttribute('class','scene-count'); sc.setAttribute('y', labelY + (idx%2===0?-13:15));
-      sc.textContent = `${sceneN} scenes`;
-      g.appendChild(sc);
+      sceneCountEl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      sceneCountEl.setAttribute('class','scene-count'); sceneCountEl.setAttribute('y', labelY + (idx%2===0?-13:15));
+      sceneCountEl.textContent = `${sceneN} scenes`;
+      g.appendChild(sceneCountEl);
     }
 
     if(gaps.length){
@@ -2071,6 +2032,55 @@ function renderMap(){
       badge.appendChild(bt);
       g.appendChild(badge);
     }
+
+    // Attached to every visible sub-element, not just `g`: on some mobile
+    // engines pointer-events:none on SVG <text> isn't reliably honored for
+    // touch, so a tap dead-on the number/label/etc. must still resolve to
+    // this same handler rather than depending on bubbling through skipped text.
+    const handlePointerDown = (e) => {
+      e.stopPropagation();
+      const isTouch = e.pointerType === 'touch';
+      if(isTouch) e.preventDefault();
+      const startPt = svgPoint(e);
+      dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false, isTouch, startTime: performance.now() };
+      g.setPointerCapture(e.pointerId);
+      g.classList.add('dragging');
+      svg.appendChild(g);
+    };
+    const handlePointerMove = (e) => {
+      if(!dragState || dragState.g!==g) return;
+      const p = svgPoint(e);
+      const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
+      const threshold = dragState.isTouch ? 10 : 4;
+      if(Math.abs(dx)>threshold || Math.abs(dy)>threshold) dragState.moved = true;
+      if(dragState.moved){
+        g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
+        updateDropHighlight(dragState.baseX+dx);
+      }
+    };
+    const handlePointerUp = (e) => {
+      if(!dragState || dragState.g!==g) return;
+      if(dragState.isTouch) e.preventDefault();
+      const wasMoved = dragState.moved;
+      // Touch disambiguates tap-vs-drag by movement AND duration (a quick,
+      // near-stationary touch is a tap even with a hair of jitter); mouse
+      // keeps its original movement-only behavior, unchanged.
+      const isTap = dragState.isTouch
+        ? (!wasMoved && (performance.now() - dragState.startTime) < 500)
+        : !wasMoved;
+      const p = svgPoint(e);
+      const finalX = dragState.baseX + (p.x - dragState.startX);
+      g.classList.remove('dragging');
+      clearDropHighlight();
+      dragState = null;
+      if(!isTap) handleDrop(chapter, finalX);
+      else openDrawer(chapter.id);
+    };
+    [g, halo, core, icon, label, sceneCountEl].filter(Boolean).forEach(el => {
+      el.addEventListener('pointerdown', handlePointerDown);
+      el.addEventListener('pointermove', handlePointerMove);
+      el.addEventListener('pointerup', handlePointerUp);
+    });
 
     svg.appendChild(g);
   });
