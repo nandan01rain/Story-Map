@@ -1,8 +1,10 @@
 # The Trail to Kailash — Story Map
 
 A personal writing tool for a five-book mythological saga. Built and iterated
-entirely as a single-file Claude.ai artifact (`story_map.html`); this repo is
-the migration of that sandbox into a real, independent app.
+entirely as a single-file Claude.ai artifact (originally named `story_map.html`
+in that sandbox, now `index.html` in this repo so static hosts serve it as the
+site root); this repo is the migration of that sandbox into a real,
+independent app.
 
 ## Current state (as of handoff)
 
