@@ -2,7 +2,7 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v1';
+const CACHE_VERSION = 'storymap-shell-v2';
 
 const APP_SHELL_PATHS = [
   './',
@@ -17,7 +17,7 @@ const APP_SHELL_URLS = APP_SHELL_PATHS.map((p) => new URL(p, self.location.href)
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL_URLS))
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL_URLS)).then(() => self.skipWaiting())
   );
 });
 
