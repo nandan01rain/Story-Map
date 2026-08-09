@@ -422,9 +422,9 @@ button.btn.small{padding:5px 10px;font-size:11px;}
     padding:10px;z-index:30;max-height:70vh;overflow-y:auto;
     box-shadow:0 10px 30px rgba(0,0,0,0.4);
   }
-  #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-wrap:wrap;}
+  #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-direction:column;}
 
-  #drawer{width:auto; left:16px; right:0;}
+  #drawer{width:auto; left:0; right:0;}
 }
 
 /* Touch devices only: the halo circle is invisible (fill:none) so by default it
@@ -525,6 +525,15 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .anno-panel-edit:hover{color:var(--gold);}
 .anno-panel-remove{background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;flex-shrink:0;line-height:1;padding:0 2px;}
 .anno-panel-remove:hover{color:var(--danger);}
+/* Mobile: the inline side panel becomes a full-screen overlay instead of a squeezed
+   290px sliver — desktop keeps the slide-out side-panel treatment untouched. Placed
+   after the base #editor-anno-panel rules (not in the earlier shared @media block)
+   so it wins the cascade against the equal-specificity `.show{width:290px}` rule above. */
+@media (max-width: 700px){
+  #editor-anno-panel{position:fixed; inset:0; width:0; z-index:60; border-left:none; transition:none;}
+  #editor-anno-panel.show{width:100%;}
+  #editor-anno-panel-body{width:100%;}
+}
 /* inline label editor — shared by the side panel and all full-screen annotation browsers */
 .anno-label-edit-row{display:flex;flex-direction:column;gap:6px;width:100%;}
 .anno-label-edit-input{width:100%;box-sizing:border-box;background:var(--bg-alt);border:1px solid var(--gold);color:var(--text);border-radius:6px;padding:8px 9px;font-size:16px;line-height:1.5;font-family:'Inter',sans-serif;resize:vertical;}
@@ -2702,21 +2711,33 @@ async function autosaveChapter(){
   document.getElementById('editor-status').textContent = 'Autosaved.';
   renderMap();
 }
+let editorMenuAutoCloseTimer = null;
+function closeEditorMenu(){
+  clearTimeout(editorMenuAutoCloseTimer);
+  editorMenuAutoCloseTimer = null;
+  document.getElementById('editor-head').classList.remove('menu-open');
+  document.getElementById('editor-menu-btn').setAttribute('aria-expanded', 'false');
+}
 document.getElementById('editor-menu-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   const head = document.getElementById('editor-head');
   const isOpen = head.classList.toggle('menu-open');
   document.getElementById('editor-menu-btn').setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  if(isOpen){
+    clearTimeout(editorMenuAutoCloseTimer);
+    editorMenuAutoCloseTimer = setTimeout(closeEditorMenu, 4000);
+  } else {
+    clearTimeout(editorMenuAutoCloseTimer);
+    editorMenuAutoCloseTimer = null;
+  }
 });
 document.getElementById('editor-menu-panel').addEventListener('click', () => {
-  document.getElementById('editor-head').classList.remove('menu-open');
-  document.getElementById('editor-menu-btn').setAttribute('aria-expanded', 'false');
+  closeEditorMenu();
 });
 document.addEventListener('click', (e) => {
   const head = document.getElementById('editor-head');
   if(head.classList.contains('menu-open') && !head.contains(e.target)){
-    head.classList.remove('menu-open');
-    document.getElementById('editor-menu-btn').setAttribute('aria-expanded', 'false');
+    closeEditorMenu();
   }
 });
 document.getElementById('editor-close').addEventListener('click', async () => {
