@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Trail to Kailash — Story Map</title>
+<title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -19,6 +19,12 @@
   /* Small gold compass-star, reused as a corner flourish wherever the ornate
      frame appears (app shell, hamburger panel) — one asset, several sizes. */
   --flourish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23c69a3a' stroke-width='1.3'%3E%3Cpath d='M20 3 L23 17 L37 20 L23 23 L20 37 L17 23 L3 20 L17 17 Z'/%3E%3Ccircle cx='20' cy='20' r='2.5'/%3E%3C/g%3E%3C/svg%3E");
+  /* Procedural CSS/SVG noise (feTurbulence), standing in for real scanned/generated
+     paper and leather grain until those texture assets exist — see PRIORITY 1 notes
+     at the call sites below for how close this actually gets. Swapping either for a
+     real seamless tile image later is a one-line change to these two properties. */
+  --texture-parchment: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --texture-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box;}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden;}
@@ -35,7 +41,15 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
   background-size:24px 24px;
 }
 
-header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, var(--bg-alt), var(--bg));flex-shrink:0;z-index:5;box-shadow:0 1px 0 rgba(198,154,58,0.08);}
+header{
+  display:flex;align-items:center;justify-content:space-between;padding:14px 24px;
+  border-bottom:1px solid var(--border);flex-shrink:0;z-index:5;box-shadow:0 1px 0 rgba(198,154,58,0.08);
+  background-color:var(--bg-alt);
+  background-image: var(--texture-leather), linear-gradient(180deg, var(--bg-alt), var(--bg));
+  background-repeat: repeat, no-repeat;
+  background-size: 180px 180px, 100% 100%;
+  background-blend-mode: overlay, normal;
+}
 header h1{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:19px;margin:0;letter-spacing:0.02em;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
 header h1 .header-tagline{color:var(--gold);font-weight:500;font-size:11px;font-family:'Cinzel',serif;display:block;margin-top:3px;letter-spacing:.16em;text-transform:uppercase;}
 .header-right{display:flex;gap:8px;align-items:center;}
@@ -47,6 +61,10 @@ header h1 .header-tagline{color:var(--gold);font-weight:500;font-size:11px;font-
    only place these become a real sectioned panel. */
 .hdr-section{display:contents;}
 .hdr-section-label, .hdr-menu-brand, .hdr-menu-epigraph, #hdr-menu-close-btn{display:none;}
+/* Shared line-icon set: consistent stroke weight/color everywhere an emoji
+   used to stand in (see the <symbol> defs near the top of <body>). */
+.nav-icon{width:15px;height:15px;display:inline-block;vertical-align:-3px;margin-right:3px;color:var(--gold);flex-shrink:0;}
+#ai-toggle-label .nav-icon{margin-right:6px;}
 /* Map/List already have a dedicated toggle in the header — these two only exist
    to give the mobile panel's "Discover" section a complete nav list; redundant
    on desktop where the real toggle is always visible. */
@@ -410,7 +428,11 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 /* Wax-seal-tab: the primary action reads as more ornate than the brass tabs —
    a small round "seal" accent in the ember tone, distinct from every other button. */
 button.btn.primary#add-chapter-btn{
-  background:linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+  background-color:var(--parchment);
+  background-image: var(--texture-parchment), linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+  background-repeat: repeat, no-repeat;
+  background-size: 180px 180px, 100% 100%;
+  background-blend-mode: multiply, normal;
   color:var(--ink);border:1px solid var(--brass);font-weight:600;
   border-radius:20px;padding-left:32px;position:relative;
 }
@@ -443,7 +465,14 @@ button.btn.primary#add-chapter-btn::before{
   background-size:6px 6px;
   background-position: top 5px left 5px, top 5px right 5px, bottom 5px left 5px, bottom 5px right 5px;
 }
-.lv-book-header{display:flex;align-items:stretch;cursor:pointer;background:linear-gradient(180deg, var(--parchment), var(--parchment-dark));}
+.lv-book-header{
+  display:flex;align-items:stretch;cursor:pointer;
+  background-color:var(--parchment);
+  background-image: var(--texture-parchment), linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+  background-repeat: repeat, no-repeat;
+  background-size: 180px 180px, 100% 100%;
+  background-blend-mode: multiply, normal;
+}
 .lv-book-header:active{filter:brightness(0.97);}
 .lv-book-cover{
   position:relative;flex:0 0 96px;min-height:104px;
@@ -499,13 +528,23 @@ button.btn.primary#add-chapter-btn::before{
     position:fixed;top:0;left:0;bottom:0;right:auto;
     width:min(78vw, 300px);
     flex-direction:column;align-items:stretch;gap:0;
-    background:linear-gradient(180deg, var(--bg-alt), var(--bg));
+    /* BUG FIX: this used to be `background: linear-gradient(...)` (shorthand)
+       followed by a separate `background-image:` declaration for the corner
+       flourishes — the second declaration silently overwrote the shorthand's
+       implicit background-image, discarding the gradient and leaving the
+       panel with no opaque backdrop at all (the actual cause of the List
+       view bleeding through underneath it on the real device). Fixed by
+       giving it an explicit solid background-color and folding the gradient
+       into the SAME background-image layer list as the flourishes, instead
+       of two separate background declarations fighting over one property. */
+    background-color:var(--bg);
     border:2px solid var(--gold);border-left:none;
     box-shadow:inset -5px 0 0 rgba(198,154,58,0.12), inset -6px 0 0 rgba(198,154,58,0.35), 10px 0 40px rgba(0,0,0,0.55);
-    background-image: var(--flourish), var(--flourish);
-    background-repeat:no-repeat;
-    background-position: top 5px right 5px, bottom 5px right 5px;
-    background-size:20px 20px;
+    background-image: var(--flourish), var(--flourish), var(--texture-leather), linear-gradient(180deg, var(--bg-alt), var(--bg));
+    background-repeat:no-repeat, no-repeat, repeat, no-repeat;
+    background-position: top 5px right 5px, bottom 5px right 5px, 0 0, 0 0;
+    background-size:20px 20px, 20px 20px, 180px 180px, 100% 100%;
+    background-blend-mode: normal, normal, overlay, normal;
     padding:16px 14px;z-index:60;overflow-y:auto;
   }
   .header-actions.menu-open .hdr-collapsible{display:flex;}
@@ -535,9 +574,11 @@ button.btn.primary#add-chapter-btn::before{
      button.btn font (Inter, --text) instead of the app's Cinzel/gold chrome
      styling used everywhere else — the "plain system text" complaint. */
   .header-actions.menu-open .hdr-collapsible{
-    justify-content:flex-start;background:none;border:none;border-radius:6px;
+    justify-content:flex-start;align-items:center;background:none;border:none;border-radius:6px;
     padding:9px 8px;font-size:14px;font-family:'Cinzel',serif;color:var(--text);letter-spacing:.02em;
   }
+  .header-actions.menu-open .nav-icon{width:20px;height:20px;margin-right:10px;vertical-align:middle;}
+  .header-actions.menu-open #ai-toggle-label{display:flex;align-items:center;}
   .header-actions.menu-open .hdr-collapsible:active{background:rgba(255,255,255,0.05);}
   .header-actions.menu-open .hdr-collapsible.active{
     background:linear-gradient(180deg, var(--gold), #a9822f);color:var(--ink);font-weight:600;
@@ -762,9 +803,34 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 </style>
 </head>
 <body>
+<!-- Shared line-icon set (PRIORITY 3): one consistent stroke-based style,
+     reused via <use> everywhere an emoji used to stand in. Deliberately
+     simple/geometric — flagged in the handoff response as a placeholder
+     until real illustrated icon assets exist. -->
+<svg style="display:none" aria-hidden="true">
+  <defs>
+    <symbol id="icon-map" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M9 4v14M15 6v14"/></g></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM8 10h8M8 14h8M8 18h5"/></g></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><path d="M15 15l5 5"/></g></symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l-2 2a3 3 0 004 4l3-3M16 12l2-2a3 3 0 00-4-4l-3 3M9 15l6-6"/></g></symbol>
+    <symbol id="icon-book-open" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5c3-1 6-1 9 1 3-2 6-2 9-1v13c-3-1-6-1-9 1-3-2-6-2-9-1z"/><path d="M12 6v13"/></g></symbol>
+    <symbol id="icon-compass" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6z"/></g></symbol>
+    <symbol id="icon-books" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="15" width="16" height="4" rx="1"/><rect x="5" y="10" width="14" height="4" rx="1"/><rect x="6" y="5" width="12" height="4" rx="1"/></g></symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M8 10l4 4 4-4M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></g></symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14V3M8 7l4-4 4 4M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></g></symbol>
+    <symbol id="icon-book-closed" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1.5"/><path d="M9 4v16"/></g></symbol>
+    <symbol id="icon-bookmark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9a2 2 0 012 2v16l-6.5-3L4 21V5a2 2 0 012-2z"/></g></symbol>
+    <symbol id="icon-pin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="4"/><path d="M12 13v8"/></g></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></g></symbol>
+    <symbol id="icon-sparkle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></g></symbol>
+    <symbol id="icon-swap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M14 4l3 3-3 3M20 17H7M10 20l-3-3 3-3"/></g></symbol>
+    <symbol id="icon-exit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5a1 1 0 00-1 1v14a1 1 0 001 1h4M15 12H8M12 8l4 4-4 4"/></g></symbol>
+  </defs>
+</svg>
 <div id="auth-screen">
   <div id="auth-card">
-    <h1>The Trail to Kailash<span>Sign in to continue</span></h1>
+    <h1>StoryMap<span>Sign in to continue</span></h1>
     <form id="auth-form">
       <div>
         <label for="auth-email">Email</label>
@@ -825,7 +891,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 </div>
 <div id="app" style="display:none;">
   <header>
-    <h1><span id="app-project-name">The Trail to Kailash</span><span class="header-tagline" id="header-tagline-text"></span></h1>
+    <h1><span id="app-project-name">StoryMap</span><span class="header-tagline" id="header-tagline-text"></span></h1>
     <div class="header-right">
     <button class="btn" id="header-menu-btn" aria-label="Menu" aria-expanded="false">☰</button>
     <div class="header-actions" id="header-actions">
@@ -848,38 +914,39 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
            of .header-actions, so desktop's existing row layout is unchanged). -->
       <div class="hdr-section" data-section="discover">
         <div class="hdr-section-label">Discover</div>
-        <button class="btn hdr-collapsible" id="hdr-map-btn">🗺 Map</button>
-        <button class="btn hdr-collapsible" id="hdr-list-btn">📋 List</button>
-        <button class="btn hdr-collapsible" id="search-btn">🔍 Search</button>
-        <button class="btn hdr-collapsible" id="pov-index-btn">👁 POV</button>
-        <button class="btn hdr-collapsible" id="continuity-btn">⛓ Continuity check</button>
-        <button class="btn hdr-collapsible" id="ledger-btn">📖 Ledger</button>
-        <button class="btn hdr-collapsible" id="mythic-index-btn">🧭 Mythic Threads</button>
-        <button class="btn hdr-collapsible" id="documents-btn">📚 Documents</button>
+        <button class="btn hdr-collapsible" id="hdr-map-btn"><svg class="nav-icon"><use href="#icon-map"></use></svg> Map</button>
+        <button class="btn hdr-collapsible" id="hdr-list-btn"><svg class="nav-icon"><use href="#icon-list"></use></svg> List</button>
+        <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
+        <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
+        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Continuity check</button>
+        <button class="btn hdr-collapsible" id="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Ledger</button>
+        <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-compass"></use></svg> Mythic Threads</button>
+        <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-books"></use></svg> Documents</button>
       </div>
 
       <div class="hdr-section" data-section="manage">
         <div class="hdr-section-label">Manage</div>
-        <button class="btn hdr-collapsible" id="export-btn">⬇ Export</button>
-        <button class="btn hdr-collapsible" id="export-epub-btn">⬇ Export as eBook</button>
-        <button class="btn hdr-collapsible" id="import-btn">⬆ Import</button>
-        <button class="btn hdr-collapsible" id="reader-open-btn">📕 Read</button>
-        <button class="btn hdr-collapsible" id="notes-board-btn">📌 Notes <span id="notes-count-badge">0</span></button>
-        <button class="btn hdr-collapsible" id="trash-btn">🗑 Trash <span id="trash-count-badge" class="zero">0</span></button>
+        <button class="btn hdr-collapsible" id="export-btn"><svg class="nav-icon"><use href="#icon-download"></use></svg> Export</button>
+        <button class="btn hdr-collapsible" id="export-epub-btn"><svg class="nav-icon"><use href="#icon-book-closed"></use></svg> Export as eBook</button>
+        <button class="btn hdr-collapsible" id="import-btn"><svg class="nav-icon"><use href="#icon-upload"></use></svg> Import</button>
+        <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Read</button>
+        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-pin"></use></svg> Notes <span id="notes-count-badge">0</span></button>
+        <button class="btn hdr-collapsible" id="trash-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Trash <span id="trash-count-badge" class="zero">0</span></button>
       </div>
 
       <div class="hdr-section" data-section="assist">
         <div class="hdr-section-label">Assist &amp; Project</div>
         <div id="ai-toggle-wrap" class="hdr-collapsible">
           <label id="ai-toggle-label" for="ai-toggle-input">
+            <svg class="nav-icon"><use href="#icon-sparkle"></use></svg>
             <span id="ai-toggle-dot"></span>
             AI Assistant
           </label>
           <input type="checkbox" id="ai-toggle-input" style="display:none;">
         </div>
         <button class="btn primary hdr-collapsible" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
-        <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;">Switch project</button>
-        <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;">Sign out</button>
+        <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-swap"></use></svg> Switch project</button>
+        <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-exit"></use></svg> Sign out</button>
       </div>
 
       <div class="hdr-menu-epigraph"><div class="hdr-menu-epigraph-box">Chart the past.<br>Shape the future.<br>Leave your legend.</div></div>
@@ -887,8 +954,8 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       <button class="btn primary" id="add-chapter-btn">+ Add chapter</button>
       <input type="file" id="import-file-input" accept="application/json" style="display:none;">
       <div id="view-toggle-wrap">
-        <button class="view-toggle-btn" id="view-map-btn">🗺 Map</button>
-        <button class="view-toggle-btn" id="view-list-btn">📋 List</button>
+        <button class="view-toggle-btn" id="view-map-btn"><svg class="nav-icon"><use href="#icon-map"></use></svg> Map</button>
+        <button class="view-toggle-btn" id="view-list-btn"><svg class="nav-icon"><use href="#icon-list"></use></svg> List</button>
       </div>
     </div>
     </div>
@@ -2052,9 +2119,9 @@ function applyViewMode(){
   document.getElementById('hdr-map-btn').classList.toggle('active', viewMode==='map');
   document.getElementById('hdr-list-btn').classList.toggle('active', viewMode==='list');
 }
-// Derived from the page's own canonical title ("The Trail to Kailash — Story Map")
-// rather than duplicating that string as a second hardcoded literal in two places
-// (the header subtitle and the hamburger panel's subtitle both read from here).
+// Derived from the page's own canonical title (document.title) rather than
+// duplicating that string as a second hardcoded literal in two places (the
+// header subtitle and the hamburger panel's subtitle both read from here).
 (function applySagaTagline(){
   const saga = (document.title.split('—')[0] || '').trim();
   const headerEl = document.getElementById('header-tagline-text');
