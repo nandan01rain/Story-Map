@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "scratchpad-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8800", "--directory", "C:/Users/NANDAN NAIR/AppData/Local/Temp/claude/E--StoryMap/dd1d427a-b762-43dc-a94a-d1bf091a50f3/scratchpad"],
+      "port": 8800
+    }
+  ]
+}

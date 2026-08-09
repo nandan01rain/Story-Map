@@ -1115,6 +1115,12 @@ let layoutBands = [];
 let bandRects = [];
 let lastPositions = [];
 let dragState = null;
+// Guards against a browser-synthesized "ghost click": pointer CAPTURE correctly
+// redirects pointerup to the node, but on some touch engines the derived
+// compatibility `click` event is still hit-tested at the raw release point
+// (ignoring capture) and can land on the act-cluster rect underneath, firing
+// the act popup right after a node tap already opened the correct chapter.
+let lastNodeInteractionEndTime = 0;
 
 /* ========== TEMP TOUCH-DEBUG OVERLAY — diagnosis only, safe to delete this whole block ========== */
 const DEBUG_TOUCH_OVERLAY = true;
@@ -1978,6 +1984,15 @@ function renderMap(){
     r.setAttribute('rx', 12); r.setAttribute('class','act-cluster-rect');
     r.style.cursor = 'pointer';
     r.addEventListener('click', () => {
+      // A click landing here very shortly after a node's own touch interaction
+      // just concluded is a browser-synthesized ghost click left over from that
+      // same touch (see lastNodeInteractionEndTime above), not a real tap on
+      // empty cluster background — ignore it so the act popup doesn't stack on
+      // top of the chapter the node tap already correctly opened.
+      if(performance.now() - lastNodeInteractionEndTime < 400){
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `act click suppressed [via rect] - ghost click after node tap` });
+        return;
+      }
       if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `act popup opened (book ${ac.book}, act ${ac.act}) [via rect]` });
       openActModal(ac.book, ac.act);
     });
@@ -1988,6 +2003,10 @@ function renderMap(){
     lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('class','act-band-label');
     lbl.textContent = chapterLabel(ac.book, ac.act);
     lbl.addEventListener('click', () => {
+      if(performance.now() - lastNodeInteractionEndTime < 400){
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `act click suppressed [via label] - ghost click after node tap` });
+        return;
+      }
       if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `act popup opened (book ${ac.book}, act ${ac.act}) [via label]` });
       openActModal(ac.book, ac.act);
     });
@@ -2117,6 +2136,7 @@ function renderMap(){
         const finalX = dragState.baseX + (p.x - dragState.startX);
         g.classList.remove('dragging');
         clearDropHighlight();
+        if(dragState.isTouch) lastNodeInteractionEndTime = performance.now();
         dragState = null;
         if(!isTap){
           if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: wasMoved ? `started drag (chapter ${chapter.id})` : `ignored - threshold/time not met (chapter ${chapter.id})` });
@@ -2318,7 +2338,18 @@ function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
 document.getElementById('drawer-close').addEventListener('click', closeDrawer);
-document.getElementById('overlay').addEventListener('click', ()=>{ closeDrawer(); document.getElementById('act-modal').classList.remove('show'); document.getElementById('continuity-modal').classList.remove('show'); document.getElementById('add-modal').classList.remove('show'); });
+document.getElementById('overlay').addEventListener('click', ()=>{
+  // Same ghost-click hazard as the act-cluster rect/label: openDrawer() shows
+  // this overlay immediately, so the browser's ~300ms-later synthesized click
+  // (from the same touch that opened the drawer) lands on the now-visible
+  // overlay and would close what was just opened. Same 400ms guard as those
+  // two sites (see lastNodeInteractionEndTime above).
+  if(performance.now() - lastNodeInteractionEndTime < 400){
+    if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `overlay click suppressed - ghost click after node tap` });
+    return;
+  }
+  closeDrawer(); document.getElementById('act-modal').classList.remove('show'); document.getElementById('continuity-modal').classList.remove('show'); document.getElementById('add-modal').classList.remove('show');
+});
 document.getElementById('d-status').addEventListener('click', e=>{
   if(!e.target.classList.contains('status-pill')) return;
   document.querySelectorAll('#d-status .status-pill').forEach(p=>p.classList.remove('active'));
