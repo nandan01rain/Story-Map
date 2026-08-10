@@ -2515,10 +2515,31 @@ function renderMap(){
         if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointerup: ' + err.message });
       }
     };
+    // TEMP DEBUG + real fix candidate: real-device evidence showed pointerdown
+    // firing and then nothing further (no threshold-crossed, no tap, no drag) —
+    // consistent with the browser sending pointercancel instead of pointermove/
+    // pointerup (e.g. touch-action arbitration deciding this is a scroll/pan)
+    // and nothing here ever listened for it, so dragState was silently stuck
+    // forever and the node's transform never got reset. This both fixes the
+    // stuck state and — via the log line — confirms whether this is really
+    // what's happening on the next real-device test.
+    const handlePointerCancel = (e) => {
+      try{
+        if(!dragState || dragState.g!==g) return;
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `pointercancel (chapter ${chapter.id}) moved=${dragState.moved} pointerType=${e.pointerType}` });
+        g.setAttribute('transform', `translate(${dragState.baseX},${dragState.baseY})`);
+        g.classList.remove('dragging');
+        clearDropHighlight();
+        dragState = null;
+      } catch(err){
+        if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointercancel: ' + err.message });
+      }
+    };
     [g, halo, core, icon, label, sceneCountEl].filter(Boolean).forEach(el => {
       el.addEventListener('pointerdown', handlePointerDown);
       el.addEventListener('pointermove', handlePointerMove);
       el.addEventListener('pointerup', handlePointerUp);
+      el.addEventListener('pointercancel', handlePointerCancel);
     });
 
     svg.appendChild(g);
