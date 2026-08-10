@@ -2457,9 +2457,17 @@ function renderMap(){
         if(isTouch) e.preventDefault();
         const startPt = svgPoint(e);
         dragState = { chapter, g, startX: startPt.x, startY: startPt.y, baseX:x, baseY:y, moved:false, isTouch, startTime: performance.now() };
-        g.setPointerCapture(e.pointerId);
+        // Real-device evidence: pointercancel was firing instantly, moved=false,
+        // even after suppressing contextmenu — inconsistent with a long-press
+        // system gesture (which takes ~500ms), consistent instead with
+        // svg.appendChild(g) re-parenting an ALREADY-attached node right after
+        // setPointerCapture. DOM spec treats that as remove-then-reinsert, and
+        // pointer capture can be implicitly released when its element leaves
+        // the DOM even momentarily. Doing the DOM move first, capture second,
+        // means nothing mutates the DOM again while capture is held.
         g.classList.add('dragging');
         svg.appendChild(g);
+        g.setPointerCapture(e.pointerId);
         if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ count: debugTouchState.count+1, pointerType: e.pointerType, target: debugTouchDescribeEl(e.currentTarget), outcome: '(pointer down, awaiting up)', error: '' });
       } catch(err){
         if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointerdown: ' + err.message });
@@ -3248,33 +3256,12 @@ document.querySelectorAll('[data-toggle-section]').forEach(label => {
     label.closest('.hdr-section').classList.toggle('collapsed');
   });
 });
-/* ========== TEMP DEBUG (issue 3): hamburger drawer scroll investigation —
-   diagnosis only, safe to delete this whole block once scrolling is
-   confirmed working on a real device with all 3 sections expanded. ========== */
-(function(){
-  const panel = document.getElementById('header-actions');
-  if(!panel || !DEBUG_TOUCH_OVERLAY) return;
-  let startScrollTop = null, startY = null;
-  // Every line now carries scrollHeight/clientHeight (previously only
-  // touchstart did, and it got overwritten by the time it was read) so
-  // whichever line ends up on screen is self-contained: it tells us both
-  // whether there's actually anything to scroll AND how far the finger
-  // moved, not just the resulting scrollTop.
-  panel.addEventListener('touchstart', (e) => {
-    startScrollTop = panel.scrollTop;
-    startY = e.touches[0] ? e.touches[0].clientY : null;
-    debugTouchLog({ outcome: `drawer touchstart target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop} scrollH=${panel.scrollHeight} clientH=${panel.clientHeight} canScroll=${panel.scrollHeight>panel.clientHeight}` });
-  }, { passive: true });
-  panel.addEventListener('touchmove', (e) => {
-    const y = e.touches[0] ? e.touches[0].clientY : null;
-    const movedY = (y!==null && startY!==null) ? (y-startY) : 'n/a';
-    debugTouchLog({ outcome: `drawer touchmove target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop} scrollH=${panel.scrollHeight} clientH=${panel.clientHeight} fingerMovedY=${movedY}` });
-  }, { passive: true });
-  panel.addEventListener('touchend', (e) => {
-    debugTouchLog({ outcome: `drawer touchend target=${debugTouchDescribeEl(e.target)} scrollTop before=${startScrollTop} after=${panel.scrollTop} scrollH=${panel.scrollHeight} clientH=${panel.clientHeight}` });
-  }, { passive: true });
-})();
-/* ========== END TEMP DEBUG (issue 3) ========== */
+// Issue 3 (drawer scroll) resolved by evidence, debug logging removed: real-device
+// capture showed scrollHeight === clientHeight (697 === 697) with touch events
+// correctly reaching the panel (fingerMovedY tracked finger motion accurately) —
+// there was never anything to scroll. The drawer's content already fits the real
+// viewport; the [TOUCH DEBUG] overlay itself (fixed over the bottom of the screen)
+// was the thing making the last section look unreachable, not a scroll bug.
 document.getElementById('search-btn').addEventListener('click', () => {
   document.getElementById('search-modal').classList.add('show');
   document.getElementById('search-input').value = '';
