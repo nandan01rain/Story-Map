@@ -3254,16 +3254,24 @@ document.querySelectorAll('[data-toggle-section]').forEach(label => {
 (function(){
   const panel = document.getElementById('header-actions');
   if(!panel || !DEBUG_TOUCH_OVERLAY) return;
-  let startScrollTop = null;
+  let startScrollTop = null, startY = null;
+  // Every line now carries scrollHeight/clientHeight (previously only
+  // touchstart did, and it got overwritten by the time it was read) so
+  // whichever line ends up on screen is self-contained: it tells us both
+  // whether there's actually anything to scroll AND how far the finger
+  // moved, not just the resulting scrollTop.
   panel.addEventListener('touchstart', (e) => {
     startScrollTop = panel.scrollTop;
-    debugTouchLog({ outcome: `drawer touchstart target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop} scrollHeight=${panel.scrollHeight} clientHeight=${panel.clientHeight}` });
+    startY = e.touches[0] ? e.touches[0].clientY : null;
+    debugTouchLog({ outcome: `drawer touchstart target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop} scrollH=${panel.scrollHeight} clientH=${panel.clientHeight} canScroll=${panel.scrollHeight>panel.clientHeight}` });
   }, { passive: true });
   panel.addEventListener('touchmove', (e) => {
-    debugTouchLog({ outcome: `drawer touchmove target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop}` });
+    const y = e.touches[0] ? e.touches[0].clientY : null;
+    const movedY = (y!==null && startY!==null) ? (y-startY) : 'n/a';
+    debugTouchLog({ outcome: `drawer touchmove target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop} scrollH=${panel.scrollHeight} clientH=${panel.clientHeight} fingerMovedY=${movedY}` });
   }, { passive: true });
   panel.addEventListener('touchend', (e) => {
-    debugTouchLog({ outcome: `drawer touchend target=${debugTouchDescribeEl(e.target)} scrollTop before=${startScrollTop} after=${panel.scrollTop}` });
+    debugTouchLog({ outcome: `drawer touchend target=${debugTouchDescribeEl(e.target)} scrollTop before=${startScrollTop} after=${panel.scrollTop} scrollH=${panel.scrollHeight} clientH=${panel.clientHeight}` });
   }, { passive: true });
 })();
 /* ========== END TEMP DEBUG (issue 3) ========== */
