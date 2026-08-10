@@ -150,9 +150,12 @@ usually `saveData()`. Key state:
   `readerCurrentBookIndex`, `readerCurrentPage`, `readerTotalPages`,
   `readerPageStepPx`, `readerChapterStartPages` — in-app Reader state.
 - `DEBUG_TOUCH_OVERLAY`, `debugTouchState`, `debugTouchEl` — **temporary
-  diagnostic overlay, currently `true`/enabled in the working tree, uncommitted
-  and not meant to ship.** See §7 and §9 — this is the single most important
-  "don't forget about this" item in the handoff.
+  diagnostic overlay, currently `true`/enabled and committed (it has shipped
+  in every deploy this whole session — "temporary" here means "meant to be
+  removed eventually," not "not yet committed").** Still actively needed for
+  the ongoing Map-drag `pointercancel` investigation (§6/§9) — do not remove
+  until that's confirmed fixed on the real device. This remains the single
+  most important "don't forget about this" item in the handoff.
 
 ### 3.2 Data flow / persistence flow **[VERIFIED]**
 
@@ -332,7 +335,7 @@ filters are the *only* thing preventing cross-account data access.
 | Authentication | **COMPLETE** [VERIFIED] | Supabase email/password, working end-to-end per session history. |
 | Supabase persistence | **COMPLETE, not granular** [VERIFIED] | See §3.2 — works, but every save re-upserts every row of every populated table. |
 | PWA (installability) | **COMPLETE for Stage 1 scope** [VERIFIED] | Manifest + app-shell-only service worker. Explicitly does NOT cache/enable offline data — Supabase calls always hit the network. Confirmed via real offline test (server killed, page still loaded from cache) earlier this session. |
-| Mobile / responsive behavior | **COMPLETE for map/header/editor/reader; drawer and mark-toolbar explicitly deferred** [SESSION, heavily verified] | See §6 — multiple rounds of real fixes. The chapter drawer's fixed 440px width and the editor's mark-toolbar layout were **explicitly excluded** from the mobile work as a separate, more involved future stage — do not assume they're mobile-safe. |
+| Mobile / responsive behavior | **COMPLETE across map/header/editor/reader/drawer/mark-toolbar/annotation-panel** [SESSION, heavily verified across multiple follow-on sessions] | See §6 — many rounds of real fixes, well past the original handoff's scope. The chapter drawer (responsive width, no more skew), the editor's mark-toolbar (compact right-anchored dropdown, inactivity auto-close), and the annotation side panel (full-screen on mobile, larger edit textarea) — all previously explicitly deferred — have since been done. List view and the hamburger nav drawer were additionally given a full visual redesign (parchment/gilded concept) — see the dedicated subsection in §6. |
 | Offline functionality (data) | **NOT IMPLEMENTED, explicitly out of scope for now** [VERIFIED] | Only the static app shell works offline (per PWA Stage 1). Chapters/scenes/etc. require a live connection to load or save. This is a deliberate staged scope, not an oversight. |
 
 ---
@@ -485,6 +488,223 @@ cache entries — they are genuinely different request URLs even though a
 static host resolves both to the same file, so caching only one of them would
 have left the bare-root URL uncached and failing offline.
 
+### Round-4 ghost-click fix — CONFIRMED **[SESSION]**
+The map ghost-click suppression window described above (§6, step 4) has
+since been confirmed working on the real device: real-device telemetry
+showed `"overlay click suppressed - ghost click after node tap"` firing
+correctly, and tap-to-open now reliably opens the chapter drawer instead of
+the underlying Act popup. This closes out the round-1-through-4 map ghost-
+click saga described earlier in this section — **do not reopen or rework
+this specific mechanism** (`lastNodeInteractionEndTime`, the 400ms window,
+the `pointer-events:all` + `@media(pointer:coarse)` halo fix) without new
+real-device evidence that it's actually broken again.
+
+### Service worker cache versioning — critical fix, was silently blocking every other fix **[SESSION]**
+`service-worker.js` used a hardcoded `CACHE_VERSION` that never changed
+between deploys, with a pure cache-first fetch strategy and no
+`self.skipWaiting()`. Practical effect: **every fix pushed to devices in
+this session was invisible on a real phone until this was found** — the
+service worker kept serving the exact `index.html` snapshot from first
+install, forever, regardless of how many new commits were deployed. Fixed by
+bumping `CACHE_VERSION` and adding `self.skipWaiting()` so a version bump
+actually takes effect on next load instead of requiring every tab on the
+site to be fully closed first. **Consequence for future work**: any
+CSS/JS/HTML change to the app shell (`index.html`, `manifest.json`,
+`supabase-config.js`) needs `CACHE_VERSION` bumped again in
+`service-worker.js`, or it will not reach real devices no matter how many
+times they reload. There is no automatic versioning — it's a manual bump,
+easy to forget, and forgetting it looks exactly like "the fix didn't work"
+from the user's side. **Testing implication**: after every deploy, the user
+must fully close and reopen the app (not just reload) on their phone for the
+service worker update to take over.
+
+### Map-mode touch-drag reorder — separate bug from the ghost-click fix, multi-round investigation, current status: fix pushed, NOT YET real-device-confirmed **[SESSION]**
+Distinct from the tap-to-open ghost-click saga above — this is about
+press-and-drag reordering specifically. Went through several rounds, each
+disproven by real-device evidence before moving to the next theory (the
+same "don't guess, get evidence" discipline as the ghost-click rounds):
+1. **Verified the underlying reorder logic itself is sound** by dispatching
+   real `pointerType:'touch'` `PointerEvent` sequences directly (not
+   clicks) — forward and backward reorder both worked correctly, reusing
+   the same `handleDrop()` mouse uses. This ruled out "native HTML5
+   drag-and-drop doesn't fire on touch" as the cause — the app never used
+   native drag-and-drop; it's Pointer Events end to end.
+2. **Real-device evidence** (via the same on-screen `[TOUCH DEBUG]` overlay
+   pattern used for the ghost-click rounds) showed `pointerdown` firing,
+   then **nothing further** — no threshold-crossed, no tap, no drag outcome.
+   The gesture silently died.
+3. **First theory, disproven**: Android long-press context-menu arbitration
+   cancelling the touch. Added `contextmenu` `preventDefault()` +
+   `-webkit-touch-callout:none`. Real-device retest: `pointercancel` still
+   fired, still `moved=false`. Kept the fix anyway (harmless, standard
+   practice) but it wasn't the cause.
+4. **Second theory, disproven**: `svg.appendChild(g)` (bring-dragged-node-
+   to-front) was called *after* `g.setPointerCapture(e.pointerId)` in
+   `handlePointerDown` — re-parenting an already-attached DOM node is a
+   remove+reinsert per the DOM spec, which can implicitly release pointer
+   capture on some engines. Reordered so the DOM move happens before
+   capture is acquired. Real-device retest: `pointercancel` **still**
+   fired, still `moved=false`.
+5. **Third theory, current fix, not yet real-device-confirmed**: a
+   `resize`-triggered `renderMap()` (added earlier for the portrait
+   Map-sizing fix, see below) does `svg.innerHTML=''` and rebuilds every
+   node from scratch. Android can dispatch a `resize` event mid-touch when
+   its toolbar animates during touch-scroll gesture arbitration, whether or
+   not real scrolling ends up happening. If that fires while a drag is in
+   progress, it destroys the exact `<g>` element holding pointer capture —
+   which fits the evidence (instant cancellation, zero movement) far better
+   than either prior theory. Fixed by guarding the resize handler on
+   `dragState` (checked both immediately and after the debounce, since a
+   drag can start/end within that window) so an active drag is never
+   rebuilt out from under itself. **Verified in a JS-driven test** (a
+   `resize` event dispatched mid-synthetic-drag no longer destroys the node
+   or clears `dragState`, while a resize with no active drag still
+   re-renders normally) — **but per this document's own standard, a
+   synthetic/simulated test is not proof of real-device correctness for
+   anything touch-related. This needs the user to retest the actual drag
+   gesture on their phone before being treated as fixed.**
+
+`DEBUG_TOUCH_OVERLAY` (see §3.1/§6 above) is **still enabled** specifically
+to carry this investigation — do not remove it until round 5 above is
+confirmed. It has been shrunk from ~4-5 wrapped lines (~100-150px, which
+was itself confirmed to be the cause of a separate false "drawer won't
+scroll" report — see below) to a single truncated line.
+
+### Map portrait/landscape sizing **[SESSION]**
+Map's SVG `viewBox` height was a fixed `640` (tuned for landscape/desktop),
+which on a portrait phone (usually taller than 640 CSS px of available
+height) just added unused letterboxing above/below via
+`preserveAspectRatio`'s default `meet` behavior, rather than using the
+screen it was actually given. `getMapVerticalMetrics()` now sizes the
+viewBox height (and derives `Y_MID`/`AMPLITUDE`) from `#map-wrap`'s real
+available height, but **only in portrait** (`matchMedia('(orientation:
+portrait)')`); landscape and desktop keep the original fixed 640/340/120
+unchanged. `#map-wrap`'s `overflow-y` was also changed from `hidden` to
+`auto` as a defensive fallback. A `resize`-triggered re-render was added so
+rotating the device re-lays-out the map — **this is the same resize
+listener responsible for the Map-drag `pointercancel` bug above**; if this
+listener is touched again, re-read that subsection first.
+
+### Landscape phones falling through to the full desktop button row **[SESSION]**
+All mobile-breakpoint CSS was gated purely on `@media (max-width: 700px)` —
+no `pointer` check at all. A landscape phone's width (commonly 700-900px+)
+fails that check and falls through to the full un-collapsed desktop header
+row, causing severe button overlap/wrapping. Fixed by changing all three
+`@media (max-width: 700px)` blocks in the file to
+`@media (max-width: 700px), (pointer: coarse) and (max-width: 900px)`, so a
+touch device stays collapsed in both orientations while desktop/mouse at
+the same CSS widths is unaffected. **Verified at 750px width with coarse
+pointer emulated** (the old rule alone fails there, the new one correctly
+collapses the header) and **at 1280px with fine pointer** (full row
+unaffected) — the true 800-900px-with-real-touch-hardware case could not be
+tested in the available browser tooling (its touch emulation only goes up
+to 768px wide) and should be spot-checked on an actual phone in landscape
+if this area is touched again.
+
+### List view + hamburger nav drawer — full visual redesign **[SESSION]**
+Both were redesigned from scratch to match an approved parchment/gilded
+design reference (two concept images), replacing what had drifted into
+plain default-ish styling. This was **layout/presentation only** — no nav
+item's behavior, click handler, or underlying data changed; every existing
+`id` was preserved so `document.getElementById(...).addEventListener(...)`
+call sites kept working unmodified.
+
+**What's real vs. placeholder in this redesign — be honest about this with
+the user, don't claim finished art that doesn't exist:**
+- **Book cover art**: genuine slot architecture
+  (`getBookCoverUrl(bookIndex)` as the single resolution point, checked
+  before rendering an `<img>` vs. the CSS placeholder), but **no actual
+  artwork exists** — confirmed by checking `icons/` (only the two PWA
+  icons exist, no book/character key art anywhere in the repo). Every book
+  currently renders the CSS-gradient placeholder.
+- **Paper/leather texture**: `--texture-parchment`/`--texture-leather`
+  custom properties, implemented as `feTurbulence`-based inline-SVG
+  procedural noise layered into each surface's `background-image` stack via
+  `background-blend-mode`. This is explicitly a placeholder for real
+  scanned/generated texture assets — procedural turbulence noise reads as
+  mechanical/uniform up close and does not have the organic aged quality of
+  the design reference. Swapping either custom property for a real seamless
+  tile image later is a one-line change per the properties, not a rewrite.
+- **Icon set**: 17 nav icons replaced from emoji to a shared inline-SVG
+  `<symbol>`/`<use>` sprite, single consistent stroke weight, `var(--gold)`.
+  Deliberately simple/geometric placeholders, not the richly illustrated
+  icon style in the design reference — flagged as a follow-up asset need,
+  not resolved in this pass.
+- **Ornamental frame**: real (not placeholder) — a reusable inline-SVG
+  compass-star flourish (`--flourish` custom property) at the corners of
+  both the app shell and the hamburger panel, CSS double-border treatment.
+  Good enough to ship as final, not marked as needing replacement.
+
+**Real bugs found and fixed during this redesign pass** (worth knowing about
+as patterns, since more than one of them recurred):
+- **CSS shorthand property collision, found twice**: `background:
+  linear-gradient(...)` (shorthand) followed later in the same rule by a
+  separate `background-image:` declaration for the corner flourishes — the
+  second declaration silently overwrites the shorthand's implicit
+  `background-image`, discarding the gradient. This was the actual cause of
+  a real, confirmed-on-device bug where the hamburger drawer rendered fully
+  transparent and visually bled through with the List view underneath it
+  (initially misdiagnosed as a testing-tool screenshot artifact — it was
+  not). **Pattern to watch for**: once `background-image` is going to carry
+  multiple layers, use `background-color` for the solid base and put
+  *everything* (including any gradient) into one single `background-image:`
+  layer list — never mix the `background` shorthand with a later
+  standalone `background-image` on the same element.
+- **`flex-wrap` inherited from the base/desktop rule**: the hamburger
+  panel's `.header-actions.menu-open` never overrode `.header-actions`'s
+  base `flex-wrap:wrap`. Combined with `flex-direction:column`, content
+  taller than the panel didn't scroll in place — it wrapped into a *second
+  column* that spilled out past the panel's own border onto the List view
+  underneath. Fixed with an explicit `flex-wrap:nowrap` override.
+- **Shrink-to-fit width caused visible resizing**: an attempted fix sized
+  the drawer via `width:auto;min-width:50vw;max-width:82vw` (content-driven)
+  — this meant collapsing/expanding the Discover/Manage/Assist sections
+  visibly changed the panel's width. Replaced with a fixed,
+  viewport-derived-only `width:min(80vw, 300px)`, verified identical width
+  regardless of expand/collapse state.
+- **Hamburger button vertical misalignment**: `header-actions` wraps onto
+  two rows on mobile (Map/List row, then `+Add chapter` wraps below);
+  `header-menu-btn`'s parent (`header-right`) centered it
+  (`align-items:center`) across that *combined* height, so it visually
+  floated between the two rows instead of sitting level with Map. Fixed
+  with `align-items:flex-start`.
+- **`#header-menu-btn` had to move out of `#header-actions`**: once the
+  hamburger panel became `position:fixed` (to be a full-height sliding
+  drawer), any child of `#header-actions` — including the hamburger button
+  itself, if left nested inside — would be swept into that fixed panel and
+  disappear from the header row when opened. It now lives in a sibling
+  `.header-right` wrapper instead. This also required updating the
+  "click outside closes the menu" document-level listener to explicitly
+  exclude `#header-menu-btn`, since it's no longer a descendant of
+  `#header-actions` (previously excluded implicitly by nesting).
+- **False "drawer won't scroll" report, resolved as not-a-bug**: real-device
+  debug logging (`scrollHeight`/`clientHeight` on every touch event) showed
+  the two values equal (content genuinely fit the viewport, e.g.
+  `697 === 697`) even while the user reported being unable to scroll to see
+  everything. The actual cause was the `[TOUCH DEBUG]` overlay itself — a
+  separate, always-on-top, fixed-bottom element — visually covering the
+  bottom ~100-150px of the drawer's real (already-fitting) content. Shrunk
+  the overlay to a single line rather than removing it outright, since it's
+  still needed for the Map-drag investigation above.
+
+Desktop was explicitly re-checked after each of the above (all mobile-only
+via the `@media` breakpoints and `display:contents` grouping-wrapper
+pattern already established) — confirmed unchanged: same flat button row,
+same 440px chapter drawer width, no visual regressions.
+
+### StoryMap rebrand **[SESSION]**
+"The Trail to Kailash" removed from every app-facing UI surface — the login
+screen title, the header's `#app-project-name` placeholder, the page
+`<title>`, and `manifest.json`'s `name` field — replaced with "StoryMap"
+everywhere it appeared as the app's own branding. The header's small
+subtitle line (under the project name) is now derived from `document.title`
+at runtime rather than a second hardcoded copy of the same string, so it
+can't drift out of sync with the page title again. `CLAUDE.md` and this
+handoff doc were deliberately **not** rewritten to scrub "The Trail to
+Kailash" — that's the saga's actual title (the content this tool exists to
+help write), not app branding, and remains correct to reference by name in
+project documentation.
+
 ---
 
 ## 7. KNOWN BUGS / TECHNICAL DEBT
@@ -512,15 +732,31 @@ have left the bare-root URL uncached and failing offline.
   never conclusively explained. Left in place per explicit user decision. [SESSION]
 
 **Suspected / needs real-device verification:**
-- The round-4 map ghost-click fix (§6) is implemented and passed sandbox
-  simulation, but the **real device test that surfaced the bug in the first
-  place has not yet re-run against this fix**. Treat map touch interaction as
-  "believed fixed, not confirmed" until that happens. [SESSION]
+- **Map-mode touch-drag reorder (round 5, current)**: fix pushed (guard the
+  `resize`-triggered `renderMap()` on `dragState` so an active drag isn't
+  rebuilt out from under itself — see §6). Verified only via a JS-driven
+  simulated `resize`-during-drag test; **not yet confirmed against the real
+  device that's been surfacing this bug across 4 prior disproven theories**.
+  Do not treat this as closed until that confirmation happens — see §6 for
+  the full history and why the two previous theories (contextmenu/long-press,
+  pointer-capture-vs-appendChild ordering) were each individually disproven
+  by real-device evidence before this one. [SESSION]
 - `setPointerCapture` behavior on the actual failing device is still not
   100% understood — the working theory (native compatibility-click hit-tests
   ignore pointer capture on some touch engines) fits all observed telemetry
   but was never confirmed against engine source/spec for the specific
   device/browser in question. [SESSION, reasoned but not spec-confirmed]
+
+**Resolved since the previous version of this document:**
+- The round-4 map ghost-click fix — **confirmed on the real device** (see
+  §6). Tap-to-open reliably opens the chapter drawer; the Act popup no
+  longer steals the tap via a synthesized ghost click. [SESSION]
+- The service-worker cache-versioning bug — **the actual reason several
+  earlier "fixes" appeared to do nothing on the real device**: no
+  `CACHE_VERSION` bump + no `self.skipWaiting()` meant the app shell was
+  served from a permanently stale cache regardless of new deploys. Fixed;
+  see §6 for the ongoing implication (still needs a manual version bump on
+  every future app-shell change). [SESSION]
 
 **Unverified state:**
 - Supabase RLS policies — existence and correctness unverified (§4). Client
@@ -599,37 +835,68 @@ These are established and should not be silently overridden by a future session:
 
 ## 9. CURRENT DEVELOPMENT STATE
 
-**Just completed** (implemented and passed sandbox/simulated testing, but see
-caveat below): the round-4 map ghost-click fix — a 400ms suppression window
-preventing a browser-synthesized ghost `click` on the act-cluster rect/label
-from firing right after a touch-originated chapter-node tap already correctly
-opened its chapter. This is currently **uncommitted** in the working tree
-(confirmed via `git diff HEAD` — it's the only uncommitted change; everything
-else, including the temporary debug overlay itself, is already committed as
-of commit `7b2711e`).
+*(This section has been rewritten — the previous version described a round-4
+map-ghost-click cycle that has since been confirmed, committed, and is no
+longer the active work. See §6's dedicated subsections for the full history
+of everything below.)*
 
-**What remains unfinished / explicitly queued:**
-1. **Real-device confirmation of the round-4 fix.** The user's last message in
-   this session was reporting round-3 telemetry (halo hit-testing confirmed
-   fixed, but outcome still wrongly resolving to the act popup) and asking for
-   exactly the fix that was just implemented. The next step — the user
-   re-testing on the real device with the same debug-overlay logging, and
-   reporting whether "last target: halo" now correctly pairs with the correct
-   chapter opening instead of the act popup — **has not happened yet**.
-2. **Remove or disable the temporary debug overlay** (`DEBUG_TOUCH_OVERLAY`)
-   once round 4 is confirmed. It is currently live and enabled.
-3. **Commit the round-4 fix** (and disable/remove the overlay in the same or
-   a follow-up commit) once confirmed — nothing from this round is in git yet.
+**Confirmed done, committed, and pushed:**
+- Map-mode tap-to-open ghost-click fix (rounds 1-4) — confirmed on the real
+  device, no longer under investigation.
+- Service worker cache-versioning fix — this was silently blocking visibility
+  of every other fix pushed during this session; now fixed, but **still
+  needs a manual `CACHE_VERSION` bump in `service-worker.js` on every future
+  app-shell change**, or new deploys will keep failing to reach real devices.
+- Chapter drawer responsive width (no more clipping, no more skew).
+- Editor mark-toolbar hamburger: compact right-anchored dropdown, vertical
+  item stacking, inactivity auto-close timer (a **separate, distinct**
+  mechanism from the main hamburger nav drawer's open/close logic — do not
+  conflate the two, they were built independently and are unrelated code).
+- Annotation side panel: full-screen on mobile, larger edit textarea.
+- Map portrait/landscape viewBox sizing (portrait uses real available
+  height; landscape/desktop unchanged).
+- Landscape phones now correctly collapse to the hamburger header instead of
+  showing the full overlapping desktop button row.
+- List view + hamburger nav drawer: full visual redesign to an approved
+  parchment/gilded concept, including a real ornamental-frame system
+  (reusable inline-SVG compass-star flourish), collapsible Discover/Manage/
+  Assist-&-Project sections, a shared 17-icon SVG line-icon set (placeholder
+  quality, not final art — see §6), and procedural paper/leather texture
+  (also explicitly placeholder quality). A real, confirmed-on-device
+  transparency/bleed-through bug and a real column-wrap-spillover bug were
+  both found and fixed during this pass — see §6 for the exact CSS
+  mechanisms, both are recurring footguns worth knowing about.
+- StoryMap rebrand — "The Trail to Kailash" removed from all app-facing UI
+  text; the app is StoryMap, the saga is still called that.
 
-**Next logical task**, in order: (a) get real-device confirmation of round 4,
-(b) fix anything it reveals, (c) turn off/remove the debug overlay, (d) commit.
-Beyond that immediate loop, no other task was explicitly queued by the user at
-the time of this handoff — the mobile-responsiveness and map-touch work was
-being driven reactively by real-device bug reports, not from a pre-set backlog.
+**NOT yet confirmed — the single most important thing for the next session
+to know:**
+- **Map-mode touch-drag reorder, round 5.** A guard was added to stop a
+  `resize`-triggered `renderMap()` from destroying an in-progress drag (see
+  §6 for why this is now believed to be the actual root cause, after two
+  earlier theories were each individually disproven by real-device
+  evidence). This has only been verified via a simulated `resize`-during-
+  synthetic-drag test in this session — **the real device that's been
+  surfacing this bug has not yet retested the actual gesture**. Do not
+  assume this is fixed. If the next report still shows `pointercancel` in
+  the `[TOUCH DEBUG]` overlay, this is now round 6, and the resize-guard
+  theory should be treated as disproven the same way the previous two were
+  — don't re-attempt it, look for new evidence instead.
 
-**Do not** assume the mobile-responsiveness or map-touch-interaction work is
-"done" in a general sense — treat both as "extensively iterated on this
-session, last round unconfirmed" rather than closed.
+**`DEBUG_TOUCH_OVERLAY` is still `true`/enabled** in the working tree,
+specifically to carry the round-5 investigation above. It has been shrunk
+to a single truncated line (previously ~100-150px of wrapped text, which
+was itself confirmed to be the cause of an unrelated false "the hamburger
+drawer won't scroll" report — see §6). **Remove or disable it once round 5
+is confirmed** — same "temporary, clearly marked, must actually be removed"
+convention this document has flagged since the original handoff.
+
+**Next logical task, in order**: (a) get real-device confirmation of the
+round-5 Map-drag fix, (b) if it's still broken, gather fresh evidence rather
+than guessing a round 7, (c) once confirmed, remove `DEBUG_TOUCH_OVERLAY`
+entirely, (d) commit that removal. Beyond that immediate loop, no other task
+is queued — as with the original handoff, this work has been driven
+reactively by real-device bug reports, not a pre-set backlog.
 
 ---
 
@@ -713,12 +980,16 @@ Quick reference for how much to trust specific claim categories in this document
 | Actual live Supabase schema, constraints, indexes | **UNVERIFIED / MUST CHECK** |
 | RLS policy existence/correctness | **UNVERIFIED / MUST CHECK** |
 | AI feature being non-functional outside the sandbox | **VERIFIED FROM CURRENT CODE** (no API key in the fetch call, no proxy exists in repo) |
-| Map touch-interaction bug history and fixes (rounds 1–3) | **ESTABLISHED IN THIS SESSION**, each round's fix independently verified via direct testing at the time |
-| Round-4 ghost-click fix | **ESTABLISHED IN THIS SESSION, sandbox-verified only** — real-device confirmation is the explicit next step, not yet done |
+| Map touch-interaction bug history and fixes (rounds 1–3) | **ESTABLISHED IN A PRIOR SESSION**, each round's fix independently verified via direct testing at the time |
+| Round-4 ghost-click fix | **CONFIRMED ON THE REAL DEVICE** in a follow-on session — no longer "sandbox-verified only" |
+| Round-5 Map-drag `pointercancel` fix (resize-guard) | **NOT YET REAL-DEVICE-CONFIRMED** — only verified via a JS-driven simulated resize-during-drag test. Two earlier theories for this same bug (contextmenu/long-press, pointer-capture-vs-appendChild ordering) were each individually implemented, pushed, and then disproven by real-device evidence — treat this one with the same skepticism until confirmed. |
+| Service-worker cache-versioning bug and fix | **CONFIRMED** — directly explained why multiple earlier fixes appeared to do nothing on the real device across this session |
+| List view / hamburger drawer redesign (textures, icons, frame, layout bugs found+fixed) | **ESTABLISHED IN THIS SESSION**, layout/transparency/wrap bugs each verified via direct browser testing + real-device screenshots; texture and icon quality explicitly flagged as placeholder, not verified-as-final |
 | Editor architecture (`contenteditable`, caret math) | **VERIFIED FROM CURRENT CODE** — the *reasoning/history* behind choosing this architecture is not in this session's visible history (it likely predates it), only the resulting code and its inline comments are verified |
 | UUID migration having happened | **VERIFIED FROM CURRENT CODE** (consistent `crypto.randomUUID()` usage, `nextId` scoped to annotations only) — the migration *process/history* itself is not in this session's visible history |
-| Multi-project support being complete (vs. `CLAUDE.md`'s "deferred") | **VERIFIED FROM CURRENT CODE** |
-| Deployment target (Vercel) | **UNVERIFIED** — stated in conversation, no config file confirms it |
+| Multi-project support being complete (vs. `CLAUDE.md`'s original "deferred" note) | **VERIFIED FROM CURRENT CODE** |
+| Deployment target (Vercel) | **CONFIRMED** — real-device screenshots throughout this session show a `*.vercel.app` URL in the browser bar |
 | Origin of the stray `git` file | **UNVERIFIED** — actively investigated in a prior session, inconclusive |
-| Mobile-responsiveness fixes (viewport meta, touch targets, hamburger menus, input zoom) | **ESTABLISHED IN THIS SESSION**, each verified via direct browser testing (including a real desktop-vs-mobile screenshot comparison to catch a regression) at the time |
-| Reader page-break fix | **ESTABLISHED IN THIS SESSION**, verified via direct rendering test at the time |
+| Mobile-responsiveness fixes (viewport meta, touch targets, hamburger menus, input zoom) | **ESTABLISHED IN A PRIOR SESSION**, each verified via direct browser testing (including a real desktop-vs-mobile screenshot comparison to catch a regression) at the time |
+| Reader page-break fix | **ESTABLISHED IN A PRIOR SESSION**, verified via direct rendering test at the time |
+| StoryMap rebrand (all "The Trail to Kailash" app-UI text → "StoryMap") | **VERIFIED FROM CURRENT CODE** — `grep`-confirmed zero remaining occurrences in `index.html` |

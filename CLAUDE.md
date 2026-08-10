@@ -1,37 +1,47 @@
-# The Trail to Kailash — Story Map
+# StoryMap ("The Trail to Kailash")
 
-A personal writing tool for a five-book mythological saga. Built and iterated
-entirely as a single-file Claude.ai artifact (originally named `story_map.html`
-in that sandbox, now `index.html` in this repo so static hosts serve it as the
-site root); this repo is the migration of that sandbox into a real,
-independent app.
+A personal writing tool for a five-book mythological saga called "The Trail
+to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
+screen, page title, PWA manifest); the saga title is the content this tool
+exists to help write, not the app's own name. Built and iterated entirely as
+a single-file Claude.ai artifact (originally named `story_map.html` in that
+sandbox, now `index.html` in this repo so static hosts serve it as the site
+root); this repo is the migration of that sandbox into a real, independent app.
 
-## Current state (as of handoff)
+> **This file is the original project brief and is now stale in several
+> places it hasn't been updated for.** `STORYMAP_CODEBASE_HANDOFF.md` in this
+> repo is the actively maintained, detailed technical handoff — where the two
+> disagree, the handoff doc and the actual code win. Read this file for
+> background/intent; read the handoff doc for current architecture, feature
+> status, known bugs, and what's actually been built.
 
-Single self-contained HTML file. All CSS, JS, and a base64-embedded map
-background image live inline in one file. Data persistence currently uses
-`window.storage` — a Claude-artifact-only API that does **not** exist outside
-Claude.ai. This is the first thing that needs to change.
+## Current state
 
-**A JSON export of the real (non-seed) data should accompany this handoff.**
-The HTML file's built-in seed data is placeholder/example content only — the
-actual working data lives in the exported JSON, produced via the app's own
-⬇ Export button before leaving the sandbox.
+Single self-contained HTML file (`index.html`) plus small static sidecar
+files (`manifest.json`, `service-worker.js`, `supabase-config.js`). All CSS,
+JS, and a base64-embedded map background image live inline in `index.html`.
 
-## Immediate priority: storage-layer swap
+**The storage-layer migration described below is complete.** Persistence is
+Supabase (Postgres + Auth), not `window.storage` and not `localStorage` — see
+the handoff doc §3-4 for the current data-flow and schema. Multi-project
+support, real auth, and PWA installability (manifest + service worker) are
+all built — none of these are still "future work" the way earlier drafts of
+this file described them.
 
-Every mutation in the app currently funnels through two functions:
+## Storage layer (historical — kept for context, not a current task)
+
+The original migration plan, now completed:
 
 ```js
 function loadData(){ /* window.storage.get('storymap-v2', false) ... */ }
 function saveData(){ /* window.storage.set('storymap-v2', ...) ... */ }
 ```
 
-Phase 1 target: replace these with `localStorage` (get the app running
-standalone, fully offline, immediately testable). Phase 2 target: replace
-again with Supabase (real account-based sync across devices). Keep the same
-function signatures/call sites stable through both swaps — nothing else in
-the app should need to change shape for this.
+Phase 1 (`localStorage`, offline-testable) and Phase 2 (Supabase,
+account-based sync) both happened. `loadData()`/`saveData()` today talk to
+Supabase directly — see the handoff doc for the real current implementation,
+including its known gaps (silent error swallowing, non-granular per-save
+upserts).
 
 ## Data model
 
@@ -57,7 +67,7 @@ themselves by searching for that substring on render, they do **not** track
 a fixed character offset. If the surrounding prose is edited enough that the
 substring no longer matches, the annotation silently stops rendering inline
 (though it isn't deleted — it just can't be positioned). This is a known
-sandbox-era limitation; see "Deferred to the real build" below.
+limitation; see "Still deferred" below.
 
 ## Hierarchy
 
@@ -83,9 +93,11 @@ chapter boundaries for pacing).
 - **Chapter drawer**: position, status, scenes (with POV, summary, plants-needed
   for reference), word count vs. book-level target, Plants/Reveals/Notes
   widget buttons, chapter notes, delete (→ trash), 🧵 Thread button.
-- **Full-screen chapter editor**: textarea + synced highlight-layer overlay
-  (renders `<mark>` spans for flagged text without a rich-text editor).
-  Autosave (debounced), manual save, version history (last 10 snapshots,
+- **Full-screen chapter editor**: `contenteditable` div (not a textarea) with
+  inline `<mark>` tags injected directly for flagged text — see the handoff
+  doc §3.5 for the caret-preservation mechanics this depends on before
+  touching it. Autosave (debounced), manual save, version history (last 10
+  snapshots,
   restorable), word count vs. target, Plant/Reveal/Note flagging buttons
   with live badge counts.
 - **Plant/Reveal/Note flagging**: select text in the editor, flag it. Plant →
@@ -136,38 +148,39 @@ chapter boundaries for pacing).
 - **Book-level word targets**: set once per book (not per chapter), every
   chapter in that book inherits it. Flags only — never blocks writing.
 
-## Deferred to the real build, not sandbox-solvable
+## Still deferred (see handoff doc §7 for the full/current list)
 
-- **Multi-project support.** Everything currently lives in one flat pool.
-  Needs a `projects` table and a `project_id` column on every entity once
-  there's a real database — cheap there, expensive to retrofit into the
-  current single-JSON-blob storage.
-- **Per-row database writes.** Every save currently rewrites the entire
-  dataset as one blob. Fine at sandbox scale; wrong once there's real
-  content. The Supabase migration should target per-entity updates from
-  the start.
+- **Per-row-granular database writes.** `saveData()` upserts every row of
+  every populated table on every save, not just what changed. Not a blob
+  anymore (that part's fixed), but not fine-grained either.
 - **AI-assisted plant/reveal matching.** Current matching (both the
   continuity checker and the soft-link suggestions) is pure keyword overlap.
-  Works, but is noisy at scale and can't understand paraphrase. Worth
-  revisiting once real usage shows where it actually falls short.
-- **Rich-text editor for annotations.** The textarea + highlight-overlay
-  trick works but annotations lose their position if the flagged sentence
-  is edited. A proper editor (e.g. TipTap) would let annotations move with
-  edits instead of breaking. Bigger lift; worth it once the app is stable.
+  Works, but is noisy at scale and can't understand paraphrase.
+- **Rich-text/position-tracking editor for annotations.** Annotations
+  re-locate themselves by searching for the flagged substring on every
+  render rather than tracking a fixed position — they silently stop
+  rendering (not deleted) if the surrounding prose is edited enough to break
+  the match. A proper editor (e.g. TipTap) would fix this properly.
+- **Real book-cover art.** List view's book cards have a genuine image-slot
+  architecture (`getBookCoverUrl(bookIndex)` as the single resolution
+  point), but no actual per-book artwork exists yet — every book currently
+  renders a CSS-gradient placeholder.
+- **Anthropic API key handling.** The AI features still call
+  `api.anthropic.com` directly from client JS with no key attached — this
+  needs a real serverless proxy (e.g. a Supabase Edge Function), not a key
+  pasted into client code. Not yet built.
 
-## Roadmap (agreed, two-stage)
+## Roadmap
 
-**Stage 1** (this repo's job): replicate full sandbox functionality as an
-independent app — Supabase backend, real auth, the storage-layer swap, PWA
-packaging (manifest + service worker) so it installs to a phone/laptop home
-screen. MVP-first sequencing recommended: chapters/scenes/editor/sync
-working end-to-end and genuinely usable before porting the rest
-(annotations, Ledger, POV, Mythic Threads, Trash) back in one at a time.
+**Stage 1** (Supabase backend, real auth, the storage-layer swap, PWA
+packaging, full feature parity with the original sandbox, mobile-responsive
+chrome and a visual redesign matching an approved parchment/gilded concept)
+is **done**. See the handoff doc for what's actually still rough at the
+edges (real device confirmation pending on the Map-mode touch-drag fix as of
+this writing; texture/icon treatments are CSS/SVG placeholders, not final art).
 
-**Stage 2** (explicitly not now): storyboards, image generation, and
-anything extending past prose-only tooling. Don't design the Stage 1 schema
-around guesses about Stage 2 — keep it clean and extensible, decide Stage 2
-specifics once Stage 1 is actually being used.
+**Stage 2** (explicitly not started): storyboards, image generation, and
+anything extending past prose-only tooling.
 
 ## Design principles worth preserving
 
@@ -180,4 +193,10 @@ specifics once Stage 1 is actually being used.
   permanent delete.
 - The aesthetic (Cinzel headers, parchment/leather palette, the embedded map
   background) is a deliberate, discussed choice — "papyrus, Pirates of the
-  Caribbean, Avatar, Dune" — not a placeholder theme.
+  Caribbean, Avatar, Dune" — not a placeholder theme. Mobile chrome (List
+  view, the hamburger nav drawer) has since been redesigned to match an
+  approved gilded/parchment concept — see the handoff doc for what's real
+  art vs. CSS/SVG placeholder in that redesign.
+- Temporary diagnostic code must be clearly marked and actually removed once
+  it's served its purpose — see `DEBUG_TOUCH_OVERLAY` in the handoff doc for
+  the live example of this convention (and its current status).
