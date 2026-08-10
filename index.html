@@ -532,7 +532,13 @@ button.btn.primary#add-chapter-btn::before{
      Ornate double-gold-line border + corner flourishes, matching the app shell frame. */
   .header-actions.menu-open{
     position:fixed;top:0;left:0;bottom:0;right:auto;
-    width:50vw;
+    /* width:auto (with only `left` set, no `right`) shrink-wraps to content
+       width per the standard fixed-position sizing algorithm — combined with
+       white-space:nowrap on the labels below, the panel grows just wide
+       enough that nothing (e.g. "Continuity check", "Mythic Threads") wraps
+       to a second line, instead of a fixed 50vw that was too narrow for the
+       longer labels and threw off row alignment. */
+    width:auto;min-width:50vw;max-width:82vw;
     /* BUG FIX: .header-actions{flex-wrap:wrap} (the base/desktop rule) was
        never overridden here. flex-direction:column + flex-wrap:wrap means
        content taller than the panel doesn't scroll in place — it wraps into
@@ -558,8 +564,13 @@ button.btn.primary#add-chapter-btn::before{
     background-position: top 5px right 5px, bottom 5px right 5px, 0 0, 0 0;
     background-size:20px 20px, 20px 20px, 180px 180px, 100% 100%;
     background-blend-mode: normal, normal, overlay, normal;
-    padding:16px 14px;z-index:60;overflow-y:auto;
+    padding:16px 14px;z-index:60;
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
   }
+  .header-actions.menu-open .hdr-collapsible,
+  .header-actions.menu-open .hdr-section-label,
+  .header-actions.menu-open .hdr-menu-title,
+  .header-actions.menu-open .hdr-menu-subtitle{white-space:nowrap;}
   .header-actions.menu-open .hdr-collapsible{display:flex;}
   .header-actions.menu-open #add-chapter-btn,
   .header-actions.menu-open #view-toggle-wrap{display:none;}
