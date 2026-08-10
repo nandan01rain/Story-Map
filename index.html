@@ -1425,7 +1425,10 @@ let debugTouchEl = null;
 if(DEBUG_TOUCH_OVERLAY){
   debugTouchEl = document.createElement('div');
   debugTouchEl.id = 'touch-debug-overlay';
-  debugTouchEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.78);color:#7CFC7C;font-family:monospace;font-size:12px;line-height:1.55;padding:8px 12px;white-space:pre-wrap;pointer-events:none;';
+  // Shrunk to a single truncated line (was ~100-150px of 4-5 wrapped lines) —
+  // that height was itself covering the bottom of the hamburger drawer,
+  // which is what made its last section look unreachable/unscrollable.
+  debugTouchEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.78);color:#7CFC7C;font-family:monospace;font-size:10px;line-height:1.4;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;';
   document.body.appendChild(debugTouchEl);
   debugTouchLog({});
 }
@@ -1434,11 +1437,8 @@ function debugTouchLog(patch){
   Object.assign(debugTouchState, patch);
   if(!debugTouchEl) return;
   debugTouchEl.textContent =
-    `[TOUCH DEBUG] pointerdown count: ${debugTouchState.count}\n` +
-    `last pointerType: ${debugTouchState.pointerType}\n` +
-    `last target: ${debugTouchState.target}\n` +
-    `last outcome: ${debugTouchState.outcome}` +
-    (debugTouchState.error ? `\nERROR: ${debugTouchState.error}` : '');
+    `#${debugTouchState.count} ${debugTouchState.pointerType} → ${debugTouchState.target} :: ${debugTouchState.outcome}` +
+    (debugTouchState.error ? ` :: ERROR ${debugTouchState.error}` : '');
 }
 function debugTouchDescribeEl(el){
   if(!el || !el.getAttribute) return String(el);
@@ -4675,8 +4675,27 @@ window.addEventListener('resize', () => {
 let mapOrientationResizeTimer = null;
 window.addEventListener('resize', () => {
   if(viewMode !== 'map') return;
+  // Real-device evidence: pointercancel fires instantly with zero movement,
+  // surviving two unrelated fixes — neither addressed the SVG itself being
+  // destroyed mid-gesture. renderMap() does svg.innerHTML='' and rebuilds
+  // every node from scratch; if a `resize` event fires mid-touch (Android
+  // Chrome can fire these when its toolbar animates during ANY touch-scroll
+  // gesture attempt, whether or not real scrolling happens), this handler
+  // would destroy the exact <g> element holding pointer capture — which
+  // implicitly releases capture and fires pointercancel. Guarding on
+  // dragState (checked both now and after the debounce, since a drag could
+  // start/end within the 150ms window) stops an active drag from being
+  // rebuilt out from under itself.
+  if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `window resize fired (viewMode=map, dragState=${dragState ? 'active' : 'null'})` });
+  if(dragState) return;
   clearTimeout(mapOrientationResizeTimer);
-  mapOrientationResizeTimer = setTimeout(renderMap, 150);
+  mapOrientationResizeTimer = setTimeout(() => {
+    if(dragState){
+      if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: 'skipped resize-triggered renderMap (drag started during debounce)' });
+      return;
+    }
+    renderMap();
+  }, 150);
 });
 document.getElementById('reader-aspect-select').addEventListener('change', (e) => setReaderAspectMode(e.target.value));
 document.getElementById('reader-align-select').addEventListener('change', (e) => {
