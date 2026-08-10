@@ -510,7 +510,7 @@ button.btn.primary#add-chapter-btn::before{
 .lv-open-btn:active{color:var(--gold);border-color:var(--gold);}
 .lv-empty{color:var(--text-dim);font-family:'Spectral',serif;font-style:italic;text-align:center;padding:60px 20px;}
 
-@media (max-width: 700px){
+@media (max-width: 700px), (pointer: coarse) and (max-width: 900px){
   header h1{font-size:15px;}
   header{position:relative;}
   .header-actions{flex-wrap:wrap;gap:6px;}
@@ -532,13 +532,13 @@ button.btn.primary#add-chapter-btn::before{
      Ornate double-gold-line border + corner flourishes, matching the app shell frame. */
   .header-actions.menu-open{
     position:fixed;top:0;left:0;bottom:0;right:auto;
-    /* width:auto (with only `left` set, no `right`) shrink-wraps to content
-       width per the standard fixed-position sizing algorithm — combined with
-       white-space:nowrap on the labels below, the panel grows just wide
-       enough that nothing (e.g. "Continuity check", "Mythic Threads") wraps
-       to a second line, instead of a fixed 50vw that was too narrow for the
-       longer labels and threw off row alignment. */
-    width:auto;min-width:50vw;max-width:82vw;
+    /* Fixed width (viewport-derived, not content-derived) so the panel is the
+       SAME size whether 0, 1, or all 3 sections are expanded — a prior
+       shrink-to-fit approach (width:auto+min/max) sized the box off visible
+       content, so collapsing/expanding sections visibly resized the panel.
+       300px comfortably fits the longest label ("Continuity check") with
+       margin to spare, measured at ~217px including icon+padding. */
+    width:min(80vw, 300px);
     /* BUG FIX: .header-actions{flex-wrap:wrap} (the base/desktop rule) was
        never overridden here. flex-direction:column + flex-wrap:wrap means
        content taller than the panel doesn't scroll in place — it wraps into
@@ -747,7 +747,7 @@ button.btn.primary#add-chapter-btn::before{
    290px sliver — desktop keeps the slide-out side-panel treatment untouched. Placed
    after the base #editor-anno-panel rules (not in the earlier shared @media block)
    so it wins the cascade against the equal-specificity `.show{width:290px}` rule above. */
-@media (max-width: 700px){
+@media (max-width: 700px), (pointer: coarse) and (max-width: 900px){
   #editor-anno-panel{position:fixed; inset:0; width:0; z-index:60; border-left:none; transition:none;}
   #editor-anno-panel.show{width:100%;}
   #editor-anno-panel-body{width:100%;}
@@ -759,7 +759,7 @@ button.btn.primary#add-chapter-btn::before{
 /* Mobile: the full-screen annotation panel has far more vertical room than the old
    squeezed side panel — give the edit textarea room to match instead of a cramped
    3-row box. Desktop (the side panel) keeps its original compact sizing. */
-@media (max-width: 700px){
+@media (max-width: 700px), (pointer: coarse) and (max-width: 900px){
   .anno-label-edit-input{min-height:40vh;}
 }
 .anno-label-edit-actions{display:flex;gap:8px;justify-content:flex-end;}
@@ -3219,6 +3219,25 @@ document.querySelectorAll('[data-toggle-section]').forEach(label => {
     label.closest('.hdr-section').classList.toggle('collapsed');
   });
 });
+/* ========== TEMP DEBUG (issue 3): hamburger drawer scroll investigation —
+   diagnosis only, safe to delete this whole block once scrolling is
+   confirmed working on a real device with all 3 sections expanded. ========== */
+(function(){
+  const panel = document.getElementById('header-actions');
+  if(!panel || !DEBUG_TOUCH_OVERLAY) return;
+  let startScrollTop = null;
+  panel.addEventListener('touchstart', (e) => {
+    startScrollTop = panel.scrollTop;
+    debugTouchLog({ outcome: `drawer touchstart target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop} scrollHeight=${panel.scrollHeight} clientHeight=${panel.clientHeight}` });
+  }, { passive: true });
+  panel.addEventListener('touchmove', (e) => {
+    debugTouchLog({ outcome: `drawer touchmove target=${debugTouchDescribeEl(e.target)} scrollTop=${panel.scrollTop}` });
+  }, { passive: true });
+  panel.addEventListener('touchend', (e) => {
+    debugTouchLog({ outcome: `drawer touchend target=${debugTouchDescribeEl(e.target)} scrollTop before=${startScrollTop} after=${panel.scrollTop}` });
+  }, { passive: true });
+})();
+/* ========== END TEMP DEBUG (issue 3) ========== */
 document.getElementById('search-btn').addEventListener('click', () => {
   document.getElementById('search-modal').classList.add('show');
   document.getElementById('search-input').value = '';
