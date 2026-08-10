@@ -99,7 +99,7 @@ button.btn.small{padding:5px 10px;font-size:11px;}
 .act-band-label:hover{fill:#e0b955;text-decoration:underline;}
 .trail-path{fill:none;stroke:var(--border);stroke-width:2;stroke-dasharray:1,8;stroke-linecap:round;}
 
-.node{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+.node{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 .node.dragging{cursor:grabbing;opacity:0.88;}
 .node circle.halo{fill:none;stroke-width:1;opacity:0;transition:opacity .15s;}
 .node:hover circle.halo{opacity:0.35;}
@@ -2535,11 +2535,19 @@ function renderMap(){
         if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointercancel: ' + err.message });
       }
     };
+    // Confirmed via real-device [TOUCH DEBUG] evidence: pointercancel was firing
+    // with moved=false, immediately after pointerdown, before our own drag
+    // threshold ever got a chance to register movement. touch-action:none (set
+    // above) only suppresses browser scroll/zoom gestures — it does NOT stop
+    // Android Chrome's long-press context-menu arbitration from grabbing the
+    // touch and cancelling the pointer sequence out from under us. Suppressing
+    // contextmenu is the standard fix for that specific cancellation source.
     [g, halo, core, icon, label, sceneCountEl].filter(Boolean).forEach(el => {
       el.addEventListener('pointerdown', handlePointerDown);
       el.addEventListener('pointermove', handlePointerMove);
       el.addEventListener('pointerup', handlePointerUp);
       el.addEventListener('pointercancel', handlePointerCancel);
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
     });
 
     svg.appendChild(g);
