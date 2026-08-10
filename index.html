@@ -517,6 +517,12 @@ button.btn.primary#add-chapter-btn::before{
   button.btn{padding:7px 10px;font-size:11px;}
   #legend{display:none;}
 
+  /* BUG FIX: header-actions wraps onto 2 rows on mobile (Map/List on row 1,
+     +Add chapter wraps to row 2), making it tall — header-menu-btn, centered
+     across that combined height via header-right's align-items:center, ended
+     up vertically straddling both rows instead of sitting level with Map.
+     flex-start keeps it pinned to the top row where Map/List actually are. */
+  .header-right{align-items:flex-start;}
   #header-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-size:16px;}
   #view-toggle-wrap{order:-2;}
   #add-chapter-btn{order:-1;}
@@ -526,7 +532,14 @@ button.btn.primary#add-chapter-btn::before{
      Ornate double-gold-line border + corner flourishes, matching the app shell frame. */
   .header-actions.menu-open{
     position:fixed;top:0;left:0;bottom:0;right:auto;
-    width:min(78vw, 300px);
+    width:50vw;
+    /* BUG FIX: .header-actions{flex-wrap:wrap} (the base/desktop rule) was
+       never overridden here. flex-direction:column + flex-wrap:wrap means
+       content taller than the panel doesn't scroll in place — it wraps into
+       a SECOND COLUMN instead, which is exactly the "Manage"/"Assist &
+       Project" sections spilling out to the right, past the panel's own
+       border, on top of the List view. nowrap forces a single column. */
+    flex-wrap:nowrap;
     flex-direction:column;align-items:stretch;gap:0;
     /* BUG FIX: this used to be `background: linear-gradient(...)` (shorthand)
        followed by a separate `background-image:` declaration for the corner
@@ -565,11 +578,18 @@ button.btn.primary#add-chapter-btn::before{
     display:flex;flex-direction:column;gap:2px;margin-bottom:14px;
   }
   .header-actions.menu-open .hdr-section-label{
-    display:flex;align-items:center;gap:8px;
+    display:flex;align-items:center;gap:8px;cursor:pointer;
     font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;
     text-transform:uppercase;color:var(--gold);margin:2px 0 6px;
   }
-  .header-actions.menu-open .hdr-section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+  .header-actions.menu-open .hdr-section-rule{flex:1;height:1px;background:var(--border);}
+  .header-actions.menu-open .hdr-section-arrow{transition:transform .15s;flex-shrink:0;}
+  .header-actions.menu-open .hdr-section.collapsed .hdr-section-arrow{transform:rotate(-90deg);}
+  /* Collapsible sections: if Discover/Manage/Assist together don't fit the
+     panel's vertical space, any section can be collapsed to make room for
+     the others — the whole drawer stays a single scrollable column either way. */
+  .header-actions.menu-open .hdr-section.collapsed .hdr-collapsible,
+  .header-actions.menu-open .hdr-section.collapsed #ai-toggle-wrap{display:none;}
   /* This is the fix for the reported bug: these were inheriting the plain
      button.btn font (Inter, --text) instead of the app's Cinzel/gold chrome
      styling used everywhere else — the "plain system text" complaint. */
@@ -913,7 +933,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
            (display:contents on desktop keeps every item a direct flex child
            of .header-actions, so desktop's existing row layout is unchanged). -->
       <div class="hdr-section" data-section="discover">
-        <div class="hdr-section-label">Discover</div>
+        <div class="hdr-section-label" data-toggle-section="discover"><span class="hdr-section-label-text">Discover</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
         <button class="btn hdr-collapsible" id="hdr-map-btn"><svg class="nav-icon"><use href="#icon-map"></use></svg> Map</button>
         <button class="btn hdr-collapsible" id="hdr-list-btn"><svg class="nav-icon"><use href="#icon-list"></use></svg> List</button>
         <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
@@ -925,7 +945,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       </div>
 
       <div class="hdr-section" data-section="manage">
-        <div class="hdr-section-label">Manage</div>
+        <div class="hdr-section-label" data-toggle-section="manage"><span class="hdr-section-label-text">Manage</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
         <button class="btn hdr-collapsible" id="export-btn"><svg class="nav-icon"><use href="#icon-download"></use></svg> Export</button>
         <button class="btn hdr-collapsible" id="export-epub-btn"><svg class="nav-icon"><use href="#icon-book-closed"></use></svg> Export as eBook</button>
         <button class="btn hdr-collapsible" id="import-btn"><svg class="nav-icon"><use href="#icon-upload"></use></svg> Import</button>
@@ -935,7 +955,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       </div>
 
       <div class="hdr-section" data-section="assist">
-        <div class="hdr-section-label">Assist &amp; Project</div>
+        <div class="hdr-section-label" data-toggle-section="assist"><span class="hdr-section-label-text">Assist &amp; Project</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
         <div id="ai-toggle-wrap" class="hdr-collapsible">
           <label id="ai-toggle-label" for="ai-toggle-input">
             <svg class="nav-icon"><use href="#icon-sparkle"></use></svg>
@@ -3182,6 +3202,12 @@ document.addEventListener('click', (e) => {
 });
 document.getElementById('hdr-map-btn').addEventListener('click', () => document.getElementById('view-map-btn').click());
 document.getElementById('hdr-list-btn').addEventListener('click', () => document.getElementById('view-list-btn').click());
+document.querySelectorAll('[data-toggle-section]').forEach(label => {
+  label.addEventListener('click', (e) => {
+    e.stopPropagation();
+    label.closest('.hdr-section').classList.toggle('collapsed');
+  });
+});
 document.getElementById('search-btn').addEventListener('click', () => {
   document.getElementById('search-modal').classList.add('show');
   document.getElementById('search-input').value = '';
