@@ -165,6 +165,19 @@ chapter boundaries for pacing).
   architecture (`getBookCoverUrl(bookIndex)` as the single resolution
   point), but no actual per-book artwork exists yet — every book currently
   renders a CSS-gradient placeholder.
+- **Day/night/sunrise/sunset living-map visuals.** Reference art exists (see
+  handoff doc §9) but production-resolution, map-only image files don't yet
+  — implementation is blocked on asset delivery, not on engineering design.
+- **List-mode chapter reordering.** Map view supports drag-to-reorder; List
+  view does not have any equivalent interaction yet.
+- **A UI polish batch, flagged but not yet built**: a gold ring/glow on the
+  chapter node that was just dragged/dropped (so its new position reads
+  clearly); a real bug where the drop-target highlight (a translucent gold
+  band) flashes on ordinary taps, not just real drags, because touchscreen
+  jitter crosses the drag-movement threshold even on a tap; "Close" buttons
+  across the app becoming a smaller "×" icon instead of text (scope —
+  all of them vs. specific ones — still needs confirming); the Reader view
+  being visually cropped on at least one real device (not yet investigated).
 - **Anthropic API key handling.** The AI features still call
   `api.anthropic.com` directly from client JS with no key attached — this
   needs a real serverless proxy (e.g. a Supabase Edge Function), not a key
@@ -175,11 +188,28 @@ chapter boundaries for pacing).
 **Stage 1** (Supabase backend, real auth, the storage-layer swap, PWA
 packaging, full feature parity with the original sandbox, mobile-responsive
 chrome and a visual redesign matching an approved parchment/gilded concept)
-is **done**. See the handoff doc for what's actually still rough at the
-edges (real device confirmation pending on the Map-mode touch-drag fix as of
-this writing; texture/icon treatments are CSS/SVG placeholders, not final art).
+is **done**.
 
-**Stage 2** (explicitly not started): storyboards, image generation, and
+**Stage 1.5 — presentation-config + living-map foundations** (also done, see
+handoff doc §9 for full detail): a presentation-config resolver applies
+palette/typography/layout/motion/background as CSS custom properties, with
+one populated preset ("the-atlas") reproducing SAGA-01's existing look
+exactly. The map's background image and interactive node/trail layer now
+share one coordinate space (a fixed-size SVG world, not derived from
+viewport/orientation) — confirmed on real hardware to move together with
+zero drift, in both scroll directions and both orientations. Portrait is no
+longer cropped the way it used to be.
+
+**Stage 2 (in progress)**: day/night/sunrise/sunset living-map visuals —
+real reference art now exists for all four states (see handoff doc §9) and
+the intended schedule is real astronomical sunrise/sunset times (not fixed
+clock hours), computed client-side via geolocation + a public-domain solar
+calculation, with sunrise/sunset as ~1hr transition windows and animated
+water/ship layers. Not yet built — see handoff doc §9 for the exact open
+questions (asset delivery format, geolocation-decline fallback) blocking
+implementation.
+
+**Stage 3** (explicitly not started): storyboards, image generation, and
 anything extending past prose-only tooling.
 
 ## Design principles worth preserving
