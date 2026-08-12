@@ -95,6 +95,11 @@ button.btn.primary{background:var(--gold);color:#1a1204;border-color:var(--gold)
 button.btn.primary:hover{background:#dab54c;}
 button.btn.danger:hover{border-color:var(--ember);color:var(--ember);}
 button.btn.small{padding:5px 10px;font-size:11px;}
+/* All app-wide "Close" text buttons became a smaller "×" glyph button instead — keeps the
+   same solid btn/small appearance as sibling buttons (Delete/Save, etc.) in the same toolbar
+   row, just narrower, since a single glyph needs far less horizontal room than the word
+   "Close" did. min-height stays inherited from .btn (44px touch target); only width shrinks. */
+button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 
 /* touch-action:pan-x — real-device finding (Phase 1a): a touch starting on a node's own
    touch-action:none halo/core, moving in a dominantly-vertical direction, was still getting
@@ -1126,7 +1131,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       <option>Other</option>
     </select>
     <button class="btn small danger" id="doc-editor-delete">Delete</button>
-    <button class="btn small" id="doc-editor-close">Close</button>
+    <button class="btn small btn-x" id="doc-editor-close" title="Close">&#215;</button>
   </div>
   <div id="doc-editor-body">
     <textarea id="doc-editor-textarea" spellcheck="false" placeholder="Write or paste your bible content here..."></textarea>
@@ -1183,7 +1188,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="pov-browser">
   <div class="editor-head-style">
     <div class="et" id="pov-browser-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
-    <button class="btn small" id="pov-browser-close">Close</button>
+    <button class="btn small btn-x" id="pov-browser-close" title="Close">&#215;</button>
   </div>
   <div id="pov-browser-body"></div>
 </div>
@@ -1191,7 +1196,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="ledger-view">
   <div class="editor-head-style">
     <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">📖 The Plant Ledger — every plant, saga-wide</div>
-    <button class="btn small" id="ledger-close">Close</button>
+    <button class="btn small btn-x" id="ledger-close" title="Close">&#215;</button>
   </div>
   <div id="ledger-body"></div>
 </div>
@@ -1199,7 +1204,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="thread-view">
   <div class="editor-head-style">
     <div class="et" id="thread-view-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
-    <button class="btn small" id="thread-view-close">Close</button>
+    <button class="btn small btn-x" id="thread-view-close" title="Close">&#215;</button>
   </div>
   <div id="thread-view-body"></div>
 </div>
@@ -1215,7 +1220,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="mythic-browser">
   <div class="editor-head-style">
     <div class="et" id="mythic-browser-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
-    <button class="btn small" id="mythic-browser-close">Close</button>
+    <button class="btn small btn-x" id="mythic-browser-close" title="Close">&#215;</button>
   </div>
   <div id="mythic-browser-body"></div>
 </div>
@@ -1224,7 +1229,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
   <div class="editor-head-style">
     <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">🗑 Trash</div>
     <button class="btn small danger" id="trash-empty-btn">Empty trash</button>
-    <button class="btn small" id="trash-close">Close</button>
+    <button class="btn small btn-x" id="trash-close" title="Close">&#215;</button>
   </div>
   <div id="trash-body"></div>
 </div>
@@ -1232,7 +1237,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="reader-select-view">
   <div class="editor-head-style">
     <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">📕 Read</div>
-    <button class="btn small" id="reader-select-close">Close</button>
+    <button class="btn small btn-x" id="reader-select-close" title="Close">&#215;</button>
   </div>
   <div id="reader-select-body"></div>
 </div>
@@ -1266,7 +1271,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       <option value="right">Right</option>
       <option value="justify">Justify</option>
     </select>
-    <button class="btn small" id="reader-close">Close</button>
+    <button class="btn small btn-x" id="reader-close" title="Close">&#215;</button>
   </div>
   <div id="reader-page-area">
     <div id="reader-page-viewport">
@@ -1308,7 +1313,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
   <div id="notes-board-head">
     <div id="notes-board-head-row">
       <h2>The Margin — random ideas, not yet placed anywhere</h2>
-      <button class="btn small" id="notes-board-close">Close</button>
+      <button class="btn small btn-x" id="notes-board-close" title="Close">&#215;</button>
     </div>
     <div id="notes-reminder"></div>
   </div>
@@ -1318,7 +1323,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="annotation-browser">
   <div class="editor-head-style">
     <div class="et" id="annotation-browser-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
-    <button class="btn small" id="annotation-browser-close">Close</button>
+    <button class="btn small btn-x" id="annotation-browser-close" title="Close">&#215;</button>
   </div>
   <div id="annotation-browser-body"></div>
 </div>
@@ -1327,7 +1332,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
   <div class="editor-head-style">
     <div class="et" style="font-family:var(--font-heading);font-size:15px;letter-spacing:.02em;">A loose idea</div>
     <button class="btn small danger" id="note-editor-delete">Delete</button>
-    <button class="btn small" id="note-editor-close">Close</button>
+    <button class="btn small btn-x" id="note-editor-close" title="Close">&#215;</button>
   </div>
   <div id="note-editor-body">
     <textarea id="note-editor-textarea" spellcheck="false" placeholder="What's the idea? Doesn't need to be tidy — just don't lose it."></textarea>
@@ -1349,7 +1354,7 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
       </div>
       <button class="btn small" id="version-history-btn">🕐 History</button>
     </div>
-    <button class="btn small" id="editor-close">Close</button>
+    <button class="btn small btn-x" id="editor-close" title="Close">&#215;</button>
   </div>
   <div id="editor-body">
     <div id="editor-highlight-wrap">
