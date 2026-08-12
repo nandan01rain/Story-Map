@@ -365,6 +365,14 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #editor-menu-btn{display:none;}
 #editor-menu-panel{display:contents;}
 #editor-close{flex-shrink:0;}
+/* Reader header — same collapsible-panel pattern as #editor-head/#editor-menu-panel above.
+   Fix for a real reported bug: on a narrow phone, this header's 7 controls (Books, title,
+   chapter-select, 4 reading-setting selects, close) had no wrap/collapse handling at all and
+   just wrapped across multiple lines, inflating the header to ~160px tall (confirmed via
+   direct measurement) and squeezing the actual reading area — this is what was reported as
+   "the e-reader being cut off." */
+#reader-menu-btn{display:none;}
+#reader-menu-panel{display:contents;}
 #editor-foot{display:flex;align-items:center;gap:14px;padding:12px 24px;border-top:1px solid var(--border);background:var(--bg-alt);}
 #editor-wc{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
 #editor-wc .flag{margin-left:8px;padding:2px 8px;border-radius:8px;font-size:10px;}
@@ -671,6 +679,25 @@ button.btn.primary#add-chapter-btn::before{
     box-shadow:0 10px 30px rgba(0,0,0,0.4);
   }
   #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-direction:column;}
+
+  /* Reader header, same pattern: title truncates, hamburger appears, the 4 reading-setting
+     selects collapse into a dropdown panel. "‹ Books", the title, chapter-select, and the
+     close button stay always-visible (chapter navigation is core reading action, same
+     reasoning as Map/List staying visible in the main header's mobile pattern) — only the
+     settings (view/font/size/align) collapse. */
+  #reader-head{position:relative;}
+  #reader-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  #reader-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-size:16px;}
+  #reader-menu-panel{display:none;}
+  #reader-head.menu-open #reader-menu-panel{
+    display:flex;flex-direction:column;align-items:stretch;gap:6px;
+    position:absolute;top:100%;right:0;left:auto;
+    width:max-content;max-width:min(70vw,220px);
+    background:var(--panel);border:1px solid var(--border);
+    padding:10px;z-index:30;max-height:70vh;overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  #reader-chapter-select{max-width:36vw;}
 
   #drawer{width:auto; left:0; right:0;}
 }
@@ -1250,34 +1277,37 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 </div>
 
 <div id="reader-view">
-  <div class="editor-head-style">
+  <div class="editor-head-style" id="reader-head">
     <button class="btn small" id="reader-back-btn">‹ Books</button>
     <div id="reader-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
     <select id="reader-chapter-select" title="Jump to chapter"></select>
-    <select id="reader-aspect-select" title="View">
-      <option value="landscape">Landscape</option>
-      <option value="portrait">Portrait</option>
-    </select>
-    <select id="reader-font-select" title="Font">
-      <option value="'Spectral',serif">Spectral</option>
-      <option value="'Georgia',serif">Georgia</option>
-      <option value="'Inter',sans-serif">Inter</option>
-    </select>
-    <select id="reader-size-select" title="Text size">
-      <option value="14">14</option>
-      <option value="16">16</option>
-      <option value="18" selected>18</option>
-      <option value="20">20</option>
-      <option value="22">22</option>
-      <option value="24">24</option>
-      <option value="28">28</option>
-    </select>
-    <select id="reader-align-select" title="Align">
-      <option value="left">Left</option>
-      <option value="center">Center</option>
-      <option value="right">Right</option>
-      <option value="justify">Justify</option>
-    </select>
+    <button class="btn small" id="reader-menu-btn" aria-label="Reading settings" aria-expanded="false">☰</button>
+    <div id="reader-menu-panel">
+      <select id="reader-aspect-select" title="View">
+        <option value="landscape">Landscape</option>
+        <option value="portrait">Portrait</option>
+      </select>
+      <select id="reader-font-select" title="Font">
+        <option value="'Spectral',serif">Spectral</option>
+        <option value="'Georgia',serif">Georgia</option>
+        <option value="'Inter',sans-serif">Inter</option>
+      </select>
+      <select id="reader-size-select" title="Text size">
+        <option value="14">14</option>
+        <option value="16">16</option>
+        <option value="18" selected>18</option>
+        <option value="20">20</option>
+        <option value="22">22</option>
+        <option value="24">24</option>
+        <option value="28">28</option>
+      </select>
+      <select id="reader-align-select" title="Align">
+        <option value="left">Left</option>
+        <option value="center">Center</option>
+        <option value="right">Right</option>
+        <option value="justify">Justify</option>
+      </select>
+    </div>
     <button class="btn small btn-x" id="reader-close" title="Close">&#215;</button>
   </div>
   <div id="reader-page-area">
@@ -4957,6 +4987,19 @@ function hideReaderResumePrompt(){
   document.getElementById('reader-resume-prompt').classList.remove('show');
 }
 
+document.getElementById('reader-menu-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const head = document.getElementById('reader-head');
+  const isOpen = head.classList.toggle('menu-open');
+  document.getElementById('reader-menu-btn').setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+document.addEventListener('click', (e) => {
+  const head = document.getElementById('reader-head');
+  if(head.classList.contains('menu-open') && !e.target.closest('#reader-menu-panel') && !e.target.closest('#reader-menu-btn')){
+    head.classList.remove('menu-open');
+    document.getElementById('reader-menu-btn').setAttribute('aria-expanded', 'false');
+  }
+});
 document.getElementById('reader-open-btn').addEventListener('click', openReaderBookSelect);
 document.getElementById('reader-select-close').addEventListener('click', () => {
   document.getElementById('reader-select-view').classList.remove('show');
