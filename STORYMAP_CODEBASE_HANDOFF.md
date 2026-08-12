@@ -785,24 +785,62 @@ project documentation.
   debugging connection (USB preferred — wireless dropped mid-session twice)
   before attempting this again; don't guess a fix without the DOM data.
   [SESSION, unresolved]
-- **A translucent gold rectangle flashes over the whole map on ordinary
-  taps, not just real drags.** Diagnosed, not yet fixed: `updateDropHighlight()`
-  paints `.band-rect.drop-target` (the exact `rgba(201,162,39,...)` gold
-  color reported) as soon as `dragState.moved` becomes true inside
-  `handlePointerMove` — and ordinary touchscreen finger jitter crosses the
-  10px drag-movement threshold easily even on a simple tap, even though the
-  combined movement+time check in `handlePointerUp` still correctly
-  resolves it as a tap afterward. The highlight flash happens regardless.
-  Fix should scope the highlight to only paint once a drag is genuinely
-  underway by some more deliberate signal (e.g. a small delay, or a larger
-  effective threshold before showing the highlight specifically, distinct
-  from the threshold that governs tap-vs-drag classification) — not yet
-  implemented. [SESSION, diagnosed only]
-- **Reader view is visually cropped** on at least one real device
-  (screenshot evidence exists). Not investigated at all — flagged, not
-  triaged, no root-cause work done yet. [SESSION, unverified]
-
 **Resolved since the previous version of this document:**
+- **Drop-target highlight flashing on ordinary taps — fixed.** Root cause:
+  `updateDropHighlight()` painted `.band-rect.drop-target` as soon as
+  `dragState.moved` became true inside `handlePointerMove`, and ordinary
+  touchscreen jitter crosses the 10px drag-movement threshold easily even
+  on a simple tap (tap-vs-drag classification in `handlePointerUp` already
+  correctly resolved these as taps — this was purely a visual flash, not a
+  functional bug). Fixed by gating the highlight behind a separate,
+  distinctly larger movement threshold (2.5x) than the one that governs
+  node-following/tap-vs-drag classification, so the node still follows the
+  finger immediately while the highlight only appears once a drag is
+  unambiguous. Verified via dispatched pointer events confirming no
+  highlight at small movement, correct highlight at larger movement.
+  [SESSION, CONFIRMED]
+- **All app-wide "Close" text buttons replaced with a smaller "×" icon** —
+  12 buttons (Documents, POV browser, Ledger, Thread view, Mythic Threads,
+  Trash, Reader select + main, Notes board, Annotation browser, Note
+  editor, chapter editor). Kept the existing solid `btn small` styling
+  (still matches sibling buttons like Delete/Save in the same row) rather
+  than the app's separate borderless modal-header `×` style, since these
+  live inline with other text buttons, not alone in a header corner.
+  `title="Close"` added for accessibility. [SESSION, CONFIRMED]
+- **List-mode chapter reordering — new feature, built.** A dedicated drag
+  handle (⠿) on each `.lv-chapter` row reorders chapters within their
+  current act (not cross-act/cross-book, unlike Map's drag — List's
+  accordion layout has no equivalent of one continuous position across
+  every book, so that would need auto-expanding collapsed sections and
+  drag-scrolling, a materially larger feature). Deliberately simpler
+  architecture than Map's drag: the handle is the *only* thing that starts
+  a drag (no threshold-based tap-vs-drag disambiguation needed, since the
+  row's tap-to-open and the handle's drag are just different elements),
+  and DOM position updates directly on threshold-crossing rather than a
+  floating/transform-following ghost. Two real bugs caught during testing
+  (not assumed away): `stopPropagation()` on `pointerdown` does not
+  suppress the browser's separate `click` event (tapping the handle
+  without dragging was still opening the drawer — fixed with an explicit
+  click-level `stopPropagation()`), and `setPointerCapture()` can throw
+  (confirmed via testing) — handlers now wrapped in try/catch, matching
+  Map's established convention. [SESSION, CONFIRMED via dispatched pointer
+  events; NOT YET real-device tested — this is genuinely new code with no
+  device testing history, unlike Map's drag]
+- **Reader view mobile crop — fixed, root cause confirmed by direct
+  measurement.** The Reader header (7 controls: Books, title, chapter-
+  select, 4 reading-setting selects, close) had no mobile wrap/collapse
+  handling at all, unlike the main header and editor header which both
+  already solve this exact problem — on a narrow phone the controls
+  wrapped across multiple lines, inflating the header to a measured 160px
+  tall and squeezing the reading area. Fixed by applying the identical
+  collapsible-panel pattern already used for `#editor-head`/
+  `#editor-menu-panel`: the 4 setting selects move into `#reader-menu-panel`
+  (`display:contents` on desktop, a hamburger-triggered dropdown on
+  mobile); "‹ Books", title, chapter-select, and close stay always-visible.
+  Verified: header height 160px → 72.8px at 375px width; desktop confirmed
+  unaffected (all 4 selects still inline, no hamburger shown). [SESSION,
+  CONFIRMED via direct measurement + screenshot; not yet real-device
+  tested]
 - The round-4 map ghost-click fix — **confirmed on the real device** (see
   §6). Tap-to-open reliably opens the chapter drawer; the Act popup no
   longer steals the tap via a synthesized ghost click. [SESSION]
@@ -1010,17 +1048,21 @@ debugging. Still not removed, for the same reason as before: the
 underlying drag bug it was built to help diagnose is improved but not
 confirmed fully resolved.
 
-**Flagged this session, not yet built at all (see CLAUDE.md's "Still
-deferred" for the short version):**
+**Flagged this session, fixed/built in a follow-on pass (see §7 for detail
+on each):** the tap-triggered drop-highlight flash; all app-wide "Close"
+buttons → smaller "×"; List-mode chapter reordering (new feature); the
+Reader view mobile header crop. All four confirmed via direct testing
+(dispatched pointer events / direct measurement + screenshots) but **not
+yet real-device tested** — List-mode reordering in particular is genuinely
+new code with zero device-testing history, unlike Map's drag.
+
+**Still open, not yet built at all (see CLAUDE.md's "Still deferred" for
+the short version):**
 - A gold ring/glow visual indicator on the chapter node that was just
   dragged and dropped, so its new position reads clearly.
-- The translucent-gold-rectangle-flashes-on-tap bug (§7) — diagnosed,
-  fix not implemented.
-- "Close" buttons across the app → a smaller "×" icon — scope (all of
-  them vs. specific ones) not yet confirmed with the user.
-- List-mode chapter reordering — doesn't exist at all today; List view has
-  no drag logic, only Map view does.
-- Reader view cropping (§7) — not investigated.
+- The hamburger drawer "Discover section unreachable" bug (§7) — still
+  unresolved, diagnosis was interrupted mid-session by a dropped
+  debugging connection.
 - **Day/night/sunrise/sunset living-map visuals** — real reference mockups
   now exist for four states (bright neutral day covering both "morning"
   and "afternoon" as one treatment with just a live clock readout; a warm
@@ -1044,14 +1086,14 @@ deferred" for the short version):**
      fallback (e.g. fixed local-clock assumption) rather than the feature
      breaking, not yet designed.
 
-**Next logical task, in order**: (a) resolve the two day/night open
-questions above with the user, (b) get a stable debugging connection (USB
+**Next logical task, in order**: (a) real-device confirmation of the four
+fixes above (tap-highlight, close-buttons, List-mode drag, Reader header) —
+none have been tested on actual hardware yet, only via dispatched-event
+testing and direct measurement, (b) resolve the two day/night open
+questions with the user, (c) get a stable debugging connection (USB
 preferred) to finish diagnosing the hamburger-drawer bug rather than
-guessing, (c) fix the tap-highlight bug (already diagnosed, just needs
-implementing), (d) the small UI batch (drop-ring, close-button restyle —
-pending scope confirmation), (e) List-mode reordering as new feature work,
-(f) Reader-crop investigation. None of these block each other; sequence
-by what the user wants next.
+guessing, (d) the gold drop-ring visual indicator. None of these block
+each other; sequence by what the user wants next.
 
 ---
 
@@ -1208,4 +1250,7 @@ Quick reference for how much to trust specific claim categories in this document
 | App being live and reachable on Vercel production | **CONFIRMED** — four commits this session were pushed and tested against the real production deploy on a real device |
 | Hamburger drawer "Discover section unreachable" bug | **CONFIRMED REAL, ROOT CAUSE UNKNOWN** — investigation interrupted by a dropped debugging connection before DOM-position evidence could be captured |
 | Tap-triggered gold highlight flash | **DIAGNOSED FROM CODE**, not yet fixed — the mechanism (`updateDropHighlight()` firing on drag-threshold crossing, which ordinary tap jitter reaches) is clear; the fix itself is not yet implemented or tested |
-| Reader view cropping | **UNVERIFIED / NOT INVESTIGATED** — one screenshot report, no root-cause work done |
+| Reader view cropping — root cause and fix | **CONFIRMED via direct measurement** (header 160px → 72.8px) and screenshot comparison; **NOT YET real-device tested** |
+| Drop-highlight-flashes-on-tap fix | **CONFIRMED via dispatched pointer events** (no highlight at small movement, correct highlight at larger movement); **NOT YET real-device tested** |
+| "Close" → "×" button restyle (12 buttons) | **CONFIRMED via direct DOM/CSS inspection + screenshot**; visual-only change, low regression risk |
+| List-mode drag-to-reorder | **CONFIRMED via dispatched pointer events** (DOM reorder + underlying `chapters[].order` both verified correct); **NOT YET real-device tested — this is genuinely new code with zero device-testing history**, unlike Map's drag |

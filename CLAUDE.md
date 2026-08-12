@@ -168,16 +168,15 @@ chapter boundaries for pacing).
 - **Day/night/sunrise/sunset living-map visuals.** Reference art exists (see
   handoff doc §9) but production-resolution, map-only image files don't yet
   — implementation is blocked on asset delivery, not on engineering design.
-- **List-mode chapter reordering.** Map view supports drag-to-reorder; List
-  view does not have any equivalent interaction yet.
-- **A UI polish batch, flagged but not yet built**: a gold ring/glow on the
-  chapter node that was just dragged/dropped (so its new position reads
-  clearly); a real bug where the drop-target highlight (a translucent gold
-  band) flashes on ordinary taps, not just real drags, because touchscreen
-  jitter crosses the drag-movement threshold even on a tap; "Close" buttons
-  across the app becoming a smaller "×" icon instead of text (scope —
-  all of them vs. specific ones — still needs confirming); the Reader view
-  being visually cropped on at least one real device (not yet investigated).
+- **A gold ring/glow on the chapter node that was just dragged/dropped**
+  (so its new position reads clearly) — still not built.
+- **The hamburger drawer "Discover section unreachable" bug** — still
+  unresolved (see handoff doc §7), diagnosis was interrupted mid-session.
+
+Fixed since the last update of this section (see handoff doc §7/§9 for
+detail): List-mode chapter reordering now exists (drag a handle, within-act
+only); the drop-target-highlight-flashes-on-tap bug; all app-wide "Close"
+buttons are now a smaller "×"; the Reader view's mobile header overflow/crop.
 - **Anthropic API key handling.** The AI features still call
   `api.anthropic.com` directly from client JS with no key attached — this
   needs a real serverless proxy (e.g. a Supabase Edge Function), not a key
