@@ -2654,7 +2654,19 @@ function renderMap(){
         }
         if(dragState.moved){
           g.setAttribute('transform', `translate(${dragState.baseX+dx},${dragState.baseY+dy})`);
-          updateDropHighlight(dragState.baseX+dx);
+          // Fix: the drop-target highlight used to key off the same threshold as tap-vs-drag
+          // classification (10px touch / 4px mouse) — but ordinary touchscreen finger jitter
+          // crosses that easily even on a gesture that resolves as a plain tap a moment later
+          // (tap classification also checks elapsed time, so it still ends up correct — this
+          // was purely a visual flash, not a functional bug). Gating the highlight behind a
+          // distinctly larger movement — well past what casual jitter produces, well before
+          // what an intentional drag naturally travels — keeps the node responsively following
+          // the finger immediately while the highlight itself only appears once movement is
+          // unambiguous. Node-following and tap/drag classification are untouched.
+          const highlightThreshold = threshold * 2.5;
+          if(Math.abs(dx) > highlightThreshold || Math.abs(dy) > highlightThreshold){
+            updateDropHighlight(dragState.baseX+dx);
+          }
         }
       } catch(err){
         if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointermove: ' + err.message });
