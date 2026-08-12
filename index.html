@@ -2794,7 +2794,16 @@ function handleDrop(chapter, dropX){
   if(typeof DEBUG_TOUCH_OVERLAY !== 'undefined' && DEBUG_TOUCH_OVERLAY){
     debugTouchLog({ outcome: `handleDrop resolved (chapter ${chapter.id}) newBook=${targetBook} newAct=${targetAct} newOrder=${chapter.order}` });
   }
-  saveData().then(renderMap).catch(err => {
+  // Fix (jerkiness investigation): renderMap() used to be chained after saveData() resolved,
+  // so the visual reorder was gated on a full network round-trip — saveData() upserts every
+  // row of every populated table on every save (see the handoff doc's "not per-row-granular"
+  // note), not just this one chapter. That's exactly the "stays in limbo, then suddenly
+  // swaps" behavior reported: the in-memory data (and this debug log) updates instantly, but
+  // the screen didn't catch up until the whole save finished. renderMap() only reads
+  // already-updated in-memory chapters/scenes, so it's safe to call immediately — the save
+  // still happens, just without blocking the visual update.
+  renderMap();
+  saveData().catch(err => {
     if(typeof DEBUG_TOUCH_OVERLAY !== 'undefined' && DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'handleDrop saveData: ' + err.message });
   });
 }
