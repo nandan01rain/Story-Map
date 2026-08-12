@@ -531,6 +531,13 @@ button.btn.primary#add-chapter-btn::before{
 .lv-gap-flag{color:var(--danger);font-size:13px;flex-shrink:0;}
 .lv-open-btn{background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:6px 10px;font-size:11px;flex-shrink:0;}
 .lv-open-btn:active{color:var(--gold);border-color:var(--gold);}
+/* List-mode drag-to-reorder: a dedicated handle, not the whole row, so there's zero ambiguity
+   between "tap to open drawer" and "drag to reorder" — no threshold-based disambiguation
+   needed at all, unlike the Map's node dragging. touch-action:none only on the handle itself,
+   same reasoning as the Map's node halo/core (see handlePointerDown comments). */
+.lv-drag-handle{touch-action:none;cursor:grab;color:var(--text-dim);font-size:16px;flex-shrink:0;padding:0 2px;min-width:24px;min-height:44px;display:flex;align-items:center;justify-content:center;}
+.lv-drag-handle:active{cursor:grabbing;color:var(--gold);}
+.lv-chapter.lv-dragging{background:var(--panel-2);border-color:var(--gold);opacity:0.85;}
 .lv-empty{color:var(--text-dim);font-family:var(--font-literary);font-style:italic;text-align:center;padding:60px 20px;}
 
 @media (max-width: 700px), (pointer: coarse) and (max-width: 900px){
@@ -2346,7 +2353,8 @@ function renderListView(){
         const gaps = chapterGaps(ch);
         const wc = wordCount(ch.content);
         html += `
-          <div class="lv-chapter" data-drawer="${ch.id}">
+          <div class="lv-chapter" data-drawer="${ch.id}" data-chapter-id="${ch.id}">
+            <span class="lv-drag-handle" data-drag-handle title="Drag to reorder">⠿</span>
             <span class="lv-dot" style="background:${statusColor(ch.status)};box-shadow:${ch.status==='drafted'||ch.status==='final'?'none':'inset 0 0 0 1.5px '+statusColor(ch.status)};"></span>
             <span class="lv-title">${escapeHtml(ch.title)}</span>
             ${gaps.length ? `<span class="lv-gap-flag" title="${gaps.length} unresolved plant(s)">⚠</span>` : ''}
@@ -2379,6 +2387,114 @@ function renderListView(){
       e.stopPropagation();
       openEditor(el.dataset.editor);
     });
+  });
+  wireListDrag(container);
+}
+
+// List-mode drag-to-reorder. Reorders chapters within their current act only (not across
+// acts/books, unlike Map view's drag, which can reassign book/act by drop position) — a
+// deliberately smaller scope than the Map's drag: List view's accordion structure has no
+// equivalent of "one continuous position across every book," so cross-section dragging would
+// need auto-expanding collapsed sections and drag-scrolling, a materially bigger feature.
+// Reordering within an act is the common case and the one asked for.
+//
+// Deliberately does NOT reuse Map's threshold-based tap-vs-drag disambiguation: a dedicated
+// handle (.lv-drag-handle, touch-action:none) is the only thing that starts a drag, so there's
+// no ambiguity with the row's own tap-to-open-drawer behavior to resolve in the first place.
+//
+// Also deliberately simple on the visual-feedback side: the dragged row's DOM position updates
+// immediately as the pointer crosses a neighboring row's midpoint (no floating/transform
+// tracking of the pointer). This avoids the transform-recalibration-after-DOM-swap complexity
+// a "floating ghost" implementation would need, at the cost of a less animated feel — a
+// deliberate simplicity-over-polish tradeoff given this is new code with no real-device
+// testing history yet, unlike Map's drag.
+function wireListDrag(container){
+  container.querySelectorAll('[data-drag-handle]').forEach(handle => {
+    const row = handle.closest('.lv-chapter');
+    let dragState = null;
+
+    const getActSiblings = () => [...row.parentElement.querySelectorAll('.lv-chapter')];
+
+    // Wrapped in try/catch, matching Map's handlePointerDown/Move/Up convention — real-device
+    // testing this session found setPointerCapture() and similar pointer-lifecycle calls can
+    // throw in edge cases (confirmed directly: synthetic-event testing threw NotFoundError
+    // here), and an uncaught throw would otherwise abort the handler entirely.
+    const onPointerDown = (e) => {
+      try{
+        e.stopPropagation();
+        const isTouch = e.pointerType === 'touch';
+        if(isTouch) e.preventDefault();
+        dragState = { isTouch, startY: e.clientY, moved: false };
+        row.classList.add('lv-dragging');
+        handle.setPointerCapture(e.pointerId);
+      } catch(err){ /* non-fatal — dragState is already set even if capture itself failed */ }
+    };
+
+    const onPointerMove = (e) => {
+      try{
+        if(!dragState) return;
+        const dy = e.clientY - dragState.startY;
+        const threshold = dragState.isTouch ? 10 : 4;
+        if(Math.abs(dy) > threshold) dragState.moved = true;
+        if(!dragState.moved) return;
+        const siblings = getActSiblings();
+        const idx = siblings.indexOf(row);
+        if(idx > 0){
+          const prev = siblings[idx-1];
+          const prevRect = prev.getBoundingClientRect();
+          if(e.clientY < prevRect.top + prevRect.height/2){
+            row.parentElement.insertBefore(row, prev);
+            return;
+          }
+        }
+        if(idx < siblings.length-1 && idx !== -1){
+          const next = siblings[idx+1];
+          const nextRect = next.getBoundingClientRect();
+          if(e.clientY > nextRect.top + nextRect.height/2){
+            row.parentElement.insertBefore(next, row);
+          }
+        }
+      } catch(err){ console.error('List drag pointermove:', err); }
+    };
+
+    const onPointerUp = (e) => {
+      try{
+        if(!dragState) return;
+        row.classList.remove('lv-dragging');
+        if(dragState.moved){
+          const actSiblings = getActSiblings();
+          actSiblings.forEach((el, i) => {
+            const ch = chapters.find(c => c.id === el.dataset.chapterId);
+            if(ch) ch.order = i + 1;
+          });
+          // Same render-before-save pattern as Map's handleDrop fix (§7/§9 of the handoff doc)
+          // — reflect the already-updated in-memory order immediately, don't gate the visual
+          // update on saveData()'s network round-trip.
+          renderListView();
+          saveData().catch(err => console.error('List reorder saveData failed:', err));
+        }
+      } catch(err){ console.error('List drag pointerup:', err); }
+      finally{ dragState = null; }
+    };
+
+    const onPointerCancel = () => {
+      try{
+        if(!dragState) return;
+        row.classList.remove('lv-dragging');
+        renderListView();
+      } catch(err){ console.error('List drag pointercancel:', err); }
+      finally{ dragState = null; }
+    };
+
+    handle.addEventListener('pointerdown', onPointerDown);
+    handle.addEventListener('pointermove', onPointerMove);
+    handle.addEventListener('pointerup', onPointerUp);
+    handle.addEventListener('pointercancel', onPointerCancel);
+    // stopPropagation() on pointerdown does NOT suppress the browser's own separate `click`
+    // event that still fires after a pointerdown+pointerup pair — verified this bug directly:
+    // without this, tapping the handle (not dragging it) opened the chapter drawer anyway,
+    // via the row's own [data-drawer] click listener. This is the actual, separate fix.
+    handle.addEventListener('click', (e) => e.stopPropagation());
   });
 }
 document.getElementById('view-map-btn').addEventListener('click', async () => { viewMode='map'; applyViewMode(); renderMap(); await saveData(); });
