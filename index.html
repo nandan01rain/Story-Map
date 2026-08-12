@@ -2633,6 +2633,12 @@ function renderMap(){
       }
     };
     const handlePointerMove = (e) => {
+      // TEMP PERF DEBUG: fine-grained per-call timing, investigating reported jerkiness
+      // during a (now-succeeding) drag. Logs any single handlePointerMove call over 4ms —
+      // well below the 50ms "longtask" threshold, since many sub-50ms-but-still-costly calls
+      // firing on every pointermove could explain visible lag without ever registering as a
+      // longtask. Remove once the smoothness investigation concludes.
+      const __t0 = performance.now();
       try{
         if(!dragState || dragState.g!==g) return;
         const p = svgPoint(e);
@@ -2652,6 +2658,11 @@ function renderMap(){
         }
       } catch(err){
         if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ error: 'pointermove: ' + err.message });
+      } finally {
+        const __dt = performance.now() - __t0;
+        if(__dt > 4){
+          console.log(`[MOVE PERF] handlePointerMove took ${__dt.toFixed(1)}ms (chapter ${chapter.id})`);
+        }
       }
     };
     const handlePointerUp = (e) => {
