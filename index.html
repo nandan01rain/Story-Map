@@ -4899,7 +4899,7 @@ function openPaginatedReader(bookIndex){
   readerCurrentPage = 0;
   document.getElementById('reader-view').classList.add('show');
   recalculateReaderPagination();
-  showReaderChrome();
+  hideReaderChrome();
 
   hideReaderResumePrompt();
   const savedPage = projectBookmarks[bookIndex];
@@ -4970,8 +4970,13 @@ function showReaderChrome(){
   readerChromeHideTimer = setTimeout(hideReaderChrome, 3500);
 }
 function hideReaderChrome(){
+  clearTimeout(readerChromeHideTimer);
   document.getElementById('reader-head').classList.add('chrome-hidden');
   document.getElementById('reader-foot').classList.add('chrome-hidden');
+}
+function toggleReaderChrome(){
+  if(document.getElementById('reader-head').classList.contains('chrome-hidden')) showReaderChrome();
+  else hideReaderChrome();
 }
 function showReaderResumePrompt(savedPage){
   document.getElementById('reader-resume-text').textContent = `Resume from page ${savedPage+1}?`;
@@ -5029,11 +5034,10 @@ document.getElementById('reader-page-viewport').addEventListener('click', (e) =>
   if(readerSwipeHandled){ readerSwipeHandled = false; return; }
   if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
   const rect = e.currentTarget.getBoundingClientRect();
-  const yFrac = (e.clientY - rect.top) / rect.height;
-  if(yFrac < 0.12){ showReaderChrome(); return; }
   const xFrac = (e.clientX - rect.left) / rect.width;
   if(xFrac < 0.25) readerPrevPage();
   else if(xFrac > 0.75) readerNextPage();
+  else toggleReaderChrome();
 });
 let readerTouchStartX = null;
 let readerTouchStartY = null;
