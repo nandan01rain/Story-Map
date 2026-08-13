@@ -327,6 +327,14 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #reader-bookmark-marker{position:absolute;top:0;right:22px;width:26px;height:38px;z-index:4;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));cursor:pointer;color:var(--gold);display:flex;background:none;border:none;padding:0;opacity:0;transition:opacity .15s ease;}
 #reader-bookmark-marker.bookmarked{opacity:1;}
 #reader-bookmark-marker svg{width:100%;height:100%;}
+/* Pinned-page marker: a second, independent ribbon (red, same size) built on top of the
+   single moving yellow bookmark above — double-tapping the yellow ribbon toggles it, and
+   unlike the yellow one, any number of pages can be pinned at once. Purely a status
+   indicator (not itself a tap target), offset left so both can be visible together. */
+#reader-pin-marker{position:absolute;top:0;right:54px;width:26px;height:38px;z-index:4;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));color:#c0392b;pointer-events:none;display:flex;opacity:0;transition:opacity .15s ease;}
+#reader-pin-marker.pinned{opacity:1;}
+#reader-pin-marker svg{width:100%;height:100%;}
+#reader-page-viewport.continuous #reader-pin-marker{display:none;}
 #reader-resume-prompt{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:5;}
 #reader-resume-prompt.show{display:flex;}
 #reader-resume-card{background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:22px 26px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.5);max-width:90%;}
@@ -1395,6 +1403,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div id="reader-page-viewport">
       <div id="reader-page-content"></div>
       <button id="reader-bookmark-marker" title="Tap to bookmark this page"><svg id="reader-bookmark-marker-icon-svg"><use id="reader-bookmark-marker-icon" href="#icon-bookmark-filled"></use></svg></button>
+      <div id="reader-pin-marker" title="Pinned page (double-tap the bookmark ribbon to toggle)"><svg><use href="#icon-bookmark-filled"></use></svg></div>
       <div id="reader-resume-prompt">
         <div id="reader-resume-card">
           <div id="reader-resume-text"></div>
@@ -2179,7 +2188,18 @@ function loadData(){
         chapterWordTargets = settings.chapter_word_targets || DEFAULT_CHAPTER_WORD_TARGETS;
         aiEnabled = settings.ai_enabled || false;
         viewMode = settings.view_mode || (window.innerWidth < 700 ? 'list' : 'map');
-        projectBookmarks = settings.bookmarks || {};
+        // `bookmarks` used to be a flat {bookIndex: page} map (the single moving
+        // bookmark). It's now {current: {...}, pinned: {bookIndex: [page, ...]}} to also
+        // hold the independent pinned bookmarks — old rows (no `current`/`pinned` keys)
+        // are read as the legacy flat map with no pins yet.
+        const rawBookmarks = settings.bookmarks || {};
+        if(rawBookmarks && (rawBookmarks.current || rawBookmarks.pinned)){
+          projectBookmarks = rawBookmarks.current || {};
+          projectPinnedBookmarks = rawBookmarks.pinned || {};
+        } else {
+          projectBookmarks = rawBookmarks;
+          projectPinnedBookmarks = {};
+        }
         presentationPresetId = settings.preset_id || null;
         presentationOverrides = settings.presentation_overrides || {};
         applyPresentationConfig();
@@ -2197,6 +2217,7 @@ function loadData(){
     actLabels = {}; chapterWordTargets = DEFAULT_CHAPTER_WORD_TARGETS;
     aiEnabled = false; viewMode = (window.innerWidth < 700 ? 'list' : 'map'); nextId = 1;
     projectBookmarks = {};
+    projectPinnedBookmarks = {};
     presentationPresetId = null; presentationOverrides = {};
     applyPresentationConfig();
   });
@@ -2250,7 +2271,7 @@ function saveData(){
         project_id: currentProjectId, act_labels: actLabels || {},
         chapter_word_targets: chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS,
         ai_enabled: !!aiEnabled, view_mode: viewMode || 'map',
-        bookmarks: projectBookmarks || {},
+        bookmarks: { current: projectBookmarks || {}, pinned: projectPinnedBookmarks || {} },
         // Written back exactly as held in memory (including null) — never the "the-atlas"
         // in-memory fallback used for rendering, so a routine autosave can't quietly turn an
         // unset preset into a persisted one. See presentationPresetId's declaration above.
@@ -5066,6 +5087,9 @@ let readerPageStepPx = 0;
 let readerChapterStartPages = [];
 let readerResizeTimer = null;
 let projectBookmarks = {};
+// { [bookIndex]: [page, page, ...] } — independent of projectBookmarks: any number of
+// pages can be pinned per book, and pinning one doesn't move or replace another.
+let projectPinnedBookmarks = {};
 
 function openReaderBookSelect(){
   const body = document.getElementById('reader-select-body');
@@ -5301,6 +5325,22 @@ function updateReaderBookmarkMarker(){
   const isBookmarked = readerCurrentBookIndex !== null && projectBookmarks[readerCurrentBookIndex] === readerCurrentPage;
   document.getElementById('reader-bookmark-marker').classList.toggle('bookmarked', isBookmarked);
   document.getElementById('reader-bookmark-marker').title = isBookmarked ? 'Bookmarked — tap to remove' : 'Tap to bookmark this page';
+  updateReaderPinMarker();
+}
+function updateReaderPinMarker(){
+  const pinnedPages = readerCurrentBookIndex !== null ? (projectPinnedBookmarks[readerCurrentBookIndex] || []) : [];
+  const isPinned = pinnedPages.includes(readerCurrentPage);
+  document.getElementById('reader-pin-marker').classList.toggle('pinned', isPinned);
+}
+function togglePinnedBookmark(){
+  if(readerCurrentBookIndex === null) return;
+  const pages = projectPinnedBookmarks[readerCurrentBookIndex] || (projectPinnedBookmarks[readerCurrentBookIndex] = []);
+  const idx = pages.indexOf(readerCurrentPage);
+  if(idx !== -1) pages.splice(idx, 1);
+  else pages.push(readerCurrentPage);
+  if(!pages.length) delete projectPinnedBookmarks[readerCurrentBookIndex];
+  saveData(); // fire-and-forget — see the editor-close handler's comment
+  updateReaderPinMarker();
 }
 function readerGoToPage(page){
   readerCurrentPage = Math.max(0, Math.min(page, readerTotalPages - 1));
@@ -5602,7 +5642,7 @@ document.getElementById('reader-position-slider').addEventListener('input', (e) 
 document.getElementById('reader-position-slider').addEventListener('change', (e) => {
   readerGoToPage(parseInt(e.target.value));
 });
-document.getElementById('reader-bookmark-marker').addEventListener('click', () => {
+function toggleSingleBookmark(){
   if(readerCurrentBookIndex === null) return;
   const alreadyBookmarked = projectBookmarks[readerCurrentBookIndex] === readerCurrentPage;
   if(alreadyBookmarked){
@@ -5610,8 +5650,24 @@ document.getElementById('reader-bookmark-marker').addEventListener('click', () =
   } else {
     projectBookmarks[readerCurrentBookIndex] = readerCurrentPage;
   }
-  saveData();
+  saveData(); // fire-and-forget — see the editor-close handler's comment
   updateReaderBookmarkMarker();
+}
+// Single tap → the one moving yellow bookmark. Double tap → an independent red pin that
+// can coexist on any number of pages. The single-tap action is held for a beat so a
+// fast second tap can cancel it and fire the pin toggle instead, rather than both firing.
+let readerBookmarkTapTimer = null;
+document.getElementById('reader-bookmark-marker').addEventListener('click', () => {
+  if(readerBookmarkTapTimer){
+    clearTimeout(readerBookmarkTapTimer);
+    readerBookmarkTapTimer = null;
+    togglePinnedBookmark();
+    return;
+  }
+  readerBookmarkTapTimer = setTimeout(() => {
+    readerBookmarkTapTimer = null;
+    toggleSingleBookmark();
+  }, 300);
 });
 document.getElementById('reader-resume-dismiss-btn').addEventListener('click', hideReaderResumePrompt);
 
