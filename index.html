@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
-<link rel="preload" as="image" href="assets/auth-bg-sunset.png">
+<link rel="preload" as="image" href="assets/auth-bg-environment.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -966,6 +966,26 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   animation:auth-tap-hint-pulse 2s ease-in-out infinite;
 }
 @keyframes auth-tap-hint-pulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+/* Brand layer (Phase 1 of the living-environment migration, see the handoff doc): the
+   compass/wordmark/direction-indicator are now independent image elements over the
+   background art, not baked into the photo, so the environment can change (day/night,
+   later a full panorama) without touching these. Only the compass is meant to eventually
+   rotate with device orientation — the wordmark and direction indicator stay fixed. */
+#auth-compass{
+  position:absolute;top:10%;left:50%;transform:translateX(-50%);
+  width:72px;height:72px;object-fit:contain;pointer-events:none;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
+}
+#auth-wordmark{
+  position:absolute;top:calc(10% + 86px);left:50%;transform:translateX(-50%);
+  width:min(220px, 62vw);object-fit:contain;pointer-events:none;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
+}
+#auth-direction{
+  position:absolute;right:34px;bottom:calc(72px + env(safe-area-inset-bottom));
+  width:56px;height:56px;object-fit:contain;opacity:.85;pointer-events:none;
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4));
+}
 #auth-screen.revealed{cursor:default;}
 #auth-screen.revealed #auth-bg-tap-hint{display:none;}
 #auth-card{
@@ -1117,6 +1137,9 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   </defs>
 </svg>
 <div id="auth-screen">
+  <img id="auth-compass" src="assets/compass.png" alt="">
+  <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png" alt="StoryMap">
+  <img id="auth-direction" src="assets/directions.png" alt="">
   <div id="auth-bg-tap-hint">Tap to sign in</div>
   <div id="auth-card">
     <form id="auth-form">
@@ -6425,10 +6448,10 @@ function initApp(){
   // the tap hint.
   const authBgImg = new Image();
   authBgImg.onload = () => {
-    authScreen.style.setProperty('--auth-bg-url', "url('assets/auth-bg-sunset.png')");
+    authScreen.style.setProperty('--auth-bg-url', "url('assets/auth-bg-environment.png')");
     authScreen.classList.add('auth-bg-loaded');
   };
-  authBgImg.src = 'assets/auth-bg-sunset.png';
+  authBgImg.src = 'assets/auth-bg-environment.png';
   // Opens showing just the background art; one tap anywhere reveals the sign-in sheet.
   // Once revealed, a tap outside the card (still on the background) collapses it again;
   // a tap inside the card (a field, a button) is left alone to do its own thing.
