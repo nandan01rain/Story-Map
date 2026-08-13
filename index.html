@@ -990,7 +990,17 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 /* Atmosphere: a soft warm pool of light drifting across the sky, modulating the existing
    cloud color rather than sitting on it as a visible shape. Kept small and low-alpha on
    purpose — a large/strong version lifts the whole sky and washes out the deep oranges. */
-#auth-env-atmosphere{top:0;height:52%;mix-blend-mode:overlay;}
+#auth-env-atmosphere{
+  top:0;height:52%;mix-blend-mode:overlay;
+}
+/* Painted clouds can't actually move, and a drifting glow over them has the same
+   no-edge-to-track problem the water sheen did. A slow brightness swell does read,
+   because the change itself is the cue rather than motion across the frame — so the sky
+   gets a long opacity pulse on top of the drift. Gated on .motion-on: an opacity
+   animation would otherwise override .auth-env-fx's opacity:0 and leak through when
+   motion is off, breaking the identical-static-fallback requirement. */
+.motion-on #auth-env-atmosphere{animation:auth-sky-breathe 38s ease-in-out infinite;}
+@keyframes auth-sky-breathe{0%,100%{opacity:.55;}50%{opacity:1;}}
 #auth-env-atmosphere > i{
   top:-34%;left:-58%;width:216%;height:168%;
   background:radial-gradient(ellipse 34% 30% at 50% 45%, rgba(255,206,138,0.40), rgba(255,190,120,0.14) 48%, transparent 74%);
@@ -1019,40 +1029,45 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   100%{transform:translate3d(-19%,-2%,0);}
 }
 
-/* Water: a very soft broad sheen drifting across the bay. Deliberately NOT a striped or
-   repeating pattern — hard bands read instantly as an overlay crossing the shoreline
-   (tried, rejected). One wide low-contrast gradient, radially masked so it fades out
-   before the shore instead of ending on a visible clip edge. The mask lives on the
-   window, so the moving child can never spill past the bay. */
-#auth-env-water-fx, #auth-env-water-fx2{
-  top:45%;height:22%;
-  -webkit-mask-image:radial-gradient(ellipse 58% 76% at 55% 44%, #000 26%, transparent 76%);
-  mask-image:radial-gradient(ellipse 58% 76% at 55% 44%, #000 26%, transparent 76%);
+/* Water: fine ripple bands drifting down the bay. This is the only thing that actually
+   reads as movement — a broad soft gradient sliding across the water is imperceptible no
+   matter how strong (verified: even fully-opaque white showed no motion), because with no
+   edge or texture to track the eye has no motion cue. Two earlier sheen layers were
+   removed for exactly that reason. Fine bands do have that structure, so they read as a
+   rippling surface.
+
+   Two repeating gradients at non-multiple periods (9px/14px) beat against each other so
+   the bands look organic rather than like scanlines, and each animation translates by
+   exactly one of its own periods, so the loop is seamless.
+
+   The mask is derived from the canonical image itself (a luminance threshold over the bay
+   band, blurred — see env-water-mask.png), not a geometric approximation: an ellipse
+   can't follow the shoreline and visibly bled the bands onto the city hillside. It is
+   applied at full-stage size so its coordinates line up with the artwork exactly. */
+#auth-env-ripple, #auth-env-ripple2{
+  inset:0;
+  -webkit-mask-image:url('assets/env-water-mask.png');
+  mask-image:url('assets/env-water-mask.png');
+  -webkit-mask-size:100% 100%;
+  mask-size:100% 100%;
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
 }
-#auth-env-water-fx{mix-blend-mode:overlay;}
-#auth-env-water-fx > i{
-  top:0;left:-80%;width:260%;height:100%;
-  background:linear-gradient(102deg, transparent 0%, rgba(255,244,206,0.24) 42%, rgba(255,248,220,0.34) 50%, rgba(255,244,206,0.24) 58%, transparent 100%);
-  animation:auth-water-sheen 17s ease-in-out infinite alternate;
+#auth-env-ripple > i, #auth-env-ripple2 > i{top:-4%;left:0;width:100%;height:108%;}
+#auth-env-ripple{mix-blend-mode:overlay;}
+#auth-env-ripple > i{
+  background:repeating-linear-gradient(179deg,
+    rgba(255,252,238,0) 0px, rgba(255,252,238,0.17) 3px, rgba(255,252,238,0) 9px);
+  animation:auth-ripple-a 3.1s linear infinite;
 }
-/* child 260% wide at left:-80% -> peak_x = 50% + 2.6*T; T = -23%..23% sweeps -10%..110% */
-@keyframes auth-water-sheen{
-  0%{transform:translate3d(-23%,0,0);}
-  100%{transform:translate3d(23%,0,0);}
+#auth-env-ripple2{mix-blend-mode:soft-light;}
+#auth-env-ripple2 > i{
+  background:repeating-linear-gradient(181deg,
+    rgba(255,246,222,0) 0px, rgba(255,246,222,0.20) 4px, rgba(255,246,222,0) 14px);
+  animation:auth-ripple-b 4.7s linear infinite;
 }
-/* Counter-moving second sheen on a different period — the two crossing at different
-   rates read as shimmer rather than one band sweeping past. */
-#auth-env-water-fx2{mix-blend-mode:soft-light;}
-#auth-env-water-fx2 > i{
-  top:0;left:-70%;width:230%;height:100%;
-  background:linear-gradient(78deg, transparent 0%, rgba(255,240,198,0.26) 45%, rgba(255,240,198,0.26) 55%, transparent 100%);
-  animation:auth-water-sheen2 26s ease-in-out infinite alternate;
-}
-/* child 230% wide at left:-70% -> peak_x = 45% + 2.3*T; T = 28%..-24% sweeps 110%..-10% */
-@keyframes auth-water-sheen2{
-  0%{transform:translate3d(28%,0,0);}
-  100%{transform:translate3d(-24%,0,0);}
-}
+@keyframes auth-ripple-a{from{transform:translate3d(0,0,0);}to{transform:translate3d(0,9px,0);}}
+@keyframes auth-ripple-b{from{transform:translate3d(0,0,0);}to{transform:translate3d(0,14px,0);}}
 
 /* Lanterns: two small warm glows over the existing lantern positions, flickering with
    uneven timing/keyframe spacing so it reads as a flame rather than a smooth pulse. */
@@ -1255,8 +1270,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
     <div class="auth-env-fx" id="auth-env-atmosphere"><i></i></div>
     <div class="auth-env-fx" id="auth-env-haze"><i></i></div>
-    <div class="auth-env-fx" id="auth-env-water-fx"><i></i></div>
-    <div class="auth-env-fx" id="auth-env-water-fx2"><i></i></div>
+    <div class="auth-env-fx" id="auth-env-ripple"><i></i></div>
+    <div class="auth-env-fx" id="auth-env-ripple2"><i></i></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
   </div>
