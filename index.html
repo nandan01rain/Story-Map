@@ -1504,7 +1504,6 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   </div>
   <div id="editor-foot">
     <div id="editor-wc">0 words</div>
-    <button class="btn small" id="editor-save">Save</button>
     <button class="btn small primary" id="editor-save-sync">Save &amp; update scene summaries (AI)</button>
     <button class="btn small primary" id="check-bible-btn">⚖ Check against Bible (AI)</button>
     <div id="editor-status"></div>
@@ -3672,7 +3671,10 @@ document.getElementById('editor-sel-reader-btn').addEventListener('click', async
   autosaveChapter(); // fire-and-forget, see comment on the editor-close handler above
   jumpToTextInReader(chapterId, text);
 });
-document.getElementById('editor-save').addEventListener('click', async ()=>{
+// No dedicated "Save" button anymore (autosave — on every keystroke, debounced 1.2s, plus
+// on every navigation-away action — already covers it), but Ctrl/Cmd+S still forces an
+// immediate save with visible confirmation for anyone who wants that reassurance on demand.
+async function saveEditorNow(){
   clearTimeout(editorSaveTimer);
   const ch = chapters.find(c=>c.id===editorChapterId);
   pushVersionSnapshot(ch);
@@ -3681,7 +3683,7 @@ document.getElementById('editor-save').addEventListener('click', async ()=>{
   document.getElementById('editor-status').textContent = 'Saved.';
   renderMap();
   setTimeout(()=>{ if(document.getElementById('editor-status').textContent==='Saved.') document.getElementById('editor-status').textContent=''; }, 2000);
-});
+}
 
 /* ---------- SEARCH ---------- */
 function snippetAround(text, query, pad){
@@ -5978,7 +5980,7 @@ document.addEventListener('keydown', (e) => {
   if(cmdOrCtrl && e.key === 's'){
     e.preventDefault();
     if(document.getElementById('editor').classList.contains('show')){
-      document.getElementById('editor-save').click();
+      saveEditorNow();
     } else if(document.getElementById('doc-editor').classList.contains('show')){
       document.getElementById('doc-editor-save').click();
     }
