@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
-<link rel="preload" as="image" href="assets/env-sky.png">
+<link rel="preload" as="image" href="assets/auth-bg-environment.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -942,14 +942,15 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
 .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--text-dim);font-family:var(--font-literary);font-size:15px;font-style:italic;}
 
-/* Auth screen — layered environment (Phase 3 of the living-environment migration, see
-   the handoff doc/conversation): sky/sun/water/city/foreground/birds are independent
-   image layers stacked in depth order, not one flattened photo, so each can eventually
-   animate (cloud drift, water shimmer, sun glow, bird flight) or be swapped for a
-   different time-of-day/location without touching the others. The gradient here is the
-   same-toned placeholder visible only until the (opaque) sky layer finishes loading;
-   the layers above it are transparent PNGs so nothing else needs a loading gate. One tap
-   anywhere reveals the sign-in sheet sliding up from the bottom. */
+/* Auth screen — full-bleed scenery art. Reverted from the layered sky/sun/water/city/
+   foreground version (Phase 3) back to the single flat reference image: the layers were
+   independent AI generations rather than true extractions from one source, so they never
+   agreed on scale/framing with each other and the composite drifted visibly from the
+   reference no matter how much the seams were patched. Layering is still the right
+   long-term direction, but it needs layers actually extracted from this one image
+   (pixel-aligned by construction) rather than separately regenerated ones — see the
+   handoff doc/conversation before attempting this again. One tap anywhere reveals the
+   sign-in sheet sliding up from the bottom. */
 #auth-screen{
   --ph-bg:#f3e4c8; --ph-bg-soft:#efdcc0; --ph-input-bg:#faf3e4;
   --ph-text:#3a2415; --ph-text-dim:#8a7355; --ph-border:#d9c39c; --ph-accent:#d99a2b;
@@ -959,27 +960,9 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   cursor:pointer;-webkit-tap-highlight-color:transparent;
 }
 #auth-screen *{-webkit-tap-highlight-color:transparent;}
-.auth-env-layer{
+#auth-env-flat{
   position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
   object-fit:cover;object-position:center;
-}
-#auth-env-foreground{object-fit:contain;object-position:center bottom;}
-.auth-env-bird{position:absolute;pointer-events:none;object-fit:contain;}
-#auth-env-bird1{width:52px;top:19%;right:16%;}
-#auth-env-bird2{width:40px;top:33%;right:30%;}
-/* Phase 4: subtle motion on the layers that plausibly move (water shimmer, sun glow,
-   birds) — deliberately small-amplitude/slow, "alive not animated" per the spec, and
-   gated behind the same account-wide motion-on class every other animated surface in
-   the app uses (see the GLOBAL MOTION PREFERENCE block). Off by default. */
-.motion-on #auth-env-water{animation:auth-water-shimmer 5s ease-in-out infinite alternate;}
-.motion-on #auth-env-sun{animation:auth-sun-glow 4.5s ease-in-out infinite alternate;}
-.motion-on #auth-env-bird1{animation:auth-bird-bob 3.6s ease-in-out infinite;}
-.motion-on #auth-env-bird2{animation:auth-bird-bob 4.2s ease-in-out infinite -1.4s;}
-@keyframes auth-water-shimmer{0%{filter:brightness(0.97);}100%{filter:brightness(1.05);}}
-@keyframes auth-sun-glow{0%{opacity:.92;filter:brightness(0.97);}100%{opacity:1;filter:brightness(1.06);}}
-@keyframes auth-bird-bob{
-  0%,100%{transform:translate(0,0) rotate(0deg);}
-  50%{transform:translate(-3px,-5px) rotate(-2deg);}
 }
 #auth-bg-tap-hint{
   position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
@@ -1159,13 +1142,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   </defs>
 </svg>
 <div id="auth-screen">
-  <img class="auth-env-layer" id="auth-env-sky" src="assets/env-sky.png" alt="">
-  <img class="auth-env-layer" id="auth-env-sun" src="assets/env-sun.png" alt="">
-  <img class="auth-env-layer" id="auth-env-water" src="assets/env-water.png" alt="">
-  <img class="auth-env-layer" id="auth-env-city" src="assets/env-city.png" alt="">
-  <img class="auth-env-layer" id="auth-env-foreground" src="assets/env-foreground.png" alt="">
-  <img class="auth-env-bird" id="auth-env-bird1" src="assets/env-bird1.png" alt="">
-  <img class="auth-env-bird" id="auth-env-bird2" src="assets/env-bird2.png" alt="">
+  <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
   <img id="auth-compass" src="assets/compass.png" alt="">
   <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png" alt="StoryMap">
   <img id="auth-direction" src="assets/directions.png" alt="">
