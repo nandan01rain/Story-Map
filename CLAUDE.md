@@ -60,6 +60,14 @@ viewMode:  'map' | 'list'
 nextId:    shared auto-increment counter across all entity types
 ```
 
+**Account-level data** (separate from the per-project data above — lives in
+Supabase Auth's `user_metadata`, not any of the tables the model above
+describes, and needs no schema/migration to extend): `display_name`,
+`birthday`, `special_occasions: [{label, date}]`, `motion_enabled` (the
+global animation on/off preference — see "Full feature list" and the
+handoff doc §12.2). Read/write via `supabase.auth.getUser()`/
+`supabase.auth.updateUser({data:{...}})`.
+
 `chapters.annotations[]` items: `{id, type: plant|reveal|note, text, label,
 linkedPlant?: {chapterId, annotationId}, thread?: string}`. `text` is the
 exact flagged substring from the chapter's prose — annotations re-locate
@@ -147,6 +155,35 @@ chapter boundaries for pacing).
     client-side JS in a real deployed app.
 - **Book-level word targets**: set once per book (not per chapter), every
   chapter in that book inherits it. Flags only — never blocks writing.
+- **In-app Reader**: full-screen, Kindle-style paginated book reader —
+  chrome-free by default (tap the middle to reveal/hide header+footer, tap
+  or swipe the left/right edges to turn pages, animated page-turn
+  transitions), a tabbed Font/Layout settings sheet (font picker, size,
+  alignment, continuous-scroll toggle, a brightness slider shared with the
+  Editor), two independent bookmark systems (one "moving" bookmark per
+  book via a single tap, plus any number of "pinned" bookmarks via a
+  double tap), and two-way sync with the chapter Editor — select text in
+  either the Reader or the Editor to highlight it or jump to/select that
+  exact text in the other. See the handoff doc §12.1 for the full detail
+  and the architectural note on why the header/footer are overlays rather
+  than real layout-affecting elements.
+- **Account settings**: name/nickname, birthday, a free-form list of
+  special occasions, plus email/password — all stored in Supabase Auth's
+  `user_metadata` (no new table). Also where the global "moving
+  backgrounds & animations" preference lives (see Data model above and
+  the handoff doc §12.2).
+- **Landing page**: a bottom tab bar (Home / Projects / + / Explore /
+  Profile) — Home is a decorative welcome view, Projects is the existing
+  project picker, Explore is a placeholder for a not-yet-built
+  cross-project search. Uses its own light "parchment card" color palette,
+  distinct from the rest of the app's dark theme.
+- **Sign-in screen**: full-bleed background art (a sunset/castle
+  illustration with the wordmark baked into the image itself) — opens
+  showing just the image, tap or swipe up reveals the sign-in form as a
+  bottom sheet, tap outside or swipe down collapses it again. Google/
+  Apple/Microsoft buttons are visually present but not wired to real
+  OAuth yet (needs provider app registration + Supabase dashboard config
+  — see handoff doc §12.4).
 
 ## Still deferred (see handoff doc §7 for the full/current list)
 
@@ -176,11 +213,32 @@ chapter boundaries for pacing).
 Fixed since the last update of this section (see handoff doc §7/§9 for
 detail): List-mode chapter reordering now exists (drag a handle, within-act
 only); the drop-target-highlight-flashes-on-tap bug; all app-wide "Close"
-buttons are now a smaller "×"; the Reader view's mobile header overflow/crop.
+buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
+(and the Reader has since been rebuilt well past that fix — see handoff §12.1).
 - **Anthropic API key handling.** The AI features still call
   `api.anthropic.com` directly from client JS with no key attached — this
   needs a real serverless proxy (e.g. a Supabase Edge Function), not a key
   pasted into client code. Not yet built.
+- **OAuth sign-in.** Google/Apple/Microsoft buttons exist on the sign-in
+  screen but are inert — needs OAuth apps registered with each provider
+  (Apple requires a paid developer account) plus that provider enabled in
+  the Supabase Auth dashboard. Account/dashboard work, not a code task, and
+  not started.
+- **Password-reset landing page.** "Forgot password?" sends a real
+  Supabase reset email, but there's no page for that email's link to land
+  on to actually set a new password yet.
+- **Sign-in background image is an uncompressed ~2.3MB PNG.** No image
+  tooling was available in the session that added it to compress/convert
+  it (photographic content should be JPEG/WebP, not PNG). A same-toned
+  gradient placeholder + preload hides most of the perceived load lag, but
+  the underlying file size is still worth fixing.
+- **Day/night/dawn art for the sign-in screen**, and the layered/animated
+  (as opposed to static) version of that background — scoped in
+  conversation, no assets delivered yet beyond the one sunset scene. See
+  handoff doc §12.4.
+- **Cross-project search ("Explore" tab)** on the landing page — the tab
+  exists as a styled placeholder, the actual search-across-all-projects
+  feature was never built.
 
 ## Roadmap
 
@@ -207,6 +265,30 @@ calculation, with sunrise/sunset as ~1hr transition windows and animated
 water/ship layers. Not yet built — see handoff doc §9 for the exact open
 questions (asset delivery format, geolocation-decline fallback) blocking
 implementation.
+
+**Stage 1.6 — Reader overhaul, account settings, sign-in/landing redesign**
+(done, see handoff doc §12 for full detail): the in-app Reader rebuilt
+Kindle-style (chrome-free full-screen, tap/swipe page turns, Font/Layout
+settings sheet, two independent bookmark systems, two-way highlight/jump
+sync with the Editor); an account-wide Settings surface (name, birthday,
+special occasions, a global motion-preference toggle) backed by Supabase
+Auth's `user_metadata`, no new tables; the landing page redesigned with a
+bottom tab bar and its own light color palette; the sign-in screen
+redesigned around full-bleed background art with a tap/swipe bottom-sheet
+form. Real OAuth, the password-reset landing page, image compression for
+the new background art, and day/night art for that same screen are the
+concrete follow-ups — see "Still deferred" above.
+
+**Stage 2 (in progress)**: day/night/sunrise/sunset living-map visuals —
+real reference art now exists for all four states (see handoff doc §9) and
+the intended schedule is real astronomical sunrise/sunset times (not fixed
+clock hours), computed client-side via geolocation + a public-domain solar
+calculation, with sunrise/sunset as ~1hr transition windows and animated
+water/ship layers. Not yet built — see handoff doc §9 for the exact open
+questions (asset delivery format, geolocation-decline fallback) blocking
+implementation. The Stage 1.6 motion-preference toggle (`motion_enabled` in
+`user_metadata`, a `motion-on` class on `<html>`) was built in anticipation
+of gating this work's animated layers, but no surface reads it yet.
 
 **Stage 3** (explicitly not started): storyboards, image generation, and
 anything extending past prose-only tooling.

@@ -1254,3 +1254,305 @@ Quick reference for how much to trust specific claim categories in this document
 | Drop-highlight-flashes-on-tap fix | **CONFIRMED via dispatched pointer events** (no highlight at small movement, correct highlight at larger movement); **NOT YET real-device tested** |
 | "Close" → "×" button restyle (12 buttons) | **CONFIRMED via direct DOM/CSS inspection + screenshot**; visual-only change, low regression risk |
 | List-mode drag-to-reorder | **CONFIRMED via dispatched pointer events** (DOM reorder + underlying `chapters[].order` both verified correct); **NOT YET real-device tested — this is genuinely new code with zero device-testing history**, unlike Map's drag |
+
+---
+
+## 12. SESSION ADDENDUM — Reader overhaul, Account/Profile, Landing Page, Auth Screen (this session)
+
+*(Everything below happened in one long follow-on session, 17 commits,
+`1eeddd7` through `cf98d02`. Unlike §6-9 above, this work was almost
+entirely straightforward feature-building verified via dispatched
+DOM/pointer events and direct measurement in the Browser pane tool — real
+device testing was **not** performed for any of it, which is the single
+biggest gap between this section's confidence and §6-9's. Treat everything
+below as "verified in a simulated/desktop browser," not "confirmed on real
+hardware," per the same skepticism §7/§9 already apply to touch-specific
+code — several items below (swipe gestures, drag-to-close) are exactly the
+kind of touch interaction that has repeatedly needed real-device correction
+elsewhere in this app's history.)*
+
+### 12.1 Reader — full redesign, Kindle-style (`1eeddd7` through `d0c4599`, `658cd2f`, `f273922`, `7be2f7b`)
+
+The paginated in-app Reader was substantially rebuilt from the version
+§5/§6 describe. Current state:
+
+- **Full-screen, chrome-free by default.** The reader opens showing only
+  the page, no header/footer. Header/footer are solid-background overlays
+  (not real flex children — see the note below on why) that toggle via a
+  `chrome-hidden` class, auto-hiding after 3.5s **unless** the Font/Layout
+  or chapter-list dropdown is open, in which case the auto-hide timer
+  (`readerChromeAutoHideTick()`) keeps deferring itself until both close.
+- **Page turning**: tap the left/right quarter of the screen, or swipe
+  left/right (real `touchstart`/`touchmove`/`touchend` tracking, not a
+  library) — both trigger `readerNextPage()`/`readerPrevPage()`. Tapping
+  the middle band toggles the header/footer chrome. Page transitions
+  animate (`transform:transform .32s` on the translateX-shifted CSS-column
+  content strip) rather than snapping instantly; pagination-recalculation-
+  triggered transform changes (resize, font/size change) use a `.no-anim`
+  class to skip the animation for those, since animating a resize/reflow
+  would look wrong.
+- **Even page-bottom alignment**: pages are CSS multi-columns with a fixed
+  height, so text fills each column until it runs out — if that height
+  wasn't an exact multiple of the actual rendered line-height, each page's
+  last line ended at a slightly different point (read as inconsistent
+  page endings). Fixed by `snapReaderContentHeightToLines()`, which
+  measures the real line-height off a `.reader-prose` element and adjusts
+  `#reader-page-content`'s top/bottom padding (not its box height) each
+  recalculation so the flowed area is always a whole number of lines.
+  Chapter side margins reduced 60px → 32px per user feedback ("too much
+  blank space").
+- **Font/Layout settings sheet**: the "Aa" button opens a tabbed dropdown
+  (Font: a grid of font-preview buttons + a size slider; Layout: alignment
+  + continuous-scrolling toggle + a brightness slider), replacing the old
+  inline-on-desktop/collapse-on-mobile `<select>` row pattern, at every
+  screen size now.
+- **Continuous scrolling** (opt-in toggle): swaps the paginated
+  horizontal-column layout for plain vertical scroll. Page-turn taps/
+  swipes and arrow keys are disabled while it's on; the chapter picker
+  scrolls to the chapter instead of jumping a page index; the position
+  slider is replaced by a scroll-derived "% read" label; the page-based
+  bookmark ribbon hides (no meaningful page position in this mode).
+- **Brightness slider**: simulates screen brightness via a black scrim
+  overlay (`#reader-brightness-overlay`/`#editor-brightness-overlay`) —
+  there's no real brightness API available to a web page. One shared
+  `appBrightness` value (0-100, default 100/no dim) drives both the Reader
+  and Editor sliders and both overlays, so it's a genuinely app-wide
+  setting, not per-surface. **Not persisted** — resets to 100 each session,
+  unlike the profile/motion settings in §12.2 which are.
+- **Bookmarks — two independent systems now**: the original single "moving"
+  bookmark (`projectBookmarks[bookIndex] = page`, yellow ribbon, one page
+  per book) is unchanged in behavior but now triggered by a **single tap**
+  on the ribbon (300ms hold before firing, to disambiguate from a double
+  tap). **New**: a double-tap on the same ribbon toggles an independent
+  **red pinned bookmark** (`projectPinnedBookmarks[bookIndex] = [page, ...]`)
+  — any number of pages can be pinned at once, positioned as a second
+  ribbon icon next to the yellow one so both can be visible together on
+  the same page. Persistence: the `bookmarks` settings JSONB column
+  changed shape from a flat `{bookIndex: page}` map to
+  `{current: {...}, pinned: {bookIndex: [page, ...]}}` — **backward
+  compatible**, old rows without `current`/`pinned` keys are read as the
+  legacy flat map with no pins.
+- **Highlighting + Reader↔Editor sync** (`d0c4599`): selecting text in the
+  Reader shows a floating popup (Highlight / Editor), positioned off the
+  selection's `getBoundingClientRect()`. **Highlight** saves the selection
+  as a `{id, type:'highlight', text}` entry in that chapter's existing
+  `annotations` array — reusing the same array/mechanism Plant/Reveal/Note
+  already use, which means the Editor's existing `renderAnnotatedContent()`
+  picks up Reader-made highlights automatically (no new Editor-side code
+  needed) since it already wraps any `ch.annotations[]` entry's `text` in
+  `<mark class="hl-${type}">`. **Editor** opens the full chapter editor
+  with that exact text located and selected, reusing the same
+  substring-search pattern the existing "jump to annotation" feature used
+  (factored out into `scrollEditorToRange()`/`jumpToTextInEditorInline()`).
+  Selecting text that **overlaps an existing highlight mark** shows "Remove
+  Highlight" instead of "Highlight" (creating a second overlapping
+  highlight isn't supported — the paragraph-highlighting render logic
+  silently drops overlapping ranges — so this is the only way out of that
+  state, identified via `data-annotation-id` on the rendered `<mark>` and
+  `Range.intersectsNode()`).
+  The Reader's "Aa"-adjacent menu gained an "Edit this chapter" button
+  (tracks whichever chapter is currently in view, including during
+  continuous scroll, via a `.reader-toc-row.current` class kept in sync).
+  The Editor's hamburger menu gained a matching chapter-level "View in
+  Reader" button. Both directions use a `editorReturnTo = {type:'reader',
+  bookIndex, chapterId}` case added to the pre-existing `editorReturnTo`
+  mechanism (previously only used for returning to the Act modal) so
+  closing the editor after a reader-initiated jump returns to the reader
+  at the right chapter. Word/phrase-level jumps in **both** directions now
+  actually select the text (not just scroll to it) — editor→reader was
+  initially scroll-only, fixed to match reader→editor's behavior of
+  leaving the text visibly selected.
+- **Architecture note — why header/footer are overlays, not real flex
+  children**: an earlier version of this redesign made the header/footer
+  real flex children of a column layout, so the page area's box literally
+  shrank when the header opened. This looked right but caused a real bug:
+  since pagination is CSS-column-based with a *fixed* column height, a
+  shorter box (from the header opening) meant a shorter column, forcing a
+  full repagination against the new height *every time chrome toggled* —
+  different text reflowed into view, which read as the page silently
+  auto-scrolling. Fixed by making the page area fixed-size again
+  (`position:absolute;inset:0`, pagination computed once) with the
+  header/footer as solid-background overlays layered on top (`z-index`
+  above the page) — same "chrome covers part of the page" visual result,
+  zero layout/reflow triggered by toggling.
+- **No dedicated Editor "Save" button anymore** (`7be2f7b`) — autosave
+  (debounced 1.2s on every keystroke, plus fire-and-forget on every
+  navigation-away action) already covered everything it did; Ctrl/Cmd+S
+  is kept as an on-demand "save now with visible confirmation," calling
+  the extracted `saveEditorNow()` function directly.
+- **Fire-and-forget saves on navigation**: several handlers (editor-close,
+  view-in-reader, the reader highlight action) were changed from
+  `await autosaveChapter()`/`await saveData()` to unawaited calls, since
+  `autosaveChapter()`'s in-memory content sync happens synchronously
+  *before* its own internal network call — navigating away immediately
+  rather than waiting on the round-trip doesn't lose anything, it just
+  removes a visible lag on every reader↔editor transition.
+
+**Not done / explicitly out of scope this pass**: real device testing of
+any Reader touch interaction (page-turn swipe, chapter-editor jump
+timing); AI-assisted anything in the Reader; the brightness slider isn't
+persisted; continuous-scroll mode's chapter-jump and bookmark-pin
+interplay hasn't been stress-tested with a very long single chapter.
+
+### 12.2 Account/Profile + global motion-preference toggle (`3c2b195`, part of `bdb0d6e`)
+
+- **New account-wide profile fields** — display name, birthday, and a
+  free-form list of "special occasions" (label + date, add/remove rows) —
+  plus the conventional basics (view email, change password). Backed by
+  Supabase Auth's built-in `user_metadata`
+  (`supabase.auth.updateUser({data:{...}})`, reads via
+  `supabase.auth.getUser()`), **not a new database table** — `user_metadata`
+  is already a JSONB column on `auth.users`, so this needed zero schema
+  migrations, unlike everything in §4's table list. Reachable via a
+  Settings modal (`#account-settings-modal`) opened from both the landing
+  page and the main app header.
+- **Landing page greeting**: `#project-screen` shows "Welcome, {first
+  name}" (falls back to "Welcome back") once `loadProjectOptions()` has
+  fetched the user.
+- **Global motion-preference toggle** (`appMotionEnabled`, also stored in
+  `user_metadata`, same account-wide mechanism): a single `motion-on`
+  class on `<html>` that any current or future animated surface is meant
+  to check, rather than each surface having its own on/off switch. Default
+  off; an explicit "on" from the user is intended to override the OS's
+  `prefers-reduced-motion` (informed choice vs. accident) — **note: no
+  surface actually checks this class yet** (there's no animated surface
+  built that needs to respect it yet — the auth-screen background in
+  §12.4 doesn't gate on it, since it's a simple CSS transition, not the
+  kind of ambient motion this toggle was built for). This is
+  infrastructure ahead of its own use case, built in anticipation of the
+  day/night/sunrise/sunset living-map work already flagged as blocked in
+  §9 — when that or the auth-screen's layered/animated mode (§12.4's "not
+  built" list) eventually lands, it should read this class rather than
+  inventing its own toggle.
+
+### 12.3 Landing page redesign (`bdb0d6e`, `ebe254b`)
+
+`#project-screen` gained a bottom tab bar (Home / Projects / + / Explore /
+Profile) replacing the old single static panel:
+- **Home**: a decorative pull-quote box ("Chart the past. Shape the
+  future. Leave your legend.").
+- **Projects**: the pre-existing project list/rename/delete/create panel,
+  unchanged in behavior, restyled with icon buttons.
+- **+**: switches to the Projects tab and focuses the new-project name
+  input (not a separate quick-create flow).
+- **Explore**: a "coming soon" placeholder — cross-project search across
+  all projects at once was scoped in conversation but **not built**; the
+  tab exists and is styled but does nothing beyond showing the
+  placeholder text.
+- **Profile**: opens the same Account Settings modal as §12.2.
+
+**Color palette**: a light "parchment card" scheme
+(`--ph-bg`/`--ph-text`/`--ph-accent`/etc., cream background + dark brown
+text + amber accent) scoped entirely to `#project-screen` via CSS custom
+properties defined on that element — deliberately **not** touching the
+rest of the app's existing dark theme. Icon set: folder (Open), pencil
+(Rename), feather (new project), gear (Settings), exit-door (Sign out),
+compass (logo mark + Explore tab) — new SVG `<symbol>` defs added
+alongside the existing shared icon sprite (§6's "List view + hamburger
+nav drawer" redesign), same stroke-based style.
+
+**Real bug found+fixed during this pass**: `.ph-tab-panel` (a `flex:1`
+child of a row-flex container) was rendering at a fixed 480px instead of
+shrinking to fit the viewport on mobile, because its child
+(`#project-home-panel`, `width:480px;max-width:100%`) has an explicit
+width that flexbox's default `min-width:auto` factors into the *parent's*
+automatic minimum-size calculation, overriding the percentage
+`max-width`. This is the classic flexbox min-width-with-explicit-child-
+width overflow trap — fixed with `min-width:0` on `.ph-tab-panel`, the
+standard fix. Worth knowing as a pattern if a similar "child won't shrink
+below some fixed value despite max-width:100%" bug shows up elsewhere.
+
+### 12.4 Auth screen redesign — full-bleed art + tap/swipe bottom sheet (`bdb0d6e` through `cf98d02`)
+
+- **Real background artwork** now in the repo:
+  `assets/auth-bg-sunset.png` (a user-supplied AI-generated sunset/castle
+  illustration with the "STORYMAP" wordmark, tagline, and compass motif
+  **baked into the image itself** — not rendered as separate HTML/CSS).
+  At time of writing this is **2.3-2.5MB and PNG** — no image
+  optimization tooling (ImageMagick, ffmpeg, a working Python+PIL) was
+  available in this session's environment to compress/convert it, so it
+  was used as-delivered. **Flagged, not fixed**: this should be converted
+  to a compressed JPEG or WebP (photographic content compresses far
+  better as either than as PNG) before this is considered production-
+  ready — likely a large win for load time on mobile networks.
+- **Opens showing just the image** (`#auth-screen`, full-bleed
+  `background-image`, no visible form). A subtle pulsing "TAP TO SIGN IN"
+  hint sits near the bottom. One **tap** anywhere reveals a sign-in sheet
+  sliding up from the bottom (`#auth-card`, `translateY` + `opacity`
+  transition); tapping outside the card while it's open collapses it
+  again; tapping inside it (a field, a button) does nothing to the sheet
+  state. **Swipe up** (anywhere, while closed) also opens it; **swipe
+  down on the card** (only once its own scroll position is at the top, so
+  it doesn't fight normal scrolling inside a tall/overflowing card) closes
+  it, following the finger live during the drag (`touchmove` sets an
+  inline `transform`, a `.dragging` class suspends the CSS transition
+  while dragging) and snapping open/closed based on a 45px distance
+  threshold on `touchend`.
+- **Card sizing**: inset 16px from the screen edges (not edge-to-edge),
+  rounded corners on all four sides (not just the top two), capped at
+  `max-width:min(336px, calc(100% - 24px))` and `max-height:48vh`, then
+  reduced again to those exact numbers (80% of an earlier, larger pass)
+  per direct user feedback comparing against the reference mockup's
+  proportions — the vertical `bottom` offset was recalculated
+  (`16px + 6vh`) specifically to keep the card's *center point* fixed
+  while shrinking its height, not just anchor it to the bottom edge.
+- **Loading-gap fix**: the auth screen's `background-image` defaults to a
+  same-toned CSS gradient (not blank/black), and a `<link rel="preload"
+  as="image">` in `<head>` plus a JS `new Image()` preload swap the real
+  photo in (via a CSS custom property + `.auth-bg-loaded` class) only
+  once it's actually decoded — so the ~1-2s load time for the 2.3MB file
+  reads as a smooth fade from a themed placeholder rather than a blank
+  screen with the tap hint floating on nothing. This **reduces the
+  perceived gap, not the actual byte count** — see the "not fixed" PNG
+  note above for the real fix.
+- **`-webkit-tap-highlight-color:transparent`** added to `#auth-screen`
+  and all descendants — the default mobile tap-highlight (a
+  semi-transparent blue flash on tap) was visible on the first tap before
+  this; same class of fix already applied to the Reader in an earlier
+  session (§ n/a, search `-webkit-tap-highlight-color` in `index.html`
+  for the other call sites).
+- **Google/Apple/Microsoft "Continue with..." buttons**: visually
+  complete (real per-provider colored logos, inline SVG, not the shared
+  mono icon sprite since these need actual brand colors) to match the
+  reference design, but **intentionally inert** — clicking shows "Sign-in
+  with this provider isn't set up yet." Wiring these up for real needs
+  OAuth apps registered with each provider (Google Cloud Console, Apple
+  Developer — requires a paid $99/yr membership, Microsoft Entra) plus
+  that provider enabled in the Supabase Auth dashboard with the
+  resulting Client ID/Secret — **none of that has happened**; it's
+  account/dashboard work outside what a coding session can do. Once
+  configured, the code-side change is small (`supabase.auth.signInWithOAuth
+  ({provider:'google'})` etc.).
+- **"Remember me"**: implemented as a genuine storage-adapter choice, not
+  just a UI checkbox — `sbClient` is constructed with `auth:{storage:
+  localStorage or sessionStorage}` depending on a `storymap-remember-me`
+  localStorage flag read *before* the client is constructed (necessarily
+  before the checkbox can be interacted with). **Known limitation,
+  accepted as a reasonable tradeoff**: since the storage adapter is fixed
+  at construction time, a changed checkbox value takes effect starting
+  *next* sign-in, not retroactively for whichever session is currently in
+  flight — most users won't notice since the default is "remembered."
+- **"Forgot password"**: wired to `supabase.auth.resetPasswordForEmail()`
+  — sends a real reset email via Supabase's built-in flow. **Not built**:
+  the "set new password" page/route the reset email's link would need to
+  land on — clicking the emailed link today has nowhere designed to go.
+- **Day/night/dawn art for this same screen**: user has stated they have
+  (or can generate) art for all four times-of-day for this specific
+  screen, matching the living-map day/night/sunrise/sunset work already
+  flagged as blocked in §9 — **not yet delivered/integrated**; only the
+  sunset scene exists in the repo. If/when the other three arrive, the
+  natural place to switch between them is wherever `presentationConfig`
+  (§9's "presentation-config foundations") or the motion-preference class
+  (§12.2) end up driving the map's day/night state — worth checking
+  whether that mechanism should be shared rather than building a second,
+  parallel one for the auth screen specifically.
+
+**Not done / explicitly flagged as future work in conversation, not
+started**: the layered/parallax animated version of this background (the
+user described wanting a toggleable "moving animations" mode covering
+this screen *and* the living map, using the §12.2 motion-preference
+flag) — everything shipped this session is the **static** version only;
+the layered-asset animated mode was scoped in conversation (sky/clouds/
+sun/water/ship/birds as separate PNG layers, one scene fully built
+end-to-end before the other three) but no layered assets have been
+delivered yet, so none of that rendering pipeline exists in code.
