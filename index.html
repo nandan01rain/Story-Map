@@ -393,10 +393,29 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .modal.show{display:flex;}
 #annotation-modal{z-index:90;}
 #version-modal{z-index:90;}
+/* Opened from #project-screen (z-index:100) as well as from inside the app, so it needs
+   to sit above both. */
+#account-settings-modal{z-index:110;}
 .modal-panel{max-width:600px;width:min(95vw,600px);max-height:78vh;background:var(--panel);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
 .modal-panel h2{font-family:var(--font-heading);font-size:16px;letter-spacing:.03em;padding:18px 22px 12px;margin:0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 .modal-panel h2 button{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;}
 .modal-list{overflow-y:auto;padding:6px 0;}
+/* Account settings modal */
+#account-settings-body{overflow-y:auto;padding:18px 22px;}
+.acct-section-title{font-family:var(--font-heading);font-size:13px;letter-spacing:.03em;color:var(--gold);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.acct-section-title:first-child{margin-top:0;}
+.acct-field{margin-bottom:14px;}
+.acct-field label{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
+.acct-field input[type=text], .acct-field input[type=date], .acct-field input[type=password]{width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 11px;font-size:14px;font-family:var(--font-body);box-sizing:border-box;}
+.acct-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--text);}
+.acct-row-value{color:var(--text-dim);font-family:var(--font-mono);font-size:12px;}
+.occasion-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.occasion-row input[type=text]{flex:1;min-width:0;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--font-body);}
+.occasion-row input[type=date]{width:150px;flex-shrink:0;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 8px;font-size:12px;font-family:var(--font-body);}
+.occasion-row button{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;flex-shrink:0;min-width:32px;}
+.occasion-row button:hover{color:var(--danger);}
+#account-settings-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;}
+#account-settings-status{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:10px;}
 .chapter-link-row{padding:10px 22px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;}
 .chapter-link-row .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .chapter-link-row .title{flex:1;font-size:13.5px;cursor:pointer;}
@@ -879,6 +898,9 @@ button.btn.primary#add-chapter-btn::before{
   #editor-anno-panel{position:fixed; inset:0; width:0; z-index:60; border-left:none; transition:none;}
   #editor-anno-panel.show{width:100%;}
   #editor-anno-panel-body{width:100%;}
+  #project-home-header{padding:14px 16px;}
+  #project-home-header-actions{gap:8px;}
+  #project-home-welcome{width:100%;order:-1;}
 }
 /* inline label editor — shared by the side panel and all full-screen annotation browsers */
 .anno-label-edit-row{display:flex;flex-direction:column;gap:6px;width:100%;}
@@ -933,8 +955,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
 /* project home screen — a full page, shown after login (or after switching), before entering a project */
 #project-screen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;background:var(--bg);overflow-y:auto;}
-#project-home-header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, var(--bg-alt), var(--bg));flex-shrink:0;}
+#project-home-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;padding:18px 32px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, var(--bg-alt), var(--bg));flex-shrink:0;}
 #project-home-header h1{font-family:var(--font-display);font-weight:700;font-size:19px;margin:0;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+#project-home-header-actions{display:flex;align-items:center;gap:14px;}
+#project-home-welcome{font-family:var(--font-literary);font-size:13.5px;color:var(--text-dim);}
 #project-home-body{flex:1;display:flex;justify-content:center;padding:60px 24px;}
 #project-home-panel{width:480px;max-width:100%;}
 #project-home-panel h2{font-family:var(--font-heading);font-size:16px;letter-spacing:.03em;color:var(--text);margin:0 0 18px;}
@@ -1012,7 +1036,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 <div id="project-screen" style="display:none;">
   <header id="project-home-header">
     <h1>StoryMap</h1>
-    <button class="btn" id="project-home-signout-btn">Sign out</button>
+    <div id="project-home-header-actions">
+      <span id="project-home-welcome"></span>
+      <button class="btn" id="project-home-settings-btn" title="Account settings">⚙ Settings</button>
+      <button class="btn" id="project-home-signout-btn">Sign out</button>
+    </div>
   </header>
   <div id="project-home-body">
     <div id="project-home-panel">
@@ -1107,6 +1135,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         </div>
         <button class="btn primary hdr-collapsible" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
         <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-swap"></use></svg> Switch project</button>
+        <button class="btn hdr-collapsible" id="app-settings-btn" style="display:none;">⚙ Settings</button>
         <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-exit"></use></svg> Sign out</button>
       </div>
 
@@ -1271,6 +1300,45 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div id="targets-list" style="padding:14px 22px;"></div>
     <div style="padding:14px 22px;border-top:1px solid var(--border);">
       <button class="btn primary" id="targets-save-btn" style="width:100%;">Save targets</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="account-settings-modal">
+  <div class="modal-panel" style="max-width:520px;width:min(95vw,520px);">
+    <h2>Account settings <button id="account-settings-close">×</button></h2>
+    <div class="modal-list" id="account-settings-body">
+      <div class="acct-section-title">Profile</div>
+      <div class="acct-field">
+        <label for="profile-name-input">What should we call you?</label>
+        <input type="text" id="profile-name-input" placeholder="Your name or nickname" maxlength="60">
+      </div>
+      <div class="acct-field">
+        <label for="profile-birthday-input">Birthday</label>
+        <input type="date" id="profile-birthday-input">
+      </div>
+      <div class="acct-field">
+        <label>Special occasions</label>
+        <div id="profile-occasions-list"></div>
+        <button type="button" class="btn small" id="profile-occasion-add-btn">+ Add occasion</button>
+      </div>
+
+      <div class="acct-section-title">Account</div>
+      <div class="acct-row">
+        <span>Email</span>
+        <span id="account-email-display" class="acct-row-value"></span>
+      </div>
+      <button type="button" class="btn small" id="account-change-password-btn">Change password</button>
+      <div class="acct-field" id="account-password-row" style="display:none;">
+        <label for="account-new-password-input">New password</label>
+        <input type="password" id="account-new-password-input" placeholder="At least 6 characters" autocomplete="new-password">
+        <button type="button" class="btn small primary" id="account-password-save-btn">Update password</button>
+      </div>
+
+      <div id="account-settings-status"></div>
+    </div>
+    <div id="account-settings-foot">
+      <button type="button" class="btn primary" id="account-settings-save-btn">Save profile</button>
     </div>
   </div>
 </div>
@@ -4039,6 +4107,93 @@ document.getElementById('d-open-targets').addEventListener('click', () => {
   document.getElementById('targets-modal').classList.add('show');
 });
 
+/* ---------- ACCOUNT (user profile + conventional account settings) ----------
+   Profile fields live in Supabase Auth's user_metadata (auth.updateUser({data:...})) —
+   an account-wide, already-built-in JSONB column on auth.users, so this needs no new
+   table/migration the way project-level settings (act labels, word targets, ...) do. */
+function firstNameOf(name){
+  return (name || '').trim().split(/\s+/)[0] || '';
+}
+function updateWelcomeGreeting(user){
+  const el = document.getElementById('project-home-welcome');
+  if(!el) return;
+  const name = user && user.user_metadata && user.user_metadata.display_name;
+  el.textContent = name ? `Welcome, ${firstNameOf(name)}` : (user ? 'Welcome back' : '');
+}
+function renderOccasionsList(occasions){
+  const list = document.getElementById('profile-occasions-list');
+  list.innerHTML = '';
+  (occasions && occasions.length ? occasions : []).forEach(o => addOccasionRow(o.label || '', o.date || ''));
+}
+function addOccasionRow(label, date){
+  const list = document.getElementById('profile-occasions-list');
+  const row = document.createElement('div');
+  row.className = 'occasion-row';
+  row.innerHTML = `
+    <input type="text" class="occasion-label" placeholder="Occasion (e.g. anniversary)" maxlength="60" value="${escapeAttr(label || '')}">
+    <input type="date" class="occasion-date" value="${escapeAttr(date || '')}">
+    <button type="button" title="Remove">×</button>`;
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  list.appendChild(row);
+}
+async function openAccountSettingsModal(){
+  const statusEl = document.getElementById('account-settings-status');
+  statusEl.textContent = '';
+  document.getElementById('account-password-row').style.display = 'none';
+  document.getElementById('account-new-password-input').value = '';
+  const { data, error } = await window.sbClient.auth.getUser();
+  const user = data && data.user;
+  if(error || !user){
+    statusEl.textContent = 'Could not load your account — try again.';
+    document.getElementById('account-settings-modal').classList.add('show');
+    return;
+  }
+  document.getElementById('account-email-display').textContent = user.email || '';
+  const meta = user.user_metadata || {};
+  document.getElementById('profile-name-input').value = meta.display_name || '';
+  document.getElementById('profile-birthday-input').value = meta.birthday || '';
+  renderOccasionsList(meta.special_occasions);
+  document.getElementById('account-settings-modal').classList.add('show');
+}
+document.getElementById('profile-occasion-add-btn').addEventListener('click', () => addOccasionRow('', ''));
+document.getElementById('account-settings-close').addEventListener('click', () => {
+  document.getElementById('account-settings-modal').classList.remove('show');
+});
+document.getElementById('account-settings-modal').addEventListener('click', e => {
+  if(e.target.id === 'account-settings-modal') e.target.classList.remove('show');
+});
+document.getElementById('account-change-password-btn').addEventListener('click', () => {
+  const row = document.getElementById('account-password-row');
+  row.style.display = row.style.display === 'none' ? 'block' : 'none';
+});
+document.getElementById('account-password-save-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('account-settings-status');
+  const pw = document.getElementById('account-new-password-input').value;
+  if(pw.length < 6){ statusEl.textContent = 'Password must be at least 6 characters.'; return; }
+  statusEl.textContent = 'Updating password…';
+  const { error } = await window.sbClient.auth.updateUser({ password: pw });
+  statusEl.textContent = error ? error.message : 'Password updated.';
+  if(!error){
+    document.getElementById('account-new-password-input').value = '';
+    document.getElementById('account-password-row').style.display = 'none';
+  }
+});
+document.getElementById('account-settings-save-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('account-settings-status');
+  const display_name = document.getElementById('profile-name-input').value.trim();
+  const birthday = document.getElementById('profile-birthday-input').value || null;
+  const special_occasions = Array.from(document.querySelectorAll('#profile-occasions-list .occasion-row')).map(row => ({
+    label: row.querySelector('.occasion-label').value.trim(),
+    date: row.querySelector('.occasion-date').value || null
+  })).filter(o => o.label || o.date);
+  statusEl.textContent = 'Saving…';
+  const { data, error } = await window.sbClient.auth.updateUser({ data: { display_name, birthday, special_occasions } });
+  statusEl.textContent = error ? error.message : 'Saved.';
+  if(!error && data && data.user) updateWelcomeGreeting(data.user);
+});
+document.getElementById('project-home-settings-btn').addEventListener('click', openAccountSettingsModal);
+document.getElementById('app-settings-btn').addEventListener('click', openAccountSettingsModal);
+
 /* ---------- VERSION HISTORY ---------- */
 function pushVersionSnapshot(ch){
   const current = document.getElementById('editor-content').textContent;
@@ -6033,6 +6188,7 @@ function initApp(){
   const toggleText = document.getElementById('auth-toggle-text');
   const signOutBtn = document.getElementById('sign-out-btn');
   const switchProjectBtn = document.getElementById('switch-project-btn');
+  const appSettingsBtn = document.getElementById('app-settings-btn');
   const projectHomeSignOutBtn = document.getElementById('project-home-signout-btn');
   const projectSelect = document.getElementById('project-select');
   const projectOpenBtn = document.getElementById('project-open-btn');
@@ -6068,6 +6224,7 @@ function initApp(){
     authScreen.style.display = 'flex';
     signOutBtn.style.display = 'none';
     switchProjectBtn.style.display = 'none';
+    appSettingsBtn.style.display = 'none';
     currentProjectId = null;
   }
 
@@ -6078,6 +6235,7 @@ function initApp(){
     projectScreen.style.display = 'flex';
     signOutBtn.style.display = 'none';
     switchProjectBtn.style.display = 'none';
+    appSettingsBtn.style.display = 'none';
     projectRenameHost.style.display = 'none';
     loadProjectOptions();
   }
@@ -6088,6 +6246,7 @@ function initApp(){
     appRoot.style.display = 'flex';
     signOutBtn.style.display = '';
     switchProjectBtn.style.display = '';
+    appSettingsBtn.style.display = '';
 
     const project = await updateAppProjectName(projectId);
     const projectType = (project && project.project_type) || 'writing';
@@ -6130,6 +6289,7 @@ function initApp(){
       projectErrorEl.textContent = 'Could not confirm your session — try signing in again.';
       return;
     }
+    updateWelcomeGreeting(user);
     const { data, error } = await sbClient.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
     if(error){
       projectSelect.innerHTML = '<option value=""></option>';
