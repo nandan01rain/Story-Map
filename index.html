@@ -288,7 +288,8 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .reader-select-row-name{font-family:var(--font-heading);font-size:15px;color:var(--text);}
 .reader-select-row-meta{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);flex-shrink:0;}
 
-#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;}
+#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;-webkit-tap-highlight-color:transparent;}
+#reader-view *{-webkit-tap-highlight-color:transparent;}
 #reader-view.show{display:block;}
 #reader-progress{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
 #reader-chapter-select, #reader-font-select, #reader-size-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);max-width:170px;}
@@ -297,7 +298,7 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #reader-foot{position:absolute;bottom:0;left:0;right:0;z-index:10;background:rgba(20,14,8,0.92);transition:transform .25s ease;transform:translateY(0);}
 #reader-foot.chrome-hidden{transform:translateY(100%);}
 #reader-page-area{position:absolute;inset:0;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
-#reader-page-viewport{position:relative;overflow:hidden;width:100%;height:100%;background:var(--bg);cursor:pointer;}
+#reader-page-viewport{position:relative;overflow:hidden;width:100%;height:100%;background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;}
 #reader-page-content{position:absolute;top:0;left:0;height:100%;box-sizing:border-box;color:var(--text);padding:40px 0;}
 .reader-chapter{padding:0 60px;}
 .reader-chapter-heading{font-family:var(--font-heading);font-size:19px;letter-spacing:.02em;color:var(--text);margin:0 0 16px;text-align:center;break-after:avoid-column;}
@@ -5025,13 +5026,35 @@ document.getElementById('reader-chapter-select').addEventListener('change', (e) 
 document.getElementById('reader-head').addEventListener('click', showReaderChrome);
 document.getElementById('reader-head').addEventListener('change', showReaderChrome);
 document.getElementById('reader-page-viewport').addEventListener('click', (e) => {
+  if(readerSwipeHandled){ readerSwipeHandled = false; return; }
   if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
   const rect = e.currentTarget.getBoundingClientRect();
   const yFrac = (e.clientY - rect.top) / rect.height;
   if(yFrac < 0.12){ showReaderChrome(); return; }
   const xFrac = (e.clientX - rect.left) / rect.width;
-  if(xFrac < 0.35) readerPrevPage();
-  else if(xFrac > 0.65) readerNextPage();
+  if(xFrac < 0.25) readerPrevPage();
+  else if(xFrac > 0.75) readerNextPage();
+});
+let readerTouchStartX = null;
+let readerTouchStartY = null;
+let readerSwipeHandled = false;
+const READER_SWIPE_THRESHOLD = 50;
+document.getElementById('reader-page-viewport').addEventListener('touchstart', (e) => {
+  if(e.touches.length !== 1) return;
+  readerTouchStartX = e.touches[0].clientX;
+  readerTouchStartY = e.touches[0].clientY;
+}, {passive:true});
+document.getElementById('reader-page-viewport').addEventListener('touchend', (e) => {
+  if(readerTouchStartX === null) return;
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - readerTouchStartX;
+  const dy = touch.clientY - readerTouchStartY;
+  readerTouchStartX = null;
+  if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
+  if(Math.abs(dx) > READER_SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)){
+    readerSwipeHandled = true;
+    if(dx < 0) readerNextPage(); else readerPrevPage();
+  }
 });
 document.addEventListener('keydown', (e) => {
   if(!document.getElementById('reader-view').classList.contains('show')) return;
