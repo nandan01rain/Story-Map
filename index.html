@@ -288,19 +288,24 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .reader-select-row-name{font-family:var(--font-heading);font-size:15px;color:var(--text);}
 .reader-select-row-meta{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);flex-shrink:0;}
 
-#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;-webkit-tap-highlight-color:transparent;}
+#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;-webkit-tap-highlight-color:transparent;}
 #reader-view *{-webkit-tap-highlight-color:transparent;}
-#reader-view.show{display:flex;}
+#reader-view.show{display:block;}
 #reader-progress{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
 #reader-align-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);}
-/* Header/footer are normal flex children (not floating overlays): collapsing them via
-   max-height makes the page area between them genuinely grow/shrink on tap, rather than
-   the old approach of chrome floating on top of a page that never changed size. */
-#reader-head{position:relative;flex-shrink:0;overflow:hidden;max-height:70px;transition:max-height .25s ease,padding .25s ease,border-color .25s ease;}
+/* Header/footer are solid-background overlays stacked on top of a page area that's
+   always full-screen — the page's pagination is computed once and never recalculated
+   when chrome toggles. (Previously the page area was a real flex child that shrank in
+   height when the header opened, which forced a pagination recalculation against a
+   shorter box — different text reflowed into view, which read as the page silently
+   auto-scrolling on every tap.) The collapsing max-height animation still makes it look
+   like the reading area grows/shrinks, since the header/footer cover more or less of the
+   page — it just no longer touches the page's own layout. */
+#reader-head{position:absolute;top:0;left:0;right:0;z-index:10;overflow:hidden;max-height:70px;transition:max-height .25s ease,padding .25s ease,border-color .25s ease;}
 #reader-head.chrome-hidden{max-height:0;padding-top:0;padding-bottom:0;border-bottom-color:transparent;}
-#reader-foot{flex-shrink:0;overflow:hidden;max-height:60px;transition:max-height .25s ease,padding .25s ease,border-color .25s ease;}
+#reader-foot{position:absolute;bottom:0;left:0;right:0;z-index:10;overflow:hidden;max-height:60px;transition:max-height .25s ease,padding .25s ease,border-color .25s ease;}
 #reader-foot.chrome-hidden{max-height:0;padding-top:0;padding-bottom:0;border-top-color:transparent;}
-#reader-page-area{flex:1;min-height:0;position:relative;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
+#reader-page-area{position:absolute;inset:0;z-index:1;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
 #reader-page-viewport{position:relative;overflow:hidden;width:100%;height:100%;background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;}
 #reader-page-content{position:absolute;top:0;left:0;height:100%;box-sizing:border-box;color:var(--text);padding:40px 0;transition:transform .32s cubic-bezier(.22,.61,.36,1);}
 #reader-page-content.no-anim{transition:none;}
@@ -3559,7 +3564,10 @@ document.addEventListener('click', (e) => {
 });
 document.getElementById('editor-close').addEventListener('click', async () => {
   clearTimeout(editorSaveTimer);
-  await autosaveChapter();
+  autosaveChapter(); // fire-and-forget: content is synced into the in-memory chapter
+                      // synchronously before the network save inside it, so navigating
+                      // away immediately (rather than awaiting the round-trip) doesn't
+                      // lose anything — it just avoids the visible lag of waiting on it.
   closeEditor();
   if(editorReturnTo && editorReturnTo.type === 'actModal'){
     const returnTo = editorReturnTo;
@@ -3577,7 +3585,7 @@ document.getElementById('editor-close').addEventListener('click', async () => {
 });
 document.getElementById('editor-view-in-reader-btn').addEventListener('click', async () => {
   clearTimeout(editorSaveTimer);
-  await autosaveChapter();
+  autosaveChapter(); // fire-and-forget, see comment on the editor-close handler above
   const ch = chapters.find(c => c.id === editorChapterId);
   if(!ch) return;
   const bookIndex = ch.book;
@@ -3617,7 +3625,7 @@ document.getElementById('editor-sel-reader-btn').addEventListener('click', async
   document.getElementById('editor-selection-popup').classList.remove('show');
   window.getSelection().removeAllRanges();
   clearTimeout(editorSaveTimer);
-  await autosaveChapter();
+  autosaveChapter(); // fire-and-forget, see comment on the editor-close handler above
   jumpToTextInReader(chapterId, text);
 });
 document.getElementById('editor-save').addEventListener('click', async ()=>{
@@ -5181,15 +5189,26 @@ function readerJumpToChapter(idx){
   markCurrentTocRow(idx);
   closeReaderPanel('reader-toc-panel', 'reader-toc-btn');
 }
-// Editor → Reader ("view in reader" on a selection): finds the element containing the
-// given text within a chapter's rendered prose (single text node — doesn't span a <br>).
+// Editor → Reader ("view in reader" on a selection): finds the text within a chapter's
+// rendered prose (single text node — doesn't span a <br>), selects it (matching the
+// reader→editor direction, which also leaves the located text actually selected), and
+// returns its containing element so the caller can figure out which page it's on.
 function readerLocateElementForText(chapterId, text){
   const chapterEl = document.querySelector(`#reader-page-content .reader-chapter[data-chapter-id="${chapterId}"]`);
   if(!chapterEl || !text) return null;
   const walker = document.createTreeWalker(chapterEl, NodeFilter.SHOW_TEXT);
   let node;
   while(node = walker.nextNode()){
-    if(node.textContent.indexOf(text) !== -1) return node.parentElement;
+    const idx = node.textContent.indexOf(text);
+    if(idx !== -1){
+      const range = document.createRange();
+      range.setStart(node, idx);
+      range.setEnd(node, idx + text.length);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return node.parentElement;
+    }
   }
   return null;
 }
@@ -5253,9 +5272,6 @@ function toggleReaderChrome(){
   if(document.getElementById('reader-head').classList.contains('chrome-hidden')) showReaderChrome();
   else hideReaderChrome();
 }
-document.getElementById('reader-head').addEventListener('transitionend', (e) => {
-  if(e.propertyName === 'max-height') refreshReaderLayout();
-});
 function showReaderResumePrompt(savedPage){
   document.getElementById('reader-resume-text').textContent = `Resume from page ${savedPage+1}?`;
   document.getElementById('reader-resume-btn').onclick = () => {
@@ -5445,14 +5461,14 @@ function handleReaderSelection(){
 document.addEventListener('selectionchange', () => {
   if(document.getElementById('reader-view').classList.contains('show')) handleReaderSelection();
 });
-document.getElementById('reader-sel-highlight-btn').addEventListener('click', async () => {
+document.getElementById('reader-sel-highlight-btn').addEventListener('click', () => {
   if(!readerSelection) return;
   const { text, chapterId } = readerSelection;
   const ch = chapters.find(c => c.id === chapterId);
   if(ch && text){
     if(!ch.annotations) ch.annotations = [];
     ch.annotations.push({id: nextId++, type:'highlight', text});
-    await saveData();
+    saveData(); // fire-and-forget — see the editor-close handler's comment
     refreshReaderContentAfterEdit();
   }
   window.getSelection().removeAllRanges();
