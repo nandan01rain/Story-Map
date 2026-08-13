@@ -960,6 +960,16 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   cursor:pointer;-webkit-tap-highlight-color:transparent;
 }
 #auth-screen *{-webkit-tap-highlight-color:transparent;}
+/* The stage reproduces object-fit:cover geometry as a real box (aspect-ratio + both
+   min-dimensions at 100% forces exactly the cover fit), so every overlay inside it can
+   use percentages that map to the *artwork's* coordinates rather than the viewport's.
+   Without this, the lantern glows etc. would drift off their targets on any screen whose
+   aspect ratio differs from the image's. */
+#auth-env-stage{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  aspect-ratio:853/1844;min-width:100%;min-height:100%;
+  pointer-events:none;overflow:hidden;
+}
 #auth-env-flat{
   position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
   object-fit:cover;object-position:center;
@@ -969,52 +979,84 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    behind the same account-wide motion-on class as everything else animated in the app.
    Off by default; #auth-screen being set to display:none on sign-in (see the JS below)
    already stops all of these for free, no extra lifecycle code needed. */
-.auth-env-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;}
+/* Each effect is a fixed masked/blended window (.auth-env-fx) holding one oversized
+   child (> i) that is what actually moves. The motion is translate3d only — animating
+   background-position instead would repaint a full-screen layer every frame, which is
+   exactly the mobile cost the spec warns about; transform stays on the compositor. */
+.auth-env-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;overflow:hidden;}
 .motion-on .auth-env-fx{opacity:1;}
+.auth-env-fx > i{position:absolute;display:block;will-change:transform;}
 
-/* Atmosphere: a very large, very soft warm glow drifting slowly behind the clouds —
-   confined to roughly the sky's upper portion, blended so it modulates the existing
-   cloud color rather than sitting on top of it as a visible shape. */
-#auth-env-atmosphere{
-  top:0;height:60%;
-  background:radial-gradient(ellipse 70% 60% at 50% 30%, rgba(255,214,150,0.35), transparent 70%);
-  background-size:180% 180%;background-position:30% 20%;
-  mix-blend-mode:soft-light;
-  animation:auth-atmosphere-drift 150s ease-in-out infinite alternate;
+/* Atmosphere: a soft warm pool of light drifting across the sky, modulating the existing
+   cloud color rather than sitting on it as a visible shape. Kept small and low-alpha on
+   purpose — a large/strong version lifts the whole sky and washes out the deep oranges. */
+#auth-env-atmosphere{top:0;height:52%;mix-blend-mode:overlay;}
+#auth-env-atmosphere > i{
+  top:-34%;left:-58%;width:216%;height:168%;
+  background:radial-gradient(ellipse 34% 30% at 50% 45%, rgba(255,206,138,0.40), rgba(255,190,120,0.14) 48%, transparent 74%);
+  animation:auth-atmosphere-drift 74s ease-in-out infinite alternate;
 }
 @keyframes auth-atmosphere-drift{
-  0%{background-position:28% 15%;}
-  50%{background-position:55% 30%;}
-  100%{background-position:35% 25%;}
+  0%{transform:translate3d(2%,2%,0);}
+  100%{transform:translate3d(46%,16%,0);}
+}
+/* A second, slower haze pass at a different rate and direction — two independent drifts
+   beating against each other keep the sky from reading as one sliding gradient. */
+#auth-env-haze{top:0;height:46%;mix-blend-mode:soft-light;}
+#auth-env-haze > i{
+  top:-38%;left:-50%;width:196%;height:178%;
+  background:radial-gradient(ellipse 30% 26% at 50% 50%, rgba(255,236,200,0.30), transparent 72%);
+  animation:auth-haze-drift 113s ease-in-out infinite alternate;
+}
+@keyframes auth-haze-drift{
+  0%{transform:translate3d(40%,30%,0);}
+  100%{transform:translate3d(4%,6%,0);}
 }
 
-/* Water: a very soft broad sheen drifting across the bay. Deliberately NOT a striped/
-   repeating pattern — hard bands read instantly as an overlay crossing the shoreline.
-   This is a single wide low-contrast gradient, masked with a soft-edged radial so it
-   fades out well before the shore instead of ending on a visible clip edge, and kept
-   faint enough that it modulates the existing water texture rather than covering it. */
-#auth-env-water-fx{
-  top:46%;height:26%;
-  background:linear-gradient(100deg, transparent 0%, rgba(255,246,220,0.22) 42%, rgba(255,246,220,0.30) 50%, rgba(255,246,220,0.22) 58%, transparent 100%);
-  background-size:260% 100%;
-  -webkit-mask-image:radial-gradient(ellipse 62% 82% at 50% 46%, #000 30%, transparent 78%);
-  mask-image:radial-gradient(ellipse 62% 82% at 50% 46%, #000 30%, transparent 78%);
-  mix-blend-mode:soft-light;
-  animation:auth-water-sheen 19s ease-in-out infinite alternate;
+/* Water: a very soft broad sheen drifting across the bay. Deliberately NOT a striped or
+   repeating pattern — hard bands read instantly as an overlay crossing the shoreline
+   (tried, rejected). One wide low-contrast gradient, radially masked so it fades out
+   before the shore instead of ending on a visible clip edge. The mask lives on the
+   window, so the moving child can never spill past the bay. */
+#auth-env-water-fx, #auth-env-water-fx2{
+  top:45%;height:22%;
+  -webkit-mask-image:radial-gradient(ellipse 58% 76% at 55% 44%, #000 26%, transparent 76%);
+  mask-image:radial-gradient(ellipse 58% 76% at 55% 44%, #000 26%, transparent 76%);
+}
+#auth-env-water-fx{mix-blend-mode:overlay;}
+#auth-env-water-fx > i{
+  top:0;left:-80%;width:260%;height:100%;
+  background:linear-gradient(102deg, transparent 0%, rgba(255,244,206,0.24) 42%, rgba(255,248,220,0.34) 50%, rgba(255,244,206,0.24) 58%, transparent 100%);
+  animation:auth-water-sheen 17s ease-in-out infinite alternate;
 }
 @keyframes auth-water-sheen{
-  0%{background-position:12% 0%;}
-  100%{background-position:88% 0%;}
+  0%{transform:translate3d(4%,0,0);}
+  100%{transform:translate3d(46%,0,0);}
+}
+/* Counter-moving second sheen on a different period — the two crossing at different
+   rates read as shimmer rather than one band sweeping past. */
+#auth-env-water-fx2{mix-blend-mode:soft-light;}
+#auth-env-water-fx2 > i{
+  top:0;left:-70%;width:230%;height:100%;
+  background:linear-gradient(78deg, transparent 0%, rgba(255,240,198,0.26) 45%, rgba(255,240,198,0.26) 55%, transparent 100%);
+  animation:auth-water-sheen2 26s ease-in-out infinite alternate;
+}
+@keyframes auth-water-sheen2{
+  0%{transform:translate3d(44%,0,0);}
+  100%{transform:translate3d(6%,0,0);}
 }
 
 /* Lanterns: two small warm glows over the existing lantern positions, flickering with
    uneven timing/keyframe spacing so it reads as a flame rather than a smooth pulse. */
-.auth-lantern-glow{position:absolute;width:70px;height:70px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle, rgba(255,190,90,0.55), transparent 65%);
+/* Positions measured off the artwork (brightest warm blobs in the foreground band):
+   left flame at 7.2% / 76.5%, right at 92.0% / 73.8%. These are percentages of
+   #auth-env-stage, i.e. of the image itself, not the viewport. */
+.auth-lantern-glow{position:absolute;width:11%;aspect-ratio:1;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle, rgba(255,196,104,0.85) 0%, rgba(255,176,80,0.42) 32%, transparent 68%);
   mix-blend-mode:screen;opacity:0;transform:translate(-50%,-50%) scale(1);}
 .motion-on .auth-lantern-glow{animation:auth-lantern-flicker 3.7s ease-in-out infinite;}
-#auth-lantern-glow-1{left:6.5%;top:87.5%;}
-#auth-lantern-glow-2{left:92.5%;top:86.5%;animation-delay:-1.9s;}
+#auth-lantern-glow-1{left:7.2%;top:76.5%;}
+#auth-lantern-glow-2{left:92%;top:73.8%;animation-delay:-1.9s;}
 @keyframes auth-lantern-flicker{
   0%{opacity:.55;transform:translate(-50%,-50%) scale(1);}
   18%{opacity:.7;transform:translate(-50%,-50%) scale(1.05);}
@@ -1201,11 +1243,15 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   </defs>
 </svg>
 <div id="auth-screen">
-  <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
-  <div class="auth-env-fx" id="auth-env-atmosphere"></div>
-  <div class="auth-env-fx" id="auth-env-water-fx"></div>
-  <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
-  <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
+  <div id="auth-env-stage">
+    <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
+    <div class="auth-env-fx" id="auth-env-atmosphere"><i></i></div>
+    <div class="auth-env-fx" id="auth-env-haze"><i></i></div>
+    <div class="auth-env-fx" id="auth-env-water-fx"><i></i></div>
+    <div class="auth-env-fx" id="auth-env-water-fx2"><i></i></div>
+    <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
+    <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
+  </div>
   <img id="auth-compass" src="assets/compass.png" alt="">
   <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png" alt="StoryMap">
   <img id="auth-direction" src="assets/directions.png" alt="">
