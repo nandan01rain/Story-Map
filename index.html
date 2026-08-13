@@ -429,6 +429,13 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .reader-menu-tab-panel.active{display:flex;}
 .reader-menu-tab-panel select{width:100%;max-width:none;}
 .reader-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text);cursor:pointer;}
+#reader-edit-chapter-btn{margin:0 14px 14px;}
+/* Floating toolbar shown near an active text selection in the Reader or Editor,
+   positioned via JS against the selection Range's bounding rect. */
+.selection-popup{position:fixed;display:none;gap:2px;background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:5px;z-index:95;box-shadow:0 8px 24px rgba(0,0,0,0.5);}
+.selection-popup.show{display:flex;}
+.selection-popup button{background:none;border:none;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:8px 10px;cursor:pointer;border-radius:5px;white-space:nowrap;}
+.selection-popup button:hover{background:var(--bg-alt);color:var(--gold);}
 #editor-foot{display:flex;align-items:center;gap:14px;padding:12px 24px;border-top:1px solid var(--border);background:var(--bg-alt);}
 #editor-wc{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
 #editor-wc .flag{margin-left:8px;padding:2px 8px;border-radius:8px;font-size:10px;}
@@ -875,6 +882,7 @@ button.btn.primary#add-chapter-btn::before{
 mark.hl-plant{background:rgba(74,122,58,0.35);color:var(--text);border-radius:2px;}
 mark.hl-reveal{background:rgba(184,84,46,0.35);color:var(--text);border-radius:2px;}
 mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2px;}
+mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radius:2px;}
 
 /* annotations panel */
 .anno-item{padding:11px 18px;border-bottom:1px solid rgba(255,255,255,0.04);}
@@ -1356,6 +1364,11 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
         <input type="checkbox" id="reader-scroll-toggle">
       </label>
     </div>
+    <button type="button" class="btn small" id="reader-edit-chapter-btn">✎ Edit this chapter</button>
+  </div>
+  <div id="reader-selection-popup" class="selection-popup">
+    <button type="button" id="reader-sel-highlight-btn">✏ Highlight</button>
+    <button type="button" id="reader-sel-editor-btn">📝 Editor</button>
   </div>
   <div id="reader-page-area">
     <div id="reader-page-viewport">
@@ -1434,12 +1447,16 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
         <button class="mark-btn mark-note" id="mark-note-btn" title="Flag the selected text as a subtext note">📜 Note <span class="mb-count" id="mb-count-note" title="View flagged notes">0</span></button>
       </div>
       <button class="btn small" id="version-history-btn">🕐 History</button>
+      <button class="btn small" id="editor-view-in-reader-btn">📖 View in Reader</button>
     </div>
     <button class="btn small btn-x" id="editor-close" title="Close">&#215;</button>
   </div>
   <div id="editor-body">
     <div id="editor-highlight-wrap">
       <div id="editor-content" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Chapter text" data-placeholder="Start writing..."></div>
+    </div>
+    <div id="editor-selection-popup" class="selection-popup">
+      <button type="button" id="editor-sel-reader-btn">📖 View in Reader</button>
     </div>
     <div id="editor-anno-panel">
       <div id="editor-anno-panel-head">
@@ -3548,7 +3565,60 @@ document.getElementById('editor-close').addEventListener('click', async () => {
     const returnTo = editorReturnTo;
     editorReturnTo = null;
     openActModal(returnTo.book, returnTo.act);
+  } else if(editorReturnTo && editorReturnTo.type === 'reader'){
+    const returnTo = editorReturnTo;
+    editorReturnTo = null;
+    openPaginatedReader(returnTo.bookIndex);
+    if(returnTo.chapterId){
+      const idx = readerSectionChapters.findIndex(c => c.id === returnTo.chapterId);
+      if(idx !== -1) setTimeout(() => readerJumpToChapter(idx), 50);
+    }
   }
+});
+document.getElementById('editor-view-in-reader-btn').addEventListener('click', async () => {
+  clearTimeout(editorSaveTimer);
+  await autosaveChapter();
+  const ch = chapters.find(c => c.id === editorChapterId);
+  if(!ch) return;
+  const bookIndex = ch.book;
+  const chapterId = ch.id;
+  closeEditorMenu();
+  closeEditor();
+  openPaginatedReader(bookIndex);
+  const idx = readerSectionChapters.findIndex(c => c.id === chapterId);
+  if(idx !== -1) readerJumpToChapter(idx);
+});
+let editorSelectionText = null;
+function handleEditorSelection(){
+  const popup = document.getElementById('editor-selection-popup');
+  const sel = window.getSelection();
+  const contentEl = document.getElementById('editor-content');
+  if(!sel || sel.isCollapsed || sel.rangeCount === 0 || !contentEl.contains(sel.anchorNode)){
+    popup.classList.remove('show');
+    editorSelectionText = null;
+    return;
+  }
+  const text = sel.toString().trim();
+  if(!text){
+    popup.classList.remove('show');
+    editorSelectionText = null;
+    return;
+  }
+  editorSelectionText = text;
+  positionSelectionPopup(popup, sel.getRangeAt(0).getBoundingClientRect());
+}
+document.addEventListener('selectionchange', () => {
+  if(document.getElementById('editor').classList.contains('show')) handleEditorSelection();
+});
+document.getElementById('editor-sel-reader-btn').addEventListener('click', async () => {
+  if(!editorSelectionText || !editorChapterId) return;
+  const chapterId = editorChapterId;
+  const text = editorSelectionText;
+  document.getElementById('editor-selection-popup').classList.remove('show');
+  window.getSelection().removeAllRanges();
+  clearTimeout(editorSaveTimer);
+  await autosaveChapter();
+  jumpToTextInReader(chapterId, text);
 });
 document.getElementById('editor-save').addEventListener('click', async ()=>{
   clearTimeout(editorSaveTimer);
@@ -3841,6 +3911,10 @@ function jumpToAnnotationInline(annotationId){
   }
   const range = getPlainTextRange(el, idx, idx + ann.text.length);
   if(!range) return;
+  scrollEditorToRange(range);
+}
+function scrollEditorToRange(range){
+  const el = document.getElementById('editor-content');
   const wrap = document.getElementById('editor-highlight-wrap');
   const wrapRect = wrap.getBoundingClientRect();
   const rangeRect = range.getBoundingClientRect();
@@ -3850,6 +3924,28 @@ function jumpToAnnotationInline(annotationId){
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
+}
+// Reader → Editor ("go to editor" on a selection): finds arbitrary text (not
+// necessarily a saved annotation) in the currently-open editor and scrolls/selects it.
+function jumpToTextInEditorInline(text){
+  if(!text) return false;
+  const el = document.getElementById('editor-content');
+  const idx = el.textContent.indexOf(text);
+  if(idx === -1){
+    document.getElementById('editor-status').textContent = 'Could not locate that text in the editor.';
+    return false;
+  }
+  const range = getPlainTextRange(el, idx, idx + text.length);
+  if(!range) return false;
+  scrollEditorToRange(range);
+  return true;
+}
+function jumpToTextInEditor(chapterId, text){
+  closeDrawer();
+  document.getElementById('reader-view').classList.remove('show');
+  editorReturnTo = {type:'reader', bookIndex: readerCurrentBookIndex, chapterId};
+  openEditor(chapterId);
+  setTimeout(() => { jumpToTextInEditorInline(text); }, 80);
 }
 
 /* ---------- CHAPTER-LENGTH TARGETS (book-level) ---------- */
@@ -4869,21 +4965,44 @@ function compileBook(bookIndices){
       .sort((a,b) => a.act - b.act || a.order - b.order)
       .map(ch => {
         const hasProse = (ch.status === 'drafted' || ch.status === 'final') && ch.content && ch.content.trim();
+        const highlights = (ch.annotations||[]).filter(a => a.type === 'highlight').map(a => a.text);
         if(hasProse){
-          return { title: ch.title, content: ch.content, isOutlineOnly: false, summaryFallback: '' };
+          return { id: ch.id, title: ch.title, content: ch.content, isOutlineOnly: false, summaryFallback: '', highlights };
         }
         const chScenes = scenes.filter(s => s.chapterId === ch.id).sort((a,b) => a.order - b.order);
         const summaries = chScenes.map(s => (s.summary||'').trim()).filter(Boolean);
         const summaryFallback = summaries.length ? summaries.join('\n\n') : 'No summary written yet.';
-        return { title: ch.title, content: '', isOutlineOnly: true, summaryFallback };
+        return { id: ch.id, title: ch.title, content: '', isOutlineOnly: true, summaryFallback, highlights };
       });
     return { bookName: BOOKS[bookIndex], chapters: bookChapters };
   });
   return { title, sections };
 }
-function textToParagraphsHtml(text){
+function textToParagraphsHtml(text, highlightTexts){
   return (text || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
-    .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('');
+    .map(p => `<p>${paragraphToHtmlWithHighlights(p, highlightTexts)}</p>`).join('');
+}
+function paragraphToHtmlWithHighlights(paragraph, highlightTexts){
+  const plain = (t) => escapeHtml(t).replace(/\n/g, '<br>');
+  if(!highlightTexts || !highlightTexts.length) return plain(paragraph);
+  const ranges = [];
+  highlightTexts.forEach(t => {
+    if(!t) return;
+    const idx = paragraph.indexOf(t);
+    if(idx !== -1) ranges.push([idx, idx + t.length]);
+  });
+  if(!ranges.length) return plain(paragraph);
+  ranges.sort((a, b) => a[0] - b[0]);
+  let html = '';
+  let cursor = 0;
+  ranges.forEach(([start, end]) => {
+    if(start < cursor) return;
+    html += plain(paragraph.slice(cursor, start));
+    html += `<mark class="hl-highlight">${plain(paragraph.slice(start, end))}</mark>`;
+    cursor = end;
+  });
+  html += plain(paragraph.slice(cursor));
+  return html;
 }
 
 /* ---------- READER ---------- */
@@ -4917,10 +5036,36 @@ function openReaderBookSelect(){
   document.getElementById('reader-select-view').classList.add('show');
 }
 
+let readerSectionChapters = [];
+function renderReaderContent(){
+  const contentEl = document.getElementById('reader-page-content');
+  let html = '';
+  readerSectionChapters.forEach(ch => {
+    const bodyText = ch.isOutlineOnly ? ch.summaryFallback : ch.content;
+    html += `<div class="reader-chapter" data-chapter-id="${ch.id}">
+      <h2 class="reader-chapter-heading">${escapeHtml(ch.title)}</h2>
+      ${ch.isOutlineOnly ? '<div class="reader-outline-label">Outline — not yet drafted</div>' : ''}
+      <div class="reader-prose${ch.isOutlineOnly ? ' reader-outline-text' : ''}">${textToParagraphsHtml(bodyText, ch.isOutlineOnly ? null : ch.highlights)}</div>
+    </div>`;
+  });
+  contentEl.innerHTML = html || '<div class="reader-chapter"><div class="reader-prose reader-outline-text">This book has no chapters yet.</div></div>';
+}
+function refreshReaderContentAfterEdit(){
+  const compiled = compileBook([readerCurrentBookIndex]);
+  readerSectionChapters = compiled.sections[0].chapters;
+  renderReaderContent();
+  refreshReaderLayout();
+  updateReaderProgressLabel();
+}
+function readerCurrentChapterIdx(){
+  const row = document.querySelector('#reader-toc-list .reader-toc-row.current');
+  return row ? parseInt(row.dataset.chapterIdx) : 0;
+}
 function openPaginatedReader(bookIndex){
   readerCurrentBookIndex = bookIndex;
   const compiled = compileBook([bookIndex]);
   const section = compiled.sections[0];
+  readerSectionChapters = section.chapters;
   document.getElementById('reader-title').innerHTML = `<svg class="nav-icon"><use href="#icon-bookmark"></use></svg> ${escapeHtml(compiled.title)} — ${escapeHtml(section.bookName)}`;
 
   const tocList = document.getElementById('reader-toc-list');
@@ -4931,17 +5076,7 @@ function openPaginatedReader(bookIndex){
     row.addEventListener('click', () => readerJumpToChapter(parseInt(row.dataset.chapterIdx)));
   });
 
-  const contentEl = document.getElementById('reader-page-content');
-  let html = '';
-  section.chapters.forEach(ch => {
-    const bodyText = ch.isOutlineOnly ? ch.summaryFallback : ch.content;
-    html += `<div class="reader-chapter">
-      <h2 class="reader-chapter-heading">${escapeHtml(ch.title)}</h2>
-      ${ch.isOutlineOnly ? '<div class="reader-outline-label">Outline — not yet drafted</div>' : ''}
-      <div class="reader-prose${ch.isOutlineOnly ? ' reader-outline-text' : ''}">${textToParagraphsHtml(bodyText)}</div>
-    </div>`;
-  });
-  contentEl.innerHTML = html || '<div class="reader-chapter"><div class="reader-prose reader-outline-text">This book has no chapters yet.</div></div>';
+  renderReaderContent();
 
   document.querySelectorAll('.reader-font-option').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.font === readerFontFamily);
@@ -4983,6 +5118,10 @@ function updateReaderContinuousProgress(){
   const scrollable = viewport.scrollHeight - viewport.clientHeight;
   const pct = scrollable > 0 ? Math.round((viewport.scrollTop / scrollable) * 100) : 100;
   document.getElementById('reader-progress').textContent = `${pct}% read`;
+  const chapterEls = Array.from(document.querySelectorAll('#reader-page-content .reader-chapter'));
+  let idx = 0;
+  chapterEls.forEach((el, i) => { if(el.offsetTop <= viewport.scrollTop + 40) idx = i; });
+  markCurrentTocRow(idx);
 }
 function recalculateReaderPagination(){
   const viewport = document.getElementById('reader-page-viewport');
@@ -5041,6 +5180,42 @@ function readerJumpToChapter(idx){
   }
   markCurrentTocRow(idx);
   closeReaderPanel('reader-toc-panel', 'reader-toc-btn');
+}
+// Editor → Reader ("view in reader" on a selection): finds the element containing the
+// given text within a chapter's rendered prose (single text node — doesn't span a <br>).
+function readerLocateElementForText(chapterId, text){
+  const chapterEl = document.querySelector(`#reader-page-content .reader-chapter[data-chapter-id="${chapterId}"]`);
+  if(!chapterEl || !text) return null;
+  const walker = document.createTreeWalker(chapterEl, NodeFilter.SHOW_TEXT);
+  let node;
+  while(node = walker.nextNode()){
+    if(node.textContent.indexOf(text) !== -1) return node.parentElement;
+  }
+  return null;
+}
+function readerScrollToElementPage(el){
+  if(!el) return false;
+  if(readerContinuousScroll){ el.scrollIntoView({block:'center'}); return true; }
+  let x = 0, node = el;
+  const root = document.getElementById('reader-page-content');
+  while(node && node !== root && node.offsetParent){
+    x += node.offsetLeft || 0;
+    node = node.offsetParent;
+  }
+  readerGoToPage(Math.floor(x / readerPageStepPx));
+  return true;
+}
+function jumpToTextInReader(chapterId, text){
+  closeEditor();
+  const ch = chapters.find(c => c.id === chapterId);
+  if(!ch) return;
+  openPaginatedReader(ch.book);
+  const idx = readerSectionChapters.findIndex(c => c.id === chapterId);
+  if(idx !== -1) readerJumpToChapter(idx);
+  setTimeout(() => {
+    const el = readerLocateElementForText(chapterId, text);
+    if(el) readerScrollToElementPage(el);
+  }, 60);
 }
 function updateReaderBookmarkMarker(){
   const isBookmarked = readerCurrentBookIndex !== null && projectBookmarks[readerCurrentBookIndex] === readerCurrentPage;
@@ -5178,6 +5353,7 @@ document.getElementById('reader-page-viewport').addEventListener('scroll', () =>
 document.getElementById('reader-page-viewport').addEventListener('click', (e) => {
   if(readerSwipeHandled){ readerSwipeHandled = false; return; }
   if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
+  if(!window.getSelection().isCollapsed) return;
   if(readerContinuousScroll){ toggleReaderChrome(); return; }
   const rect = e.currentTarget.getBoundingClientRect();
   const xFrac = (e.clientX - rect.left) / rect.width;
@@ -5201,6 +5377,7 @@ document.getElementById('reader-page-viewport').addEventListener('touchend', (e)
   const dy = touch.clientY - readerTouchStartY;
   readerTouchStartX = null;
   if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
+  if(!window.getSelection().isCollapsed) return;
   if(Math.abs(dx) > READER_SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)){
     readerSwipeHandled = true;
     if(dx < 0) readerNextPage(); else readerPrevPage();
@@ -5218,6 +5395,75 @@ window.addEventListener('resize', () => {
   if(!document.getElementById('reader-view').classList.contains('show')) return;
   clearTimeout(readerResizeTimer);
   readerResizeTimer = setTimeout(refreshReaderLayout, 150);
+});
+document.getElementById('reader-edit-chapter-btn').addEventListener('click', () => {
+  const idx = readerCurrentChapterIdx();
+  const ch = readerSectionChapters[idx];
+  if(!ch || !ch.id) return;
+  closeReaderPanel('reader-menu-panel', 'reader-menu-btn');
+  editorReturnTo = {type:'reader', bookIndex: readerCurrentBookIndex, chapterId: ch.id};
+  document.getElementById('reader-view').classList.remove('show');
+  openEditor(ch.id);
+});
+
+/* ---------- SELECTION TOOLBARS (Reader ↔ Editor sync) ---------- */
+function positionSelectionPopup(popupEl, rect){
+  popupEl.classList.add('show');
+  const popupRect = popupEl.getBoundingClientRect();
+  let left = rect.left + rect.width/2 - popupRect.width/2;
+  left = Math.max(8, Math.min(left, window.innerWidth - popupRect.width - 8));
+  let top = rect.top - popupRect.height - 10;
+  if(top < 8) top = rect.bottom + 10;
+  popupEl.style.left = left + 'px';
+  popupEl.style.top = top + 'px';
+}
+function findChapterIdForNode(node){
+  const el = node.nodeType === 3 ? node.parentElement : node;
+  const chapterEl = el && el.closest ? el.closest('.reader-chapter') : null;
+  return chapterEl ? chapterEl.dataset.chapterId : null;
+}
+let readerSelection = null;
+function handleReaderSelection(){
+  const popup = document.getElementById('reader-selection-popup');
+  const sel = window.getSelection();
+  const contentEl = document.getElementById('reader-page-content');
+  if(!sel || sel.isCollapsed || sel.rangeCount === 0 || !contentEl.contains(sel.anchorNode)){
+    popup.classList.remove('show');
+    readerSelection = null;
+    return;
+  }
+  const text = sel.toString().trim();
+  const chapterId = findChapterIdForNode(sel.getRangeAt(0).commonAncestorContainer);
+  if(!text || !chapterId){
+    popup.classList.remove('show');
+    readerSelection = null;
+    return;
+  }
+  readerSelection = { text, chapterId };
+  positionSelectionPopup(popup, sel.getRangeAt(0).getBoundingClientRect());
+}
+document.addEventListener('selectionchange', () => {
+  if(document.getElementById('reader-view').classList.contains('show')) handleReaderSelection();
+});
+document.getElementById('reader-sel-highlight-btn').addEventListener('click', async () => {
+  if(!readerSelection) return;
+  const { text, chapterId } = readerSelection;
+  const ch = chapters.find(c => c.id === chapterId);
+  if(ch && text){
+    if(!ch.annotations) ch.annotations = [];
+    ch.annotations.push({id: nextId++, type:'highlight', text});
+    await saveData();
+    refreshReaderContentAfterEdit();
+  }
+  window.getSelection().removeAllRanges();
+  document.getElementById('reader-selection-popup').classList.remove('show');
+});
+document.getElementById('reader-sel-editor-btn').addEventListener('click', () => {
+  if(!readerSelection) return;
+  const { text, chapterId } = readerSelection;
+  window.getSelection().removeAllRanges();
+  document.getElementById('reader-selection-popup').classList.remove('show');
+  jumpToTextInEditor(chapterId, text);
 });
 // Phase 1a: this resize→renderMap() rebuild existed solely because the map's layout size used
 // to depend on viewport/orientation (getMapVerticalMetrics() read window.matchMedia/clientHeight).
