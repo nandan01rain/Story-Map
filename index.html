@@ -961,13 +961,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-screen.revealed{cursor:default;}
 #auth-screen.revealed #auth-bg-tap-hint{display:none;}
 #auth-card{
-  position:absolute;left:0;right:0;bottom:0;max-width:460px;margin:0 auto;max-height:82vh;overflow-y:auto;box-sizing:border-box;
-  background:var(--ph-bg);border-radius:24px 24px 0 0;padding:28px 24px calc(24px + env(safe-area-inset-bottom));
-  box-shadow:0 -8px 30px rgba(0,0,0,0.35);
-  transform:translateY(100%);transition:transform .35s cubic-bezier(.22,.61,.36,1);
+  position:absolute;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:420px;margin:0 auto;
+  max-height:60vh;overflow-y:auto;box-sizing:border-box;
+  background:var(--ph-bg);border-radius:20px;padding:24px 22px;
+  box-shadow:0 10px 34px rgba(0,0,0,0.4);
+  transform:translateY(calc(100% + 32px));opacity:0;transition:transform .35s cubic-bezier(.22,.61,.36,1), opacity .3s ease;
   cursor:default;
 }
-#auth-screen.revealed #auth-card{transform:translateY(0);}
+#auth-screen.revealed #auth-card{transform:translateY(0);opacity:1;}
 #auth-form{display:flex;flex-direction:column;gap:14px;}
 #auth-form label{font-family:var(--font-mono);font-size:10.5px;color:var(--ph-text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;display:block;}
 .auth-input-wrap{position:relative;display:flex;align-items:center;}
@@ -6410,9 +6411,14 @@ function initApp(){
     document.getElementById(id).addEventListener('click', (e) => e.preventDefault());
   });
   // Opens showing just the background art; one tap anywhere reveals the sign-in sheet.
-  // Once revealed it stays revealed (no need to tap the image again mid sign-in).
-  authScreen.addEventListener('click', () => {
-    authScreen.classList.add('revealed');
+  // Once revealed, a tap outside the card (still on the background) collapses it again;
+  // a tap inside the card (a field, a button) is left alone to do its own thing.
+  authScreen.addEventListener('click', (e) => {
+    if(!authScreen.classList.contains('revealed')){
+      authScreen.classList.add('revealed');
+    } else if(!e.target.closest('#auth-card')){
+      authScreen.classList.remove('revealed');
+    }
   });
   // Real provider sign-in needs OAuth apps registered with each provider plus that
   // provider enabled in the Supabase dashboard — neither exists yet, so these are
