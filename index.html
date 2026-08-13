@@ -964,6 +964,65 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
   object-fit:cover;object-position:center;
 }
+/* Procedural motion over the untouched base image (see conversation: the "core image
+   animation" task) — additive overlays only, never a replacement for the artwork, gated
+   behind the same account-wide motion-on class as everything else animated in the app.
+   Off by default; #auth-screen being set to display:none on sign-in (see the JS below)
+   already stops all of these for free, no extra lifecycle code needed. */
+.auth-env-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;}
+.motion-on .auth-env-fx{opacity:1;}
+
+/* Atmosphere: a very large, very soft warm glow drifting slowly behind the clouds —
+   confined to roughly the sky's upper portion, blended so it modulates the existing
+   cloud color rather than sitting on top of it as a visible shape. */
+#auth-env-atmosphere{
+  top:0;height:60%;
+  background:radial-gradient(ellipse 70% 60% at 50% 30%, rgba(255,214,150,0.35), transparent 70%);
+  background-size:180% 180%;background-position:30% 20%;
+  mix-blend-mode:soft-light;
+  animation:auth-atmosphere-drift 150s ease-in-out infinite alternate;
+}
+@keyframes auth-atmosphere-drift{
+  0%{background-position:28% 15%;}
+  50%{background-position:55% 30%;}
+  100%{background-position:35% 25%;}
+}
+
+/* Water: a very soft broad sheen drifting across the bay. Deliberately NOT a striped/
+   repeating pattern — hard bands read instantly as an overlay crossing the shoreline.
+   This is a single wide low-contrast gradient, masked with a soft-edged radial so it
+   fades out well before the shore instead of ending on a visible clip edge, and kept
+   faint enough that it modulates the existing water texture rather than covering it. */
+#auth-env-water-fx{
+  top:46%;height:26%;
+  background:linear-gradient(100deg, transparent 0%, rgba(255,246,220,0.22) 42%, rgba(255,246,220,0.30) 50%, rgba(255,246,220,0.22) 58%, transparent 100%);
+  background-size:260% 100%;
+  -webkit-mask-image:radial-gradient(ellipse 62% 82% at 50% 46%, #000 30%, transparent 78%);
+  mask-image:radial-gradient(ellipse 62% 82% at 50% 46%, #000 30%, transparent 78%);
+  mix-blend-mode:soft-light;
+  animation:auth-water-sheen 19s ease-in-out infinite alternate;
+}
+@keyframes auth-water-sheen{
+  0%{background-position:12% 0%;}
+  100%{background-position:88% 0%;}
+}
+
+/* Lanterns: two small warm glows over the existing lantern positions, flickering with
+   uneven timing/keyframe spacing so it reads as a flame rather than a smooth pulse. */
+.auth-lantern-glow{position:absolute;width:70px;height:70px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle, rgba(255,190,90,0.55), transparent 65%);
+  mix-blend-mode:screen;opacity:0;transform:translate(-50%,-50%) scale(1);}
+.motion-on .auth-lantern-glow{animation:auth-lantern-flicker 3.7s ease-in-out infinite;}
+#auth-lantern-glow-1{left:6.5%;top:87.5%;}
+#auth-lantern-glow-2{left:92.5%;top:86.5%;animation-delay:-1.9s;}
+@keyframes auth-lantern-flicker{
+  0%{opacity:.55;transform:translate(-50%,-50%) scale(1);}
+  18%{opacity:.7;transform:translate(-50%,-50%) scale(1.05);}
+  34%{opacity:.5;transform:translate(-50%,-50%) scale(0.97);}
+  55%{opacity:.68;transform:translate(-50%,-50%) scale(1.03);}
+  72%{opacity:.48;transform:translate(-50%,-50%) scale(0.98);}
+  100%{opacity:.55;transform:translate(-50%,-50%) scale(1);}
+}
 #auth-bg-tap-hint{
   position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
   color:#fff;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
@@ -1143,6 +1202,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 </svg>
 <div id="auth-screen">
   <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
+  <div class="auth-env-fx" id="auth-env-atmosphere"></div>
+  <div class="auth-env-fx" id="auth-env-water-fx"></div>
+  <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
+  <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
   <img id="auth-compass" src="assets/compass.png" alt="">
   <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png" alt="StoryMap">
   <img id="auth-direction" src="assets/directions.png" alt="">
