@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
+<link rel="preload" as="image" href="assets/auth-bg-sunset.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -943,14 +944,21 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
 /* Auth screen — full-bleed scenery art (the wordmark/tagline/compass are baked into the
    image itself, not rendered as HTML). Opens showing just the image; one tap anywhere
-   reveals the sign-in sheet sliding up from the bottom, matching the reference design. */
+   reveals the sign-in sheet sliding up from the bottom, matching the reference design.
+   The gradient here is a same-toned placeholder for the ~2.3MB art while it loads (the
+   image itself is applied as an inline style once a JS preload confirms it's decoded —
+   see the "auth-bg-loaded" class — so the gap reads as a smooth fade rather than a
+   blank flash with the tap hint floating on nothing). */
 #auth-screen{
   --ph-bg:#f3e4c8; --ph-bg-soft:#efdcc0; --ph-input-bg:#faf3e4;
   --ph-text:#3a2415; --ph-text-dim:#8a7355; --ph-border:#d9c39c; --ph-accent:#d99a2b;
   position:fixed;inset:0;z-index:100;overflow:hidden;
-  background-image:url('assets/auth-bg-sunset.png');background-size:cover;background-position:center;background-repeat:no-repeat;
-  cursor:pointer;
+  background-image:linear-gradient(180deg, #6b5a6e 0%, #d97a3f 35%, #f2a94e 55%, #8a5a3a 100%);
+  background-size:cover;background-position:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
 }
+#auth-screen *{-webkit-tap-highlight-color:transparent;}
+#auth-screen.auth-bg-loaded{background-image:var(--auth-bg-url);transition:background-image .4s ease;}
 #auth-bg-tap-hint{
   position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
   color:#fff;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
@@ -961,13 +969,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-screen.revealed{cursor:default;}
 #auth-screen.revealed #auth-bg-tap-hint{display:none;}
 #auth-card{
-  position:absolute;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:420px;margin:0 auto;
-  max-height:60vh;overflow-y:auto;box-sizing:border-box;
-  background:var(--ph-bg);border-radius:20px;padding:24px 22px;
+  position:absolute;left:0;right:0;bottom:calc(16px + 6vh + env(safe-area-inset-bottom));max-width:min(336px, calc(100% - 24px));margin:0 auto;
+  max-height:48vh;overflow-y:auto;box-sizing:border-box;
+  background:var(--ph-bg);border-radius:20px;padding:20px 18px;
   box-shadow:0 10px 34px rgba(0,0,0,0.4);
   transform:translateY(calc(100% + 32px));opacity:0;transition:transform .35s cubic-bezier(.22,.61,.36,1), opacity .3s ease;
-  cursor:default;
+  cursor:default;-webkit-tap-highlight-color:transparent;
 }
+#auth-card.dragging{transition:none;}
 #auth-screen.revealed #auth-card{transform:translateY(0);opacity:1;}
 #auth-form{display:flex;flex-direction:column;gap:14px;}
 #auth-form label{font-family:var(--font-mono);font-size:10.5px;color:var(--ph-text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;display:block;}
@@ -6379,6 +6388,7 @@ function initApp(){
   window.sbClient = sbClient;
 
   const authScreen = document.getElementById('auth-screen');
+  const authCard = document.getElementById('auth-card');
   const projectScreen = document.getElementById('project-screen');
   const appRoot = document.getElementById('app');
   const authForm = document.getElementById('auth-form');
@@ -6410,6 +6420,15 @@ function initApp(){
   ['auth-terms-link', 'auth-privacy-link', 'auth-contact-link'].forEach(id => {
     document.getElementById(id).addEventListener('click', (e) => e.preventDefault());
   });
+  // The gradient placeholder is swapped for the real (~2.3MB) art only once it's actually
+  // decoded, so the loading gap reads as a smooth fade instead of a blank flash behind
+  // the tap hint.
+  const authBgImg = new Image();
+  authBgImg.onload = () => {
+    authScreen.style.setProperty('--auth-bg-url', "url('assets/auth-bg-sunset.png')");
+    authScreen.classList.add('auth-bg-loaded');
+  };
+  authBgImg.src = 'assets/auth-bg-sunset.png';
   // Opens showing just the background art; one tap anywhere reveals the sign-in sheet.
   // Once revealed, a tap outside the card (still on the background) collapses it again;
   // a tap inside the card (a field, a button) is left alone to do its own thing.
@@ -6419,6 +6438,42 @@ function initApp(){
     } else if(!e.target.closest('#auth-card')){
       authScreen.classList.remove('revealed');
     }
+  });
+  // Swipe up anywhere opens the sheet (same as a tap); swipe down on the card — only
+  // once its own content is scrolled to the top, so it doesn't fight normal scrolling —
+  // closes it, following the finger while dragging and snapping open/closed based on
+  // how far it moved.
+  let authTouchStartY = null;
+  let authTouchCardDrag = false;
+  const AUTH_SWIPE_THRESHOLD = 45;
+  authScreen.addEventListener('touchstart', (e) => {
+    if(e.touches.length !== 1) return;
+    authTouchStartY = e.touches[0].clientY;
+    authTouchCardDrag = authScreen.classList.contains('revealed')
+      && !!e.target.closest('#auth-card')
+      && authCard.scrollTop === 0;
+  }, {passive:true});
+  authScreen.addEventListener('touchmove', (e) => {
+    if(authTouchStartY === null || !authTouchCardDrag) return;
+    const dy = e.touches[0].clientY - authTouchStartY;
+    if(dy > 0){
+      authCard.classList.add('dragging');
+      authCard.style.transform = `translateY(${dy}px)`;
+    }
+  }, {passive:true});
+  authScreen.addEventListener('touchend', (e) => {
+    if(authTouchStartY === null) return;
+    const dy = e.changedTouches[0].clientY - authTouchStartY;
+    const revealed = authScreen.classList.contains('revealed');
+    authCard.classList.remove('dragging');
+    authCard.style.transform = '';
+    if(authTouchCardDrag && dy > AUTH_SWIPE_THRESHOLD){
+      authScreen.classList.remove('revealed');
+    } else if(!revealed && dy < -AUTH_SWIPE_THRESHOLD){
+      authScreen.classList.add('revealed');
+    }
+    authTouchStartY = null;
+    authTouchCardDrag = false;
   });
   // Real provider sign-in needs OAuth apps registered with each provider plus that
   // provider enabled in the Supabase dashboard — neither exists yet, so these are
