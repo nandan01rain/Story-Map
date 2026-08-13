@@ -967,6 +967,20 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .auth-env-bird{position:absolute;pointer-events:none;object-fit:contain;}
 #auth-env-bird1{width:52px;top:19%;right:16%;}
 #auth-env-bird2{width:40px;top:33%;right:30%;}
+/* Phase 4: subtle motion on the layers that plausibly move (water shimmer, sun glow,
+   birds) — deliberately small-amplitude/slow, "alive not animated" per the spec, and
+   gated behind the same account-wide motion-on class every other animated surface in
+   the app uses (see the GLOBAL MOTION PREFERENCE block). Off by default. */
+.motion-on #auth-env-water{animation:auth-water-shimmer 5s ease-in-out infinite alternate;}
+.motion-on #auth-env-sun{animation:auth-sun-glow 4.5s ease-in-out infinite alternate;}
+.motion-on #auth-env-bird1{animation:auth-bird-bob 3.6s ease-in-out infinite;}
+.motion-on #auth-env-bird2{animation:auth-bird-bob 4.2s ease-in-out infinite -1.4s;}
+@keyframes auth-water-shimmer{0%{filter:brightness(0.97);}100%{filter:brightness(1.05);}}
+@keyframes auth-sun-glow{0%{opacity:.92;filter:brightness(0.97);}100%{opacity:1;filter:brightness(1.06);}}
+@keyframes auth-bird-bob{
+  0%,100%{transform:translate(0,0) rotate(0deg);}
+  50%{transform:translate(-3px,-5px) rotate(-2deg);}
+}
 #auth-bg-tap-hint{
   position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
   color:#fff;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
@@ -4340,10 +4354,12 @@ function applyMotionPreference(){
 function setMotionPreference(user){
   appMotionEnabled = !!(user && user.user_metadata && user.user_metadata.motion_enabled);
   applyMotionPreference();
+  localStorage.setItem('storymap-motion-enabled', appMotionEnabled ? '1' : '0');
 }
 document.getElementById('motion-toggle-input').addEventListener('change', async (e) => {
   appMotionEnabled = e.target.checked;
   applyMotionPreference();
+  localStorage.setItem('storymap-motion-enabled', appMotionEnabled ? '1' : '0');
   await window.sbClient.auth.updateUser({ data: { motion_enabled: appMotionEnabled } }); // fire-and-forget-ish, but small enough to just await
 });
 function renderOccasionsList(occasions){
@@ -6419,6 +6435,12 @@ function initApp(){
   // choice (default remembered) since the client has to be constructed before the
   // login form's checkbox can be interacted with — a changed choice takes effect from
   // that sign-in onward, not retroactively for a session already in flight.
+  // The account-wide motion preference (see setMotionPreference below) isn't known until
+  // after login, but the auth screen's own layered environment needs to decide whether to
+  // animate before that — so it falls back to the last-known value cached here, same
+  // pattern as "remember me" above. First-time visitors default off, matching the
+  // account-level default.
+  document.documentElement.classList.toggle('motion-on', localStorage.getItem('storymap-motion-enabled') === '1');
   const rememberMeDefault = localStorage.getItem('storymap-remember-me') !== 'false';
   const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { storage: rememberMeDefault ? window.localStorage : window.sessionStorage }
