@@ -967,47 +967,66 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-footer-links a:hover{color:var(--gold);text-decoration:underline;}
 #auth-footer-links span{margin:0 8px;color:var(--border);}
 
-/* project home screen — a full page, shown after login (or after switching), before entering a project */
-#project-screen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;background:var(--bg);}
-#project-home-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;padding:18px 32px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, var(--bg-alt), var(--bg));flex-shrink:0;}
-#project-home-header h1{font-family:var(--font-display);font-weight:700;font-size:19px;margin:0;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
-#project-home-tagline{font-family:var(--font-literary);font-style:italic;font-weight:400;font-size:12.5px;color:var(--text-dim);text-shadow:none;}
+/* project home screen — a full page, shown after login (or after switching), before entering
+   a project. Scoped light "parchment card" palette, deliberately distinct from the rest of
+   the app's dark theme — matches a reference design built around a full-bleed scenery
+   illustration behind the header, with a light card floating over/below it. The illustration
+   itself isn't in yet (#ph-hero-spacer is a plain placeholder for it), but the card, tab bar,
+   buttons and icon set are built to the reference's exact colors already. */
+#project-screen{
+  --ph-bg:#f3e4c8; --ph-bg-soft:#efdcc0; --ph-input-bg:#faf3e4;
+  --ph-text:#3a2415; --ph-text-dim:#8a7355; --ph-border:#d9c39c; --ph-accent:#d99a2b;
+  position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;background:var(--ph-bg);
+}
+#project-home-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;padding:18px 32px;background:var(--ph-bg-soft);flex-shrink:0;position:relative;z-index:2;}
+#project-home-header h1{font-family:var(--font-display);font-weight:700;font-size:19px;margin:0;color:var(--ph-text);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.ph-logo-icon{width:20px;height:20px;color:var(--ph-accent);vertical-align:-3px;}
+#project-home-tagline{font-family:var(--font-literary);font-style:italic;font-weight:400;font-size:12.5px;color:var(--ph-text-dim);}
 #project-home-header-actions{display:flex;align-items:center;gap:14px;}
-#project-home-welcome{font-family:var(--font-literary);font-size:13.5px;color:var(--text-dim);}
-#project-home-body{flex:1;overflow-y:auto;display:flex;padding:48px 24px;}
-.ph-tab-panel{display:none;flex:1;flex-direction:column;align-items:center;}
+#project-home-header-actions .btn{background:var(--ph-input-bg);color:var(--ph-text);border-color:var(--ph-border);}
+#project-home-welcome{font-family:var(--font-literary);font-size:13.5px;color:var(--ph-text-dim);}
+/* Placeholder for the (not yet built) scenery illustration behind the header — plain, on
+   purpose, until real art exists. */
+#ph-hero-spacer{flex-shrink:0;height:140px;background:var(--ph-bg-soft);}
+#project-home-body{flex:1;overflow-y:auto;display:flex;padding:36px 24px;background:var(--ph-bg);border-radius:22px 22px 0 0;margin-top:-22px;position:relative;z-index:1;box-shadow:0 -8px 24px rgba(0,0,0,0.15);}
+.ph-tab-panel{display:none;flex:1;min-width:0;flex-direction:column;align-items:center;}
 .ph-tab-panel.active{display:flex;}
 #project-home-panel{width:480px;max-width:100%;}
 /* Home tab — a decorative pull-quote, framed like a page ornament */
-#ph-quote-box{max-width:420px;margin:auto;text-align:center;padding:34px 30px;border:1px solid var(--border);border-radius:8px;position:relative;}
-#ph-quote-box:before, #ph-quote-box:after{content:'✦';position:absolute;color:var(--gold);font-size:13px;opacity:.7;}
-#ph-quote-box:before{top:-8px;left:50%;transform:translateX(-50%);background:var(--bg);padding:0 8px;}
-#ph-quote-box:after{display:none;}
-.ph-quote-line{font-family:var(--font-literary);font-style:italic;font-size:17px;color:var(--text);line-height:1.7;}
+#ph-quote-box{max-width:420px;margin:auto;text-align:center;padding:34px 30px;border:1px solid var(--ph-border);border-radius:8px;position:relative;}
+#ph-quote-box:before{content:'✦';position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--ph-bg);padding:0 8px;color:var(--ph-accent);font-size:13px;opacity:.8;}
+.ph-quote-line{font-family:var(--font-literary);font-style:italic;font-size:17px;color:var(--ph-text);line-height:1.7;}
 /* Explore tab — placeholder until cross-project search exists */
-#ph-explore-placeholder{margin:auto;max-width:360px;text-align:center;color:var(--text-dim);}
-#ph-explore-placeholder svg{width:34px;height:34px;color:var(--gold);opacity:.8;margin-bottom:14px;}
-#ph-explore-placeholder h2{font-family:var(--font-heading);font-size:16px;color:var(--text);margin:0 0 10px;}
+#ph-explore-placeholder{margin:auto;max-width:360px;text-align:center;color:var(--ph-text-dim);}
+#ph-explore-placeholder svg{width:34px;height:34px;color:var(--ph-accent);opacity:.85;margin-bottom:14px;}
+#ph-explore-placeholder h2{font-family:var(--font-heading);font-size:16px;color:var(--ph-text);margin:0 0 10px;}
 #ph-explore-placeholder p{font-size:13px;line-height:1.6;margin:0;}
 /* Bottom tab bar */
-#ph-tabbar{display:flex;align-items:center;justify-content:space-around;flex-shrink:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:linear-gradient(0deg, var(--bg-alt), var(--bg));}
-.ph-tab{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--text-dim);cursor:pointer;padding:6px 10px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.03em;min-width:56px;}
+#ph-tabbar{display:flex;align-items:center;justify-content:space-around;flex-shrink:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:var(--ph-bg);border-top:1px solid var(--ph-border);}
+.ph-tab{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--ph-text-dim);cursor:pointer;padding:6px 10px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.03em;min-width:56px;}
 .ph-tab svg{width:20px;height:20px;}
-.ph-tab.active{color:var(--gold);}
-.ph-tab-cta{background:var(--gold);color:var(--bg);border-radius:50%;width:46px;height:46px;padding:0;justify-content:center;margin-top:-18px;box-shadow:0 4px 14px rgba(0,0,0,0.4);}
+.ph-tab.active{color:var(--ph-accent);}
+.ph-tab-cta{background:var(--ph-accent);color:#2b1a05;border-radius:50%;width:46px;height:46px;padding:0;justify-content:center;margin-top:-18px;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
 .ph-tab-cta svg{width:22px;height:22px;}
-.ph-tab-cta:hover{background:var(--gold-bright,var(--gold));}
-#project-home-panel h2{font-family:var(--font-heading);font-size:16px;letter-spacing:.03em;color:var(--text);margin:0 0 18px;}
+.ph-tab-cta:hover{filter:brightness(1.08);}
+#project-home-panel h2{font-family:var(--font-heading);font-size:16px;letter-spacing:.03em;color:var(--ph-text);margin:0 0 18px;}
 #project-select-row{display:flex;flex-wrap:wrap;gap:8px;}
-#project-select-row select{flex:1 1 100%;min-width:0;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:var(--font-literary);}
-#project-select-row select:focus{outline:none;border-color:var(--gold);}
+#project-select-row select{flex:1 1 100%;min-width:0;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:var(--font-literary);}
+#project-select-row select:focus{outline:none;border-color:var(--ph-accent);}
 #project-select-row button:disabled{opacity:0.4;cursor:not-allowed;}
-#project-rename-host{margin-top:14px;background:var(--bg-alt);border:1px solid var(--border);border-radius:6px;padding:12px 14px;}
+#project-select-row .btn{background:var(--ph-input-bg);color:var(--ph-text);border-color:var(--ph-border);}
+#project-select-row .btn.primary{background:var(--ph-accent);color:#2b1a05;border-color:var(--ph-accent);}
+#project-rename-host{margin-top:14px;background:var(--ph-input-bg);border:1px solid var(--ph-border);border-radius:6px;padding:12px 14px;}
+#project-rename-host .mini-label{color:var(--ph-text-dim);}
 #project-error{font-size:12px;color:var(--danger);min-height:16px;line-height:1.4;margin-top:12px;}
-#project-new-section{margin-top:36px;padding-top:24px;border-top:1px solid var(--border);}
-#project-new-form{margin-top:8px;display:flex;gap:8px;}
-#project-new-form input{flex:1;min-width:0;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:16px;font-family:var(--font-body);}
-#project-new-form input:focus{outline:none;border-color:var(--gold);}
+#project-new-section{margin-top:36px;padding-top:24px;border-top:1px solid var(--ph-border);}
+#project-new-section .mini-label{color:var(--ph-text-dim);display:flex;align-items:center;gap:6px;}
+#project-new-form{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;}
+#ph-new-name-wrap{flex:1 1 100%;min-width:0;}
+#project-new-form input{width:100%;box-sizing:border-box;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:10px 34px 10px 12px;font-size:16px;font-family:var(--font-body);}
+#project-new-form input:focus{outline:none;border-color:var(--ph-accent);}
+.ph-input-trailing-icon{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--ph-text-dim);pointer-events:none;}
+#project-new-btn{background:var(--ph-accent);color:#2b1a05;border-color:var(--ph-accent);flex-shrink:0;}
 
 /* delete-project confirmation modal */
 #delete-project-modal{z-index:110;}
@@ -1049,6 +1068,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <symbol id="icon-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 001 1h10a1 1 0 001-1v-9"/></g></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g></symbol>
     <symbol id="icon-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></g></symbol>
+    <symbol id="icon-folder" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></g></symbol>
+    <symbol id="icon-pencil" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19z"/><path d="M13.5 6.5L17.5 10.5"/></g></symbol>
+    <symbol id="icon-feather" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4c-7 0-14 4-14 12v4h4c8 0 12-7 12-14V4z"/><path d="M4 20L15 9"/></g></symbol>
+    <symbol id="icon-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4M17.7 17.7l-1.4-1.4M7.7 7.7L6.3 6.3"/></g></symbol>
     <symbol id="icon-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></g></symbol>
     <symbol id="icon-sparkle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></g></symbol>
     <symbol id="icon-swap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M14 4l3 3-3 3M20 17H7M10 20l-3-3 3-3"/></g></symbol>
@@ -1093,13 +1116,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 </div>
 <div id="project-screen" style="display:none;">
   <header id="project-home-header">
-    <h1>StoryMap<span id="project-home-tagline">Chart the past. Shape the future.</span></h1>
+    <h1><svg class="ph-logo-icon"><use href="#icon-compass"></use></svg> StoryMap<span id="project-home-tagline">Chart the past. Shape the future.</span></h1>
     <div id="project-home-header-actions">
       <span id="project-home-welcome"></span>
-      <button class="btn" id="project-home-settings-btn" title="Account settings">⚙ Settings</button>
-      <button class="btn" id="project-home-signout-btn">Sign out</button>
+      <button class="btn" id="project-home-settings-btn" title="Account settings"><svg class="nav-icon"><use href="#icon-gear"></use></svg> Settings</button>
+      <button class="btn" id="project-home-signout-btn"><svg class="nav-icon"><use href="#icon-exit"></use></svg> Sign out</button>
     </div>
   </header>
+  <div id="ph-hero-spacer" aria-hidden="true"></div>
   <div id="project-home-body">
     <div class="ph-tab-panel active" data-ph-panel="home">
       <div id="ph-quote-box">
@@ -1113,8 +1137,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <h2>Your projects</h2>
         <div id="project-select-row">
           <select id="project-select"></select>
-          <button class="btn primary" id="project-open-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Open</button>
-          <button class="btn" id="project-rename-btn"><svg class="nav-icon"><use href="#icon-pin"></use></svg> Rename</button>
+          <button class="btn primary" id="project-open-btn"><svg class="nav-icon"><use href="#icon-folder"></use></svg> Open</button>
+          <button class="btn" id="project-rename-btn"><svg class="nav-icon"><use href="#icon-pencil"></use></svg> Rename</button>
           <button class="btn danger" id="project-delete-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Delete</button>
         </div>
         <div id="project-rename-host" style="display:none;">
@@ -1123,17 +1147,20 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         </div>
         <div id="project-error"></div>
         <div id="project-new-section">
-          <div class="mini-label"><svg class="nav-icon"><use href="#icon-plus"></use></svg> Start something new</div>
+          <div class="mini-label"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Start something new</div>
           <form id="project-new-form">
-            <input type="text" id="project-new-name" placeholder="New project name" required>
-            <button type="submit" class="btn primary" id="project-new-btn">+ New project</button>
+            <div class="auth-input-wrap" id="ph-new-name-wrap">
+              <input type="text" id="project-new-name" placeholder="New project name" required>
+              <svg class="ph-input-trailing-icon"><use href="#icon-feather"></use></svg>
+            </div>
+            <button type="submit" class="btn primary" id="project-new-btn"><svg class="nav-icon"><use href="#icon-plus"></use></svg> New project</button>
           </form>
         </div>
       </div>
     </div>
     <div class="ph-tab-panel" data-ph-panel="explore">
       <div id="ph-explore-placeholder">
-        <svg><use href="#icon-search"></use></svg>
+        <svg><use href="#icon-compass"></use></svg>
         <h2>Explore</h2>
         <p>Searching and browsing across all your projects at once is coming — for now, open a project to search within it.</p>
       </div>
@@ -1143,7 +1170,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <button class="ph-tab active" data-ph-tab="home"><svg><use href="#icon-home"></use></svg><span>Home</span></button>
     <button class="ph-tab" data-ph-tab="projects"><svg><use href="#icon-books"></use></svg><span>Projects</span></button>
     <button class="ph-tab ph-tab-cta" id="ph-tab-new" title="New project"><svg><use href="#icon-plus"></use></svg></button>
-    <button class="ph-tab" data-ph-tab="explore"><svg><use href="#icon-search"></use></svg><span>Explore</span></button>
+    <button class="ph-tab" data-ph-tab="explore"><svg><use href="#icon-compass"></use></svg><span>Explore</span></button>
     <button class="ph-tab" id="ph-tab-profile"><svg><use href="#icon-user"></use></svg><span>Profile</span></button>
   </nav>
 </div>
