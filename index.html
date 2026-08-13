@@ -292,7 +292,8 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #reader-view *{-webkit-tap-highlight-color:transparent;}
 #reader-view.show{display:block;}
 #reader-progress{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
-#reader-chapter-select, #reader-font-select, #reader-size-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);max-width:170px;}
+#reader-chapter-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);max-width:170px;}
+#reader-font-select, #reader-size-select, #reader-align-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);}
 #reader-head{position:absolute;top:0;left:0;right:0;z-index:10;background:rgba(20,14,8,0.92);transition:transform .25s ease;transform:translateY(0);}
 #reader-head.chrome-hidden{transform:translateY(-100%);}
 #reader-foot{position:absolute;bottom:0;left:0;right:0;z-index:10;background:rgba(20,14,8,0.92);transition:transform .25s ease;transform:translateY(0);}
@@ -300,6 +301,10 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #reader-page-area{position:absolute;inset:0;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
 #reader-page-viewport{position:relative;overflow:hidden;width:100%;height:100%;background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;}
 #reader-page-content{position:absolute;top:0;left:0;height:100%;box-sizing:border-box;color:var(--text);padding:40px 0;}
+#reader-page-viewport.continuous{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+#reader-page-viewport.continuous #reader-page-content{position:static;width:100%;height:auto;column-width:auto !important;column-gap:normal !important;transform:none !important;}
+#reader-page-viewport.continuous #reader-bookmark-marker{display:none;}
+#reader-foot.continuous-mode #reader-position-slider{display:none;}
 .reader-chapter{padding:0 60px;}
 .reader-chapter-heading{font-family:var(--font-heading);font-size:19px;letter-spacing:.02em;color:var(--text);margin:0 0 16px;text-align:center;break-after:avoid-column;}
 .reader-chapter:not(:first-child){break-before:column;-webkit-column-break-before:always;}
@@ -368,14 +373,32 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #editor-menu-btn{display:none;}
 #editor-menu-panel{display:contents;}
 #editor-close{flex-shrink:0;}
-/* Reader header — same collapsible-panel pattern as #editor-head/#editor-menu-panel above.
-   Fix for a real reported bug: on a narrow phone, this header's 7 controls (Books, title,
-   chapter-select, 4 reading-setting selects, close) had no wrap/collapse handling at all and
-   just wrapped across multiple lines, inflating the header to ~160px tall (confirmed via
-   direct measurement) and squeezing the actual reading area — this is what was reported as
-   "the e-reader being cut off." */
-#reader-menu-btn{display:none;}
-#reader-menu-panel{display:contents;}
+/* Reader header — the "Aa" button always opens a tabbed Font/Layout dropdown
+   (Kindle-style reading-settings sheet), at every screen size, rather than the
+   old pattern of inlining the selects into the header on desktop and only
+   collapsing them into a dropdown on narrow phones. */
+#reader-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:14px;flex-shrink:0;}
+#reader-menu-panel{
+  display:none;flex-direction:column;
+  position:absolute;top:100%;right:0;left:auto;
+  width:220px;max-width:80vw;
+  background:var(--panel);border:1px solid var(--border);
+  z-index:30;max-height:70vh;overflow-y:auto;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
+#reader-head.menu-open #reader-menu-panel{display:flex;}
+#reader-menu-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+#reader-menu-tabs .reader-menu-tab{
+  flex:1;background:none;border:none;cursor:pointer;
+  color:var(--text-dim);font-family:var(--font-mono);font-size:11px;
+  text-transform:uppercase;letter-spacing:.05em;
+  padding:10px 6px;border-bottom:2px solid transparent;
+}
+#reader-menu-tabs .reader-menu-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.reader-menu-tab-panel{display:none;flex-direction:column;gap:10px;padding:14px;}
+.reader-menu-tab-panel.active{display:flex;}
+.reader-menu-tab-panel select{width:100%;max-width:none;}
+.reader-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text);cursor:pointer;}
 #editor-foot{display:flex;align-items:center;gap:14px;padding:12px 24px;border-top:1px solid var(--border);background:var(--bg-alt);}
 #editor-wc{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
 #editor-wc .flag{margin-left:8px;padding:2px 8px;border-radius:8px;font-size:10px;}
@@ -683,22 +706,9 @@ button.btn.primary#add-chapter-btn::before{
   }
   #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-direction:column;}
 
-  /* Reader header, same pattern: title truncates, hamburger appears, the reading-setting
-     selects collapse into a dropdown panel. Back arrow, the title, chapter-select, and the
-     close button stay always-visible (chapter navigation is core reading action, same
-     reasoning as Map/List staying visible in the main header's mobile pattern) — only the
-     settings (font/size/align) collapse. */
+  /* Reader header on narrow phones: title truncates so the back arrow, chapter-select,
+     "Aa" settings button, and close button always fit on one row. */
   #reader-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
-  #reader-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-size:16px;}
-  #reader-menu-panel{display:none;}
-  #reader-head.menu-open #reader-menu-panel{
-    display:flex;flex-direction:column;align-items:stretch;gap:6px;
-    position:absolute;top:100%;right:0;left:auto;
-    width:max-content;max-width:min(70vw,220px);
-    background:var(--panel);border:1px solid var(--border);
-    padding:10px;z-index:30;max-height:70vh;overflow-y:auto;
-    box-shadow:0 10px 30px rgba(0,0,0,0.4);
-  }
   #reader-chapter-select{max-width:36vw;}
 
   #drawer{width:auto; left:0; right:0;}
@@ -1284,28 +1294,40 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
     <button class="btn small" id="reader-back-btn" aria-label="Back to books" title="Back to books">‹</button>
     <div id="reader-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
     <select id="reader-chapter-select" title="Jump to chapter"></select>
-    <button class="btn small" id="reader-menu-btn" aria-label="Reading settings" aria-expanded="false">☰</button>
+    <button class="btn small" id="reader-menu-btn" aria-label="Reading settings" aria-expanded="false">Aa</button>
     <div id="reader-menu-panel">
-      <select id="reader-font-select" title="Font">
-        <option value="'Spectral',serif">Spectral</option>
-        <option value="'Georgia',serif">Georgia</option>
-        <option value="'Inter',sans-serif">Inter</option>
-      </select>
-      <select id="reader-size-select" title="Text size">
-        <option value="14">14</option>
-        <option value="16">16</option>
-        <option value="18" selected>18</option>
-        <option value="20">20</option>
-        <option value="22">22</option>
-        <option value="24">24</option>
-        <option value="28">28</option>
-      </select>
-      <select id="reader-align-select" title="Align">
-        <option value="left">Left</option>
-        <option value="center">Center</option>
-        <option value="right">Right</option>
-        <option value="justify">Justify</option>
-      </select>
+      <div id="reader-menu-tabs">
+        <button type="button" class="reader-menu-tab active" data-tab="font">Font</button>
+        <button type="button" class="reader-menu-tab" data-tab="layout">Layout</button>
+      </div>
+      <div class="reader-menu-tab-panel active" data-tab-panel="font">
+        <select id="reader-font-select" title="Font">
+          <option value="'Spectral',serif">Spectral</option>
+          <option value="'Georgia',serif">Georgia</option>
+          <option value="'Inter',sans-serif">Inter</option>
+        </select>
+        <select id="reader-size-select" title="Text size">
+          <option value="14">14</option>
+          <option value="16">16</option>
+          <option value="18" selected>18</option>
+          <option value="20">20</option>
+          <option value="22">22</option>
+          <option value="24">24</option>
+          <option value="28">28</option>
+        </select>
+      </div>
+      <div class="reader-menu-tab-panel" data-tab-panel="layout">
+        <select id="reader-align-select" title="Align">
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+          <option value="justify">Justify</option>
+        </select>
+        <label class="reader-toggle-row" for="reader-scroll-toggle">
+          <span>Continuous scrolling</span>
+          <input type="checkbox" id="reader-scroll-toggle">
+        </label>
+      </div>
     </div>
     <button class="btn small btn-x" id="reader-close" title="Close">&#215;</button>
   </div>
@@ -4842,6 +4864,7 @@ function textToParagraphsHtml(text){
 let readerFontFamily = "'Spectral',serif";
 let readerFontSizePt = '18';
 let readerTextAlign = 'left';
+let readerContinuousScroll = false;
 let readerCurrentBookIndex = null;
 let readerCurrentPage = 0;
 let readerTotalPages = 1;
@@ -4898,7 +4921,7 @@ function openPaginatedReader(bookIndex){
 
   readerCurrentPage = 0;
   document.getElementById('reader-view').classList.add('show');
-  recalculateReaderPagination();
+  applyReaderScrollMode();
   hideReaderChrome();
 
   hideReaderResumePrompt();
@@ -4908,6 +4931,28 @@ function openPaginatedReader(bookIndex){
   }
 }
 
+function refreshReaderLayout(){
+  if(readerContinuousScroll) return;
+  recalculateReaderPagination();
+}
+function applyReaderScrollMode(){
+  const viewport = document.getElementById('reader-page-viewport');
+  document.getElementById('reader-scroll-toggle').checked = readerContinuousScroll;
+  viewport.classList.toggle('continuous', readerContinuousScroll);
+  document.getElementById('reader-foot').classList.toggle('continuous-mode', readerContinuousScroll);
+  if(readerContinuousScroll){
+    viewport.scrollTop = 0;
+    updateReaderContinuousProgress();
+  } else {
+    recalculateReaderPagination();
+  }
+}
+function updateReaderContinuousProgress(){
+  const viewport = document.getElementById('reader-page-viewport');
+  const scrollable = viewport.scrollHeight - viewport.clientHeight;
+  const pct = scrollable > 0 ? Math.round((viewport.scrollTop / scrollable) * 100) : 100;
+  document.getElementById('reader-progress').textContent = `${pct}% read`;
+}
 function recalculateReaderPagination(){
   const viewport = document.getElementById('reader-page-viewport');
   const contentEl = document.getElementById('reader-page-content');
@@ -5017,22 +5062,42 @@ document.getElementById('reader-close').addEventListener('click', () => {
 document.getElementById('reader-font-select').addEventListener('change', (e) => {
   readerFontFamily = e.target.value;
   applyReaderStyle();
-  recalculateReaderPagination();
+  refreshReaderLayout();
 });
 document.getElementById('reader-size-select').addEventListener('change', (e) => {
   readerFontSizePt = e.target.value;
   applyReaderStyle();
-  recalculateReaderPagination();
+  refreshReaderLayout();
 });
 document.getElementById('reader-chapter-select').addEventListener('change', (e) => {
   const idx = parseInt(e.target.value);
-  if(!isNaN(idx) && readerChapterStartPages[idx] !== undefined) readerGoToPage(readerChapterStartPages[idx]);
+  if(isNaN(idx)) return;
+  if(readerContinuousScroll){
+    const chapterEls = document.querySelectorAll('#reader-page-content .reader-chapter');
+    if(chapterEls[idx]) chapterEls[idx].scrollIntoView({block:'start'});
+  } else if(readerChapterStartPages[idx] !== undefined){
+    readerGoToPage(readerChapterStartPages[idx]);
+  }
+});
+document.querySelectorAll('#reader-menu-tabs .reader-menu-tab').forEach(tabBtn => {
+  tabBtn.addEventListener('click', () => {
+    document.querySelectorAll('#reader-menu-tabs .reader-menu-tab').forEach(b => b.classList.toggle('active', b === tabBtn));
+    document.querySelectorAll('.reader-menu-tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === tabBtn.dataset.tab));
+  });
+});
+document.getElementById('reader-scroll-toggle').addEventListener('change', (e) => {
+  readerContinuousScroll = e.target.checked;
+  applyReaderScrollMode();
+});
+document.getElementById('reader-page-viewport').addEventListener('scroll', () => {
+  if(readerContinuousScroll) updateReaderContinuousProgress();
 });
 document.getElementById('reader-head').addEventListener('click', showReaderChrome);
 document.getElementById('reader-head').addEventListener('change', showReaderChrome);
 document.getElementById('reader-page-viewport').addEventListener('click', (e) => {
   if(readerSwipeHandled){ readerSwipeHandled = false; return; }
   if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
+  if(readerContinuousScroll){ toggleReaderChrome(); return; }
   const rect = e.currentTarget.getBoundingClientRect();
   const xFrac = (e.clientX - rect.left) / rect.width;
   if(xFrac < 0.25) readerPrevPage();
@@ -5044,12 +5109,12 @@ let readerTouchStartY = null;
 let readerSwipeHandled = false;
 const READER_SWIPE_THRESHOLD = 50;
 document.getElementById('reader-page-viewport').addEventListener('touchstart', (e) => {
-  if(e.touches.length !== 1) return;
+  if(readerContinuousScroll || e.touches.length !== 1) return;
   readerTouchStartX = e.touches[0].clientX;
   readerTouchStartY = e.touches[0].clientY;
 }, {passive:true});
 document.getElementById('reader-page-viewport').addEventListener('touchend', (e) => {
-  if(readerTouchStartX === null) return;
+  if(readerContinuousScroll || readerTouchStartX === null) return;
   const touch = e.changedTouches[0];
   const dx = touch.clientX - readerTouchStartX;
   const dy = touch.clientY - readerTouchStartY;
@@ -5062,6 +5127,7 @@ document.getElementById('reader-page-viewport').addEventListener('touchend', (e)
 });
 document.addEventListener('keydown', (e) => {
   if(!document.getElementById('reader-view').classList.contains('show')) return;
+  if(readerContinuousScroll) return;
   const tag = e.target.tagName;
   if(tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
   if(e.key === 'ArrowRight'){ e.preventDefault(); readerNextPage(); }
@@ -5070,7 +5136,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => {
   if(!document.getElementById('reader-view').classList.contains('show')) return;
   clearTimeout(readerResizeTimer);
-  readerResizeTimer = setTimeout(recalculateReaderPagination, 150);
+  readerResizeTimer = setTimeout(refreshReaderLayout, 150);
 });
 // Phase 1a: this resize→renderMap() rebuild existed solely because the map's layout size used
 // to depend on viewport/orientation (getMapVerticalMetrics() read window.matchMedia/clientHeight).
