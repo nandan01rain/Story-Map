@@ -996,9 +996,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   background:radial-gradient(ellipse 34% 30% at 50% 45%, rgba(255,206,138,0.40), rgba(255,190,120,0.14) 48%, transparent 74%);
   animation:auth-atmosphere-drift 74s ease-in-out infinite alternate;
 }
+/* NB: translate percentages resolve against the *child's* own size, which is >2x the
+   window. The ranges below are solved so the gradient's bright centre travels across the
+   visible frame (roughly 5%..95% of the window) — a naive 0..50% would shove it a full
+   screen-width off to the right, where it can't be seen. Child is 216% wide at left:-58%,
+   so peak_x = 50% + 2.16*T; T = -21%..21% puts peak_x at 5%..95%. */
 @keyframes auth-atmosphere-drift{
-  0%{transform:translate3d(2%,2%,0);}
-  100%{transform:translate3d(46%,16%,0);}
+  0%{transform:translate3d(-21%,0%,0);}
+  100%{transform:translate3d(21%,6%,0);}
 }
 /* A second, slower haze pass at a different rate and direction — two independent drifts
    beating against each other keep the sky from reading as one sliding gradient. */
@@ -1008,9 +1013,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   background:radial-gradient(ellipse 30% 26% at 50% 50%, rgba(255,236,200,0.30), transparent 72%);
   animation:auth-haze-drift 113s ease-in-out infinite alternate;
 }
+/* child 196% wide at left:-50% -> peak_x = 48% + 1.96*T; T = 21%..-19% sweeps 90%..10% */
 @keyframes auth-haze-drift{
-  0%{transform:translate3d(40%,30%,0);}
-  100%{transform:translate3d(4%,6%,0);}
+  0%{transform:translate3d(21%,4%,0);}
+  100%{transform:translate3d(-19%,-2%,0);}
 }
 
 /* Water: a very soft broad sheen drifting across the bay. Deliberately NOT a striped or
@@ -1029,9 +1035,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   background:linear-gradient(102deg, transparent 0%, rgba(255,244,206,0.24) 42%, rgba(255,248,220,0.34) 50%, rgba(255,244,206,0.24) 58%, transparent 100%);
   animation:auth-water-sheen 17s ease-in-out infinite alternate;
 }
+/* child 260% wide at left:-80% -> peak_x = 50% + 2.6*T; T = -23%..23% sweeps -10%..110% */
 @keyframes auth-water-sheen{
-  0%{transform:translate3d(4%,0,0);}
-  100%{transform:translate3d(46%,0,0);}
+  0%{transform:translate3d(-23%,0,0);}
+  100%{transform:translate3d(23%,0,0);}
 }
 /* Counter-moving second sheen on a different period — the two crossing at different
    rates read as shimmer rather than one band sweeping past. */
@@ -1041,9 +1048,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   background:linear-gradient(78deg, transparent 0%, rgba(255,240,198,0.26) 45%, rgba(255,240,198,0.26) 55%, transparent 100%);
   animation:auth-water-sheen2 26s ease-in-out infinite alternate;
 }
+/* child 230% wide at left:-70% -> peak_x = 45% + 2.3*T; T = 28%..-24% sweeps 110%..-10% */
 @keyframes auth-water-sheen2{
-  0%{transform:translate3d(44%,0,0);}
-  100%{transform:translate3d(6%,0,0);}
+  0%{transform:translate3d(28%,0,0);}
+  100%{transform:translate3d(-24%,0,0);}
 }
 
 /* Lanterns: two small warm glows over the existing lantern positions, flickering with
