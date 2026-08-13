@@ -313,7 +313,7 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #reader-page-viewport.continuous #reader-page-content{position:static;width:100%;height:auto;column-width:auto !important;column-gap:normal !important;transform:none !important;}
 #reader-page-viewport.continuous #reader-bookmark-marker{display:none;}
 #reader-foot.continuous-mode #reader-position-slider{display:none;}
-.reader-chapter{padding:0 60px;}
+.reader-chapter{padding:0 32px;}
 .reader-chapter-heading{font-family:var(--font-heading);font-size:19px;letter-spacing:.02em;color:var(--text);margin:0 0 16px;text-align:center;break-after:avoid-column;}
 .reader-chapter:not(:first-child){break-before:column;-webkit-column-break-before:always;}
 .reader-chapter:not(:first-child) .reader-chapter-heading{margin-top:50px;}
@@ -1388,6 +1388,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   </div>
   <div id="reader-selection-popup" class="selection-popup">
     <button type="button" id="reader-sel-highlight-btn">✏ Highlight</button>
+    <button type="button" id="reader-sel-remove-highlight-btn" style="display:none;">🗑 Remove Highlight</button>
     <button type="button" id="reader-sel-editor-btn">📝 Editor</button>
   </div>
   <div id="reader-page-area">
@@ -4995,7 +4996,7 @@ function compileBook(bookIndices){
       .sort((a,b) => a.act - b.act || a.order - b.order)
       .map(ch => {
         const hasProse = (ch.status === 'drafted' || ch.status === 'final') && ch.content && ch.content.trim();
-        const highlights = (ch.annotations||[]).filter(a => a.type === 'highlight').map(a => a.text);
+        const highlights = (ch.annotations||[]).filter(a => a.type === 'highlight').map(a => ({id: a.id, text: a.text}));
         if(hasProse){
           return { id: ch.id, title: ch.title, content: ch.content, isOutlineOnly: false, summaryFallback: '', highlights };
         }
@@ -5008,27 +5009,27 @@ function compileBook(bookIndices){
   });
   return { title, sections };
 }
-function textToParagraphsHtml(text, highlightTexts){
+function textToParagraphsHtml(text, highlights){
   return (text || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
-    .map(p => `<p>${paragraphToHtmlWithHighlights(p, highlightTexts)}</p>`).join('');
+    .map(p => `<p>${paragraphToHtmlWithHighlights(p, highlights)}</p>`).join('');
 }
-function paragraphToHtmlWithHighlights(paragraph, highlightTexts){
+function paragraphToHtmlWithHighlights(paragraph, highlights){
   const plain = (t) => escapeHtml(t).replace(/\n/g, '<br>');
-  if(!highlightTexts || !highlightTexts.length) return plain(paragraph);
+  if(!highlights || !highlights.length) return plain(paragraph);
   const ranges = [];
-  highlightTexts.forEach(t => {
-    if(!t) return;
-    const idx = paragraph.indexOf(t);
-    if(idx !== -1) ranges.push([idx, idx + t.length]);
+  highlights.forEach(h => {
+    if(!h.text) return;
+    const idx = paragraph.indexOf(h.text);
+    if(idx !== -1) ranges.push([idx, idx + h.text.length, h.id]);
   });
   if(!ranges.length) return plain(paragraph);
   ranges.sort((a, b) => a[0] - b[0]);
   let html = '';
   let cursor = 0;
-  ranges.forEach(([start, end]) => {
+  ranges.forEach(([start, end, id]) => {
     if(start < cursor) return;
     html += plain(paragraph.slice(cursor, start));
-    html += `<mark class="hl-highlight">${plain(paragraph.slice(start, end))}</mark>`;
+    html += `<mark class="hl-highlight" data-annotation-id="${id}">${plain(paragraph.slice(start, end))}</mark>`;
     cursor = end;
   });
   html += plain(paragraph.slice(cursor));
@@ -5156,6 +5157,8 @@ function applyReaderScrollMode(){
   document.getElementById('reader-foot').classList.toggle('continuous-mode', readerContinuousScroll);
   if(readerContinuousScroll){
     viewport.scrollTop = 0;
+    document.getElementById('reader-page-content').style.paddingTop = '';
+    document.getElementById('reader-page-content').style.paddingBottom = '';
     updateReaderContinuousProgress();
   } else {
     recalculateReaderPagination();
@@ -5171,11 +5174,29 @@ function updateReaderContinuousProgress(){
   chapterEls.forEach((el, i) => { if(el.offsetTop <= viewport.scrollTop + 40) idx = i; });
   markCurrentTocRow(idx);
 }
+const READER_PAGE_PAD_V = 40; // matches the base padding in #reader-page-content's CSS rule
+function snapReaderContentHeightToLines(viewport, contentEl){
+  // Every page is a fixed-height CSS column, so whatever whole number of lines fits
+  // determines where the column simply runs out and pushes the rest to the next page —
+  // if that height isn't an exact multiple of the line height, each page's last line
+  // lands at a slightly different point, which reads as pages ending at random heights.
+  // Padding is adjusted (not the box height) to absorb the remainder symmetrically, so
+  // every page's text always fills down to the exact same baseline.
+  const probe = contentEl.querySelector('.reader-prose');
+  const lineHeightPx = probe ? parseFloat(getComputedStyle(probe).lineHeight) : parseFloat(readerFontSizePt) * 1.85;
+  const rawAvailable = viewport.clientHeight - READER_PAGE_PAD_V * 2;
+  if(!lineHeightPx || rawAvailable <= 0) return;
+  const lines = Math.max(1, Math.floor(rawAvailable / lineHeightPx));
+  const extra = rawAvailable - lines * lineHeightPx;
+  contentEl.style.paddingTop = (READER_PAGE_PAD_V + extra / 2) + 'px';
+  contentEl.style.paddingBottom = (READER_PAGE_PAD_V + (extra - extra / 2)) + 'px';
+}
 function recalculateReaderPagination(){
   const viewport = document.getElementById('reader-page-viewport');
   const contentEl = document.getElementById('reader-page-content');
   const vw = viewport.clientWidth;
   if(vw <= 0) return;
+  snapReaderContentHeightToLines(viewport, contentEl);
   contentEl.style.columnWidth = vw + 'px';
   contentEl.style.columnGap = vw + 'px';
   readerPageStepPx = vw * 2;
@@ -5491,6 +5512,18 @@ function findChapterIdForNode(node){
   return chapterEl ? chapterEl.dataset.chapterId : null;
 }
 let readerSelection = null;
+// If the current selection overlaps an already-highlighted mark, offer to remove the
+// existing highlight instead of the normal "Highlight" action — creating a second,
+// overlapping highlight isn't supported (paragraphToHtmlWithHighlights just drops
+// ranges that overlap an earlier one), so this is the way out of that dead end.
+function findOverlappingHighlightIds(range, chapterId){
+  const chapterEl = document.querySelector(`#reader-page-content .reader-chapter[data-chapter-id="${chapterId}"]`);
+  if(!chapterEl) return [];
+  return Array.from(chapterEl.querySelectorAll('mark.hl-highlight'))
+    .filter(mark => range.intersectsNode ? range.intersectsNode(mark) : true)
+    .map(mark => parseInt(mark.dataset.annotationId))
+    .filter(id => !isNaN(id));
+}
 function handleReaderSelection(){
   const popup = document.getElementById('reader-selection-popup');
   const sel = window.getSelection();
@@ -5500,15 +5533,19 @@ function handleReaderSelection(){
     readerSelection = null;
     return;
   }
+  const range = sel.getRangeAt(0);
   const text = sel.toString().trim();
-  const chapterId = findChapterIdForNode(sel.getRangeAt(0).commonAncestorContainer);
+  const chapterId = findChapterIdForNode(range.commonAncestorContainer);
   if(!text || !chapterId){
     popup.classList.remove('show');
     readerSelection = null;
     return;
   }
-  readerSelection = { text, chapterId };
-  positionSelectionPopup(popup, sel.getRangeAt(0).getBoundingClientRect());
+  const overlappingIds = findOverlappingHighlightIds(range, chapterId);
+  readerSelection = { text, chapterId, overlappingIds };
+  document.getElementById('reader-sel-highlight-btn').style.display = overlappingIds.length ? 'none' : '';
+  document.getElementById('reader-sel-remove-highlight-btn').style.display = overlappingIds.length ? '' : 'none';
+  positionSelectionPopup(popup, range.getBoundingClientRect());
 }
 document.addEventListener('selectionchange', () => {
   if(document.getElementById('reader-view').classList.contains('show')) handleReaderSelection();
@@ -5520,6 +5557,18 @@ document.getElementById('reader-sel-highlight-btn').addEventListener('click', ()
   if(ch && text){
     if(!ch.annotations) ch.annotations = [];
     ch.annotations.push({id: nextId++, type:'highlight', text});
+    saveData(); // fire-and-forget — see the editor-close handler's comment
+    refreshReaderContentAfterEdit();
+  }
+  window.getSelection().removeAllRanges();
+  document.getElementById('reader-selection-popup').classList.remove('show');
+});
+document.getElementById('reader-sel-remove-highlight-btn').addEventListener('click', () => {
+  if(!readerSelection || !readerSelection.overlappingIds.length) return;
+  const { chapterId, overlappingIds } = readerSelection;
+  const ch = chapters.find(c => c.id === chapterId);
+  if(ch && ch.annotations){
+    ch.annotations = ch.annotations.filter(a => !overlappingIds.includes(a.id));
     saveData(); // fire-and-forget — see the editor-close handler's comment
     refreshReaderContentAfterEdit();
   }
