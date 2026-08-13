@@ -288,17 +288,19 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .reader-select-row-name{font-family:var(--font-heading);font-size:15px;color:var(--text);}
 .reader-select-row-meta{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);flex-shrink:0;}
 
-#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;-webkit-tap-highlight-color:transparent;}
+#reader-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;-webkit-tap-highlight-color:transparent;}
 #reader-view *{-webkit-tap-highlight-color:transparent;}
-#reader-view.show{display:block;}
+#reader-view.show{display:flex;}
 #reader-progress{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
-#reader-chapter-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);max-width:170px;}
-#reader-font-select, #reader-size-select, #reader-align-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);}
-#reader-head{position:absolute;top:0;left:0;right:0;z-index:10;background:rgba(20,14,8,0.92);transition:transform .25s ease;transform:translateY(0);}
-#reader-head.chrome-hidden{transform:translateY(-100%);}
-#reader-foot{position:absolute;bottom:0;left:0;right:0;z-index:10;background:rgba(20,14,8,0.92);transition:transform .25s ease;transform:translateY(0);}
-#reader-foot.chrome-hidden{transform:translateY(100%);}
-#reader-page-area{position:absolute;inset:0;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
+#reader-align-select{background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--font-body);}
+/* Header/footer are normal flex children (not floating overlays): collapsing them via
+   max-height makes the page area between them genuinely grow/shrink on tap, rather than
+   the old approach of chrome floating on top of a page that never changed size. */
+#reader-head{position:relative;flex-shrink:0;overflow:hidden;max-height:70px;transition:max-height .25s ease,padding .25s ease,border-color .25s ease;}
+#reader-head.chrome-hidden{max-height:0;padding-top:0;padding-bottom:0;border-bottom-color:transparent;}
+#reader-foot{flex-shrink:0;overflow:hidden;max-height:60px;transition:max-height .25s ease,padding .25s ease,border-color .25s ease;}
+#reader-foot.chrome-hidden{max-height:0;padding-top:0;padding-bottom:0;border-top-color:transparent;}
+#reader-page-area{flex:1;min-height:0;position:relative;display:flex;justify-content:center;align-items:stretch;overflow:hidden;background:var(--bg-alt);}
 #reader-page-viewport{position:relative;overflow:hidden;width:100%;height:100%;background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;}
 #reader-page-content{position:absolute;top:0;left:0;height:100%;box-sizing:border-box;color:var(--text);padding:40px 0;}
 #reader-page-viewport.continuous{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
@@ -313,20 +315,43 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .reader-prose{line-height:1.85;}
 .reader-prose p{margin:0 0 1.2em;}
 .reader-prose.reader-outline-text{font-style:italic;color:var(--text-dim);}
-#reader-bookmark-marker{position:absolute;top:0;right:22px;width:26px;height:38px;z-index:4;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));cursor:pointer;color:var(--gold);display:flex;background:none;border:none;padding:0;}
+/* Invisible until bookmarked — it's a tap target + status indicator, not a persistent
+   button. Tapping the top-right corner bookmarks the page and the filled ribbon appears;
+   tapping again removes the bookmark and it disappears again. */
+#reader-bookmark-marker{position:absolute;top:0;right:22px;width:26px;height:38px;z-index:4;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));cursor:pointer;color:var(--gold);display:flex;background:none;border:none;padding:0;opacity:0;transition:opacity .15s ease;}
+#reader-bookmark-marker.bookmarked{opacity:1;}
 #reader-bookmark-marker svg{width:100%;height:100%;}
-#reader-bookmark-marker:hover{color:var(--gold-bright,var(--gold));}
 #reader-resume-prompt{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:5;}
 #reader-resume-prompt.show{display:flex;}
 #reader-resume-card{background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:22px 26px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.5);max-width:90%;}
 #reader-resume-text{font-family:var(--font-literary);font-size:14px;color:var(--text);margin-bottom:16px;}
 #reader-resume-actions{display:flex;gap:10px;justify-content:center;}
-#reader-foot{display:flex;align-items:center;gap:14px;padding:10px 20px;border-top:1px solid var(--border);background:var(--bg-alt);flex-shrink:0;}
+#reader-foot{display:flex;align-items:center;gap:14px;padding:10px 20px;border-top:1px solid var(--border);background:var(--bg-alt);}
 #reader-foot #reader-progress{flex-shrink:0;white-space:nowrap;}
 #reader-position-slider{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;}
 #reader-position-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
 #reader-position-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
 #reader-position-slider::-moz-range-track{height:4px;background:var(--border);border-radius:2px;}
+/* Chapter list (hamburger) dropdown — a scrollable list of rows instead of a form control. */
+#reader-toc-btn{display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.reader-toc-row{padding:11px 14px;font-family:var(--font-body);font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);}
+.reader-toc-row:last-child{border-bottom:none;}
+.reader-toc-row:hover{background:var(--bg-alt);}
+.reader-toc-row.current{color:var(--gold);}
+/* Font tab: a grid of font-preview buttons plus an A—A size slider, matching a
+   Kindle-style reading-settings sheet instead of plain <select> dropdowns. */
+#reader-font-grid{display:flex;gap:8px;}
+.reader-font-option{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;background:var(--bg-alt);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:19px;line-height:1;cursor:pointer;}
+.reader-font-option span{font-family:var(--font-mono);font-size:9px;color:inherit;text-transform:uppercase;letter-spacing:.03em;}
+.reader-font-option.active{border-color:var(--gold);color:var(--gold);}
+#reader-size-row{display:flex;align-items:center;gap:10px;}
+.reader-size-label{color:var(--text-dim);font-family:var(--font-body);flex-shrink:0;}
+.reader-size-label.small{font-size:12px;}
+.reader-size-label.large{font-size:20px;}
+#reader-size-slider{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;}
+#reader-size-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
+#reader-size-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
+#reader-size-slider::-moz-range-track{height:4px;background:var(--border);border-radius:2px;}
 
 #epub-export-modal .box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px;max-width:340px;width:min(95vw,340px);}
 #epub-export-modal h3{font-family:var(--font-heading);margin:0 0 14px;font-size:15px;letter-spacing:.03em;}
@@ -378,15 +403,19 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
    old pattern of inlining the selects into the header on desktop and only
    collapsing them into a dropdown on narrow phones. */
 #reader-menu-btn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:14px;flex-shrink:0;}
-#reader-menu-panel{
+/* #reader-menu-panel and #reader-toc-panel are positioned via JS (top/left/right set to
+   the triggering button's rect) because they live as direct children of #reader-view, not
+   inside #reader-head — #reader-head needs overflow:hidden for its shrink-to-collapse
+   animation, which would otherwise clip any dropdown nested inside it. */
+#reader-menu-panel, #reader-toc-panel{
   display:none;flex-direction:column;
-  position:absolute;top:100%;right:0;left:auto;
+  position:absolute;
   width:220px;max-width:80vw;
   background:var(--panel);border:1px solid var(--border);
   z-index:30;max-height:70vh;overflow-y:auto;
   box-shadow:0 10px 30px rgba(0,0,0,0.4);
 }
-#reader-head.menu-open #reader-menu-panel{display:flex;}
+#reader-menu-panel.open, #reader-toc-panel.open{display:flex;}
 #reader-menu-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
 #reader-menu-tabs .reader-menu-tab{
   flex:1;background:none;border:none;cursor:pointer;
@@ -706,10 +735,9 @@ button.btn.primary#add-chapter-btn::before{
   }
   #editor-head.menu-open #editor-menu-panel .mark-toolbar{flex-direction:column;}
 
-  /* Reader header on narrow phones: title truncates so the back arrow, chapter-select,
+  /* Reader header on narrow phones: title truncates so the back arrow, chapter list,
      "Aa" settings button, and close button always fit on one row. */
   #reader-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
-  #reader-chapter-select{max-width:36vw;}
 
   #drawer{width:auto; left:0; right:0;}
 }
@@ -1292,49 +1320,46 @@ mark.hl-note{background:rgba(58,106,138,0.35);color:var(--text);border-radius:2p
 <div id="reader-view">
   <div class="editor-head-style" id="reader-head">
     <button class="btn small" id="reader-back-btn" aria-label="Back to books" title="Back to books">‹</button>
+    <button class="btn small" id="reader-toc-btn" aria-label="Chapters" aria-expanded="false">☰</button>
     <div id="reader-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
-    <select id="reader-chapter-select" title="Jump to chapter"></select>
     <button class="btn small" id="reader-menu-btn" aria-label="Reading settings" aria-expanded="false">Aa</button>
-    <div id="reader-menu-panel">
-      <div id="reader-menu-tabs">
-        <button type="button" class="reader-menu-tab active" data-tab="font">Font</button>
-        <button type="button" class="reader-menu-tab" data-tab="layout">Layout</button>
+    <button class="btn small btn-x" id="reader-close" title="Close">&#215;</button>
+  </div>
+  <div id="reader-toc-panel"><div id="reader-toc-list"></div></div>
+  <div id="reader-menu-panel">
+    <div id="reader-menu-tabs">
+      <button type="button" class="reader-menu-tab active" data-tab="font">Font</button>
+      <button type="button" class="reader-menu-tab" data-tab="layout">Layout</button>
+    </div>
+    <div class="reader-menu-tab-panel active" data-tab-panel="font">
+      <div id="reader-font-grid">
+        <button type="button" class="reader-font-option active" data-font="'Spectral',serif" style="font-family:'Spectral',serif;">Aa<span>Spectral</span></button>
+        <button type="button" class="reader-font-option" data-font="'Georgia',serif" style="font-family:'Georgia',serif;">Aa<span>Georgia</span></button>
+        <button type="button" class="reader-font-option" data-font="'Inter',sans-serif" style="font-family:'Inter',sans-serif;">Aa<span>Inter</span></button>
       </div>
-      <div class="reader-menu-tab-panel active" data-tab-panel="font">
-        <select id="reader-font-select" title="Font">
-          <option value="'Spectral',serif">Spectral</option>
-          <option value="'Georgia',serif">Georgia</option>
-          <option value="'Inter',sans-serif">Inter</option>
-        </select>
-        <select id="reader-size-select" title="Text size">
-          <option value="14">14</option>
-          <option value="16">16</option>
-          <option value="18" selected>18</option>
-          <option value="20">20</option>
-          <option value="22">22</option>
-          <option value="24">24</option>
-          <option value="28">28</option>
-        </select>
-      </div>
-      <div class="reader-menu-tab-panel" data-tab-panel="layout">
-        <select id="reader-align-select" title="Align">
-          <option value="left">Left</option>
-          <option value="center">Center</option>
-          <option value="right">Right</option>
-          <option value="justify">Justify</option>
-        </select>
-        <label class="reader-toggle-row" for="reader-scroll-toggle">
-          <span>Continuous scrolling</span>
-          <input type="checkbox" id="reader-scroll-toggle">
-        </label>
+      <div id="reader-size-row">
+        <span class="reader-size-label small" aria-hidden="true">A</span>
+        <input type="range" id="reader-size-slider" title="Text size" min="14" max="28" step="2" value="18">
+        <span class="reader-size-label large" aria-hidden="true">A</span>
       </div>
     </div>
-    <button class="btn small btn-x" id="reader-close" title="Close">&#215;</button>
+    <div class="reader-menu-tab-panel" data-tab-panel="layout">
+      <select id="reader-align-select" title="Align">
+        <option value="left">Left</option>
+        <option value="center">Center</option>
+        <option value="right">Right</option>
+        <option value="justify">Justify</option>
+      </select>
+      <label class="reader-toggle-row" for="reader-scroll-toggle">
+        <span>Continuous scrolling</span>
+        <input type="checkbox" id="reader-scroll-toggle">
+      </label>
+    </div>
   </div>
   <div id="reader-page-area">
     <div id="reader-page-viewport">
       <div id="reader-page-content"></div>
-      <button id="reader-bookmark-marker" title="Tap to bookmark this page"><svg id="reader-bookmark-marker-icon-svg"><use id="reader-bookmark-marker-icon" href="#icon-bookmark"></use></svg></button>
+      <button id="reader-bookmark-marker" title="Tap to bookmark this page"><svg id="reader-bookmark-marker-icon-svg"><use id="reader-bookmark-marker-icon" href="#icon-bookmark-filled"></use></svg></button>
       <div id="reader-resume-prompt">
         <div id="reader-resume-card">
           <div id="reader-resume-text"></div>
@@ -4897,10 +4922,13 @@ function openPaginatedReader(bookIndex){
   const section = compiled.sections[0];
   document.getElementById('reader-title').innerHTML = `<svg class="nav-icon"><use href="#icon-bookmark"></use></svg> ${escapeHtml(compiled.title)} — ${escapeHtml(section.bookName)}`;
 
-  const chapterSelect = document.getElementById('reader-chapter-select');
-  chapterSelect.innerHTML = section.chapters.length
-    ? section.chapters.map((ch, i) => `<option value="${i}">${escapeHtml(ch.title)}</option>`).join('')
-    : '<option value="">(no chapters yet)</option>';
+  const tocList = document.getElementById('reader-toc-list');
+  tocList.innerHTML = section.chapters.length
+    ? section.chapters.map((ch, i) => `<div class="reader-toc-row" data-chapter-idx="${i}">${escapeHtml(ch.title)}</div>`).join('')
+    : '<div class="reader-toc-row" style="cursor:default;color:var(--text-dim);">(no chapters yet)</div>';
+  tocList.querySelectorAll('[data-chapter-idx]').forEach(row => {
+    row.addEventListener('click', () => readerJumpToChapter(parseInt(row.dataset.chapterIdx)));
+  });
 
   const contentEl = document.getElementById('reader-page-content');
   let html = '';
@@ -4914,8 +4942,10 @@ function openPaginatedReader(bookIndex){
   });
   contentEl.innerHTML = html || '<div class="reader-chapter"><div class="reader-prose reader-outline-text">This book has no chapters yet.</div></div>';
 
-  document.getElementById('reader-font-select').value = readerFontFamily;
-  document.getElementById('reader-size-select').value = readerFontSizePt;
+  document.querySelectorAll('.reader-font-option').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.font === readerFontFamily);
+  });
+  document.getElementById('reader-size-slider').value = readerFontSizePt;
   document.getElementById('reader-align-select').value = readerTextAlign;
   applyReaderStyle();
 
@@ -4979,8 +5009,7 @@ function applyReaderPageTransform(){
 function updateReaderProgressLabel(){
   let chapterIdx = 0;
   readerChapterStartPages.forEach((startPage, i) => { if(startPage <= readerCurrentPage) chapterIdx = i; });
-  const chapterSelect = document.getElementById('reader-chapter-select');
-  if(readerChapterStartPages.length) chapterSelect.value = chapterIdx;
+  markCurrentTocRow(chapterIdx);
   document.getElementById('reader-progress').textContent = readerChapterStartPages.length
     ? `Chapter ${chapterIdx+1} of ${readerChapterStartPages.length} — Page ${readerCurrentPage+1} of ${readerTotalPages}`
     : '';
@@ -4989,9 +5018,24 @@ function updateReaderProgressLabel(){
   slider.value = readerCurrentPage;
   updateReaderBookmarkMarker();
 }
+function markCurrentTocRow(chapterIdx){
+  document.querySelectorAll('#reader-toc-list .reader-toc-row').forEach(row => {
+    row.classList.toggle('current', parseInt(row.dataset.chapterIdx) === chapterIdx);
+  });
+}
+function readerJumpToChapter(idx){
+  const chapterEls = document.querySelectorAll('#reader-page-content .reader-chapter');
+  if(readerContinuousScroll){
+    if(chapterEls[idx]) chapterEls[idx].scrollIntoView({block:'start'});
+  } else if(readerChapterStartPages[idx] !== undefined){
+    readerGoToPage(readerChapterStartPages[idx]);
+  }
+  markCurrentTocRow(idx);
+  closeReaderPanel('reader-toc-panel', 'reader-toc-btn');
+}
 function updateReaderBookmarkMarker(){
   const isBookmarked = readerCurrentBookIndex !== null && projectBookmarks[readerCurrentBookIndex] === readerCurrentPage;
-  document.getElementById('reader-bookmark-marker-icon').setAttribute('href', isBookmarked ? '#icon-bookmark-filled' : '#icon-bookmark');
+  document.getElementById('reader-bookmark-marker').classList.toggle('bookmarked', isBookmarked);
   document.getElementById('reader-bookmark-marker').title = isBookmarked ? 'Bookmarked — tap to remove' : 'Tap to bookmark this page';
 }
 function readerGoToPage(page){
@@ -5018,11 +5062,16 @@ function hideReaderChrome(){
   clearTimeout(readerChromeHideTimer);
   document.getElementById('reader-head').classList.add('chrome-hidden');
   document.getElementById('reader-foot').classList.add('chrome-hidden');
+  closeReaderPanel('reader-menu-panel', 'reader-menu-btn');
+  closeReaderPanel('reader-toc-panel', 'reader-toc-btn');
 }
 function toggleReaderChrome(){
   if(document.getElementById('reader-head').classList.contains('chrome-hidden')) showReaderChrome();
   else hideReaderChrome();
 }
+document.getElementById('reader-head').addEventListener('transitionend', (e) => {
+  if(e.propertyName === 'max-height') refreshReaderLayout();
+});
 function showReaderResumePrompt(savedPage){
   document.getElementById('reader-resume-text').textContent = `Resume from page ${savedPage+1}?`;
   document.getElementById('reader-resume-btn').onclick = () => {
@@ -5035,17 +5084,45 @@ function hideReaderResumePrompt(){
   document.getElementById('reader-resume-prompt').classList.remove('show');
 }
 
+function positionReaderPanel(panel, btn){
+  const headRect = document.getElementById('reader-head').getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  panel.style.top = headRect.bottom + 'px';
+  if(btn.id === 'reader-menu-btn'){
+    panel.style.left = 'auto';
+    panel.style.right = Math.max(8, window.innerWidth - btnRect.right) + 'px';
+  } else {
+    panel.style.right = 'auto';
+    panel.style.left = Math.max(8, btnRect.left) + 'px';
+  }
+}
+function closeReaderPanel(panelId, btnId){
+  document.getElementById(panelId).classList.remove('open');
+  document.getElementById(btnId).setAttribute('aria-expanded', 'false');
+}
+function toggleReaderPanel(panelId, btnId, otherPanelId, otherBtnId){
+  const panel = document.getElementById(panelId);
+  const btn = document.getElementById(btnId);
+  closeReaderPanel(otherPanelId, otherBtnId);
+  const willOpen = !panel.classList.contains('open');
+  if(willOpen) positionReaderPanel(panel, btn);
+  panel.classList.toggle('open', willOpen);
+  btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
 document.getElementById('reader-menu-btn').addEventListener('click', (e) => {
   e.stopPropagation();
-  const head = document.getElementById('reader-head');
-  const isOpen = head.classList.toggle('menu-open');
-  document.getElementById('reader-menu-btn').setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  toggleReaderPanel('reader-menu-panel', 'reader-menu-btn', 'reader-toc-panel', 'reader-toc-btn');
+});
+document.getElementById('reader-toc-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleReaderPanel('reader-toc-panel', 'reader-toc-btn', 'reader-menu-panel', 'reader-menu-btn');
 });
 document.addEventListener('click', (e) => {
-  const head = document.getElementById('reader-head');
-  if(head.classList.contains('menu-open') && !e.target.closest('#reader-menu-panel') && !e.target.closest('#reader-menu-btn')){
-    head.classList.remove('menu-open');
-    document.getElementById('reader-menu-btn').setAttribute('aria-expanded', 'false');
+  if(!e.target.closest('#reader-menu-panel') && !e.target.closest('#reader-menu-btn')){
+    closeReaderPanel('reader-menu-panel', 'reader-menu-btn');
+  }
+  if(!e.target.closest('#reader-toc-panel') && !e.target.closest('#reader-toc-btn')){
+    closeReaderPanel('reader-toc-panel', 'reader-toc-btn');
   }
 });
 document.getElementById('reader-open-btn').addEventListener('click', openReaderBookSelect);
@@ -5059,25 +5136,18 @@ document.getElementById('reader-back-btn').addEventListener('click', () => {
 document.getElementById('reader-close').addEventListener('click', () => {
   document.getElementById('reader-view').classList.remove('show');
 });
-document.getElementById('reader-font-select').addEventListener('change', (e) => {
-  readerFontFamily = e.target.value;
-  applyReaderStyle();
-  refreshReaderLayout();
+document.querySelectorAll('.reader-font-option').forEach(fontBtn => {
+  fontBtn.addEventListener('click', () => {
+    readerFontFamily = fontBtn.dataset.font;
+    document.querySelectorAll('.reader-font-option').forEach(b => b.classList.toggle('active', b === fontBtn));
+    applyReaderStyle();
+    refreshReaderLayout();
+  });
 });
-document.getElementById('reader-size-select').addEventListener('change', (e) => {
+document.getElementById('reader-size-slider').addEventListener('input', (e) => {
   readerFontSizePt = e.target.value;
   applyReaderStyle();
   refreshReaderLayout();
-});
-document.getElementById('reader-chapter-select').addEventListener('change', (e) => {
-  const idx = parseInt(e.target.value);
-  if(isNaN(idx)) return;
-  if(readerContinuousScroll){
-    const chapterEls = document.querySelectorAll('#reader-page-content .reader-chapter');
-    if(chapterEls[idx]) chapterEls[idx].scrollIntoView({block:'start'});
-  } else if(readerChapterStartPages[idx] !== undefined){
-    readerGoToPage(readerChapterStartPages[idx]);
-  }
 });
 document.querySelectorAll('#reader-menu-tabs .reader-menu-tab').forEach(tabBtn => {
   tabBtn.addEventListener('click', () => {
@@ -5092,8 +5162,10 @@ document.getElementById('reader-scroll-toggle').addEventListener('change', (e) =
 document.getElementById('reader-page-viewport').addEventListener('scroll', () => {
   if(readerContinuousScroll) updateReaderContinuousProgress();
 });
-document.getElementById('reader-head').addEventListener('click', showReaderChrome);
-document.getElementById('reader-head').addEventListener('change', showReaderChrome);
+['reader-head', 'reader-menu-panel', 'reader-toc-panel'].forEach(id => {
+  document.getElementById(id).addEventListener('click', showReaderChrome);
+  document.getElementById(id).addEventListener('change', showReaderChrome);
+});
 document.getElementById('reader-page-viewport').addEventListener('click', (e) => {
   if(readerSwipeHandled){ readerSwipeHandled = false; return; }
   if(e.target.closest('button, select, input, #reader-resume-prompt')) return;
