@@ -358,6 +358,16 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 #reader-size-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
 #reader-size-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
 #reader-size-slider::-moz-range-track{height:4px;background:var(--border);border-radius:2px;}
+/* Brightness control — one shared appBrightness value drives both a reader and an
+   editor slider (they're two separate elements since the panels they live in are never
+   both on screen at once) plus a black scrim overlay in each view. */
+.brightness-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+.brightness-row input[type=range]{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;}
+.brightness-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
+.brightness-row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--bg-alt);}
+.brightness-row input[type=range]::-moz-range-track{height:4px;background:var(--border);border-radius:2px;}
+#editor-brightness-row{width:130px;flex-shrink:0;}
+#reader-brightness-overlay, #editor-brightness-overlay{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20;}
 
 #epub-export-modal .box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px;max-width:340px;width:min(95vw,340px);}
 #epub-export-modal h3{font-family:var(--font-heading);margin:0 0 14px;font-size:15px;letter-spacing:.03em;}
@@ -1368,6 +1378,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <span>Continuous scrolling</span>
         <input type="checkbox" id="reader-scroll-toggle">
       </label>
+      <div id="reader-brightness-row" class="brightness-row">
+        <span aria-hidden="true">🔅</span>
+        <input type="range" id="reader-brightness-slider" title="Brightness" min="20" max="100" step="5" value="100">
+        <span aria-hidden="true">🔆</span>
+      </div>
     </div>
     <button type="button" class="btn small" id="reader-edit-chapter-btn">✎ Edit this chapter</button>
   </div>
@@ -1394,6 +1409,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <input type="range" id="reader-position-slider" min="0" max="0" value="0">
     <div id="reader-progress"></div>
   </div>
+  <div id="reader-brightness-overlay"></div>
 </div>
 
 <div class="modal" id="epub-export-modal">
@@ -1453,6 +1469,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
       </div>
       <button class="btn small" id="version-history-btn">🕐 History</button>
       <button class="btn small" id="editor-view-in-reader-btn">📖 View in Reader</button>
+      <div id="editor-brightness-row" class="brightness-row">
+        <span aria-hidden="true">🔅</span>
+        <input type="range" id="editor-brightness-slider" title="Brightness" min="20" max="100" step="5" value="100">
+        <span aria-hidden="true">🔆</span>
+      </div>
     </div>
     <button class="btn small btn-x" id="editor-close" title="Close">&#215;</button>
   </div>
@@ -1478,6 +1499,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <button class="btn small primary" id="check-bible-btn">⚖ Check against Bible (AI)</button>
     <div id="editor-status"></div>
   </div>
+  <div id="editor-brightness-overlay"></div>
 </div>
 
 <div class="modal" id="annotation-modal">
@@ -5018,6 +5040,24 @@ let readerFontFamily = "'Spectral',serif";
 let readerFontSizePt = '18';
 let readerTextAlign = 'left';
 let readerContinuousScroll = false;
+// Shared between the Reader and Editor: there's no real screen-brightness API available
+// to a web page, so this simulates it with a black scrim over each view. 100 = no scrim
+// (full brightness); the slider bottoms out at 20 rather than 0 so it can't dim to an
+// unreadable/unrecoverable black screen.
+let appBrightness = 100;
+function applyAppBrightness(){
+  const dim = Math.max(0, (100 - appBrightness) / 100) * 0.85;
+  document.getElementById('reader-brightness-overlay').style.opacity = dim;
+  document.getElementById('editor-brightness-overlay').style.opacity = dim;
+}
+function setAppBrightness(value){
+  appBrightness = value;
+  document.getElementById('reader-brightness-slider').value = value;
+  document.getElementById('editor-brightness-slider').value = value;
+  applyAppBrightness();
+}
+document.getElementById('reader-brightness-slider').addEventListener('input', (e) => setAppBrightness(parseInt(e.target.value)));
+document.getElementById('editor-brightness-slider').addEventListener('input', (e) => setAppBrightness(parseInt(e.target.value)));
 let readerCurrentBookIndex = null;
 let readerCurrentPage = 0;
 let readerTotalPages = 1;
@@ -5259,7 +5299,19 @@ function showReaderChrome(){
   document.getElementById('reader-head').classList.remove('chrome-hidden');
   document.getElementById('reader-foot').classList.remove('chrome-hidden');
   clearTimeout(readerChromeHideTimer);
-  readerChromeHideTimer = setTimeout(hideReaderChrome, 3500);
+  readerChromeHideTimer = setTimeout(readerChromeAutoHideTick, 3500);
+}
+// While the Font/Layout or chapter-list dropdown is open, keep deferring the auto-hide
+// instead of closing out from under whatever the user is picking — the countdown only
+// actually starts once both panels are closed again.
+function readerChromeAutoHideTick(){
+  const panelOpen = document.getElementById('reader-menu-panel').classList.contains('open')
+    || document.getElementById('reader-toc-panel').classList.contains('open');
+  if(panelOpen){
+    readerChromeHideTimer = setTimeout(readerChromeAutoHideTick, 3500);
+    return;
+  }
+  hideReaderChrome();
 }
 function hideReaderChrome(){
   clearTimeout(readerChromeHideTimer);
