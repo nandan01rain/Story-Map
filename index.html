@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
-<link rel="preload" as="image" href="assets/auth-bg-environment.png">
+<link rel="preload" as="image" href="assets/auth-bg-environment.webp">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -970,6 +970,17 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   aspect-ratio:853/1844;min-width:100%;min-height:100%;
   pointer-events:none;overflow:hidden;
 }
+/* Everything on this screen is held back until the artwork itself has decoded, then faded
+   in together. The pieces are wildly different sizes, so without this they pop in in size
+   order - the wordmark arriving a second before the scenery it sits on. The gradient
+   placeholder on #auth-screen covers the wait. */
+#auth-env-stage, #auth-compass, #auth-wordmark, #auth-direction{
+  opacity:0;transition:opacity .45s ease;
+}
+#auth-screen.auth-bg-loaded #auth-env-stage,
+#auth-screen.auth-bg-loaded #auth-compass,
+#auth-screen.auth-bg-loaded #auth-wordmark{opacity:1;}
+#auth-screen.auth-bg-loaded #auth-direction{opacity:.85;}
 #auth-env-flat{
   position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
   object-fit:cover;object-position:center;
@@ -1189,8 +1200,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 }
 #auth-direction{
   position:absolute;right:34px;bottom:calc(72px + env(safe-area-inset-bottom));
-  width:56px;height:56px;object-fit:contain;opacity:.85;pointer-events:none;
+  width:56px;height:56px;object-fit:contain;pointer-events:none;
   filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4));
+  /* its .85 resting opacity is set by the load-gate rule above, not here - setting it
+     again at this point in the file would override the gate and make it appear early */
 }
 #auth-screen.revealed{cursor:default;}
 #auth-screen.revealed #auth-bg-tap-hint{display:none;}
@@ -1344,7 +1357,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 </svg>
 <div id="auth-screen">
   <div id="auth-env-stage">
-    <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
+    <img id="auth-env-flat" src="assets/auth-bg-environment.webp" alt="">
     <img id="auth-env-skygrade" src="assets/env-sky-grade.webp?v=3" alt="">
     <div class="auth-env-birdcover" id="auth-env-birdcover-1"><img src="assets/env-birdcover-1.png?v=3" alt=""></div>
     <div class="auth-env-birdcover" id="auth-env-birdcover-2"><img src="assets/env-birdcover-2.png?v=3" alt=""></div>
@@ -1360,10 +1373,10 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="auth-env-bird" id="auth-env-bird-2"><img src="assets/env-bird-2.png?v=3" alt=""></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
-    <img id="auth-compass" src="assets/compass.png" alt="">
-    <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png?v=3" alt="StoryMap">
+    <img id="auth-compass" src="assets/compass.webp" alt="">
+    <img id="auth-wordmark" src="assets/wordmark-storymap-dark.webp" alt="StoryMap">
   </div>
-  <img id="auth-direction" src="assets/directions.png" alt="">
+  <img id="auth-direction" src="assets/directions.webp" alt="">
   <div id="auth-bg-tap-hint">Tap to sign in</div>
   <div id="auth-card">
     <form id="auth-form">
@@ -6643,6 +6656,22 @@ function initApp(){
   window.sbClient = sbClient;
 
   const authScreen = document.getElementById('auth-screen');
+  // Reveal the scenery and the brand together, once the artwork has actually decoded.
+  // The assets differ hugely in size, so left alone they appear in size order and the
+  // wordmark lands about a second before the scene it belongs to. decode() waits for the
+  // image to be ready to paint, not merely downloaded; the catch keeps a decode failure
+  // from leaving the screen stuck on the placeholder gradient.
+  (function revealAuthArtWhenReady(){
+    const art = document.getElementById('auth-env-flat');
+    const show = () => authScreen.classList.add('auth-bg-loaded');
+    if (art.complete && art.naturalWidth) {
+      (art.decode ? art.decode().then(show).catch(show) : Promise.resolve().then(show));
+    } else {
+      art.addEventListener('load', () => (art.decode ? art.decode().then(show).catch(show) : show()), { once:true });
+      art.addEventListener('error', show, { once:true });
+    }
+    setTimeout(show, 4000); // hard backstop: never leave the screen blank on a slow network
+  })();
   const authCard = document.getElementById('auth-card');
   const projectScreen = document.getElementById('project-screen');
   const appRoot = document.getElementById('app');
