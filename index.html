@@ -987,47 +987,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .motion-on .auth-env-fx{opacity:1;}
 .auth-env-fx > i{position:absolute;display:block;will-change:transform;}
 
-/* Atmosphere: a soft warm pool of light drifting across the sky, modulating the existing
-   cloud color rather than sitting on it as a visible shape. Kept small and low-alpha on
-   purpose — a large/strong version lifts the whole sky and washes out the deep oranges. */
-#auth-env-atmosphere{
-  top:0;height:52%;mix-blend-mode:overlay;
-}
-/* Painted clouds can't actually move, and a drifting glow over them has the same
-   no-edge-to-track problem the water sheen did. A slow brightness swell does read,
-   because the change itself is the cue rather than motion across the frame — so the sky
-   gets a long opacity pulse on top of the drift. Gated on .motion-on: an opacity
-   animation would otherwise override .auth-env-fx's opacity:0 and leak through when
-   motion is off, breaking the identical-static-fallback requirement. */
-.motion-on #auth-env-atmosphere{animation:auth-sky-breathe 38s ease-in-out infinite;}
-@keyframes auth-sky-breathe{0%,100%{opacity:.55;}50%{opacity:1;}}
-#auth-env-atmosphere > i{
-  top:-34%;left:-58%;width:216%;height:168%;
-  background:radial-gradient(ellipse 34% 30% at 50% 45%, rgba(255,206,138,0.40), rgba(255,190,120,0.14) 48%, transparent 74%);
-  animation:auth-atmosphere-drift 74s ease-in-out infinite alternate;
-}
-/* NB: translate percentages resolve against the *child's* own size, which is >2x the
-   window. The ranges below are solved so the gradient's bright centre travels across the
-   visible frame (roughly 5%..95% of the window) — a naive 0..50% would shove it a full
-   screen-width off to the right, where it can't be seen. Child is 216% wide at left:-58%,
-   so peak_x = 50% + 2.16*T; T = -21%..21% puts peak_x at 5%..95%. */
-@keyframes auth-atmosphere-drift{
-  0%{transform:translate3d(-21%,0%,0);}
-  100%{transform:translate3d(21%,6%,0);}
-}
-/* A second, slower haze pass at a different rate and direction — two independent drifts
-   beating against each other keep the sky from reading as one sliding gradient. */
-#auth-env-haze{top:0;height:46%;mix-blend-mode:soft-light;}
-#auth-env-haze > i{
-  top:-38%;left:-50%;width:196%;height:178%;
-  background:radial-gradient(ellipse 30% 26% at 50% 50%, rgba(255,236,200,0.30), transparent 72%);
-  animation:auth-haze-drift 113s ease-in-out infinite alternate;
-}
-/* child 196% wide at left:-50% -> peak_x = 48% + 1.96*T; T = 21%..-19% sweeps 90%..10% */
-@keyframes auth-haze-drift{
-  0%{transform:translate3d(21%,4%,0);}
-  100%{transform:translate3d(-19%,-2%,0);}
-}
+/* NOTE: there is deliberately no sky/atmosphere effect. Two were tried and both removed.
+   A painted cloud cannot move, so all an overlay can do is change the light level over it,
+   and a level change with no edge to track is essentially imperceptible - confirmed by
+   three viewers. Worse, the warm overlays needed to make it noticeable at all tinted the
+   whole frame yellow and flattened the purple in the upper sky, which is one of the best
+   things about the artwork. Static sky with its original contrast beats a tint nobody can
+   see moving. Real sky motion would need a genuine transparent cloud layer, i.e. new art
+   extracted from this image - not another overlay. */
 
 /* Water: fine ripple bands drifting down the bay. This is the only thing that actually
    reads as movement — a broad soft gradient sliding across the water is imperceptible no
@@ -1077,7 +1044,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    half size. Animations are gated on .motion-on because an opacity animation would
    otherwise override .auth-env-fx's opacity:0 and leak through with motion disabled. */
 .auth-env-lights{
-  inset:0;background:rgba(255,190,104,0.55);mix-blend-mode:screen;
+  inset:0;background:rgba(255,182,96,0.72);mix-blend-mode:screen;
   -webkit-mask-size:100% 100%;mask-size:100% 100%;
   -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
 }
@@ -1087,9 +1054,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .motion-on #auth-env-lights-1{animation:auth-twinkle 5.3s ease-in-out infinite;}
 .motion-on #auth-env-lights-2{animation:auth-twinkle 7.1s ease-in-out infinite -2.6s;}
 .motion-on #auth-env-lights-3{animation:auth-twinkle 9.7s ease-in-out infinite -5.1s;}
-/* uneven stops so it reads as flickering lamplight rather than a smooth sine fade */
+/* uneven stops so it reads as flickering lamplight rather than a smooth sine fade. The
+   swing is wide (0.10 -> 1) on purpose: a narrow range was reported as barely noticeable,
+   and what makes a twinkle read is the contrast between dim and bright, not the peak. */
 @keyframes auth-twinkle{
-  0%{opacity:.30;}22%{opacity:.85;}41%{opacity:.45;}63%{opacity:.95;}82%{opacity:.38;}100%{opacity:.30;}
+  0%{opacity:.10;}19%{opacity:.68;}34%{opacity:.22;}52%{opacity:.60;}68%{opacity:.14;}84%{opacity:.48;}100%{opacity:.10;}
 }
 
 /* Ships — each is a patch cut from the canonical image containing the ship, its masts and
@@ -1121,6 +1090,34 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 @keyframes auth-bob-c{
   0%,100%{transform:translate3d(0,-1.2%,0) rotate(0.22deg);}
   50%{transform:translate3d(0,1.2%,0) rotate(-0.22deg);}
+}
+
+/* Birds — the one element that has to move, since a frozen bird in mid-air breaks the
+   whole illusion. Unlike the ships they travel too far for the patch trick (the original
+   would ghost out from under it), so each bird is genuinely lifted off the artwork:
+   a cover patch of inpainted sky hides the painted bird, and a cut-out sprite flies over
+   the top. The sky behind them was reconstructed by inward diffusion, and the bird masks
+   key on |luminance - local background| rather than darkness alone, because the lit tops
+   of the wings are brighter than the sky, not darker - keying on dark only left wing
+   traces behind.
+   Both cover and sprite are gated on .motion-on, so with motion off the artwork shows its
+   own birds exactly where they were painted. Long ease-in-out alternate periods read as
+   soaring rather than as a shuttle. */
+.auth-env-birdcover, .auth-env-bird{position:absolute;pointer-events:none;opacity:0;}
+.motion-on .auth-env-birdcover, .motion-on .auth-env-bird{opacity:1;}
+#auth-env-birdcover-1, #auth-env-bird-1{left:69.4%;top:13.4%;width:12.1%;height:6.6%;}
+#auth-env-birdcover-2, #auth-env-bird-2{left:60.6%;top:31.2%;width:10.8%;height:4.8%;}
+.auth-env-birdcover > img, .auth-env-bird > img{width:100%;height:100%;display:block;}
+.auth-env-bird > img{will-change:transform;}
+.motion-on #auth-env-bird-1 > img{animation:auth-glide-1 31s ease-in-out infinite alternate;}
+.motion-on #auth-env-bird-2 > img{animation:auth-glide-2 43s ease-in-out infinite alternate;}
+@keyframes auth-glide-1{
+  0%{transform:translate3d(6%,4%,0) rotate(1.1deg);}
+  100%{transform:translate3d(-124%,-16%,0) rotate(-1.6deg);}
+}
+@keyframes auth-glide-2{
+  0%{transform:translate3d(-4%,2%,0) rotate(-0.9deg);}
+  100%{transform:translate3d(108%,-13%,0) rotate(1.4deg);}
 }
 
 /* Lanterns: two small warm glows over the existing lantern positions, flickering with
@@ -1322,8 +1319,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 <div id="auth-screen">
   <div id="auth-env-stage">
     <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
-    <div class="auth-env-fx" id="auth-env-atmosphere"><i></i></div>
-    <div class="auth-env-fx" id="auth-env-haze"><i></i></div>
+    <div class="auth-env-birdcover" id="auth-env-birdcover-1"><img src="assets/env-birdcover-1.png" alt=""></div>
+    <div class="auth-env-birdcover" id="auth-env-birdcover-2"><img src="assets/env-birdcover-2.png" alt=""></div>
     <div class="auth-env-fx" id="auth-env-ripple"><i></i></div>
     <div class="auth-env-fx" id="auth-env-ripple2"><i></i></div>
     <div class="auth-env-fx auth-env-lights" id="auth-env-lights-1"></div>
@@ -1332,6 +1329,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="auth-env-ship" id="auth-env-ship-a"><img src="assets/env-ship-a.png" alt=""></div>
     <div class="auth-env-ship" id="auth-env-ship-b"><img src="assets/env-ship-b.png" alt=""></div>
     <div class="auth-env-ship" id="auth-env-ship-c"><img src="assets/env-ship-c.png" alt=""></div>
+    <div class="auth-env-bird" id="auth-env-bird-1"><img src="assets/env-bird-1.png" alt=""></div>
+    <div class="auth-env-bird" id="auth-env-bird-2"><img src="assets/env-bird-2.png" alt=""></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
   </div>
