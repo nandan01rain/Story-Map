@@ -2,7 +2,7 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v2';
+const CACHE_VERSION = 'storymap-shell-v3';
 
 const APP_SHELL_PATHS = [
   './',
@@ -33,7 +33,18 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (!APP_SHELL_URLS.includes(event.request.url)) return; // let everything else (Supabase, CDN, fonts) hit the network normally
 
+  // Network-first for the app shell, falling back to cache when offline. This used to be
+  // cache-first, which meant a returning user kept running whatever index.html was cached
+  // at install time and never saw a deploy until CACHE_VERSION happened to change — the
+  // cause of repeatedly "not seeing" shipped changes. Offline still works: the fetch
+  // rejects and we serve the cached copy.
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

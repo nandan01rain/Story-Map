@@ -987,7 +987,22 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .motion-on .auth-env-fx{opacity:1;}
 .auth-env-fx > i{position:absolute;display:block;will-change:transform;}
 
-/* NOTE: there is deliberately no sky/atmosphere effect. Two were tried and both removed.
+/* Sky grade — NOT an animation. The painted sky is very warm (red exceeds blue by up to
+   154), and warm lamplight on a warm field has almost no contrast, so the twinkling
+   lights had nothing to read against. This cools the sky back toward the violet the
+   artwork has in its upper corners, pulls back the yellow saturation and adds a little
+   contrast, while explicitly protecting the sun and its bloom so they stay golden. The
+   mask is bright-sky-only, so the dark city and mountain silhouettes keep their original
+   colour and gain contrast against the cooler sky behind them.
+   Deliberately always on, not gated on .motion-on: this is the intended look now, not an
+   effect, so it applies to the static fallback too. Shipped as a cropped WebP (~170KB);
+   the full-frame PNG was 2.7MB, which is not worth it on a phone. */
+#auth-env-skygrade{
+  position:absolute;top:0;left:0;width:100%;height:50%;
+  pointer-events:none;object-fit:fill;
+}
+
+/* NOTE: there is deliberately no *animated* sky effect. Two were tried and both removed.
    A painted cloud cannot move, so all an overlay can do is change the light level over it,
    and a level change with no edge to track is essentially imperceptible - confirmed by
    three viewers. Worse, the warm overlays needed to make it noticeable at all tinted the
@@ -1013,8 +1028,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    applied at full-stage size so its coordinates line up with the artwork exactly. */
 #auth-env-ripple, #auth-env-ripple2{
   inset:0;
-  -webkit-mask-image:url('assets/env-water-mask.png');
-  mask-image:url('assets/env-water-mask.png');
+  -webkit-mask-image:url('assets/env-water-mask.png?v=3');
+  mask-image:url('assets/env-water-mask.png?v=3');
   -webkit-mask-size:100% 100%;
   mask-size:100% 100%;
   -webkit-mask-repeat:no-repeat;
@@ -1024,14 +1039,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-env-ripple{mix-blend-mode:overlay;}
 #auth-env-ripple > i{
   background:repeating-linear-gradient(179deg,
-    rgba(255,252,238,0) 0px, rgba(255,252,238,0.17) 3px, rgba(255,252,238,0) 9px);
-  animation:auth-ripple-a 3.1s linear infinite;
+    rgba(255,252,238,0) 0px, rgba(255,252,238,0.30) 3px, rgba(255,252,238,0) 9px);
+  animation:auth-ripple-a 2.6s linear infinite;
 }
 #auth-env-ripple2{mix-blend-mode:soft-light;}
 #auth-env-ripple2 > i{
   background:repeating-linear-gradient(181deg,
-    rgba(255,246,222,0) 0px, rgba(255,246,222,0.20) 4px, rgba(255,246,222,0) 14px);
-  animation:auth-ripple-b 4.7s linear infinite;
+    rgba(255,246,222,0) 0px, rgba(255,246,222,0.34) 4px, rgba(255,246,222,0) 14px);
+  animation:auth-ripple-b 3.9s linear infinite;
 }
 @keyframes auth-ripple-a{from{transform:translate3d(0,0,0);}to{transform:translate3d(0,9px,0);}}
 @keyframes auth-ripple-b{from{transform:translate3d(0,0,0);}to{transform:translate3d(0,14px,0);}}
@@ -1044,13 +1059,13 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    half size. Animations are gated on .motion-on because an opacity animation would
    otherwise override .auth-env-fx's opacity:0 and leak through with motion disabled. */
 .auth-env-lights{
-  inset:0;background:rgba(255,182,96,0.72);mix-blend-mode:screen;
+  inset:0;background:rgba(255,196,112,0.95);mix-blend-mode:screen;
   -webkit-mask-size:100% 100%;mask-size:100% 100%;
   -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
 }
-#auth-env-lights-1{-webkit-mask-image:url('assets/env-lights-1.png');mask-image:url('assets/env-lights-1.png');}
-#auth-env-lights-2{-webkit-mask-image:url('assets/env-lights-2.png');mask-image:url('assets/env-lights-2.png');}
-#auth-env-lights-3{-webkit-mask-image:url('assets/env-lights-3.png');mask-image:url('assets/env-lights-3.png');}
+#auth-env-lights-1{-webkit-mask-image:url('assets/env-lights-1.png?v=3');mask-image:url('assets/env-lights-1.png?v=3');}
+#auth-env-lights-2{-webkit-mask-image:url('assets/env-lights-2.png?v=3');mask-image:url('assets/env-lights-2.png?v=3');}
+#auth-env-lights-3{-webkit-mask-image:url('assets/env-lights-3.png?v=3');mask-image:url('assets/env-lights-3.png?v=3');}
 .motion-on #auth-env-lights-1{animation:auth-twinkle 5.3s ease-in-out infinite;}
 .motion-on #auth-env-lights-2{animation:auth-twinkle 7.1s ease-in-out infinite -2.6s;}
 .motion-on #auth-env-lights-3{animation:auth-twinkle 9.7s ease-in-out infinite -5.1s;}
@@ -1058,7 +1073,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    swing is wide (0.10 -> 1) on purpose: a narrow range was reported as barely noticeable,
    and what makes a twinkle read is the contrast between dim and bright, not the peak. */
 @keyframes auth-twinkle{
-  0%{opacity:.10;}19%{opacity:.68;}34%{opacity:.22;}52%{opacity:.60;}68%{opacity:.14;}84%{opacity:.48;}100%{opacity:.10;}
+  0%{opacity:.08;}19%{opacity:.95;}34%{opacity:.24;}52%{opacity:.82;}68%{opacity:.14;}84%{opacity:.66;}100%{opacity:.08;}
 }
 
 /* Ships — each is a patch cut from the canonical image containing the ship, its masts and
@@ -1080,16 +1095,16 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .motion-on #auth-env-ship-b > img{animation:auth-bob-b 5.6s ease-in-out infinite -1.7s;}
 .motion-on #auth-env-ship-c > img{animation:auth-bob-c 3.7s ease-in-out infinite -0.9s;}
 @keyframes auth-bob-a{
-  0%,100%{transform:translate3d(0,-1.6%,0) rotate(-0.30deg);}
-  50%{transform:translate3d(0,1.6%,0) rotate(0.30deg);}
+  0%,100%{transform:translate3d(0,-3.0%,0) rotate(-0.62deg);}
+  50%{transform:translate3d(0,3.0%,0) rotate(0.62deg);}
 }
 @keyframes auth-bob-b{
-  0%,100%{transform:translate3d(0,1.5%,0) rotate(0.34deg);}
-  50%{transform:translate3d(0,-1.5%,0) rotate(-0.34deg);}
+  0%,100%{transform:translate3d(0,2.8%,0) rotate(0.68deg);}
+  50%{transform:translate3d(0,-2.8%,0) rotate(-0.68deg);}
 }
 @keyframes auth-bob-c{
-  0%,100%{transform:translate3d(0,-1.2%,0) rotate(0.22deg);}
-  50%{transform:translate3d(0,1.2%,0) rotate(-0.22deg);}
+  0%,100%{transform:translate3d(0,-2.2%,0) rotate(0.46deg);}
+  50%{transform:translate3d(0,2.2%,0) rotate(-0.46deg);}
 }
 
 /* Birds — the one element that has to move, since a frozen bird in mid-air breaks the
@@ -1106,11 +1121,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .auth-env-birdcover, .auth-env-bird{position:absolute;pointer-events:none;opacity:0;}
 .motion-on .auth-env-birdcover, .motion-on .auth-env-bird{opacity:1;}
 #auth-env-birdcover-1, #auth-env-bird-1{left:69.4%;top:13.4%;width:12.1%;height:6.6%;}
-#auth-env-birdcover-2, #auth-env-bird-2{left:60.6%;top:31.2%;width:10.8%;height:4.8%;}
+#auth-env-birdcover-2, #auth-env-bird-2{left:61.2%;top:31.5%;width:9.6%;height:4.3%;}
 .auth-env-birdcover > img, .auth-env-bird > img{width:100%;height:100%;display:block;}
 .auth-env-bird > img{will-change:transform;}
-.motion-on #auth-env-bird-1 > img{animation:auth-glide-1 31s ease-in-out infinite alternate;}
-.motion-on #auth-env-bird-2 > img{animation:auth-glide-2 43s ease-in-out infinite alternate;}
+.motion-on #auth-env-bird-1 > img{animation:auth-glide-1 21s ease-in-out infinite alternate;}
+.motion-on #auth-env-bird-2 > img{animation:auth-glide-2 29s ease-in-out infinite alternate;}
 @keyframes auth-glide-1{
   0%{transform:translate3d(6%,4%,0) rotate(1.1deg);}
   100%{transform:translate3d(-124%,-16%,0) rotate(-1.6deg);}
@@ -1319,8 +1334,9 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 <div id="auth-screen">
   <div id="auth-env-stage">
     <img id="auth-env-flat" src="assets/auth-bg-environment.png" alt="">
-    <div class="auth-env-birdcover" id="auth-env-birdcover-1"><img src="assets/env-birdcover-1.png" alt=""></div>
-    <div class="auth-env-birdcover" id="auth-env-birdcover-2"><img src="assets/env-birdcover-2.png" alt=""></div>
+    <img id="auth-env-skygrade" src="assets/env-sky-grade.webp?v=3" alt="">
+    <div class="auth-env-birdcover" id="auth-env-birdcover-1"><img src="assets/env-birdcover-1.png?v=3" alt=""></div>
+    <div class="auth-env-birdcover" id="auth-env-birdcover-2"><img src="assets/env-birdcover-2.png?v=3" alt=""></div>
     <div class="auth-env-fx" id="auth-env-ripple"><i></i></div>
     <div class="auth-env-fx" id="auth-env-ripple2"><i></i></div>
     <div class="auth-env-fx auth-env-lights" id="auth-env-lights-1"></div>
@@ -1329,8 +1345,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="auth-env-ship" id="auth-env-ship-a"><img src="assets/env-ship-a.png" alt=""></div>
     <div class="auth-env-ship" id="auth-env-ship-b"><img src="assets/env-ship-b.png" alt=""></div>
     <div class="auth-env-ship" id="auth-env-ship-c"><img src="assets/env-ship-c.png" alt=""></div>
-    <div class="auth-env-bird" id="auth-env-bird-1"><img src="assets/env-bird-1.png" alt=""></div>
-    <div class="auth-env-bird" id="auth-env-bird-2"><img src="assets/env-bird-2.png" alt=""></div>
+    <div class="auth-env-bird" id="auth-env-bird-1"><img src="assets/env-bird-1.png?v=3" alt=""></div>
+    <div class="auth-env-bird" id="auth-env-bird-2"><img src="assets/env-bird-2.png?v=3" alt=""></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
   </div>
