@@ -1141,7 +1141,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    left flame at 7.2% / 76.5%, right at 92.0% / 73.8%. These are percentages of
    #auth-env-stage, i.e. of the image itself, not the viewport. */
 .auth-lantern-glow{position:absolute;width:11%;aspect-ratio:1;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle, rgba(255,196,104,0.85) 0%, rgba(255,176,80,0.42) 32%, transparent 68%);
+  background:radial-gradient(circle, rgba(255,203,118,0.96) 0%, rgba(255,182,88,0.50) 32%, transparent 68%);
   mix-blend-mode:screen;opacity:0;transform:translate(-50%,-50%) scale(1);}
 .motion-on .auth-lantern-glow{animation:auth-lantern-flicker 3.7s ease-in-out infinite;}
 #auth-lantern-glow-1{left:7.2%;top:76.5%;}
@@ -1166,14 +1166,25 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    background art, not baked into the photo, so the environment can change (day/night,
    later a full panorama) without touching these. Only the compass is meant to eventually
    rotate with device orientation — the wordmark and direction indicator stay fixed. */
+/* Compass and wordmark live INSIDE #auth-env-stage and are sized/positioned as
+   percentages of it, i.e. of the artwork, not the viewport. They used to be fixed px
+   offsets against the viewport, which drifted two ways between devices: the artwork is
+   object-fit:cover so it crops differently per aspect ratio (moving the horizon relative
+   to the title), and a fixed 72px/220px is a different fraction of a 375px pane than of a
+   412px phone (making them look bigger on a narrow screen). Anchoring to the stage keeps
+   the title in the same place in the scene everywhere. Values derived from the phone
+   layout, which is the reference.
+   The direction indicator stays viewport-anchored below - it is a screen-corner element,
+   not part of the scene, and locking it to the artwork would push it out of frame on a
+   wide screen. */
 #auth-compass{
-  position:absolute;top:10%;left:50%;transform:translateX(-50%);
-  width:72px;height:72px;object-fit:contain;pointer-events:none;
+  position:absolute;top:17.4%;left:50%;transform:translateX(-50%);
+  width:17.5%;object-fit:contain;pointer-events:none;
   filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
 }
 #auth-wordmark{
-  position:absolute;top:calc(10% + 86px);left:50%;transform:translateX(-50%);
-  width:min(220px, 62vw);object-fit:contain;pointer-events:none;
+  position:absolute;top:27.0%;left:50%;transform:translateX(-50%);
+  width:53.4%;object-fit:contain;pointer-events:none;
   filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
 }
 #auth-direction{
@@ -1349,9 +1360,9 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="auth-env-bird" id="auth-env-bird-2"><img src="assets/env-bird-2.png?v=3" alt=""></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
     <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
+    <img id="auth-compass" src="assets/compass.png" alt="">
+    <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png?v=3" alt="StoryMap">
   </div>
-  <img id="auth-compass" src="assets/compass.png" alt="">
-  <img id="auth-wordmark" src="assets/wordmark-storymap-dark.png" alt="StoryMap">
   <img id="auth-direction" src="assets/directions.png" alt="">
   <div id="auth-bg-tap-hint">Tap to sign in</div>
   <div id="auth-card">
