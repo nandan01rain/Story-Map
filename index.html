@@ -4553,14 +4553,15 @@ function updateWelcomeGreeting(user){
    One account-wide on/off switch (also stored in user_metadata) for every animated
    surface the app has or will have — the sign-in/landing scenery, the living map, etc.
    Each such surface just checks the same `motion-on` class on <html> instead of having
-   its own toggle. Defaults off; an explicit "on" from the user overrides the OS's
-   prefers-reduced-motion, since that's an informed choice rather than an accident. */
-let appMotionEnabled = false;
+   its own toggle. Defaults on; motion_enabled is only ever absent for an account that
+   hasn't touched the toggle yet, so absence means "on" and only an explicit false means
+   "off" — the user can still turn it off in Settings if they prefer reduced motion. */
+let appMotionEnabled = true;
 function applyMotionPreference(){
   document.documentElement.classList.toggle('motion-on', appMotionEnabled);
 }
 function setMotionPreference(user){
-  appMotionEnabled = !!(user && user.user_metadata && user.user_metadata.motion_enabled);
+  appMotionEnabled = !(user && user.user_metadata && user.user_metadata.motion_enabled === false);
   applyMotionPreference();
   localStorage.setItem('storymap-motion-enabled', appMotionEnabled ? '1' : '0');
 }
@@ -4603,7 +4604,7 @@ async function openAccountSettingsModal(){
   document.getElementById('profile-name-input').value = meta.display_name || '';
   document.getElementById('profile-birthday-input').value = meta.birthday || '';
   renderOccasionsList(meta.special_occasions);
-  document.getElementById('motion-toggle-input').checked = !!meta.motion_enabled;
+  document.getElementById('motion-toggle-input').checked = meta.motion_enabled !== false;
   document.getElementById('account-settings-modal').classList.add('show');
 }
 document.getElementById('profile-occasion-add-btn').addEventListener('click', () => addOccasionRow('', ''));
@@ -6646,9 +6647,9 @@ function initApp(){
   // The account-wide motion preference (see setMotionPreference below) isn't known until
   // after login, but the auth screen's own layered environment needs to decide whether to
   // animate before that — so it falls back to the last-known value cached here, same
-  // pattern as "remember me" above. First-time visitors default off, matching the
+  // pattern as "remember me" above. First-time visitors default on, matching the
   // account-level default.
-  document.documentElement.classList.toggle('motion-on', localStorage.getItem('storymap-motion-enabled') === '1');
+  document.documentElement.classList.toggle('motion-on', localStorage.getItem('storymap-motion-enabled') !== '0');
   const rememberMeDefault = localStorage.getItem('storymap-remember-me') !== 'false';
   const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { storage: rememberMeDefault ? window.localStorage : window.sessionStorage }
