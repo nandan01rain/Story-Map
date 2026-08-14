@@ -7012,7 +7012,24 @@ function initApp(){
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch((err) => {
+    navigator.serviceWorker.register('service-worker.js').then((reg) => {
+      // Reload once a new worker takes control, so an already-open (esp. installed) app
+      // picks up a fresh deploy instead of silently running the old cached shell.
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        reloading = true;
+        window.location.reload();
+      });
+
+      // Browsers only check service-worker.js for changes on navigation, and often not on
+      // every one. Force a check on load and whenever the app regains focus (the common
+      // case for an installed PWA that was already open in the background).
+      reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    }).catch((err) => {
       console.error('Service worker registration failed:', err);
     });
   });
