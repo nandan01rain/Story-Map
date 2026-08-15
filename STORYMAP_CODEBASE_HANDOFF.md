@@ -1687,16 +1687,26 @@ below applies to them yet.
   already-existing `wordmark-storymap-gold.webp` when `authTimeMode ===
   'night'` — the dark wordmark was illegible against night's near-black
   sky. Day and sunset keep the dark version, unchanged.
-- **Live compass**: `#auth-compass` rotates to track the device's real
-  magnetometer heading, same across all three modes — pure CSS rotation
-  layered on top of whichever background is showing, no mode-specific
-  logic needed. Reads `event.webkitCompassHeading` on iOS Safari, falls
-  back to `deviceorientationabsolute`'s `alpha` (adjusted by
+- **Live compass, tap-to-toggle**: `#auth-compass` defaults to the
+  artwork's own resting orientation (no rotation) and is not tied to the
+  sheet-reveal gesture at all — an earlier pass in this session did auto-
+  start it on reveal, changed after user feedback that it shouldn't spin
+  (and request a sensor permission) the moment the screen opens. Tapping
+  the emblem itself (`pointer-events:auto`, was `none`) toggles live
+  heading tracking on; a second tap stops it and snaps both the emblem
+  and the `#auth-direction` N/W-E/S corner reference (which follows the
+  same reading while tracking) back to that default. `e.stopPropagation()`
+  on the compass's own click handler keeps the tap from also toggling the
+  sign-in sheet underneath it. Reads `event.webkitCompassHeading` on iOS
+  Safari, falls back to `deviceorientationabsolute`'s `alpha` (adjusted by
   `screen.orientation.angle`) elsewhere. iOS 13+'s
   `DeviceOrientationEvent.requestPermission()` must fire inside a direct
-  user gesture, so it's requested from the same tap/swipe reveal gesture
-  as the geolocation refresh above (`requestCompassAccess()`,
-  `index.html` near `requestGeoRefresh()`), not on cold load.
+  user gesture — satisfied by the tap itself, requested from
+  `requestCompassAccess()` inside the compass's click handler
+  (`index.html`, near `attachCompassListener()`/`detachCompassListener()`).
+  Same behavior across all three day/night/sunset modes — pure rotation
+  layered on top of whichever background is showing, no mode-specific
+  logic needed.
 - **Not done**: the landing page and writing app still don't read
   `authTimeMode`/`resolveCurrentTimeMode()` at all — §13's original open
   questions (shared switch architecture across all three surfaces, what
