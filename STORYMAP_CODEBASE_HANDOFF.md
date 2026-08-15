@@ -1683,6 +1683,20 @@ below applies to them yet.
   picks from `{day:'#6b95bb', night:'#050c19', sunset:'#6b5a6e'}` (sampled
   from each image's own top-strip average color) instead of the old
   hardcoded sunset-only value.
+- **Gold wordmark for night mode**: `#auth-wordmark`'s src swaps to the
+  already-existing `wordmark-storymap-gold.webp` when `authTimeMode ===
+  'night'` — the dark wordmark was illegible against night's near-black
+  sky. Day and sunset keep the dark version, unchanged.
+- **Live compass**: `#auth-compass` rotates to track the device's real
+  magnetometer heading, same across all three modes — pure CSS rotation
+  layered on top of whichever background is showing, no mode-specific
+  logic needed. Reads `event.webkitCompassHeading` on iOS Safari, falls
+  back to `deviceorientationabsolute`'s `alpha` (adjusted by
+  `screen.orientation.angle`) elsewhere. iOS 13+'s
+  `DeviceOrientationEvent.requestPermission()` must fire inside a direct
+  user gesture, so it's requested from the same tap/swipe reveal gesture
+  as the geolocation refresh above (`requestCompassAccess()`,
+  `index.html` near `requestGeoRefresh()`), not on cold load.
 - **Not done**: the landing page and writing app still don't read
   `authTimeMode`/`resolveCurrentTimeMode()` at all — §13's original open
   questions (shared switch architecture across all three surfaces, what
