@@ -1212,7 +1212,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
    wide screen. */
 #auth-compass{
   position:absolute;top:17.4%;left:50%;transform:translateX(-50%);
-  width:17.5%;object-fit:contain;pointer-events:none;
+  width:17.5%;object-fit:contain;pointer-events:auto;cursor:pointer;
   filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
   transition:transform .25s linear;
 }
@@ -6780,15 +6780,18 @@ function requestGeoRefresh(){
   });
   window.sbClient = sbClient;
 
-  // Live compass: the emblem above the wordmark rotates to track true north via the
-  // device's magnetometer, same across all three day/night/sunset modes (purely a
-  // rotation on top of whichever background is showing, no mode-specific behavior
-  // needed). iOS 13+ gates this sensor behind an explicit permission prompt that must
-  // fire inside a direct user gesture — same constraint as the geolocation refresh
-  // below, so it's requested from the same tap/swipe reveal gesture rather than on cold
-  // load. Android/desktop Chrome need no such prompt, just an event listener.
-  let compassAccessRequested = false;
+  // Live compass: resting state is the artwork's own default (one point straight up, no
+  // rotation) — tapping the emblem itself toggles live tracking on (rotating to track true
+  // north via the device's magnetometer, the N/W-E/S corner reference following the same
+  // reading) and a second tap stops it and snaps back to that default. Not tied to the
+  // reveal gesture at all, on purpose — it's an opt-in toy, not something that should start
+  // spinning (and prompt for a sensor permission) the moment the screen opens. Same
+  // behavior across all three day/night/sunset modes.
+  let compassTracking = false;
   let compassListenerAttached = false;
+  let compassEventName = null;
+  let compassEventHandler = null;
+  let compassPermissionRequested = false;
   function headingFromOrientationEvent(event){
     if(typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)){
       return event.webkitCompassHeading; // iOS Safari: already a true-north heading
@@ -6816,23 +6819,45 @@ function requestGeoRefresh(){
     const direction = document.getElementById('auth-direction');
     if(direction) direction.style.transform = 'rotate(' + (-heading) + 'deg)';
   }
+  function resetCompassToDefault(){
+    const emblem = document.getElementById('auth-compass');
+    if(emblem) emblem.style.transform = 'translateX(-50%) rotate(0deg)';
+    const direction = document.getElementById('auth-direction');
+    if(direction) direction.style.transform = 'rotate(0deg)';
+  }
   function attachCompassListener(){
     if(compassListenerAttached) return;
     compassListenerAttached = true;
-    const eventName = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
-    window.addEventListener(eventName, (event) => applyCompassHeading(headingFromOrientationEvent(event)));
+    compassEventName = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    compassEventHandler = (event) => { if(compassTracking) applyCompassHeading(headingFromOrientationEvent(event)); };
+    window.addEventListener(compassEventName, compassEventHandler);
+  }
+  function detachCompassListener(){
+    if(!compassListenerAttached) return;
+    compassListenerAttached = false;
+    window.removeEventListener(compassEventName, compassEventHandler);
+    compassEventHandler = null;
   }
   function requestCompassAccess(){
-    if(compassAccessRequested) return;
-    compassAccessRequested = true;
     if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      if(compassPermissionRequested){ attachCompassListener(); return; } // already granted earlier this load
+      compassPermissionRequested = true;
       DeviceOrientationEvent.requestPermission().then((state) => {
         if(state === 'granted') attachCompassListener();
-      }).catch(() => {});
+        else compassTracking = false; // denied — can't actually track, un-toggle
+      }).catch(() => { compassTracking = false; });
     } else if('DeviceOrientationEvent' in window){
       attachCompassListener();
+    } else {
+      compassTracking = false; // no sensor support at all
     }
   }
+  document.getElementById('auth-compass').addEventListener('click', (e) => {
+    e.stopPropagation(); // tapping the compass toggles the compass, not the sign-in sheet
+    compassTracking = !compassTracking;
+    if(compassTracking) requestCompassAccess();
+    else { detachCompassListener(); resetCompassToDefault(); }
+  });
 
   const authScreen = document.getElementById('auth-screen');
   // Picks day/night/sunset once, up front, before the reveal-on-decode logic below even
@@ -6910,7 +6935,6 @@ function requestGeoRefresh(){
       // context would just be a scary permission prompt for a background-image choice.
       // Only refines the *next* load's day/night pick (see requestGeoRefresh() above).
       requestGeoRefresh();
-      requestCompassAccess();
     } else if(!e.target.closest('#auth-card')){
       authScreen.classList.remove('revealed');
     }
@@ -6948,7 +6972,6 @@ function requestGeoRefresh(){
     } else if(!revealed && dy < -AUTH_SWIPE_THRESHOLD){
       authScreen.classList.add('revealed');
       requestGeoRefresh();
-      requestCompassAccess();
     }
     authTouchStartY = null;
     authTouchCardDrag = false;
