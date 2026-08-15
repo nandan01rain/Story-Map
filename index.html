@@ -1234,35 +1234,40 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-card.dragging{transition:none;}
 #auth-screen.revealed #auth-card{transform:translateY(0);opacity:1;}
 #auth-form{display:flex;flex-direction:column;gap:11px;}
-#auth-form label{font-family:var(--font-mono);font-size:10px;color:var(--ph-text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;display:block;}
+/* Everything on this glass sheet reads on a white/gold scheme now instead of the dark-
+   ink-on-parchment one the fields/buttons were designed for — plain text and field
+   content in near-white, anything actionable (links, the submit label) in gold, so it
+   stays legible regardless of what part of the artwork happens to sit behind it. */
+#auth-form label{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;display:block;}
 .auth-input-wrap{position:relative;display:flex;align-items:center;}
-.auth-input-icon{position:absolute;left:11px;width:14px;height:14px;color:var(--ph-text-dim);pointer-events:none;flex-shrink:0;}
-#auth-form input{width:100%;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:4px 12px 4px 32px;font-size:16px;font-family:var(--font-body);box-sizing:border-box;}
+.auth-input-icon{position:absolute;left:11px;width:14px;height:14px;color:rgba(255,255,255,0.85);pointer-events:none;flex-shrink:0;}
+#auth-form input{width:100%;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;padding:4px 12px 4px 32px;font-size:16px;font-family:var(--font-body);box-sizing:border-box;}
+#auth-form input::placeholder{color:rgba(255,255,255,0.55);}
 #auth-form input:focus{outline:none;border-color:var(--ph-accent);}
-.auth-input-action{position:absolute;right:6px;background:none;border:none;color:var(--ph-text-dim);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;}
+.auth-input-action{position:absolute;right:6px;background:none;border:none;color:rgba(255,255,255,0.85);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;}
 .auth-input-action svg{width:16px;height:16px;}
 .auth-input-action:hover{color:var(--ph-accent);}
 #auth-options-row{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;margin-top:-2px;}
-#auth-form label#auth-remember-label{display:flex;align-items:center;gap:6px;color:var(--ph-text-dim);font-size:11.5px;cursor:pointer;text-transform:none;letter-spacing:0;margin:0;font-family:var(--font-body);}
+#auth-form label#auth-remember-label{display:flex;align-items:center;gap:6px;color:rgba(255,255,255,0.85);font-size:11.5px;cursor:pointer;text-transform:none;letter-spacing:0;margin:0;font-family:var(--font-body);}
 #auth-remember-label input{width:auto;padding:0;}
 #auth-forgot-btn{background:none;border:none;color:var(--ph-accent);cursor:pointer;font-size:11.5px;font-family:var(--font-body);text-decoration:underline;padding:0;}
 #auth-error{font-size:12px;color:var(--danger);min-height:0;line-height:1.4;}
 /* Glass, not solid: a faint tint of the same color instead of an opaque fill, no blur
    (that was tried and rejected) — just the color itself made translucent, like a pane of
    stained glass rather than a painted panel. */
-#auth-submit-btn{width:100%;padding:5px 14px;font-size:14px;background:rgba(217,154,43,0.32);color:#2b1a05;border:1.5px solid rgba(217,154,43,0.85);}
-#auth-oauth-divider{display:flex;align-items:center;gap:10px;margin:11px 0;color:var(--ph-text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;}
-#auth-oauth-divider:before, #auth-oauth-divider:after{content:'';flex:1;height:1px;background:var(--ph-border);}
+#auth-submit-btn{width:100%;padding:5px 14px;font-size:14px;font-weight:600;background:rgba(217,154,43,0.32);color:#fff;border:1.5px solid rgba(217,154,43,0.85);}
+#auth-oauth-divider{display:flex;align-items:center;gap:10px;margin:11px 0;color:rgba(255,255,255,0.7);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;}
+#auth-oauth-divider:before, #auth-oauth-divider:after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.35);}
 #auth-oauth-list{display:flex;flex-direction:column;gap:11px;}
-.auth-oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:rgba(250,243,228,0.16);border:1px solid rgba(217,195,156,0.6);color:var(--ph-text);border-radius:6px;padding:8px 14px;font-size:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;}
+.auth-oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:rgba(250,243,228,0.16);border:1px solid rgba(217,195,156,0.6);color:#fff;border-radius:6px;padding:8px 14px;font-size:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;}
 .auth-oauth-btn:hover{border-color:var(--ph-accent);}
 /* Same box for all three (source SVGs came in at 18/16/16px) so the marks sit on one
    shared baseline instead of each drifting to its own icon's native size. */
 .auth-oauth-icon{width:17px;height:17px;flex-shrink:0;display:block;}
-#auth-toggle-row{margin-top:11px;text-align:center;font-size:11.5px;color:var(--ph-text-dim);}
+#auth-toggle-row{margin-top:11px;text-align:center;font-size:11.5px;color:rgba(255,255,255,0.8);}
 #auth-toggle-btn{background:none;border:none;color:var(--ph-accent);cursor:pointer;font-size:11.5px;font-family:var(--font-body);text-decoration:underline;padding:0;margin-left:4px;}
-#auth-footer-links{margin-top:8px;padding-top:6px;border-top:1px solid var(--ph-border);text-align:center;font-size:10.5px;color:var(--ph-text-dim);}
-#auth-footer-links a{color:var(--ph-text-dim);text-decoration:none;}
+#auth-footer-links{margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.35);text-align:center;font-size:10.5px;color:rgba(255,255,255,0.75);}
+#auth-footer-links a{color:rgba(255,255,255,0.75);text-decoration:none;}
 #auth-footer-links a:hover{color:var(--ph-accent);text-decoration:underline;}
 #auth-footer-links span{margin:0 8px;color:var(--ph-border);}
 
