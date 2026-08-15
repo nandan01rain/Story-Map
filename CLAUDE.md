@@ -202,9 +202,16 @@ chapter boundaries for pacing).
   architecture (`getBookCoverUrl(bookIndex)` as the single resolution
   point), but no actual per-book artwork exists yet — every book currently
   renders a CSS-gradient placeholder.
-- **Day/night/sunrise/sunset living-map visuals.** Reference art exists (see
-  handoff doc §9) but production-resolution, map-only image files don't yet
-  — implementation is blocked on asset delivery, not on engineering design.
+- **Day/night/sunrise/sunset visuals, app-wide.** Scope as of 2026-08-15:
+  this now covers the sign-in screen, the landing page, *and* the writing
+  app itself (map/list/editor — currently a single fixed dark palette with
+  no day variant designed at all, the biggest lift of the three). All three
+  are meant to switch together on the same schedule: real astronomical
+  sunrise/sunset for the device's location (not fixed clock hours), via
+  `navigator.geolocation` + a public-domain solar-position calculation —
+  see handoff doc §9 and §13. Blocked on asset delivery (user will supply
+  day/night art) and on the geolocation-decline fallback design, not on
+  engineering design otherwise.
 - **A gold ring/glow on the chapter node that was just dragged/dropped**
   (so its new position reads clearly) — still not built.
 - **The hamburger drawer "Discover section unreachable" bug** — still
@@ -234,8 +241,9 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   the underlying file size is still worth fixing.
 - **Day/night/dawn art for the sign-in screen**, and the layered/animated
   (as opposed to static) version of that background — scoped in
-  conversation, no assets delivered yet beyond the one sunset scene. See
-  handoff doc §12.4.
+  conversation, no assets delivered yet beyond the one sunset scene. Now
+  part of the broader app-wide day/night requirement above. See handoff
+  doc §12.4 and §13.
 - **Cross-project search ("Explore" tab)** on the landing page — the tab
   exists as a styled placeholder, the actual search-across-all-projects
   feature was never built.
@@ -257,15 +265,6 @@ viewport/orientation) — confirmed on real hardware to move together with
 zero drift, in both scroll directions and both orientations. Portrait is no
 longer cropped the way it used to be.
 
-**Stage 2 (in progress)**: day/night/sunrise/sunset living-map visuals —
-real reference art now exists for all four states (see handoff doc §9) and
-the intended schedule is real astronomical sunrise/sunset times (not fixed
-clock hours), computed client-side via geolocation + a public-domain solar
-calculation, with sunrise/sunset as ~1hr transition windows and animated
-water/ship layers. Not yet built — see handoff doc §9 for the exact open
-questions (asset delivery format, geolocation-decline fallback) blocking
-implementation.
-
 **Stage 1.6 — Reader overhaul, account settings, sign-in/landing redesign**
 (done, see handoff doc §12 for full detail): the in-app Reader rebuilt
 Kindle-style (chrome-free full-screen, tap/swipe page turns, Font/Layout
@@ -279,16 +278,24 @@ form. Real OAuth, the password-reset landing page, image compression for
 the new background art, and day/night art for that same screen are the
 concrete follow-ups — see "Still deferred" above.
 
-**Stage 2 (in progress)**: day/night/sunrise/sunset living-map visuals —
-real reference art now exists for all four states (see handoff doc §9) and
-the intended schedule is real astronomical sunrise/sunset times (not fixed
-clock hours), computed client-side via geolocation + a public-domain solar
-calculation, with sunrise/sunset as ~1hr transition windows and animated
-water/ship layers. Not yet built — see handoff doc §9 for the exact open
-questions (asset delivery format, geolocation-decline fallback) blocking
-implementation. The Stage 1.6 motion-preference toggle (`motion_enabled` in
-`user_metadata`, a `motion-on` class on `<html>`) was built in anticipation
-of gating this work's animated layers, but no surface reads it yet.
+**Stage 2 (in progress, scope expanded 2026-08-15)**: day/night/sunrise/
+sunset visuals — originally scoped as the living map only, then also the
+sign-in screen; now explicitly **app-wide**, covering the sign-in screen,
+the landing page, and the writing app itself (map/list/editor), all
+switching together on one schedule. Real reference art exists for the
+living map's four states (see handoff doc §9); the sign-in screen has only
+its one sunset scene so far; the writing app has no day variant designed
+at all yet — art for all of this is expected to be supplied by the user.
+Intended schedule source: real astronomical sunrise/sunset times (not
+fixed clock hours), computed client-side via geolocation + a public-domain
+solar calculation, with sunrise/sunset as ~1hr transition windows and
+animated water/ship layers on the map/sign-in screens. Not yet built — see
+handoff doc §9 and the new §13 for the open questions (asset delivery
+format per surface, geolocation-decline fallback, and how a fixed dark
+writing-app palette becomes two palettes) blocking implementation. The
+Stage 1.6 motion-preference toggle (`motion_enabled` in `user_metadata`, a
+`motion-on` class on `<html>`) was built in anticipation of gating this
+work's animated layers, but no surface reads it yet.
 
 **Stage 3** (explicitly not started): storyboards, image generation, and
 anything extending past prose-only tooling.

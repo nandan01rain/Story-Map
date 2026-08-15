@@ -1556,3 +1556,73 @@ the layered-asset animated mode was scoped in conversation (sky/clouds/
 sun/water/ship/birds as separate PNG layers, one scene fully built
 end-to-end before the other three) but no layered assets have been
 delivered yet, so none of that rendering pipeline exists in code.
+
+---
+
+## 13. DAY/NIGHT MODE — SCOPE EXPANDED TO THE WHOLE APP (2026-08-15, not yet built)
+
+Conversation on 2026-08-15 broadened what had been two separate,
+already-documented efforts — the living map's day/night/sunrise/sunset
+visuals (§9) and the sign-in screen's day/night/dawn art (§12.4) — into
+one requirement: **the entire app switches between a day mode and a
+night mode together**, not just the map or just the sign-in screen.
+
+**What "the entire app" means, confirmed with the user:**
+- The sign-in screen (already scoped in §12.4).
+- The landing page (`#project-screen`, §12.3) — currently a single fixed
+  light "parchment card" palette with no day/night distinction designed
+  at all yet.
+- **The writing app itself** — map view, list view, the chapter editor,
+  drawers, modals, everything under `#app` — currently a single fixed
+  dark palette (`--bg`/`--panel`/`--text`/etc., see the `:root` custom
+  properties near the top of `index.html`) with, likewise, no day variant
+  designed. This is the largest of the three: unlike the sign-in screen
+  and landing page (which are self-contained, isolated palettes already),
+  the writing app's dark theme is the app's *only* theme today and touches
+  every surface a user spends most of their time in. Expect this to need
+  its own design pass (what does "day mode" even look like for the
+  editor — a light parchment theme? something else?) before it's an
+  engineering task, not just an asset-swap.
+
+**Time source, confirmed with the user**: real astronomical sunrise/
+sunset for the device's actual location (matching what §9 already
+specified for the living map alone) — not a fixed clock-hour cutoff.
+Computed client-side via `navigator.geolocation` + a public-domain
+solar-position calculation, no backend/API key needed (consistent with
+§8's no-backend-proxy constraint). This means the geolocation-decline
+fallback question from §9 now blocks all three surfaces, not just the
+map — needs a sensible default (e.g. assume a fixed local-clock cutoff
+when location is denied/unavailable) designed once and shared, not
+redesigned per surface.
+
+**Art**: the user will supply day/night artwork (as they did for the
+sign-in screen's existing sunset scene, §12.4) — not yet delivered as of
+this writing. Nothing beyond the living map's four reference mockups
+(§9) and the one sign-in sunset scene exists in the repo.
+
+**Not yet decided / worth raising before implementation starts:**
+- Whether all three surfaces share one single "is it day or night right
+  now" computation and a single `<html>` class (extending the existing
+  `motion-on` pattern from §12.2 — e.g. a `day-mode`/`night-mode` class)
+  or whether each surface keeps its own independent switch. Sharing one
+  source of truth is almost certainly right, mirroring how §12.2's
+  motion-preference class was built once for reuse across surfaces.
+  §9's `presentationConfig` resolver (Stage 1.5) is a plausible place
+  for this to live, since it already resolves palette/background per
+  preset.
+  - Whether day/night should be a straight binary swap or, like the
+  map's plan in §9, include ~1hr sunrise/sunset transition windows —
+  §9 already calls for transitions on the map; whether the sign-in
+  screen, landing page, and writing app should match that or use a
+  simpler instant swap hasn't been discussed.
+- What "night mode" even means for the landing page (currently light
+  parchment) and "day mode" for the writing app (currently dark) —
+  i.e. whether these are genuinely two new palettes each, or whether
+  one of the two modes reuses each surface's existing palette as one
+  side of the swap. Not decided.
+
+**Do not start implementation** without first confirming the shared-
+switch architecture and getting at least the writing app's day-mode
+palette direction from the user — this is explicitly the biggest open
+design question of the three surfaces and the one most likely to be
+guessed wrong without that input.
