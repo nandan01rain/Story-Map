@@ -1225,19 +1225,19 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-screen.revealed #auth-bg-tap-hint{display:none;}
 #auth-card{
   position:absolute;left:0;right:0;bottom:calc(16px + 6vh + env(safe-area-inset-bottom));max-width:min(296px, calc(100% - 24px));margin:0 auto;
-  max-height:48vh;overflow-y:auto;box-sizing:border-box;
-  background:rgba(243,228,200,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:16px;padding:12px 16px;
+  max-height:54vh;overflow-y:auto;box-sizing:border-box;
+  background:transparent;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:16px;padding:20px 16px 12px;
   box-shadow:0 10px 34px rgba(0,0,0,0.4);
   transform:translateY(calc(100% + 32px));opacity:0;transition:transform .35s cubic-bezier(.22,.61,.36,1), opacity .3s ease;
   cursor:default;-webkit-tap-highlight-color:transparent;
 }
 #auth-card.dragging{transition:none;}
 #auth-screen.revealed #auth-card{transform:translateY(0);opacity:1;}
-#auth-form{display:flex;flex-direction:column;gap:7px;}
+#auth-form{display:flex;flex-direction:column;gap:11px;}
 #auth-form label{font-family:var(--font-mono);font-size:10px;color:var(--ph-text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;display:block;}
 .auth-input-wrap{position:relative;display:flex;align-items:center;}
 .auth-input-icon{position:absolute;left:11px;width:14px;height:14px;color:var(--ph-text-dim);pointer-events:none;flex-shrink:0;}
-#auth-form input{width:100%;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:6px 12px 6px 32px;font-size:16px;font-family:var(--font-body);box-sizing:border-box;}
+#auth-form input{width:100%;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:4px 12px 4px 32px;font-size:16px;font-family:var(--font-body);box-sizing:border-box;}
 #auth-form input:focus{outline:none;border-color:var(--ph-accent);}
 .auth-input-action{position:absolute;right:6px;background:none;border:none;color:var(--ph-text-dim);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;}
 .auth-input-action svg{width:16px;height:16px;}
@@ -1247,15 +1247,18 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-remember-label input{width:auto;padding:0;}
 #auth-forgot-btn{background:none;border:none;color:var(--ph-accent);cursor:pointer;font-size:11.5px;font-family:var(--font-body);text-decoration:underline;padding:0;}
 #auth-error{font-size:12px;color:var(--danger);min-height:0;line-height:1.4;}
-#auth-submit-btn{width:100%;padding:8px 14px;font-size:14px;background:var(--ph-accent);color:#2b1a05;border-color:var(--ph-accent);}
-#auth-oauth-divider{display:flex;align-items:center;gap:10px;margin:8px 0;color:var(--ph-text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;}
+#auth-submit-btn{width:100%;padding:5px 14px;font-size:14px;background:var(--ph-accent);color:#2b1a05;border-color:var(--ph-accent);}
+#auth-oauth-divider{display:flex;align-items:center;gap:10px;margin:11px 0;color:var(--ph-text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;}
 #auth-oauth-divider:before, #auth-oauth-divider:after{content:'';flex:1;height:1px;background:var(--ph-border);}
-#auth-oauth-list{display:flex;flex-direction:column;gap:5px;}
-.auth-oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:6px 14px;font-size:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;}
+#auth-oauth-list{display:flex;flex-direction:column;gap:7px;}
+.auth-oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:4px 14px;font-size:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;}
 .auth-oauth-btn:hover{border-color:var(--ph-accent);}
-#auth-toggle-row{margin-top:8px;text-align:center;font-size:11.5px;color:var(--ph-text-dim);}
+/* Same box for all three (source SVGs came in at 18/16/16px) so the marks sit on one
+   shared baseline instead of each drifting to its own icon's native size. */
+.auth-oauth-icon{width:17px;height:17px;flex-shrink:0;display:block;}
+#auth-toggle-row{margin-top:11px;text-align:center;font-size:11.5px;color:var(--ph-text-dim);}
 #auth-toggle-btn{background:none;border:none;color:var(--ph-accent);cursor:pointer;font-size:11.5px;font-family:var(--font-body);text-decoration:underline;padding:0;margin-left:4px;}
-#auth-footer-links{margin-top:6px;padding-top:6px;border-top:1px solid var(--ph-border);text-align:center;font-size:10.5px;color:var(--ph-text-dim);}
+#auth-footer-links{margin-top:8px;padding-top:6px;border-top:1px solid var(--ph-border);text-align:center;font-size:10.5px;color:var(--ph-text-dim);}
 #auth-footer-links a{color:var(--ph-text-dim);text-decoration:none;}
 #auth-footer-links a:hover{color:var(--ph-accent);text-decoration:underline;}
 #auth-footer-links span{margin:0 8px;color:var(--ph-border);}
@@ -1423,15 +1426,15 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div id="auth-oauth-divider"><span>OR</span></div>
     <div id="auth-oauth-list">
       <button type="button" class="auth-oauth-btn" id="auth-oauth-google">
-        <svg viewBox="0 0 48 48" width="18" height="18"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        <svg class="auth-oauth-icon" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
       </button>
       <button type="button" class="auth-oauth-btn" id="auth-oauth-apple">
-        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M16.365 1.43c0 1.14-.462 2.16-1.235 2.94-.833.85-2.19 1.51-3.24 1.42-.14-1.1.44-2.24 1.18-2.99.82-.85 2.27-1.5 3.29-1.37zM20.87 17.34c-.53 1.22-.78 1.77-1.46 2.85-.95 1.5-2.29 3.37-3.95 3.39-1.47.02-1.85-.96-3.85-.95-2 .01-2.42.97-3.89.95-1.66-.02-2.93-1.71-3.88-3.2-2.66-4.17-2.94-9.06-1.3-11.67 1.16-1.85 3-2.94 4.73-2.94 1.76 0 2.87 1 4.33 1 1.41 0 2.28-1 4.33-1 1.54 0 3.17.84 4.33 2.28-3.81 2.09-3.19 7.53.61 9.29z"/></svg>
+        <svg class="auth-oauth-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M16.365 1.43c0 1.14-.462 2.16-1.235 2.94-.833.85-2.19 1.51-3.24 1.42-.14-1.1.44-2.24 1.18-2.99.82-.85 2.27-1.5 3.29-1.37zM20.87 17.34c-.53 1.22-.78 1.77-1.46 2.85-.95 1.5-2.29 3.37-3.95 3.39-1.47.02-1.85-.96-3.85-.95-2 .01-2.42.97-3.89.95-1.66-.02-2.93-1.71-3.88-3.2-2.66-4.17-2.94-9.06-1.3-11.67 1.16-1.85 3-2.94 4.73-2.94 1.76 0 2.87 1 4.33 1 1.41 0 2.28-1 4.33-1 1.54 0 3.17.84 4.33 2.28-3.81 2.09-3.19 7.53.61 9.29z"/></svg>
         Continue with Apple
       </button>
       <button type="button" class="auth-oauth-btn" id="auth-oauth-microsoft">
-        <svg viewBox="0 0 24 24" width="16" height="16"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
+        <svg class="auth-oauth-icon" viewBox="0 0 24 24"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
         Continue with Microsoft
       </button>
     </div>
