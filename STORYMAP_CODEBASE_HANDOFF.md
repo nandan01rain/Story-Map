@@ -1707,6 +1707,17 @@ below applies to them yet.
   Same behavior across all three day/night/sunset modes — pure rotation
   layered on top of whichever background is showing, no mode-specific
   logic needed.
+- **Manual scene override**: a "Sign-in screen scene" `<select>` in
+  Account Settings' Preferences section (`#authscene-select`) — Auto
+  (default), Always day, Always night, Always sunrise/sunset. Same
+  account-wide `user_metadata` (`auth_scene_mode`) + synchronous
+  `localStorage` cache (`storymap-authscene-mode`) pattern as the motion
+  preference, since the auth screen resolves its mode before any session
+  exists. Checked in the auth-screen IIFE right before
+  `resolveCurrentTimeMode()` would otherwise run — a non-`'auto'` cached
+  value wins outright, `'auto'` (or nothing cached yet) defers to the
+  real astronomical computation. Verified all four values in the preview
+  session that added this.
 - **Not done**: the landing page and writing app still don't read
   `authTimeMode`/`resolveCurrentTimeMode()` at all — §13's original open
   questions (shared switch architecture across all three surfaces, what
