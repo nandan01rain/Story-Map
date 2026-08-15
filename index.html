@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120d08" id="meta-theme-color">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preload" as="image" href="assets/auth-bg-environment.webp">
@@ -6791,6 +6793,15 @@ function initApp(){
     errorEl.textContent = '';
   }
 
+  // Keeps the OS status/nav bar color matched to whatever screen is actually showing, so
+  // they read as part of the app instead of a stray black band above/below it — the app
+  // has no single background color (auth is a violet/orange scene, the landing page is
+  // cream parchment, the writing app is dark), so this can't just be a static manifest value.
+  function setThemeColor(color){
+    const meta = document.getElementById('meta-theme-color');
+    if(meta) meta.setAttribute('content', color);
+  }
+
   function showAuth(){
     appRoot.style.display = 'none';
     projectScreen.style.display = 'none';
@@ -6800,6 +6811,7 @@ function initApp(){
     switchProjectBtn.style.display = 'none';
     appSettingsBtn.style.display = 'none';
     currentProjectId = null;
+    setThemeColor('#6b5a6e');
   }
 
   function showProjectScreen(){
@@ -6813,6 +6825,7 @@ function initApp(){
     projectRenameHost.style.display = 'none';
     switchPhTab('home');
     loadProjectOptions();
+    setThemeColor('#f3e4c8');
   }
 
   async function enterProject(projectId){
@@ -6822,6 +6835,7 @@ function initApp(){
     signOutBtn.style.display = '';
     switchProjectBtn.style.display = '';
     appSettingsBtn.style.display = '';
+    setThemeColor('#120d08');
 
     const project = await updateAppProjectName(projectId);
     const projectType = (project && project.project_type) || 'writing';
