@@ -1214,6 +1214,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   position:absolute;top:17.4%;left:50%;transform:translateX(-50%);
   width:17.5%;object-fit:contain;pointer-events:none;
   filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
+  transition:transform .25s linear;
 }
 #auth-wordmark{
   position:absolute;top:27.0%;left:50%;transform:translateX(-50%);
@@ -6778,6 +6779,54 @@ function requestGeoRefresh(){
   });
   window.sbClient = sbClient;
 
+  // Live compass: the emblem above the wordmark rotates to track true north via the
+  // device's magnetometer, same across all three day/night/sunset modes (purely a
+  // rotation on top of whichever background is showing, no mode-specific behavior
+  // needed). iOS 13+ gates this sensor behind an explicit permission prompt that must
+  // fire inside a direct user gesture — same constraint as the geolocation refresh
+  // below, so it's requested from the same tap/swipe reveal gesture rather than on cold
+  // load. Android/desktop Chrome need no such prompt, just an event listener.
+  let compassAccessRequested = false;
+  let compassListenerAttached = false;
+  function headingFromOrientationEvent(event){
+    if(typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)){
+      return event.webkitCompassHeading; // iOS Safari: already a true-north heading
+    }
+    if(typeof event.alpha === 'number'){
+      // alpha is counter-clockwise from the device's arbitrary start orientation; only
+      // meaningful as a compass reading when the browser flags it "absolute" (Earth-
+      // referenced, not just relative to wherever the device happened to start).
+      if(event.absolute !== true) return null;
+      const screenAngle = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
+      let heading = (360 - event.alpha + screenAngle) % 360;
+      if(heading < 0) heading += 360;
+      return heading;
+    }
+    return null;
+  }
+  function applyCompassHeading(heading){
+    if(typeof heading !== 'number' || isNaN(heading)) return;
+    const el = document.getElementById('auth-compass');
+    if(el) el.style.transform = 'translateX(-50%) rotate(' + (-heading) + 'deg)';
+  }
+  function attachCompassListener(){
+    if(compassListenerAttached) return;
+    compassListenerAttached = true;
+    const eventName = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.addEventListener(eventName, (event) => applyCompassHeading(headingFromOrientationEvent(event)));
+  }
+  function requestCompassAccess(){
+    if(compassAccessRequested) return;
+    compassAccessRequested = true;
+    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then((state) => {
+        if(state === 'granted') attachCompassListener();
+      }).catch(() => {});
+    } else if('DeviceOrientationEvent' in window){
+      attachCompassListener();
+    }
+  }
+
   const authScreen = document.getElementById('auth-screen');
   // Picks day/night/sunset once, up front, before the reveal-on-decode logic below even
   // looks at #auth-env-flat — see calcSunTimes()/resolveCurrentTimeMode() above. The
@@ -6854,6 +6903,7 @@ function requestGeoRefresh(){
       // context would just be a scary permission prompt for a background-image choice.
       // Only refines the *next* load's day/night pick (see requestGeoRefresh() above).
       requestGeoRefresh();
+      requestCompassAccess();
     } else if(!e.target.closest('#auth-card')){
       authScreen.classList.remove('revealed');
     }
@@ -6891,6 +6941,7 @@ function requestGeoRefresh(){
     } else if(!revealed && dy < -AUTH_SWIPE_THRESHOLD){
       authScreen.classList.add('revealed');
       requestGeoRefresh();
+      requestCompassAccess();
     }
     authTouchStartY = null;
     authTouchCardDrag = false;
