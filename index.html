@@ -962,6 +962,12 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   cursor:pointer;-webkit-tap-highlight-color:transparent;
 }
 #auth-screen *{-webkit-tap-highlight-color:transparent;}
+/* Ship bob, bird glide, lantern flicker, sky-grade tint, ripples, and twinkling lights
+   are all pixel-cropped from the one sunset scene specifically — they don't have day/
+   night counterparts yet, so they're sunset-only until that art exists (see handoff doc
+   §13). Day/night modes fall back to the static base scene alone. */
+#auth-screen.auth-time-day .auth-env-sunset-fx,
+#auth-screen.auth-time-night .auth-env-sunset-fx{display:none;}
 /* The stage reproduces object-fit:cover geometry as a real box (aspect-ratio + both
    min-dimensions at 100% forces exactly the cover fit), so every overlay inside it can
    use percentages that map to the *artwork's* coordinates rather than the viewport's.
@@ -1385,21 +1391,21 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 <div id="auth-screen">
   <div id="auth-env-stage">
     <img id="auth-env-flat" src="assets/auth-bg-environment.webp" alt="">
-    <img id="auth-env-skygrade" src="assets/env-sky-grade.webp?v=3" alt="">
-    <div class="auth-env-birdcover" id="auth-env-birdcover-1"><img src="assets/env-birdcover-1.png?v=3" alt=""></div>
-    <div class="auth-env-birdcover" id="auth-env-birdcover-2"><img src="assets/env-birdcover-2.png?v=3" alt=""></div>
-    <div class="auth-env-fx" id="auth-env-ripple"><i></i></div>
-    <div class="auth-env-fx" id="auth-env-ripple2"><i></i></div>
-    <div class="auth-env-fx auth-env-lights" id="auth-env-lights-1"></div>
-    <div class="auth-env-fx auth-env-lights" id="auth-env-lights-2"></div>
-    <div class="auth-env-fx auth-env-lights" id="auth-env-lights-3"></div>
-    <div class="auth-env-ship" id="auth-env-ship-a"><img src="assets/env-ship-a.png" alt=""></div>
-    <div class="auth-env-ship" id="auth-env-ship-b"><img src="assets/env-ship-b.png" alt=""></div>
-    <div class="auth-env-ship" id="auth-env-ship-c"><img src="assets/env-ship-c.png" alt=""></div>
-    <div class="auth-env-bird" id="auth-env-bird-1"><img src="assets/env-bird-1.png?v=3" alt=""></div>
-    <div class="auth-env-bird" id="auth-env-bird-2"><img src="assets/env-bird-2.png?v=3" alt=""></div>
-    <div class="auth-lantern-glow" id="auth-lantern-glow-1"></div>
-    <div class="auth-lantern-glow" id="auth-lantern-glow-2"></div>
+    <img class="auth-env-sunset-fx" id="auth-env-skygrade" src="assets/env-sky-grade.webp?v=3" alt="">
+    <div class="auth-env-birdcover auth-env-sunset-fx" id="auth-env-birdcover-1"><img src="assets/env-birdcover-1.png?v=3" alt=""></div>
+    <div class="auth-env-birdcover auth-env-sunset-fx" id="auth-env-birdcover-2"><img src="assets/env-birdcover-2.png?v=3" alt=""></div>
+    <div class="auth-env-fx auth-env-sunset-fx" id="auth-env-ripple"><i></i></div>
+    <div class="auth-env-fx auth-env-sunset-fx" id="auth-env-ripple2"><i></i></div>
+    <div class="auth-env-fx auth-env-lights auth-env-sunset-fx" id="auth-env-lights-1"></div>
+    <div class="auth-env-fx auth-env-lights auth-env-sunset-fx" id="auth-env-lights-2"></div>
+    <div class="auth-env-fx auth-env-lights auth-env-sunset-fx" id="auth-env-lights-3"></div>
+    <div class="auth-env-ship auth-env-sunset-fx" id="auth-env-ship-a"><img src="assets/env-ship-a.png" alt=""></div>
+    <div class="auth-env-ship auth-env-sunset-fx" id="auth-env-ship-b"><img src="assets/env-ship-b.png" alt=""></div>
+    <div class="auth-env-ship auth-env-sunset-fx" id="auth-env-ship-c"><img src="assets/env-ship-c.png" alt=""></div>
+    <div class="auth-env-bird auth-env-sunset-fx" id="auth-env-bird-1"><img src="assets/env-bird-1.png?v=3" alt=""></div>
+    <div class="auth-env-bird auth-env-sunset-fx" id="auth-env-bird-2"><img src="assets/env-bird-2.png?v=3" alt=""></div>
+    <div class="auth-lantern-glow auth-env-sunset-fx" id="auth-lantern-glow-1"></div>
+    <div class="auth-lantern-glow auth-env-sunset-fx" id="auth-lantern-glow-2"></div>
     <img id="auth-compass" src="assets/compass.webp" alt="">
     <img id="auth-wordmark" src="assets/wordmark-storymap-dark.webp" alt="StoryMap">
   </div>
@@ -6661,6 +6667,95 @@ function initApp(){
 }
 </script>
 
+<script>
+/* ========== DAY/NIGHT TIME-OF-DAY RESOLUTION (see STORYMAP_CODEBASE_HANDOFF.md §13) ==========
+   Real astronomical sunrise/sunset, not fixed clock hours — the standard NOAA/Schlyter
+   solar-position equations (public domain, independently implemented here rather than
+   copied from a library), computed client-side from a lat/lon. No external API or key.
+   Currently used only by the sign-in screen, to pick its day/night/sunset background;
+   written as standalone functions (not folded into the auth-screen IIFE below) so the
+   other two surfaces in §13's app-wide scope can reuse this exact resolution later. */
+function calcSunTimes(date, lat, lon){
+  const rad = Math.PI / 180;
+  const msPerDay = 86400000, J1970 = 2440588, J2000 = 2451545;
+  const toJulian = d => d.valueOf() / msPerDay - 0.5 + J1970;
+  const fromJulian = j => new Date((j + 0.5 - J1970) * msPerDay);
+  const toDays = d => toJulian(d) - J2000;
+  const e = rad * 23.4397; // obliquity of the ecliptic
+  const declination = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+  const solarMeanAnomaly = d => rad * (357.5291 + 0.98560028 * d);
+  const eclipticLongitude = M => {
+    const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    const P = rad * 102.9372; // perihelion of Earth
+    return M + C + P + Math.PI;
+  };
+  const julianCycle = (d, lw) => Math.round(d - 0.0009 - lw / (2 * Math.PI));
+  const approxTransit = (Ht, lw, n) => 0.0009 + (Ht + lw) / (2 * Math.PI) + n;
+  const solarTransitJ = (ds, M, L) => J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+  const hourAngle = (h, phi, d) => Math.acos((Math.sin(h) - Math.sin(phi) * Math.sin(d)) / (Math.cos(phi) * Math.cos(d)));
+
+  const lw = rad * -lon, phi = rad * lat;
+  const d = toDays(date);
+  const n = julianCycle(d, lw);
+  const ds = approxTransit(0, lw, n);
+  const M = solarMeanAnomaly(ds);
+  const L = eclipticLongitude(M);
+  const dec = declination(L, 0);
+  const h0 = -0.83 * rad; // standard sunrise/sunset angle (accounts for atmospheric refraction + solar disc radius)
+  const w = hourAngle(h0, phi, dec);
+  const Jnoon = solarTransitJ(ds, M, L);
+  const Jset = solarTransitJ(approxTransit(w, lw, n), M, L);
+  const Jrise = Jnoon - (Jset - Jnoon);
+  return { sunrise: fromJulian(Jrise), sunset: fromJulian(Jset) };
+}
+// Sensible default when geolocation is unavailable/denied — a fixed local-clock guess
+// rather than the feature breaking (the open question §9/§13 flagged as needing an answer).
+function clockFallbackSunTimes(date){
+  const sunrise = new Date(date); sunrise.setHours(6, 30, 0, 0);
+  const sunset = new Date(date); sunset.setHours(18, 30, 0, 0);
+  return { sunrise, sunset };
+}
+const AUTH_TRANSITION_HALF_MS = 30 * 60 * 1000; // ~1hr transition window total, centered on sunrise/sunset
+function resolveTimeMode(sunrise, sunset, now){
+  now = now || Date.now();
+  const sr = sunrise.getTime(), ss = sunset.getTime();
+  if(Math.abs(now - sr) <= AUTH_TRANSITION_HALF_MS || Math.abs(now - ss) <= AUTH_TRANSITION_HALF_MS) return 'sunset';
+  return (now > sr && now < ss) ? 'day' : 'night';
+}
+function getCachedGeoCoords(){
+  try{
+    const raw = localStorage.getItem('storymap-geo-coords');
+    if(!raw) return null;
+    const { lat, lon, ts } = JSON.parse(raw);
+    if(typeof lat !== 'number' || typeof lon !== 'number' || Date.now() - ts > 24 * 3600 * 1000) return null;
+    return { lat, lon };
+  }catch(e){ return null; }
+}
+function cacheGeoCoords(lat, lon){
+  try{ localStorage.setItem('storymap-geo-coords', JSON.stringify({ lat, lon, ts: Date.now() })); }catch(e){}
+}
+// Cache-or-clock, resolved synchronously — deliberately never awaits a live geolocation
+// prompt for the mode shown on *this* load (that would either stall first paint or cause
+// a jarring image swap mid-session once permission resolves). A live position, once
+// granted, only updates the cache for the *next* load. See requestGeoRefresh() below for
+// where that prompt is actually triggered.
+function resolveCurrentTimeMode(){
+  const cached = getCachedGeoCoords();
+  const times = cached ? calcSunTimes(new Date(), cached.lat, cached.lon) : clockFallbackSunTimes(new Date());
+  return resolveTimeMode(times.sunrise, times.sunset);
+}
+let geoRefreshRequested = false;
+function requestGeoRefresh(){
+  if(geoRefreshRequested || !('geolocation' in navigator)) return;
+  geoRefreshRequested = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => cacheGeoCoords(pos.coords.latitude, pos.coords.longitude),
+    () => {}, // denied/unavailable — silently keep using the clock fallback, nothing to do
+    { maximumAge: 3600000, timeout: 8000 }
+  );
+}
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 <script src="supabase-config.js"></script>
@@ -6684,6 +6779,17 @@ function initApp(){
   window.sbClient = sbClient;
 
   const authScreen = document.getElementById('auth-screen');
+  // Picks day/night/sunset once, up front, before the reveal-on-decode logic below even
+  // looks at #auth-env-flat — see calcSunTimes()/resolveCurrentTimeMode() above. The
+  // sunset image (with its ship/bird/lantern animation) does double duty as the ~1hr
+  // sunrise and sunset transition art, not just a fixed default; day/night are the static-
+  // background-only two the ships etc. don't have matching assets for yet (see handoff
+  // doc §13).
+  const authTimeMode = resolveCurrentTimeMode();
+  document.getElementById('auth-env-flat').src = {
+    day: 'assets/auth-bg-env-day.webp', night: 'assets/auth-bg-env-night.webp', sunset: 'assets/auth-bg-environment.webp'
+  }[authTimeMode];
+  if(authTimeMode !== 'sunset') authScreen.classList.add('auth-time-' + authTimeMode);
   // Reveal the scenery and the brand together, once the artwork has actually decoded.
   // The assets differ hugely in size, so left alone they appear in size order and the
   // wordmark lands about a second before the scene it belongs to. decode() waits for the
@@ -6741,6 +6847,10 @@ function initApp(){
   authScreen.addEventListener('click', (e) => {
     if(!authScreen.classList.contains('revealed')){
       authScreen.classList.add('revealed');
+      // First real interaction, not cold load — asking for location on page-open with no
+      // context would just be a scary permission prompt for a background-image choice.
+      // Only refines the *next* load's day/night pick (see requestGeoRefresh() above).
+      requestGeoRefresh();
     } else if(!e.target.closest('#auth-card')){
       authScreen.classList.remove('revealed');
     }
@@ -6777,6 +6887,7 @@ function initApp(){
       authScreen.classList.remove('revealed');
     } else if(!revealed && dy < -AUTH_SWIPE_THRESHOLD){
       authScreen.classList.add('revealed');
+      requestGeoRefresh();
     }
     authTouchStartY = null;
     authTouchCardDrag = false;
@@ -6839,7 +6950,7 @@ function initApp(){
     switchProjectBtn.style.display = 'none';
     appSettingsBtn.style.display = 'none';
     currentProjectId = null;
-    setThemeColor('#6b5a6e');
+    setThemeColor({ day: '#6b95bb', night: '#050c19', sunset: '#6b5a6e' }[authTimeMode]);
   }
 
   function showProjectScreen(){

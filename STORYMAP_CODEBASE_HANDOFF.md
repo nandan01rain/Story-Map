@@ -1626,3 +1626,65 @@ switch architecture and getting at least the writing app's day-mode
 palette direction from the user — this is explicitly the biggest open
 design question of the three surfaces and the one most likely to be
 guessed wrong without that input.
+
+### 13.1 Sign-in screen — implemented (2026-08-15, same session)
+
+The user supplied `assets/auth-bg-env-day.png` and `assets/auth-bg-env-
+night.png` (853×1844, matching the existing sunset scene's exact
+dimensions) for the sign-in screen specifically — the other two surfaces
+(landing page, writing app) are still unimplemented per §13 above; nothing
+below applies to them yet.
+
+- **Compressed to WebP before committing**, same treatment as the existing
+  `auth-bg-environment.webp` (§12.4's PNG-weight lesson applied
+  proactively this time): `auth-bg-env-day.webp` ~320KB, `auth-bg-env-
+  night.webp` ~200KB, both via Pillow (`quality=82, method=6`). The
+  original ~2.4-2.9MB PNGs are **not** committed to the repo, left on the
+  user's disk only — same "commit the compressed derivative, not the
+  source" pattern as the sunset background.
+- **Time source**: real astronomical sunrise/sunset, implemented as
+  standalone top-level functions (`calcSunTimes`, `resolveTimeMode`,
+  `resolveCurrentTimeMode`, `requestGeoRefresh`, etc.) in their own
+  `<script>` block just before the Supabase CDN script tag in
+  `index.html` — deliberately *not* nested inside the auth-screen IIFE,
+  so the landing page and writing app can reuse this exact resolution
+  when their turn comes, without duplicating the solar-math. The equation
+  set is the standard public-domain NOAA/Schlyter sunrise/sunset formulas,
+  independently implemented here (not copied from a specific library like
+  SunCalc, though the underlying math is the same well-known algorithm).
+- **Geolocation-decline fallback** (§9/§13's open question, now answered
+  for this surface): `navigator.geolocation` is never awaited for the
+  mode shown on the *current* page load — that would either stall first
+  paint waiting on a permission prompt, or cause a jarring image swap
+  mid-session once/if permission resolves later. Instead: cached lat/lon
+  in `localStorage` (`storymap-geo-coords`, 24hr TTL) is read
+  *synchronously* and used for real sun-position math when present;
+  otherwise a fixed clock fallback (6:30/18:30) is used for that load
+  only. A live `getCurrentPosition()` call is only ever made to *refresh
+  the cache for next time* — triggered on the existing tap/swipe gesture
+  that reveals the sign-in sheet (not on cold load, so there's no
+  unsolicited permission prompt before the user has done anything), via
+  `requestGeoRefresh()`. Net effect: first-ever visit (or geolocation
+  always declined) permanently uses the clock fallback; once permission
+  is granted once, every subsequent load computes real sunrise/sunset
+  instantly from the synchronously-read cache, no prompt, no flash.
+- **The sunset scene isn't orphaned** — it's reused as the ~1hr transition
+  art for *both* real sunrise and real sunset (±30min around each,
+  `AUTH_TRANSITION_HALF_MS`), which is also the one place the existing
+  ship-bob/bird-glide/lantern-flicker/ripple/sky-grade-tint animation
+  layer still renders, since that's the only scene it was built against.
+  Day and night are flat/static — no matching overlay assets exist for
+  those yet (user confirmed: will supply them later). All of those
+  sunset-specific overlay elements got a shared `auth-env-sunset-fx`
+  class; `#auth-screen.auth-time-day .auth-env-sunset-fx` / `.auth-time-
+  night` hide them via one CSS rule (`index.html` near `#auth-screen`'s
+  other rules) rather than each element needing its own visibility logic.
+- **Theme-color per mode**: `showAuth()`'s `setThemeColor()` call now
+  picks from `{day:'#6b95bb', night:'#050c19', sunset:'#6b5a6e'}` (sampled
+  from each image's own top-strip average color) instead of the old
+  hardcoded sunset-only value.
+- **Not done**: the landing page and writing app still don't read
+  `authTimeMode`/`resolveCurrentTimeMode()` at all — §13's original open
+  questions (shared switch architecture across all three surfaces, what
+  day/night even mean for a currently-light landing page and a currently-
+  dark writing app) are unchanged and still block those two.
