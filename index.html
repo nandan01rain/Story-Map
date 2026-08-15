@@ -2174,7 +2174,7 @@ let dragState = null;
 let lastNodeInteractionEndTime = 0;
 
 /* ========== TEMP TOUCH-DEBUG OVERLAY — diagnosis only, safe to delete this whole block ========== */
-const DEBUG_TOUCH_OVERLAY = true;
+const DEBUG_TOUCH_OVERLAY = false;
 const debugTouchState = { count: 0, pointerType: '-', target: '-', outcome: '-', error: '' };
 let debugTouchEl = null;
 if(DEBUG_TOUCH_OVERLAY){
@@ -7066,6 +7066,26 @@ if('serviceWorker' in navigator){
     });
   });
 }
+</script>
+
+<script>
+// manifest.json declares display:"fullscreen" so a *newly installed* app window is
+// edge-to-edge from launch with no JS needed -- but Android only rebuilds an already-
+// installed app's window shell (the WebAPK) on its own slow schedule, not on every
+// reload. Until that resync (or a reinstall) happens, an already-installed app is still
+// running its old standalone-mode shell, which reserves status/nav bar space no matter
+// what this page does. This is the immediate fallback for that gap: request fullscreen
+// via JS on the first tap, same as a plain installed PWA would need to anyway. Harmless
+// once the manifest change has actually taken effect -- requestFullscreen() on an
+// already-fullscreen window is a silent no-op.
+(function(){
+  function requestAppFullscreen(){
+    if(document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+  document.addEventListener('click', requestAppFullscreen, {once:true});
+  document.addEventListener('touchend', requestAppFullscreen, {once:true});
+})();
 </script>
 </body>
 </html>
