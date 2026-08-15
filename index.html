@@ -1225,6 +1225,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   position:absolute;right:34px;bottom:calc(72px + env(safe-area-inset-bottom));
   width:56px;height:56px;object-fit:contain;pointer-events:none;
   filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4));
+  transition:transform .25s linear;
   /* its .85 resting opacity is set by the load-gate rule above, not here - setting it
      again at this point in the file would override the gate and make it appear early */
 }
@@ -6806,8 +6807,14 @@ function requestGeoRefresh(){
   }
   function applyCompassHeading(heading){
     if(typeof heading !== 'number' || isNaN(heading)) return;
-    const el = document.getElementById('auth-compass');
-    if(el) el.style.transform = 'translateX(-50%) rotate(' + (-heading) + 'deg)';
+    const emblem = document.getElementById('auth-compass');
+    if(emblem) emblem.style.transform = 'translateX(-50%) rotate(' + (-heading) + 'deg)';
+    // The N/W-E/S labeled reference in the corner is a real compass face (arrows + letters
+    // as one image), not just decorative like the emblem — rotating the whole image keeps
+    // its "N" arrow honestly pointing at true north instead of showing two disagreeing
+    // "compasses" on the same screen.
+    const direction = document.getElementById('auth-direction');
+    if(direction) direction.style.transform = 'rotate(' + (-heading) + 'deg)';
   }
   function attachCompassListener(){
     if(compassListenerAttached) return;
