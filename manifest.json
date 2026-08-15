@@ -2,7 +2,7 @@
   "name": "StoryMap",
   "short_name": "StoryMap",
   "start_url": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#6b5a6e",
   "theme_color": "#6b5a6e",
   "icons": [

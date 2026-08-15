@@ -6721,25 +6721,15 @@ function initApp(){
   ['auth-terms-link', 'auth-privacy-link', 'auth-contact-link'].forEach(id => {
     document.getElementById(id).addEventListener('click', (e) => e.preventDefault());
   });
-  // The status/nav bar space itself is reserved by Android for a standalone-display PWA
-  // regardless of content color — matching their color (see setThemeColor) makes that
-  // space blend in, but the artwork still doesn't extend under it. The Fullscreen API is
-  // the only way to reclaim that space for actual content, and it requires a real user
-  // gesture to invoke — the existing tap/swipe that reveals the sign-in sheet doubles as
-  // that gesture. Scoped to just this screen (exited on entering the app) rather than
-  // requested globally, since the writing app benefits from the status bar staying visible
-  // (checking the time while working) in a way this one immersive scene doesn't.
-  function enterAuthFullscreen(){
-    if(document.fullscreenElement || !document.documentElement.requestFullscreen) return;
-    document.documentElement.requestFullscreen().catch(() => {});
-  }
   // Opens showing just the background art; one tap anywhere reveals the sign-in sheet.
   // Once revealed, a tap outside the card (still on the background) collapses it again;
   // a tap inside the card (a field, a button) is left alone to do its own thing.
+  // (The app runs edge-to-edge everywhere via manifest.json's "fullscreen" display mode —
+  // no runtime Fullscreen API needed here; that approach required a user gesture and so
+  // couldn't fill the screen on first paint. See STORYMAP_CODEBASE_HANDOFF.md.)
   authScreen.addEventListener('click', (e) => {
     if(!authScreen.classList.contains('revealed')){
       authScreen.classList.add('revealed');
-      enterAuthFullscreen();
     } else if(!e.target.closest('#auth-card')){
       authScreen.classList.remove('revealed');
     }
@@ -6776,7 +6766,6 @@ function initApp(){
       authScreen.classList.remove('revealed');
     } else if(!revealed && dy < -AUTH_SWIPE_THRESHOLD){
       authScreen.classList.add('revealed');
-      enterAuthFullscreen();
     }
     authTouchStartY = null;
     authTouchCardDrag = false;
@@ -6854,7 +6843,6 @@ function initApp(){
     switchPhTab('home');
     loadProjectOptions();
     setThemeColor('#f3e4c8');
-    if(document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }
 
   async function enterProject(projectId){
