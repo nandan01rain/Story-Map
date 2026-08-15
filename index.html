@@ -1225,8 +1225,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-screen.revealed #auth-bg-tap-hint{display:none;}
 #auth-card{
   position:absolute;left:0;right:0;bottom:calc(16px + 6vh + env(safe-area-inset-bottom));max-width:min(296px, calc(100% - 24px));margin:0 auto;
-  max-height:54vh;overflow-y:auto;box-sizing:border-box;
-  background:transparent;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:16px;padding:20px 16px 12px;
+  max-height:60vh;overflow-y:auto;box-sizing:border-box;
+  background:transparent;border-radius:16px;padding:20px 16px 20px;
   box-shadow:0 10px 34px rgba(0,0,0,0.4);
   transform:translateY(calc(100% + 32px));opacity:0;transition:transform .35s cubic-bezier(.22,.61,.36,1), opacity .3s ease;
   cursor:default;-webkit-tap-highlight-color:transparent;
@@ -1247,11 +1247,14 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 #auth-remember-label input{width:auto;padding:0;}
 #auth-forgot-btn{background:none;border:none;color:var(--ph-accent);cursor:pointer;font-size:11.5px;font-family:var(--font-body);text-decoration:underline;padding:0;}
 #auth-error{font-size:12px;color:var(--danger);min-height:0;line-height:1.4;}
-#auth-submit-btn{width:100%;padding:5px 14px;font-size:14px;background:var(--ph-accent);color:#2b1a05;border-color:var(--ph-accent);}
+/* Glass, not solid: a faint tint of the same color instead of an opaque fill, no blur
+   (that was tried and rejected) — just the color itself made translucent, like a pane of
+   stained glass rather than a painted panel. */
+#auth-submit-btn{width:100%;padding:5px 14px;font-size:14px;background:rgba(217,154,43,0.32);color:#2b1a05;border:1.5px solid rgba(217,154,43,0.85);}
 #auth-oauth-divider{display:flex;align-items:center;gap:10px;margin:11px 0;color:var(--ph-text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;}
 #auth-oauth-divider:before, #auth-oauth-divider:after{content:'';flex:1;height:1px;background:var(--ph-border);}
-#auth-oauth-list{display:flex;flex-direction:column;gap:7px;}
-.auth-oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:4px 14px;font-size:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;}
+#auth-oauth-list{display:flex;flex-direction:column;gap:11px;}
+.auth-oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:rgba(250,243,228,0.16);border:1px solid rgba(217,195,156,0.6);color:var(--ph-text);border-radius:6px;padding:8px 14px;font-size:13px;font-family:var(--font-body);font-weight:500;cursor:pointer;}
 .auth-oauth-btn:hover{border-color:var(--ph-accent);}
 /* Same box for all three (source SVGs came in at 18/16/16px) so the marks sit on one
    shared baseline instead of each drifting to its own icon's native size. */
