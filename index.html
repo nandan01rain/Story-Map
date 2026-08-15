@@ -409,7 +409,7 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .acct-section-title:first-child{margin-top:0;}
 .acct-field{margin-bottom:14px;}
 .acct-field label{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
-.acct-field input[type=text], .acct-field input[type=date], .acct-field input[type=password]{width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 11px;font-size:14px;font-family:var(--font-body);box-sizing:border-box;}
+.acct-field input[type=text], .acct-field input[type=date], .acct-field input[type=password], .acct-field select{width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 11px;font-size:14px;font-family:var(--font-body);box-sizing:border-box;}
 .acct-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--text);}
 .acct-row-value{color:var(--text-dim);font-family:var(--font-mono);font-size:12px;}
 .occasion-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
@@ -1797,6 +1797,17 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <input type="checkbox" id="motion-toggle-input">
       </label>
       <div class="acct-hint">Applies across the whole app — the sign-in/landing scenery, the living map, and anything animated added later. Off by default if your device asks for reduced motion.</div>
+
+      <div class="acct-field">
+        <label for="authscene-select">Sign-in screen scene</label>
+        <select id="authscene-select">
+          <option value="auto">Automatic — match real sunrise/sunset</option>
+          <option value="day">Always day</option>
+          <option value="night">Always night</option>
+          <option value="sunset">Always sunrise/sunset</option>
+        </select>
+      </div>
+      <div class="acct-hint">Overrides the sign-in screen's automatic day/night/sunset picker — useful for previewing a scene without waiting for real time to line up. Sunrise and sunset share the same scene.</div>
 
       <div id="account-settings-status"></div>
     </div>
@@ -4606,6 +4617,22 @@ document.getElementById('motion-toggle-input').addEventListener('change', async 
   localStorage.setItem('storymap-motion-enabled', appMotionEnabled ? '1' : '0');
   await window.sbClient.auth.updateUser({ data: { motion_enabled: appMotionEnabled } }); // fire-and-forget-ish, but small enough to just await
 });
+
+/* ---------- SIGN-IN SCREEN SCENE OVERRIDE ----------
+   Manual day/night/sunset override for the auth screen, same account-wide/localStorage-
+   cache pattern as the motion preference above — the auth screen renders before any
+   session exists, so it needs a synchronously-readable cache, not just the account-level
+   value. 'auto' (the default) defers entirely to resolveCurrentTimeMode()'s real
+   sunrise/sunset math; the other three values pin the scene regardless of actual time. */
+function setAuthSceneOverride(user){
+  const mode = (user && user.user_metadata && user.user_metadata.auth_scene_mode) || 'auto';
+  localStorage.setItem('storymap-authscene-mode', mode);
+}
+document.getElementById('authscene-select').addEventListener('change', async (e) => {
+  const mode = e.target.value;
+  localStorage.setItem('storymap-authscene-mode', mode);
+  await window.sbClient.auth.updateUser({ data: { auth_scene_mode: mode } });
+});
 function renderOccasionsList(occasions){
   const list = document.getElementById('profile-occasions-list');
   list.innerHTML = '';
@@ -4640,6 +4667,7 @@ async function openAccountSettingsModal(){
   document.getElementById('profile-birthday-input').value = meta.birthday || '';
   renderOccasionsList(meta.special_occasions);
   document.getElementById('motion-toggle-input').checked = meta.motion_enabled !== false;
+  document.getElementById('authscene-select').value = meta.auth_scene_mode || 'auto';
   document.getElementById('account-settings-modal').classList.add('show');
 }
 document.getElementById('profile-occasion-add-btn').addEventListener('click', () => addOccasionRow('', ''));
@@ -6865,8 +6893,12 @@ function requestGeoRefresh(){
   // sunset image (with its ship/bird/lantern animation) does double duty as the ~1hr
   // sunrise and sunset transition art, not just a fixed default; day/night are the static-
   // background-only two the ships etc. don't have matching assets for yet (see handoff
-  // doc §13).
-  const authTimeMode = resolveCurrentTimeMode();
+  // doc §13). A manual override set in Account Settings (see setAuthSceneOverride() /
+  // #authscene-select) takes precedence over the real-time computation entirely, read
+  // from the same synchronous localStorage cache the account-level value mirrors into —
+  // 'auto' (the default, and whenever nothing's been cached yet) defers to real time.
+  const authSceneOverride = localStorage.getItem('storymap-authscene-mode');
+  const authTimeMode = (authSceneOverride && authSceneOverride !== 'auto') ? authSceneOverride : resolveCurrentTimeMode();
   document.getElementById('auth-env-flat').src = {
     day: 'assets/auth-bg-env-day.webp', night: 'assets/auth-bg-env-night.webp', sunset: 'assets/auth-bg-environment.webp'
   }[authTimeMode];
@@ -7103,6 +7135,7 @@ function requestGeoRefresh(){
     }
     updateWelcomeGreeting(user);
     setMotionPreference(user);
+    setAuthSceneOverride(user);
     const { data, error } = await sbClient.from('projects').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
     if(error){
       projectSelect.innerHTML = '<option value=""></option>';
