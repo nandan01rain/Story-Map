@@ -6790,6 +6790,9 @@ function requestGeoRefresh(){
     day: 'assets/auth-bg-env-day.webp', night: 'assets/auth-bg-env-night.webp', sunset: 'assets/auth-bg-environment.webp'
   }[authTimeMode];
   if(authTimeMode !== 'sunset') authScreen.classList.add('auth-time-' + authTimeMode);
+  // The dark wordmark reads fine against day/sunset's brighter sky, but disappears against
+  // night's near-black one -- gold matches the lantern glow already in that scene.
+  if(authTimeMode === 'night') document.getElementById('auth-wordmark').src = 'assets/wordmark-storymap-gold.webp';
   // Reveal the scenery and the brand together, once the artwork has actually decoded.
   // The assets differ hugely in size, so left alone they appear in size order and the
   // wordmark lands about a second before the scene it belongs to. decode() waits for the
