@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +13,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { BOOKS, statusColor, wordCount } from '../lib/storyData';
+import { BOOKS, chapterNumberInBook, statusColor, wordCount } from '../lib/storyData';
 import { supabase } from '../lib/supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useSceneStore } from '../store/sceneStore';
@@ -30,9 +30,15 @@ const STATUSES: Chapter['status'][] = ['idea', 'outline', 'drafted', 'final'];
 export default function ChapterDrawerScreen({ route, navigation }: Props) {
   const { chapterId, projectId } = route.params;
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
+  const allChapters = useChapterStore((s) => s.chapters);
   const updateChapter = useChapterStore((s) => s.updateChapter);
   const deleteChapter = useChapterStore((s) => s.deleteChapter);
   const { scenes, fetchScenes, createScene, updateScene, deleteScene } = useSceneStore();
+
+  const chapterNumber = useMemo(
+    () => (chapter ? chapterNumberInBook(chapter, allChapters) : null),
+    [allChapters, chapter],
+  );
 
   const [title, setTitle] = useState(chapter?.title ?? '');
   const [notes, setNotes] = useState(chapter?.notes ?? '');
@@ -103,7 +109,8 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.position}>
-        {BOOKS[chapter.book]} · Act {chapter.act}
+        {BOOKS[chapter.book]}, Act {chapter.act}
+        {chapterNumber !== null ? `, Chapter ${chapterNumber}` : ''}
       </Text>
       <TextInput
         style={styles.titleInput}

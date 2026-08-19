@@ -1,7 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Sortable, SortableItem, type SortableRenderItemProps } from 'react-native-reanimated-dnd';
+import Animated from 'react-native-reanimated';
+import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
 import { BOOKS, statusColor, wordCount } from '../lib/storyData';
@@ -114,12 +115,23 @@ export default function ChapterListScreen({ route, navigation }: Props) {
 // comment explains why cross-section dragging wasn't built: no natural "one continuous
 // position across every book" ordering exists once acts collapse independently). A
 // dedicated handle (not the whole row) starts the drag, same as the PWA, so tapping a
-// row still opens its drawer. Local `items` state mirrors react-native-reanimated-dnd's
-// own example pattern (its Sortable component owns the live drag visuals; the consuming
-// app is expected to track the resulting order itself via onMove) -- re-synced from the
-// store on external changes (e.g. a chapter edited elsewhere), persisted to Supabase via
-// reorderChapters() once a drag actually completes (onDrop), not on every intermediate
-// onMove event.
+// row still opens its drawer.
+//
+// Uses useSortableList rather than the higher-level <Sortable> component deliberately:
+// <Sortable> renders its own internal FlatList/VirtualizedList, which React Native
+// explicitly warns against nesting inside a plain ScrollView (this screen's outer
+// book/act accordion) -- confirmed on real hardware as the exact "VirtualizedLists
+// should never be nested inside plain ScrollViews" warning. useSortableList hands back
+// plain items to .map() over inside a normal Animated.ScrollView instead, so nothing
+// virtualized ever sits inside the outer ScrollView. Each act's list gets its own
+// DropProvider (per the hook's own documented usage), separate from the app-root one in
+// App.tsx.
+//
+// Local `items` state mirrors the library's own example pattern (it owns the live drag
+// visuals; the consuming app tracks the resulting order itself via onMove) -- re-synced
+// from the store on external changes (e.g. a chapter edited elsewhere), persisted to
+// Supabase via reorderChapters() once a drag actually completes (onDrop), not on every
+// intermediate onMove event.
 function ActChapterList({
   chapters,
   projectId,
@@ -151,39 +163,41 @@ function ActChapterList({
     reorderChapters(items.map((c) => c.id));
   }, [items, reorderChapters]);
 
-  const renderItem = useCallback(
-    (props: SortableRenderItemProps<Chapter>) => {
-      const { item, id, ...rest } = props;
-      return (
-        <SortableItem key={id} id={id} data={item} {...rest} onMove={handleMove} onDrop={handleDrop}>
-          <View style={styles.chapterRow}>
-            <SortableItem.Handle style={styles.dragHandle}>
-              <Text style={styles.dragHandleText}>⠿</Text>
-            </SortableItem.Handle>
-            <Pressable
-              style={styles.chapterRowMain}
-              onPress={() => navigate('ChapterDrawer', { chapterId: item.id, projectId })}
-            >
-              <View style={[styles.dot, { backgroundColor: statusColor(item.status) }]} />
-              <Text style={styles.chapterTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.chapterMeta}>{wordCount(item.content)}w</Text>
-            </Pressable>
-          </View>
-        </SortableItem>
-      );
-    },
-    [handleMove, handleDrop, navigate, projectId],
-  );
+  const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
+    useSortableList({ data: items, itemHeight: ROW_HEIGHT });
 
   return (
-    <Sortable
-      data={items}
-      renderItem={renderItem}
-      itemHeight={ROW_HEIGHT}
-      style={{ height: items.length * ROW_HEIGHT }}
-    />
+    <DropProvider ref={dropProviderRef}>
+      <Animated.ScrollView
+        ref={scrollViewRef}
+        scrollEnabled={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ height: contentHeight }}
+        onScrollEndDrag={handleScrollEnd}
+        onMomentumScrollEnd={handleScrollEnd}
+      >
+        {items.map((item, index) => (
+          <SortableItem key={item.id} data={item} {...getItemProps(item, index)} onMove={handleMove} onDrop={handleDrop}>
+            <View style={styles.chapterRow}>
+              <SortableItem.Handle style={styles.dragHandle}>
+                <Text style={styles.dragHandleText}>⠿</Text>
+              </SortableItem.Handle>
+              <Pressable
+                style={styles.chapterRowMain}
+                onPress={() => navigate('ChapterDrawer', { chapterId: item.id, projectId })}
+              >
+                <View style={[styles.dot, { backgroundColor: statusColor(item.status) }]} />
+                <Text style={styles.chapterTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={styles.chapterMeta}>{wordCount(item.content)}w</Text>
+              </Pressable>
+            </View>
+          </SortableItem>
+        ))}
+      </Animated.ScrollView>
+    </DropProvider>
   );
 }
 

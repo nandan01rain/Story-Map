@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -15,7 +15,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { ANNOTATION_COLORS, BOOKS, computeHighlightSegments, tokenizeSentences, wordCount } from '../lib/storyData';
+import {
+  ANNOTATION_COLORS,
+  BOOKS,
+  chapterNumberInBook,
+  computeHighlightSegments,
+  tokenizeSentences,
+  wordCount,
+} from '../lib/storyData';
 import { type Annotation, useChapterStore } from '../store/chapterStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
@@ -44,7 +51,13 @@ const SELECTION_TINT = 'rgba(198,154,58,0.4)'; // gold, distinct from any ANNOTA
 export default function EditorScreen({ route, navigation }: Props) {
   const { chapterId } = route.params;
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
+  const allChapters = useChapterStore((s) => s.chapters);
   const updateChapter = useChapterStore((s) => s.updateChapter);
+
+  const chapterNumber = useMemo(
+    () => (chapter ? chapterNumberInBook(chapter, allChapters) : null),
+    [allChapters, chapter],
+  );
 
   const [mode, setMode] = useState<'read' | 'edit' | 'select'>('read');
   const [content, setContent] = useState(chapter?.content ?? '');
@@ -63,8 +76,12 @@ export default function EditorScreen({ route, navigation }: Props) {
   const savedAnnotationsRef = useRef<Annotation[]>(chapter?.annotations ?? []);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    navigation.setOptions({ title: chapter?.title ?? 'Chapter' });
+  // useLayoutEffect (not useEffect) per React Navigation's own guidance for setOptions,
+  // to avoid a flash of the wrong title. Set directly to the chapter's title, or left
+  // unset (falls back to the route name) when there isn't one yet -- not the literal
+  // word "Chapter", which read as a broken placeholder rather than "no title".
+  useLayoutEffect(() => {
+    if (chapter?.title) navigation.setOptions({ title: chapter.title });
   }, [navigation, chapter?.title]);
 
   // pushVersionSnapshot(), ported: skip if nothing changed or content is empty, cap at 10.
@@ -203,7 +220,8 @@ export default function EditorScreen({ route, navigation }: Props) {
       keyboardVerticalOffset={90}
     >
       <Text style={styles.position}>
-        {BOOKS[chapter.book]} · Act {chapter.act}
+        {BOOKS[chapter.book]}, Act {chapter.act}
+        {chapterNumber !== null ? `, Chapter ${chapterNumber}` : ''}
       </Text>
       <View style={styles.toolbar}>
         <Pressable

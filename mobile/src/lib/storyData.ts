@@ -19,6 +19,22 @@ export function wordCount(text: string | null | undefined): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// "Chapter N" -- a chapter's 1-based position within its book, spanning every act in
+// sequence (matching how a novel numbers its chapters). Not a stored field; the PWA
+// doesn't have this concept either (its own editor-title just shows Book/Act, see
+// handoff doc), computed fresh from whatever's currently in the store so it stays right
+// after a List-view reorder. Used by both the Editor and the chapter drawer.
+export function chapterNumberInBook<T extends { id: string; project_id: string; book: number; act: number; order: number }>(
+  chapter: T,
+  allChapters: T[],
+): number | null {
+  const inBook = allChapters
+    .filter((c) => c.project_id === chapter.project_id && c.book === chapter.book)
+    .sort((a, b) => a.act - b.act || a.order - b.order);
+  const idx = inBook.findIndex((c) => c.id === chapter.id);
+  return idx === -1 ? null : idx + 1;
+}
+
 // Matches mark.hl-plant/hl-reveal/hl-note's background colors in the PWA's CSS exactly.
 export const ANNOTATION_COLORS: Record<'plant' | 'reveal' | 'note', string> = {
   plant: 'rgba(74,122,58,0.35)',
