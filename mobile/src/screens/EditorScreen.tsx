@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, computeHighlightSegments, wordCount } from '../lib/storyData';
@@ -42,7 +43,9 @@ export default function EditorScreen({ route, navigation }: Props) {
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [status, setStatus] = useState('');
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [flagPickerVisible, setFlagPickerVisible] = useState(false);
   const [pendingFlag, setPendingFlag] = useState<{ type: Annotation['type']; text: string } | null>(null);
+  const insets = useSafeAreaInsets();
   const [labelInput, setLabelInput] = useState('');
   const [threadInput, setThreadInput] = useState('');
 
@@ -110,6 +113,7 @@ export default function EditorScreen({ route, navigation }: Props) {
 
   function beginFlag(type: Annotation['type']) {
     const text = content.slice(selection.start, selection.end);
+    setFlagPickerVisible(false);
     if (!text.trim()) {
       Alert.alert('Select some text first', `Select the text in the chapter you want to flag, then tap ${type}.`);
       return;
@@ -235,29 +239,61 @@ export default function EditorScreen({ route, navigation }: Props) {
             placeholder="Start writing..."
             placeholderTextColor="#8a7355"
           />
-          {/* Always visible rather than gated on hasSelection -- onSelectionChange on a
-              multiline TextInput is unreliable on Android for drag-based selection
-              (longstanding RN platform bug, not specific to this app: e.g. facebook/
-              react-native#18617, #29365), so hiding the toolbar until a selection is
-              detected could mean it never appears at all. beginFlag() still reads
-              whatever `selection` currently holds and tells the user to select text
-              first if it's empty -- this dev-only readout shows exactly what the
-              TextInput is reporting, to see whether it's simply not firing on this
-              device or firing with the wrong range. */}
-          <Text style={styles.selectionDebug}>selection: {selection.start}–{selection.end}</Text>
-          <View style={styles.markToolbar}>
-            <Pressable style={styles.markBtn} onPress={() => beginFlag('plant')}>
-              <Text style={styles.markBtnText}>🌱 Plant</Text>
-            </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => beginFlag('reveal')}>
-              <Text style={styles.markBtnText}>⚡ Reveal</Text>
-            </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => beginFlag('note')}>
-              <Text style={styles.markBtnText}>📜 Note</Text>
-            </Pressable>
-          </View>
+          {/* Contextual, not always-on: only appears once there's an actual selection.
+              Sits in a normal (non-absolute) flex row so it's never fixed off past the
+              bottom of the screen -- padded by the real safe-area inset so it clears the
+              phone's own gesture/nav bar, which the previous always-visible bar didn't
+              account for at all (that, not selection detection, was the actual bug). */}
+          {selection.end > selection.start && (
+            <View style={[styles.selectionBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              <Text style={styles.selectionBarHint}>{selection.end - selection.start} characters selected</Text>
+              <Pressable style={styles.selectionBarMore} onPress={() => setFlagPickerVisible(true)}>
+                <Text style={styles.selectionBarMoreText}>⋮</Text>
+              </Pressable>
+            </View>
+          )}
         </>
       )}
+
+      {/* Full-screen flag-type picker, opened from the "⋮" on a selection */}
+      <Modal
+        visible={flagPickerVisible}
+        animationType="slide"
+        onRequestClose={() => setFlagPickerVisible(false)}
+      >
+        <View style={[styles.flagPickerScreen, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.flagPickerHeader}>
+            <Text style={styles.modalTitle}>Flag this text</Text>
+            <Pressable onPress={() => setFlagPickerVisible(false)} hitSlop={10}>
+              <Text style={styles.flagPickerClose}>×</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.modalSelectedText} numberOfLines={4}>
+            "{content.slice(selection.start, selection.end)}"
+          </Text>
+          <Pressable style={styles.flagPickerOption} onPress={() => beginFlag('plant')}>
+            <Text style={styles.flagPickerOptionEmoji}>🌱</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.flagPickerOptionTitle}>Plant</Text>
+              <Text style={styles.flagPickerOptionDesc}>Something that pays off later</Text>
+            </View>
+          </Pressable>
+          <Pressable style={styles.flagPickerOption} onPress={() => beginFlag('reveal')}>
+            <Text style={styles.flagPickerOptionEmoji}>⚡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.flagPickerOptionTitle}>Reveal</Text>
+              <Text style={styles.flagPickerOptionDesc}>Completes an earlier plant</Text>
+            </View>
+          </Pressable>
+          <Pressable style={styles.flagPickerOption} onPress={() => beginFlag('note')}>
+            <Text style={styles.flagPickerOptionEmoji}>📜</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.flagPickerOptionTitle}>Note</Text>
+              <Text style={styles.flagPickerOptionDesc}>Subtext, myth, or parallel</Text>
+            </View>
+          </Pressable>
+        </View>
+      </Modal>
 
       {/* Flag label modal -- ports the annotation-modal (index.html, beginMark()) */}
       <Modal visible={!!pendingFlag} transparent animationType="fade" onRequestClose={() => setPendingFlag(null)}>
@@ -356,17 +392,43 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     padding: 20,
   },
-  selectionDebug: { color: '#6b5d42', fontSize: 10, textAlign: 'center', paddingBottom: 4 },
-  markToolbar: {
+  selectionBar: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#2a2013',
+    borderTopColor: '#4a3a22',
     backgroundColor: '#1a130b',
   },
-  markBtn: { paddingVertical: 6, paddingHorizontal: 14 },
-  markBtnText: { color: '#e9dcb8', fontSize: 13 },
+  selectionBarHint: { color: '#a8926a', fontSize: 12 },
+  selectionBarMore: {
+    backgroundColor: '#c69a3a',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionBarMoreText: { color: '#2b1a05', fontSize: 18, fontWeight: '900', lineHeight: 18 },
+  flagPickerScreen: { flex: 1, backgroundColor: '#120d08', paddingHorizontal: 20 },
+  flagPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  flagPickerClose: { color: '#a8926a', fontSize: 26, lineHeight: 26 },
+  flagPickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#1a130b',
+    borderWidth: 1,
+    borderColor: '#4a3a22',
+    borderRadius: 10,
+    padding: 16,
+    marginTop: 12,
+  },
+  flagPickerOptionEmoji: { fontSize: 26 },
+  flagPickerOptionTitle: { color: '#e9dcb8', fontSize: 16, fontWeight: '700' },
+  flagPickerOptionDesc: { color: '#8a7355', fontSize: 12, marginTop: 2 },
   flagsSection: { marginTop: 30, borderTopWidth: 1, borderTopColor: '#2a2013', paddingTop: 16 },
   flagsHeading: {
     color: '#8a7355',
