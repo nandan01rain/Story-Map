@@ -43,11 +43,17 @@ type ChapterState = {
     patch: Partial<Pick<Chapter, 'title' | 'book' | 'act' | 'status' | 'notes' | 'content' | 'annotations' | 'versions'>>,
   ) => Promise<{ error: string | null }>;
   deleteChapter: (chapterId: string) => Promise<{ error: string | null }>;
-  // Persists a new within-act chapter order (array of chapter ids in their new order) --
-  // ports the PWA's List view drag-to-reorder (index.html, wireListDrag()), including its
-  // within-act-only constraint (see that function's own comment for why cross-section
-  // dragging was scoped out). Assigns order = array index for each id.
-  reorderChapters: (orderedIds: string[]) => Promise<{ error: string | null }>;
+  // Persists a new chapter order within a book -- ports the PWA's List view drag-to-
+  // reorder (index.html, wireListDrag()), but extended to work across the whole book
+  // rather than the PWA's within-act-only scope, per this session's explicit request
+  // (that function's own comment explains why the PWA itself only built within-act: no
+  // natural "one continuous position" existed without auto-expanding collapsed sections;
+  // this app's List view now shows a book's whole chapter list at once when expanded, so
+  // that constraint doesn't apply here the same way). Each entry's `act`/`order` is
+  // computed by the caller (ChapterListScreen) -- order is renumbered within each
+  // resulting act run, not a single book-wide sequence, so a chapter's position among its
+  // *own* act-mates is still well-defined after a cross-act move.
+  reorderChapters: (updates: { id: string; act: number; order: number }[]) => Promise<{ error: string | null }>;
 };
 
 export const useChapterStore = create<ChapterState>((set, get) => ({
@@ -87,15 +93,18 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
     set({ chapters: get().chapters.filter((c) => c.id !== chapterId) });
     return { error: null };
   },
-  reorderChapters: async (orderedIds) => {
+  reorderChapters: async (updates) => {
     const results = await Promise.all(
-      orderedIds.map((id, index) => supabase.from('chapters').update({ order: index }).eq('id', id)),
+      updates.map((u) => supabase.from('chapters').update({ act: u.act, order: u.order }).eq('id', u.id)),
     );
     const firstError = results.find((r) => r.error)?.error;
     if (firstError) return { error: firstError.message };
-    const orderById = new Map(orderedIds.map((id, index) => [id, index]));
+    const byId = new Map(updates.map((u) => [u.id, u]));
     set({
-      chapters: get().chapters.map((c) => (orderById.has(c.id) ? { ...c, order: orderById.get(c.id)! } : c)),
+      chapters: get().chapters.map((c) => {
+        const u = byId.get(c.id);
+        return u ? { ...c, act: u.act, order: u.order } : c;
+      }),
     });
     return { error: null };
   },

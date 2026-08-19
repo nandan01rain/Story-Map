@@ -33,21 +33,25 @@ const SELECTION_TINT = 'rgba(198,154,58,0.4)'; // gold, distinct from any ANNOTA
 
 // Ports the PWA's contenteditable-based editor (index.html §3.5) to RN's TextInput, which
 // has no equivalent for inline-styled editable text -- see the plan doc's editor risk
-// section. Three modes: a read view with real inline highlight spans (nested <Text>,
+// section. Two modes: a read view with real inline highlight spans (nested <Text>,
 // ported from renderAnnotatedContent()'s exact substring-relocation algorithm -- see
-// computeHighlightSegments), a plain-TextInput edit mode for actual typing, and a
-// "select mode" for flagging built entirely on custom tap-a-sentence-to-select rather
-// than native TextInput text selection -- Android's drag-to-extend-selection on
-// multiline TextInput is a longstanding, still-unresolved RN platform bug (only ever
-// selects a single word on some devices/keyboards, confirmed on real hardware this
-// session), so flagging doesn't depend on it at all. Chunked by sentence rather than
-// word (see tokenizeSentences in storyData.ts) -- a per-word version wrapped every word
-// in its own touchable element, which for a real chapter blocked the JS thread for
-// several seconds on every tap (also confirmed on real hardware). Deferred to Phase 3
-// (continuity checker / POV
-// tracker), same as the drawer's scene fields: linked-plant search for reveals,
-// auto-feeding scene requires/provides, and thread-based Mythic Threads. Annotations
-// here store type/text/label(+thread for notes) only.
+// computeHighlightSegments), and a plain-TextInput edit mode for actual typing.
+//
+// Flagging lives inside edit mode itself now (a "Flag text" button opens a modal over
+// the still-live TextInput), not as a separate top-level mode -- an earlier version had
+// a dedicated "select" mode reached from read mode, changed after feedback that it
+// should work from within editing instead. The modal's tap-a-sentence-to-select
+// mechanic (still not native TextInput text selection -- Android's drag-to-extend-
+// selection on multiline TextInput is a longstanding, still-unresolved RN platform bug,
+// only ever selects a single word on some devices/keyboards, confirmed on real hardware)
+// is otherwise unchanged, including sentence-level chunking (tokenizeSentences in
+// storyData.ts) to keep node count low enough not to block the JS thread (also confirmed
+// on real hardware -- a per-word version took 10-15s per tap on a real chapter).
+//
+// Deferred to Phase 3 (continuity checker / POV tracker), same as the drawer's scene
+// fields: linked-plant search for reveals, auto-feeding scene requires/provides, and
+// thread-based Mythic Threads. Annotations here store type/text/label(+thread for
+// notes) only.
 export default function EditorScreen({ route, navigation }: Props) {
   const { chapterId } = route.params;
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
@@ -59,11 +63,12 @@ export default function EditorScreen({ route, navigation }: Props) {
     [allChapters, chapter],
   );
 
-  const [mode, setMode] = useState<'read' | 'edit' | 'select'>('read');
+  const [mode, setMode] = useState<'read' | 'edit'>('read');
   const [content, setContent] = useState(chapter?.content ?? '');
   const [annotations, setAnnotations] = useState<Annotation[]>(chapter?.annotations ?? []);
   const [status, setStatus] = useState('');
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [flagSelectVisible, setFlagSelectVisible] = useState(false);
   const [flagPickerVisible, setFlagPickerVisible] = useState(false);
   const [pendingFlag, setPendingFlag] = useState<{ type: Annotation['type']; text: string } | null>(null);
   const [labelInput, setLabelInput] = useState('');
@@ -151,8 +156,8 @@ export default function EditorScreen({ route, navigation }: Props) {
     }
   }
 
-  function exitSelectMode() {
-    setMode('read');
+  function closeFlagSelect() {
+    setFlagSelectVisible(false);
     setWordAnchor(null);
     setWordFocus(null);
   }
@@ -179,7 +184,7 @@ export default function EditorScreen({ route, navigation }: Props) {
     setAnnotations(next);
     scheduleAutosave(content, next);
     setPendingFlag(null);
-    exitSelectMode();
+    closeFlagSelect();
   }
 
   function removeAnnotation(id: string) {
@@ -226,24 +231,21 @@ export default function EditorScreen({ route, navigation }: Props) {
       <View style={styles.toolbar}>
         <Pressable
           onPress={() => {
-            if (mode === 'select') { exitSelectMode(); return; }
             if (mode === 'edit') flushSave();
             setMode(mode === 'edit' ? 'read' : 'edit');
           }}
         >
-          <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : mode === 'select' ? 'Cancel' : 'Edit'}</Text>
+          <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : 'Edit'}</Text>
         </Pressable>
         <Text style={styles.status}>{status}</Text>
-        {mode === 'read' && (
-          <Pressable onPress={() => setMode('select')}>
+        {mode === 'edit' && (
+          <Pressable onPress={() => setFlagSelectVisible(true)}>
             <Text style={styles.toolbarBtn}>Flag text</Text>
           </Pressable>
         )}
-        {mode !== 'select' && (
-          <Pressable onPress={() => setHistoryVisible(true)}>
-            <Text style={styles.toolbarBtn}>History</Text>
-          </Pressable>
-        )}
+        <Pressable onPress={() => setHistoryVisible(true)}>
+          <Text style={styles.toolbarBtn}>History</Text>
+        </Pressable>
       </View>
 
       {mode === 'read' && (
@@ -297,8 +299,17 @@ export default function EditorScreen({ route, navigation }: Props) {
         />
       )}
 
-      {mode === 'select' && (
-        <>
+      {/* Flag-select modal: opened from edit mode's "Flag text" button, not a separate
+          top-level mode -- the TextInput underneath keeps its content, so closing this
+          without flagging anything drops you right back into typing where you left off. */}
+      <Modal visible={flagSelectVisible} animationType="slide" onRequestClose={closeFlagSelect}>
+        <View style={[styles.flagPickerScreen, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.flagPickerHeader}>
+            <Text style={styles.modalTitle}>Flag text</Text>
+            <Pressable onPress={closeFlagSelect} hitSlop={10}>
+              <Text style={styles.flagPickerClose}>×</Text>
+            </Pressable>
+          </View>
           <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
             <Text style={styles.selectHint}>Tap a sentence to start, tap another to extend the selection.</Text>
             {tokens.length === 0 && <Text style={styles.placeholder}>This chapter has no text yet.</Text>}
@@ -330,8 +341,8 @@ export default function EditorScreen({ route, navigation }: Props) {
               </Pressable>
             </View>
           )}
-        </>
-      )}
+        </View>
+      </Modal>
 
       {/* Full-screen flag-type picker, opened from the "⋮" on a selection */}
       <Modal visible={flagPickerVisible} animationType="slide" onRequestClose={() => setFlagPickerVisible(false)}>

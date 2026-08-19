@@ -1,15 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
@@ -17,6 +10,8 @@ import { useAuthStore } from '../store/authStore';
 import { type Project, useProjectStore } from '../store/projectStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
+
+const ROW_HEIGHT = 56;
 
 // The PWA has no project reordering at all -- `projects` has no `order` column (handoff
 // doc §4) and this session has no schema/DDL access to add one (same anon-key-only
@@ -46,13 +41,34 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const projectOrder = (user?.user_metadata?.project_order as string[] | undefined) ?? [];
   const orderedProjects = useMemo(() => applyProjectOrder(projects, projectOrder), [projects, projectOrder]);
 
-  async function moveProject(index: number, direction: -1 | 1) {
-    const target = index + direction;
-    if (target < 0 || target >= orderedProjects.length) return;
-    const next = [...orderedProjects];
-    [next[index], next[target]] = [next[target], next[index]];
-    await supabase.auth.updateUser({ data: { project_order: next.map((p) => p.id) } });
-  }
+  // Drag-to-reorder, same mechanism as List view's chapter reordering (ChapterListScreen)
+  // for consistency -- useSortableList rather than the higher-level <Sortable>, matching
+  // that screen's fix for the nested-VirtualizedList-in-ScrollView warning, even though
+  // this screen's list isn't nested in another ScrollView today; keeping one pattern
+  // rather than two avoids a screen silently breaking if a wrapping ScrollView is ever
+  // added around it later.
+  const [items, setItems] = useState(orderedProjects);
+  useEffect(() => {
+    setItems(orderedProjects);
+  }, [orderedProjects]);
+
+  const handleMove = useCallback((id: string, from: number, to: number) => {
+    setItems((prev) => {
+      const idx = prev.findIndex((p) => p.id === id);
+      if (idx === -1 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const handleDrop = useCallback(() => {
+    supabase.auth.updateUser({ data: { project_order: items.map((p) => p.id) } });
+  }, [items]);
+
+  const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
+    useSortableList({ data: items, itemHeight: ROW_HEIGHT });
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -126,36 +142,40 @@ export default function ProjectPickerScreen({ navigation }: Props) {
         <Text style={styles.empty}>No projects yet — create one below.</Text>
       )}
 
-      <FlatList
-        data={orderedProjects}
-        keyExtractor={(p) => p.id}
-        renderItem={({ item, index }) => (
-          <View style={styles.row}>
-            <View style={styles.reorderCol}>
-              <Pressable onPress={() => moveProject(index, -1)} disabled={index === 0} hitSlop={6}>
-                <Text style={[styles.reorderArrow, index === 0 && styles.modalDisabled]}>▲</Text>
-              </Pressable>
-              <Pressable onPress={() => moveProject(index, 1)} disabled={index === orderedProjects.length - 1} hitSlop={6}>
-                <Text style={[styles.reorderArrow, index === orderedProjects.length - 1 && styles.modalDisabled]}>▼</Text>
-              </Pressable>
-            </View>
-            <Pressable
-              style={styles.rowMain}
-              onPress={() => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
-            >
-              <Text style={styles.rowText}>{item.name}</Text>
-            </Pressable>
-            <View style={styles.rowActions}>
-              <Pressable onPress={() => openRename(item)} hitSlop={10}>
-                <Text style={styles.rowActionText}>Rename</Text>
-              </Pressable>
-              <Pressable onPress={() => openDelete(item)} hitSlop={10}>
-                <Text style={[styles.rowActionText, styles.rowActionDanger]}>Delete</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-      />
+      <DropProvider ref={dropProviderRef}>
+        <Animated.ScrollView
+          ref={scrollViewRef}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ height: contentHeight }}
+          onScrollEndDrag={handleScrollEnd}
+          onMomentumScrollEnd={handleScrollEnd}
+        >
+          {items.map((item, index) => (
+            <SortableItem key={item.id} data={item} {...getItemProps(item, index)} onMove={handleMove} onDrop={handleDrop}>
+              <View style={styles.row}>
+                <SortableItem.Handle style={styles.dragHandle}>
+                  <Text style={styles.dragHandleText}>⠿</Text>
+                </SortableItem.Handle>
+                <Pressable
+                  style={styles.rowMain}
+                  onPress={() => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
+                >
+                  <Text style={styles.rowText}>{item.name}</Text>
+                </Pressable>
+                <View style={styles.rowActions}>
+                  <Pressable onPress={() => openRename(item)} hitSlop={10}>
+                    <Text style={styles.rowActionText}>Rename</Text>
+                  </Pressable>
+                  <Pressable onPress={() => openDelete(item)} hitSlop={10}>
+                    <Text style={[styles.rowActionText, styles.rowActionDanger]}>Delete</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </SortableItem>
+          ))}
+        </Animated.ScrollView>
+      </DropProvider>
 
       <View style={styles.newRow}>
         <TextInput
@@ -250,15 +270,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4a3a22',
     borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginBottom: 10,
+    height: ROW_HEIGHT - 8,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    paddingHorizontal: 8,
+    gap: 6,
   },
-  reorderCol: { gap: 2 },
-  reorderArrow: { color: '#a8926a', fontSize: 12, paddingVertical: 2 },
+  dragHandle: { width: 28, alignItems: 'center', justifyContent: 'center' },
+  dragHandleText: { color: '#8a7355', fontSize: 16 },
   rowMain: { flex: 1 },
   rowText: { color: '#e9dcb8', fontSize: 15 },
   rowActions: { flexDirection: 'row', gap: 16 },

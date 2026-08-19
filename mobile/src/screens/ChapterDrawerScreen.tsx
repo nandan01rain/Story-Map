@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -56,6 +56,12 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
       setNotes(chapter.notes);
     }
   }, [chapter]);
+
+  // Same fix as EditorScreen: this screen's own hardcoded route title ("Chapter", set in
+  // RootNavigator) was never being overridden with the real chapter title.
+  useLayoutEffect(() => {
+    if (chapter?.title) navigation.setOptions({ title: chapter.title });
+  }, [navigation, chapter?.title]);
 
   useEffect(() => {
     if (!chapter) return;
@@ -202,12 +208,12 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
         </View>
       ))}
 
-      <Pressable style={styles.deleteBtn} onPress={handleDelete}>
-        <Text style={styles.deleteBtnText}>Delete chapter</Text>
-      </Pressable>
-
       <Pressable style={styles.editorBtn} onPress={() => navigation.navigate('Editor', { chapterId })}>
         <Text style={styles.editorBtnText}>Open full editor →</Text>
+      </Pressable>
+
+      <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+        <Text style={styles.deleteBtnText}>Delete chapter</Text>
       </Pressable>
     </ScrollView>
   );
@@ -262,7 +268,7 @@ const styles = StyleSheet.create({
   sceneStatusPillText: { color: '#a8926a', fontSize: 9, textTransform: 'capitalize' },
   sceneSummaryInput: { color: '#c9b892', fontSize: 13, minHeight: 40, textAlignVertical: 'top' },
   deleteBtn: {
-    marginTop: 28,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#b8542e',
     borderRadius: 6,
@@ -270,6 +276,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteBtnText: { color: '#b8542e', fontWeight: '600' },
-  editorBtn: { marginTop: 12, backgroundColor: '#c69a3a', borderRadius: 6, padding: 14, alignItems: 'center' },
+  editorBtn: { marginTop: 28, backgroundColor: '#c69a3a', borderRadius: 6, padding: 14, alignItems: 'center' },
   editorBtnText: { color: '#2b1a05', fontWeight: '700', fontSize: 15 },
 });

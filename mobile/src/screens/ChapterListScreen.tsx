@@ -12,6 +12,12 @@ type Props = NativeStackScreenProps<SignedInStackParamList, 'ChapterList'>;
 type NavigateFn = Props['navigation']['navigate'];
 
 const ROW_HEIGHT = 52;
+// useSortableList requires every item to report the same fixed height for its drag
+// position math -- reserving a constant-height label slot above every row (shown or
+// left blank) keeps that true, rather than only some rows growing taller for their act
+// label and throwing the math off.
+const LABEL_HEIGHT = 26;
+const ITEM_HEIGHT = ROW_HEIGHT + LABEL_HEIGHT;
 
 // Ports the PWA's renderListView() (index.html): Book -> Act -> Chapter accordion.
 // Acts are inferred from whatever integer `act` values exist on a book's chapters
@@ -79,7 +85,6 @@ export default function ChapterListScreen({ route, navigation }: Props) {
         const bookChapters = byBook.get(bookIndex);
         if (!bookChapters || bookChapters.length === 0) return null;
         const isOpen = expandedBooks.has(bookIndex);
-        const acts = [...new Set(bookChapters.map((c) => c.act))].sort((a, b) => a - b);
 
         return (
           <View key={bookIndex} style={styles.book}>
@@ -91,18 +96,9 @@ export default function ChapterListScreen({ route, navigation }: Props) {
               <Text style={styles.bookArrow}>{isOpen ? '▼' : '▶'}</Text>
             </Pressable>
 
-            {isOpen &&
-              acts.map((actNum) => {
-                const actChapters = bookChapters
-                  .filter((c) => c.act === actNum)
-                  .sort((a, b) => a.order - b.order);
-                return (
-                  <View key={actNum} style={styles.act}>
-                    <Text style={styles.actTitle}>Act {actNum}</Text>
-                    <ActChapterList chapters={actChapters} projectId={projectId} navigate={navigation.navigate} />
-                  </View>
-                );
-              })}
+            {isOpen && (
+              <BookChapterList chapters={bookChapters} projectId={projectId} navigate={navigation.navigate} />
+            )}
           </View>
         );
       })}
@@ -110,29 +106,35 @@ export default function ChapterListScreen({ route, navigation }: Props) {
   );
 }
 
-// Drag-to-reorder, within this act only -- ports the PWA's List-mode reordering
-// (index.html, wireListDrag()), including its within-act-only scope (that function's own
-// comment explains why cross-section dragging wasn't built: no natural "one continuous
-// position across every book" ordering exists once acts collapse independently). A
-// dedicated handle (not the whole row) starts the drag, same as the PWA, so tapping a
-// row still opens its drawer.
+// Drag-to-reorder across the WHOLE book, not just within one act -- extended from the
+// PWA's List-mode reordering (index.html, wireListDrag()) at this session's explicit
+// request; the PWA itself only supported within-act dragging (that function's own
+// comment explains why: no natural "one continuous position" existed there without
+// auto-expanding collapsed act sections). Here the whole book's chapters render as one
+// flat draggable sequence when the book is expanded, so no such expansion is needed.
 //
-// Uses useSortableList rather than the higher-level <Sortable> component deliberately:
-// <Sortable> renders its own internal FlatList/VirtualizedList, which React Native
-// explicitly warns against nesting inside a plain ScrollView (this screen's outer
-// book/act accordion) -- confirmed on real hardware as the exact "VirtualizedLists
-// should never be nested inside plain ScrollViews" warning. useSortableList hands back
-// plain items to .map() over inside a normal Animated.ScrollView instead, so nothing
-// virtualized ever sits inside the outer ScrollView. Each act's list gets its own
-// DropProvider (per the hook's own documented usage), separate from the app-root one in
-// App.tsx.
+// Dragging a chapter past an act boundary reassigns its `act`: on drop, the moved
+// chapter inherits the act of whichever chapter now sits immediately above it in the
+// merged sequence (or below it, if dropped at the very top) -- every other chapter keeps
+// its own act unchanged. `order` is then renumbered within each resulting consecutive
+// same-act run, not as one book-wide sequence, so "3rd chapter in Act 2" stays a
+// meaningful, stable position after an unrelated chapter moves elsewhere in the book.
+// "ACT N" labels are computed live from the current in-progress order (not the act
+// values pre-drag), so a chapter visually joins the group it's hovering over as you drag.
 //
-// Local `items` state mirrors the library's own example pattern (it owns the live drag
-// visuals; the consuming app tracks the resulting order itself via onMove) -- re-synced
-// from the store on external changes (e.g. a chapter edited elsewhere), persisted to
-// Supabase via reorderChapters() once a drag actually completes (onDrop), not on every
-// intermediate onMove event.
-function ActChapterList({
+// A dedicated handle (not the whole row) starts the drag, same as the PWA, so tapping a
+// row still opens its drawer. Uses useSortableList rather than the higher-level
+// <Sortable> component deliberately -- <Sortable> renders its own internal FlatList/
+// VirtualizedList, which React Native explicitly warns against nesting inside a plain
+// ScrollView (this screen's outer book accordion) -- confirmed on real hardware as the
+// exact "VirtualizedLists should never be nested inside plain ScrollViews" warning.
+// useSortableList hands back plain items to .map() over inside a bounded-height
+// Animated.ScrollView instead, so nothing virtualized ever sits inside the outer
+// ScrollView. Local `items` state mirrors the library's own example pattern (it owns the
+// live drag visuals; the consuming app tracks the resulting order itself via onMove) --
+// re-synced from the store on external changes, persisted via reorderChapters() once a
+// drag actually completes (onDrop), not on every intermediate onMove event.
+function BookChapterList({
   chapters,
   projectId,
   navigate,
@@ -142,13 +144,19 @@ function ActChapterList({
   navigate: NavigateFn;
 }) {
   const reorderChapters = useChapterStore((s) => s.reorderChapters);
-  const [items, setItems] = useState(chapters);
+  const sorted = useMemo(
+    () => [...chapters].sort((a, b) => a.act - b.act || a.order - b.order),
+    [chapters],
+  );
+  const [items, setItems] = useState(sorted);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setItems(chapters);
-  }, [chapters]);
+    setItems(sorted);
+  }, [sorted]);
 
   const handleMove = useCallback((id: string, from: number, to: number) => {
+    setDraggedId(id);
     setItems((prev) => {
       const idx = prev.findIndex((c) => c.id === id);
       if (idx === -1 || from === to) return prev;
@@ -159,12 +167,60 @@ function ActChapterList({
     });
   }, []);
 
-  const handleDrop = useCallback(() => {
-    reorderChapters(items.map((c) => c.id));
-  }, [items, reorderChapters]);
+  const handleDrop = useCallback(
+    (id: string) => {
+      setDraggedId(null);
+      const draggedIdx = items.findIndex((c) => c.id === id);
+      if (draggedIdx === -1) return;
+
+      // The dragged chapter's new act: inherit from the previous item, or the next one
+      // if dropped at the very top, or keep its own if it's the book's only chapter.
+      const newAct =
+        draggedIdx > 0
+          ? items[draggedIdx - 1].act
+          : items.length > 1
+            ? items[1].act
+            : items[draggedIdx].act;
+      const withReassignedAct = items.map((c) => (c.id === id ? { ...c, act: newAct } : c));
+
+      // Renumber `order` within each consecutive same-act run.
+      const updates: { id: string; act: number; order: number }[] = [];
+      let runAct: number | null = null;
+      let runOrder = 0;
+      for (const c of withReassignedAct) {
+        if (c.act !== runAct) {
+          runAct = c.act;
+          runOrder = 0;
+        }
+        updates.push({ id: c.id, act: c.act, order: runOrder });
+        runOrder++;
+      }
+      reorderChapters(updates);
+    },
+    [items, reorderChapters],
+  );
 
   const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
-    useSortableList({ data: items, itemHeight: ROW_HEIGHT });
+    useSortableList({ data: items, itemHeight: ITEM_HEIGHT });
+
+  // Live act labels: which item starts a new act, given the dragged item's provisional
+  // act (previous-neighbor rule, same as handleDrop) while a drag is in progress.
+  const actStartIds = useMemo(() => {
+    const withProvisionalAct = items.map((c, i) => {
+      if (c.id !== draggedId) return c;
+      const newAct = i > 0 ? items[i - 1].act : items.length > 1 ? items[1].act : c.act;
+      return { ...c, act: newAct };
+    });
+    const starts = new Set<string>();
+    let lastAct: number | null = null;
+    for (const c of withProvisionalAct) {
+      if (c.act !== lastAct) {
+        starts.add(c.id);
+        lastAct = c.act;
+      }
+    }
+    return starts;
+  }, [items, draggedId]);
 
   return (
     <DropProvider ref={dropProviderRef}>
@@ -178,21 +234,32 @@ function ActChapterList({
         onMomentumScrollEnd={handleScrollEnd}
       >
         {items.map((item, index) => (
-          <SortableItem key={item.id} data={item} {...getItemProps(item, index)} onMove={handleMove} onDrop={handleDrop}>
-            <View style={styles.chapterRow}>
-              <SortableItem.Handle style={styles.dragHandle}>
-                <Text style={styles.dragHandleText}>⠿</Text>
-              </SortableItem.Handle>
-              <Pressable
-                style={styles.chapterRowMain}
-                onPress={() => navigate('ChapterDrawer', { chapterId: item.id, projectId })}
-              >
-                <View style={[styles.dot, { backgroundColor: statusColor(item.status) }]} />
-                <Text style={styles.chapterTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text style={styles.chapterMeta}>{wordCount(item.content)}w</Text>
-              </Pressable>
+          <SortableItem
+            key={item.id}
+            data={item}
+            {...getItemProps(item, index)}
+            onMove={handleMove}
+            onDrop={() => handleDrop(item.id)}
+          >
+            <View style={{ height: ITEM_HEIGHT }}>
+              <View style={styles.actTitleSlot}>
+                {actStartIds.has(item.id) && <Text style={styles.actTitle}>Act {item.act}</Text>}
+              </View>
+              <View style={styles.chapterRow}>
+                <SortableItem.Handle style={styles.dragHandle}>
+                  <Text style={styles.dragHandleText}>⠿</Text>
+                </SortableItem.Handle>
+                <Pressable
+                  style={styles.chapterRowMain}
+                  onPress={() => navigate('ChapterDrawer', { chapterId: item.id, projectId })}
+                >
+                  <View style={[styles.dot, { backgroundColor: statusColor(item.status) }]} />
+                  <Text style={styles.chapterTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.chapterMeta}>{wordCount(item.content)}w</Text>
+                </Pressable>
+              </View>
             </View>
           </SortableItem>
         ))}
@@ -219,19 +286,20 @@ const styles = StyleSheet.create({
   bookTitle: { color: '#e9dcb8', fontSize: 16, fontWeight: '700', flex: 1 },
   bookMeta: { color: '#a8926a', fontSize: 11 },
   bookArrow: { color: '#c69a3a', fontSize: 12 },
-  act: { paddingHorizontal: 14, paddingBottom: 10 },
+  actTitleSlot: { height: LABEL_HEIGHT, justifyContent: 'flex-end' },
   actTitle: {
     color: '#8a7355',
     fontSize: 10.5,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 8,
-    marginBottom: 6,
+    paddingHorizontal: 14,
+    paddingBottom: 4,
   },
   chapterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     height: ROW_HEIGHT,
+    paddingHorizontal: 14,
     borderTopWidth: 1,
     borderTopColor: '#2a2013',
     backgroundColor: '#1a130b',
