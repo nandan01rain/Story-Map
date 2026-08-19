@@ -21,6 +21,12 @@ Single self-contained HTML file (`index.html`) plus small static sidecar
 files (`manifest.json`, `service-worker.js`, `supabase-config.js`). All CSS,
 JS, and a base64-embedded map background image live inline in `index.html`.
 
+A separate, from-scratch React Native/Expo rewrite lives in `mobile/` (its
+own `package.json`, node_modules, etc. — not built from or dependent on
+`index.html`), targeting the same Supabase backend. See "Native mobile app"
+under Roadmap below and the handoff doc for its current status; nothing
+else in this file describes it.
+
 **The storage-layer migration described below is complete.** Persistence is
 Supabase (Postgres + Auth), not `window.storage` and not `localStorage` — see
 the handoff doc §3-4 for the current data-flow and schema. Multi-project
@@ -299,6 +305,24 @@ work's animated layers, but no surface reads it yet.
 
 **Stage 3** (explicitly not started): storyboards, image generation, and
 anything extending past prose-only tooling.
+
+**Native mobile app (in progress, separate track from Stages 1-3 above)**:
+a from-scratch React Native/Expo rewrite in `mobile/` (its own package.json,
+not part of the PWA's `index.html`), started 2026-08-16 after the user
+decided a PWA — still Chrome's engine underneath regardless of how "app-
+like" it's made to feel, see the day/night/compass/fullscreen work above —
+wasn't a substitute for a genuine native app. Full rationale, architecture
+decisions, and phased scope live in the plan doc referenced in conversation
+and in the handoff doc's dedicated section; short version: same Supabase
+backend/tables as the PWA (no schema changes), React Navigation + Zustand,
+Expo SDK 57. Auth, project CRUD, List view (Book→Act→Chapter, with drag-
+reorder spanning a whole book — intentionally *not* limited to within-act
+the way the PWA's own List view is), the chapter drawer, and the full
+chapter editor (typing + Plant/Reveal/Note flagging, autosave, version
+history) are built and verified on a real device. Map view, the secondary
+features (continuity checker, POV tracker, Mythic Threads, documents,
+sticky notes, search, trash), the Reader, and account/word-target settings
+are not yet built. See handoff doc for the detailed, current status.
 
 ## Design principles worth preserving
 

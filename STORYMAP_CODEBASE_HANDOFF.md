@@ -1723,3 +1723,202 @@ below applies to them yet.
   questions (shared switch architecture across all three surfaces, what
   day/night even mean for a currently-light landing page and a currently-
   dark writing app) are unchanged and still block those two.
+
+---
+
+## 14. NATIVE MOBILE APP — React Native/Expo rewrite (`mobile/`, started 2026-08-16, in progress)
+
+**Not part of `index.html` or this document's Stages 1-3.** A completely
+separate codebase in `mobile/` (own `package.json`, its own git-tracked
+source under `mobile/src/`), started after the user concluded a PWA — even
+one made to feel maximally "installed" (the fullscreen manifest, auto-
+updating service worker, day/night backgrounds, and live compass documented
+in §13 above) — is still Chrome's rendering engine underneath, and decided
+that ceiling wasn't acceptable (comparison point raised in conversation:
+Kindle's own custom-drawn reading surface, which a web page fundamentally
+cannot replicate). Read this section, not CLAUDE.md's brief pointer, for
+the real current status.
+
+### 14.1 What's shared with the PWA, and what isn't
+
+- **Same Supabase project, same tables, no schema changes.** `mobile/src/
+  lib/supabase.ts` uses the identical `SUPABASE_URL`/`SUPABASE_ANON_KEY` as
+  the repo-root `supabase-config.js`. A chapter edited on the PWA shows up
+  in the mobile app and vice versa — confirmed, not just assumed, since
+  Phase 0's own verification bar was exactly this (sign in, see real data).
+- **Nothing else is shared.** No UI code, no components, no CSS-equivalent
+  — React Native has no CSS at all. Every screen is a from-scratch build
+  using the PWA as a functional/behavioral reference, not a code source.
+  PWA-specific mechanisms (service worker, manifest, the day/night/compass/
+  fullscreen work in §13) have no native-app equivalent and aren't ported.
+
+### 14.2 Stack
+
+Expo SDK 57 (managed workflow), React Navigation (native-stack), Zustand
+for state, `@supabase/supabase-js` + `@react-native-async-storage/async-
+storage` (pinned to the exact version — `2.2.0` — Expo Go's SDK 57 build
+expects; a newer version `expo install` initially pulled in resolved to a
+null native module at runtime, see §14.5) for session persistence,
+`react-native-gesture-handler`/`react-native-reanimated` (New Architecture,
+Reanimated 4) for gesture-driven interactions, `react-native-reanimated-dnd`
+for drag-to-reorder (chosen specifically because it's built against
+Reanimated 4/gesture-handler, matching what's already installed — see
+§14.5 for why the low-level `useSortableList` hook is used instead of the
+higher-level `Sortable` component).
+
+**Environment note**: this machine had no Node.js installed at all when
+this track started — installed via `winget install OpenJS.NodeJS.LTS`
+before anything else could happen. Worth knowing if a fresh session's
+`node`/`npm`/`npx` commands mysteriously fail — check `PATH` was actually
+refreshed in that shell before assuming something's broken.
+
+### 14.3 What's built and verified on a real device
+
+- **Auth** (`SignInScreen`, `authStore.ts`): real email/password sign-in
+  against the live Supabase project, `onAuthStateChange`-driven session
+  state mirroring the PWA's own auth-screen flow.
+- **Project CRUD** (`ProjectPickerScreen`, `projectStore.ts`): create,
+  rename, delete (type-the-project-name-to-confirm gate, hard delete —
+  matches the PWA exactly, including its "no trash for projects" warning
+  copy). **Project reordering** — a PWA-parity gap this session chose to
+  fill anyway (the PWA has no `order` column on `projects` at all, and
+  this session has no schema/DDL access, same anon-key-only constraint
+  every PWA session has hit) — implemented via `user_metadata.
+  project_order` (array of ids), no migration needed, same pattern as
+  `motion_enabled`/`auth_scene_mode` in §12.2/§13.1. Drag-to-reorder using
+  `react-native-reanimated-dnd`'s `useSortableList`, not the up/down-arrow
+  version an earlier pass in this session shipped first (changed after
+  feedback that it should work the same way as chapter reordering).
+- **List view** (`ChapterListScreen`): Book → Act → Chapter accordion,
+  ported from `renderListView()`. Real chapters from Supabase, live status
+  colors/word counts. **Chapter drag-to-reorder spans the whole book, not
+  just one act** — a deliberate divergence from the PWA (whose own List
+  view is within-act-only by design, see `wireListDrag()`'s comment in
+  `index.html` for why) — per this session's explicit request. Dragging a
+  chapter past an act boundary reassigns its `act` to whichever chapter
+  now sits immediately above it in the merged sequence (or below, if
+  dropped at the very top); every other chapter's `act` is untouched, and
+  `order` is renumbered within each resulting same-act run (not as one
+  book-wide sequence) so a chapter's position among its own act-mates
+  stays meaningful after an unrelated chapter moves elsewhere in the book.
+  "ACT N" labels are computed live off the in-progress drag order, shown
+  in a fixed-height slot reserved on *every* row (shown or blank) — this
+  matters because `useSortableList` requires uniform item heights for its
+  drag position math; letting only some rows grow taller for a label
+  would have broken it.
+- **Chapter drawer** (`ChapterDrawerScreen`): title, position ("Book X,
+  Act Y, Chapter Z" — see §14.4), status pills, notes, word count vs. book
+  target (read from `project_settings.chapter_word_targets`), a
+  lightweight scenes list (title/status/summary only — POV autocomplete
+  and requires/provides plant-tag editing are Phase 3 scope, see §14.6),
+  delete. "Open full editor" button now sits *above* Delete (moved per
+  feedback — was below it).
+- **Chapter editor** (`EditorScreen`) — the highest-risk piece per the
+  original plan, and the one that actually needed the most real-device
+  iteration. Two modes: a read view with genuine inline highlight spans
+  (nested `<Text>`, `computeHighlightSegments()` in `storyData.ts` — ports
+  `renderAnnotatedContent()`'s exact substring-relocation algorithm, first-
+  occurrence search, overlap-dropping, all of it), and a plain-`TextInput`
+  edit mode for typing. Autosave debounced at exactly 1200ms matching the
+  PWA's `editorSaveTimer`, flushed immediately on Done/unmount rather than
+  left pending. Version history: last 10 snapshots, skip-if-unchanged/
+  skip-if-empty, restore pushes the pre-restore text to history first —
+  all matching `pushVersionSnapshot()`/the restore confirm copy exactly.
+  **Flagging** (Plant/Reveal/Note) lives inside edit mode itself (a "Flag
+  text" button opens a modal over the still-live `TextInput`, not a
+  separate top-level mode — an earlier version had one, changed after
+  feedback) and is built entirely independent of native `TextInput` text
+  selection — see §14.5 for why, this is the single most-iterated part of
+  the whole mobile track so far. Annotations store `type`/`text`/`label`
+  (+`thread` for notes) only; linked-plant matching, scene requires/
+  provides auto-feed, and thread-based Mythic Threads browsing are Phase 3
+  (§14.6), same as the drawer's scene fields.
+
+### 14.4 New, not a PWA feature
+
+- **"Chapter N"** in both the drawer and editor's position line ("Book X,
+  Act Y, Chapter Z") — the chapter's 1-based position within its book
+  across every act, computed fresh from the store (`chapterNumberInBook()`
+  in `storyData.ts`) so it stays correct after a List-view reorder. The
+  PWA's own `editor-title` never had this (`${title} — ${BOOKS[book]},
+  ${chapterLabel}`, no number) — built new per this session's request.
+
+### 14.5 Real-device bugs found and fixed this session (read before touching the editor or List view again)
+
+Everything below was found by actually testing on a physical Android
+device, not by code review — this track has had a much tighter build/
+verify loop than the PWA sessions typically did, and it's caught real,
+non-obvious platform issues every single round:
+
+1. **`@react-native-async-storage/async-storage` version mismatch.**
+   `expo install` initially resolved `3.1.1`; Expo Go's SDK 57 build
+   expects `2.2.0`. Surfaced on-device as `[AsyncStorageError: Native
+   module is null, cannot access legacy storage]` *after* the JS bundle
+   had already loaded successfully — looked at first like a network/
+   connectivity problem (the same session also independently hit real
+   Wi-Fi/Expo Go SDK-mismatch issues while just getting the dev server
+   connected at all), but was a real dependency-version bug. Fixed via
+   `npx expo install --fix`. **Lesson**: run `expo install --check`
+   whenever a dependency-related runtime error shows up before assuming
+   it's environmental.
+2. **Android's multiline `TextInput` only ever selects a single word**,
+   even via long-press-and-drag. Confirmed on real hardware, not merely
+   suspected — this is a longstanding, still-unresolved React Native/
+   Android platform bug (`onSelectionChange` unreliability for drag-
+   extend selection; see e.g. `facebook/react-native#18617`, `#29365`).
+   **This is why flagging is built entirely independent of native
+   `TextInput` selection** (§14.3) — a tap-a-sentence-to-select custom
+   mechanic instead. Do not attempt to reintroduce `TextInput`-selection-
+   based flagging without re-confirming this is fixed upstream first.
+3. **Per-word tappable elements froze the JS thread for 10-15 seconds per
+   tap.** The first version of tap-to-select flagging wrapped *every
+   word* in the chapter in its own individually-touchable `<Text>` — for
+   a real chapter (thousands of words) that's thousands of nodes re-
+   evaluating on every tap, enough to trigger Android's ANR ("app not
+   responding") dialog. Fixed by chunking at the *sentence* level instead
+   (`tokenizeSentences()` in `storyData.ts`, stops at `.!?` or a paragraph
+   break) — roughly cuts node count by the average sentence length in
+   words, and reads as a more natural flagging unit anyway.
+4. **`react-native-reanimated-dnd`'s `<Sortable>` component triggers
+   React Native's "VirtualizedLists should never be nested inside plain
+   ScrollViews" warning** when embedded inside List view's outer book/act
+   accordion `ScrollView` — `<Sortable>` renders its own internal
+   FlatList/VirtualizedList internally. Fixed by using the library's
+   lower-level `useSortableList` hook instead, which hands back plain
+   items to `.map()` over inside a bounded-height `Animated.ScrollView`
+   (sized exactly to content, `scrollEnabled={false}`) rather than a
+   virtualized list — confirmed via the library's own documented example
+   for exactly this "sortable list embedded in another scrollable
+   hierarchy" case. `ProjectPickerScreen`'s reorder uses the same hook for
+   consistency even though its list isn't nested in another `ScrollView`
+   today, so it won't silently break if one's added around it later.
+5. **Screen headers defaulting to their literal static route title**
+   ("Chapter") instead of the real chapter title — happened on *both*
+   `EditorScreen` and `ChapterDrawerScreen` (the second one was a repeat
+   of the same bug, missed when fixing the first). Root cause was a
+   `chapter?.title ?? 'Chapter'` fallback that should have just left the
+   title unset, combined with using `useEffect` instead of
+   `useLayoutEffect` for `navigation.setOptions()` (React Navigation's own
+   documented recommendation, to avoid a title-flash). Fixed on both
+   screens; if a third screen ever needs a dynamic header title, use
+   `useLayoutEffect` and don't give the fallback a placeholder string.
+
+### 14.6 Not yet built
+
+In rough intended order (no firm commitment to this exact sequence):
+Map view (interactive drag-and-drop Book→Act→Chapter trail — the PWA's
+other view mode), then continuity checker/Plant Ledger/Mythic Threads/POV
+tracker (Phase 3 secondary features, deferred from the drawer and editor
+work above), documents library, sticky notes, full-text search, real
+trash (chapter/scene delete is currently a **hard delete**, an explicit
+interim compromise flagged in code comments — the PWA soft-deletes to a
+trash table), the in-app Reader, word-target/account settings screens, and
+eventually the AI features (already broken even in the PWA — needs a real
+serverless proxy either way, see §7).
+
+Also **not verified**: whether the general "jerky" feel reported once in
+this session is a real performance problem or just Expo Go's dev-mode
+overhead (no compiled optimizations, debugging instrumentation always
+on) — flagged to the user as a likely factor, not chased further yet.
+Worth a real perf pass against a production build (`eas build`) before
+concluding anything either way, not against Expo Go.
