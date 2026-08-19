@@ -165,8 +165,6 @@ export default function EditorScreen({ route, navigation }: Props) {
 
   if (!chapter) return null;
 
-  const hasSelection = mode === 'edit' && selection.end > selection.start;
-
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -237,19 +235,27 @@ export default function EditorScreen({ route, navigation }: Props) {
             placeholder="Start writing..."
             placeholderTextColor="#8a7355"
           />
-          {hasSelection && (
-            <View style={styles.markToolbar}>
-              <Pressable style={styles.markBtn} onPress={() => beginFlag('plant')}>
-                <Text style={styles.markBtnText}>🌱 Plant</Text>
-              </Pressable>
-              <Pressable style={styles.markBtn} onPress={() => beginFlag('reveal')}>
-                <Text style={styles.markBtnText}>⚡ Reveal</Text>
-              </Pressable>
-              <Pressable style={styles.markBtn} onPress={() => beginFlag('note')}>
-                <Text style={styles.markBtnText}>📜 Note</Text>
-              </Pressable>
-            </View>
-          )}
+          {/* Always visible rather than gated on hasSelection -- onSelectionChange on a
+              multiline TextInput is unreliable on Android for drag-based selection
+              (longstanding RN platform bug, not specific to this app: e.g. facebook/
+              react-native#18617, #29365), so hiding the toolbar until a selection is
+              detected could mean it never appears at all. beginFlag() still reads
+              whatever `selection` currently holds and tells the user to select text
+              first if it's empty -- this dev-only readout shows exactly what the
+              TextInput is reporting, to see whether it's simply not firing on this
+              device or firing with the wrong range. */}
+          <Text style={styles.selectionDebug}>selection: {selection.start}–{selection.end}</Text>
+          <View style={styles.markToolbar}>
+            <Pressable style={styles.markBtn} onPress={() => beginFlag('plant')}>
+              <Text style={styles.markBtnText}>🌱 Plant</Text>
+            </Pressable>
+            <Pressable style={styles.markBtn} onPress={() => beginFlag('reveal')}>
+              <Text style={styles.markBtnText}>⚡ Reveal</Text>
+            </Pressable>
+            <Pressable style={styles.markBtn} onPress={() => beginFlag('note')}>
+              <Text style={styles.markBtnText}>📜 Note</Text>
+            </Pressable>
+          </View>
         </>
       )}
 
@@ -350,6 +356,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     padding: 20,
   },
+  selectionDebug: { color: '#6b5d42', fontSize: 10, textAlign: 'center', paddingBottom: 4 },
   markToolbar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
