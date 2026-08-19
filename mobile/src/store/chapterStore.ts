@@ -43,6 +43,11 @@ type ChapterState = {
     patch: Partial<Pick<Chapter, 'title' | 'book' | 'act' | 'status' | 'notes' | 'content' | 'annotations' | 'versions'>>,
   ) => Promise<{ error: string | null }>;
   deleteChapter: (chapterId: string) => Promise<{ error: string | null }>;
+  // Persists a new within-act chapter order (array of chapter ids in their new order) --
+  // ports the PWA's List view drag-to-reorder (index.html, wireListDrag()), including its
+  // within-act-only constraint (see that function's own comment for why cross-section
+  // dragging was scoped out). Assigns order = array index for each id.
+  reorderChapters: (orderedIds: string[]) => Promise<{ error: string | null }>;
 };
 
 export const useChapterStore = create<ChapterState>((set, get) => ({
@@ -80,6 +85,18 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
     const { error } = await supabase.from('chapters').delete().eq('id', chapterId);
     if (error) return { error: error.message };
     set({ chapters: get().chapters.filter((c) => c.id !== chapterId) });
+    return { error: null };
+  },
+  reorderChapters: async (orderedIds) => {
+    const results = await Promise.all(
+      orderedIds.map((id, index) => supabase.from('chapters').update({ order: index }).eq('id', id)),
+    );
+    const firstError = results.find((r) => r.error)?.error;
+    if (firstError) return { error: firstError.message };
+    const orderById = new Map(orderedIds.map((id, index) => [id, index]));
+    set({
+      chapters: get().chapters.map((c) => (orderById.has(c.id) ? { ...c, order: orderById.get(c.id)! } : c)),
+    });
     return { error: null };
   },
 }));

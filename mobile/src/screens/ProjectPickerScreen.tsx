@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,10 +12,27 @@ import {
 } from 'react-native';
 
 import type { SignedInStackParamList } from '../navigation/types';
+import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { type Project, useProjectStore } from '../store/projectStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
+
+// The PWA has no project reordering at all -- `projects` has no `order` column (handoff
+// doc §4) and this session has no schema/DDL access to add one (same anon-key-only
+// constraint the PWA's own sessions hit). Implemented account-wide in Supabase Auth's
+// user_metadata instead (`project_order`, an array of project ids), same no-migration-
+// needed pattern the PWA itself uses for its own small account-level preferences
+// (motion_enabled, auth_scene_mode). Any project id not yet in that array sorts after
+// the ones that are, in their existing created_at order.
+function applyProjectOrder(projects: Project[], orderIds: string[]): Project[] {
+  const index = new Map(orderIds.map((id, i) => [id, i]));
+  return [...projects].sort((a, b) => {
+    const ai = index.has(a.id) ? index.get(a.id)! : Infinity;
+    const bi = index.has(b.id) ? index.get(b.id)! : Infinity;
+    return ai - bi;
+  });
+}
 
 // Matches the PWA's project-screen flow (index.html): list, create (name only,
 // project_type always 'writing'), rename (inline), delete (type-the-name-to-confirm,
@@ -25,6 +42,17 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const signOut = useAuthStore((s) => s.signOut);
   const { projects, loading, error, fetchProjects, createProject, renameProject, deleteProject } =
     useProjectStore();
+
+  const projectOrder = (user?.user_metadata?.project_order as string[] | undefined) ?? [];
+  const orderedProjects = useMemo(() => applyProjectOrder(projects, projectOrder), [projects, projectOrder]);
+
+  async function moveProject(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= orderedProjects.length) return;
+    const next = [...orderedProjects];
+    [next[index], next[target]] = [next[target], next[index]];
+    await supabase.auth.updateUser({ data: { project_order: next.map((p) => p.id) } });
+  }
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -99,14 +127,24 @@ export default function ProjectPickerScreen({ navigation }: Props) {
       )}
 
       <FlatList
-        data={projects}
+        data={orderedProjects}
         keyExtractor={(p) => p.id}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.row}
-            onPress={() => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
-          >
-            <Text style={styles.rowText}>{item.name}</Text>
+        renderItem={({ item, index }) => (
+          <View style={styles.row}>
+            <View style={styles.reorderCol}>
+              <Pressable onPress={() => moveProject(index, -1)} disabled={index === 0} hitSlop={6}>
+                <Text style={[styles.reorderArrow, index === 0 && styles.modalDisabled]}>▲</Text>
+              </Pressable>
+              <Pressable onPress={() => moveProject(index, 1)} disabled={index === orderedProjects.length - 1} hitSlop={6}>
+                <Text style={[styles.reorderArrow, index === orderedProjects.length - 1 && styles.modalDisabled]}>▼</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              style={styles.rowMain}
+              onPress={() => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
+            >
+              <Text style={styles.rowText}>{item.name}</Text>
+            </Pressable>
             <View style={styles.rowActions}>
               <Pressable onPress={() => openRename(item)} hitSlop={10}>
                 <Text style={styles.rowActionText}>Rename</Text>
@@ -115,7 +153,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
                 <Text style={[styles.rowActionText, styles.rowActionDanger]}>Delete</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </View>
         )}
       />
 
@@ -212,13 +250,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4a3a22',
     borderRadius: 6,
-    padding: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     marginBottom: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
   },
-  rowText: { color: '#e9dcb8', fontSize: 15, flex: 1 },
+  reorderCol: { gap: 2 },
+  reorderArrow: { color: '#a8926a', fontSize: 12, paddingVertical: 2 },
+  rowMain: { flex: 1 },
+  rowText: { color: '#e9dcb8', fontSize: 15 },
   rowActions: { flexDirection: 'row', gap: 16 },
   rowActionText: { color: '#a8926a', fontSize: 12 },
   rowActionDanger: { color: '#b8542e' },

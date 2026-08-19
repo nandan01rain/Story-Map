@@ -1,12 +1,16 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Sortable, SortableItem, type SortableRenderItemProps } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
 import { BOOKS, statusColor, wordCount } from '../lib/storyData';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ChapterList'>;
+type NavigateFn = Props['navigation']['navigate'];
+
+const ROW_HEIGHT = 52;
 
 // Ports the PWA's renderListView() (index.html): Book -> Act -> Chapter accordion.
 // Acts are inferred from whatever integer `act` values exist on a book's chapters
@@ -94,19 +98,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
                 return (
                   <View key={actNum} style={styles.act}>
                     <Text style={styles.actTitle}>Act {actNum}</Text>
-                    {actChapters.map((ch) => (
-                      <Pressable
-                        key={ch.id}
-                        style={styles.chapterRow}
-                        onPress={() => navigation.navigate('ChapterDrawer', { chapterId: ch.id, projectId })}
-                      >
-                        <View style={[styles.dot, { backgroundColor: statusColor(ch.status) }]} />
-                        <Text style={styles.chapterTitle} numberOfLines={1}>
-                          {ch.title}
-                        </Text>
-                        <Text style={styles.chapterMeta}>{wordCount(ch.content)}w</Text>
-                      </Pressable>
-                    ))}
+                    <ActChapterList chapters={actChapters} projectId={projectId} navigate={navigation.navigate} />
                   </View>
                 );
               })}
@@ -114,6 +106,84 @@ export default function ChapterListScreen({ route, navigation }: Props) {
         );
       })}
     </ScrollView>
+  );
+}
+
+// Drag-to-reorder, within this act only -- ports the PWA's List-mode reordering
+// (index.html, wireListDrag()), including its within-act-only scope (that function's own
+// comment explains why cross-section dragging wasn't built: no natural "one continuous
+// position across every book" ordering exists once acts collapse independently). A
+// dedicated handle (not the whole row) starts the drag, same as the PWA, so tapping a
+// row still opens its drawer. Local `items` state mirrors react-native-reanimated-dnd's
+// own example pattern (its Sortable component owns the live drag visuals; the consuming
+// app is expected to track the resulting order itself via onMove) -- re-synced from the
+// store on external changes (e.g. a chapter edited elsewhere), persisted to Supabase via
+// reorderChapters() once a drag actually completes (onDrop), not on every intermediate
+// onMove event.
+function ActChapterList({
+  chapters,
+  projectId,
+  navigate,
+}: {
+  chapters: Chapter[];
+  projectId: string;
+  navigate: NavigateFn;
+}) {
+  const reorderChapters = useChapterStore((s) => s.reorderChapters);
+  const [items, setItems] = useState(chapters);
+
+  useEffect(() => {
+    setItems(chapters);
+  }, [chapters]);
+
+  const handleMove = useCallback((id: string, from: number, to: number) => {
+    setItems((prev) => {
+      const idx = prev.findIndex((c) => c.id === id);
+      if (idx === -1 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const handleDrop = useCallback(() => {
+    reorderChapters(items.map((c) => c.id));
+  }, [items, reorderChapters]);
+
+  const renderItem = useCallback(
+    (props: SortableRenderItemProps<Chapter>) => {
+      const { item, id, ...rest } = props;
+      return (
+        <SortableItem key={id} id={id} data={item} {...rest} onMove={handleMove} onDrop={handleDrop}>
+          <View style={styles.chapterRow}>
+            <SortableItem.Handle style={styles.dragHandle}>
+              <Text style={styles.dragHandleText}>⠿</Text>
+            </SortableItem.Handle>
+            <Pressable
+              style={styles.chapterRowMain}
+              onPress={() => navigate('ChapterDrawer', { chapterId: item.id, projectId })}
+            >
+              <View style={[styles.dot, { backgroundColor: statusColor(item.status) }]} />
+              <Text style={styles.chapterTitle} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={styles.chapterMeta}>{wordCount(item.content)}w</Text>
+            </Pressable>
+          </View>
+        </SortableItem>
+      );
+    },
+    [handleMove, handleDrop, navigate, projectId],
+  );
+
+  return (
+    <Sortable
+      data={items}
+      renderItem={renderItem}
+      itemHeight={ROW_HEIGHT}
+      style={{ height: items.length * ROW_HEIGHT }}
+    />
   );
 }
 
@@ -147,11 +217,19 @@ const styles = StyleSheet.create({
   chapterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 9,
+    height: ROW_HEIGHT,
     borderTopWidth: 1,
     borderTopColor: '#2a2013',
+    backgroundColor: '#1a130b',
   },
+  dragHandle: {
+    width: 30,
+    height: ROW_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dragHandleText: { color: '#8a7355', fontSize: 16 },
+  chapterRowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   chapterTitle: { color: '#e9dcb8', fontSize: 14, flex: 1 },
   chapterMeta: { color: '#8a7355', fontSize: 11 },

@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { ANNOTATION_COLORS, computeHighlightSegments, tokenizeSentences, wordCount } from '../lib/storyData';
+import { ANNOTATION_COLORS, BOOKS, computeHighlightSegments, tokenizeSentences, wordCount } from '../lib/storyData';
 import { type Annotation, useChapterStore } from '../store/chapterStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
@@ -202,6 +202,9 @@ export default function EditorScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
+      <Text style={styles.position}>
+        {BOOKS[chapter.book]} · Act {chapter.act}
+      </Text>
       <View style={styles.toolbar}>
         <Pressable
           onPress={() => {
@@ -212,7 +215,7 @@ export default function EditorScreen({ route, navigation }: Props) {
         >
           <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : mode === 'select' ? 'Cancel' : 'Edit'}</Text>
         </Pressable>
-        <Text style={styles.status}>{status || `[mode: ${mode}]`}</Text>
+        <Text style={styles.status}>{status}</Text>
         {mode === 'read' && (
           <Pressable onPress={() => setMode('select')}>
             <Text style={styles.toolbarBtn}>Flag text</Text>
@@ -423,6 +426,14 @@ export default function EditorScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#120d08' },
+  position: {
+    color: '#8a7355',
+    fontSize: 10.5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
