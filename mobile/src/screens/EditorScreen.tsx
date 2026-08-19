@@ -208,7 +208,7 @@ export default function EditorScreen({ route, navigation }: Props) {
         >
           <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : mode === 'select' ? 'Cancel' : 'Edit'}</Text>
         </Pressable>
-        <Text style={styles.status}>{status}</Text>
+        <Text style={styles.status}>{status || `[mode: ${mode}]`}</Text>
         {mode === 'read' && (
           <Pressable onPress={() => setMode('select')}>
             <Text style={styles.toolbarBtn}>Flag text</Text>
@@ -276,6 +276,7 @@ export default function EditorScreen({ route, navigation }: Props) {
         <>
           <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
             <Text style={styles.selectHint}>Tap a word to start, tap another to extend the selection.</Text>
+            {tokens.length === 0 && <Text style={styles.placeholder}>This chapter has no text yet.</Text>}
             <Text style={styles.proseText}>
               {tokens.map((tok, i) => {
                 const selected = wordSelStart !== null && i >= wordSelStart && i <= wordSelEnd!;
