@@ -313,16 +313,36 @@ decided a PWA — still Chrome's engine underneath regardless of how "app-
 like" it's made to feel, see the day/night/compass/fullscreen work above —
 wasn't a substitute for a genuine native app. Full rationale, architecture
 decisions, and phased scope live in the plan doc referenced in conversation
-and in the handoff doc's dedicated section; short version: same Supabase
-backend/tables as the PWA (no schema changes), React Navigation + Zustand,
-Expo SDK 57. Auth, project CRUD, List view (Book→Act→Chapter, with drag-
-reorder spanning a whole book — intentionally *not* limited to within-act
-the way the PWA's own List view is), the chapter drawer, and the full
-chapter editor (typing + Plant/Reveal/Note flagging, autosave, version
-history) are built and verified on a real device. Map view, the secondary
-features (continuity checker, POV tracker, Mythic Threads, documents,
-sticky notes, search, trash), the Reader, and account/word-target settings
-are not yet built. See handoff doc for the detailed, current status.
+and in the handoff doc's dedicated section (§14); short version: same
+Supabase backend/tables as the PWA (no schema changes), React Navigation +
+Zustand, Expo SDK 57.
+
+As of 2026-08-19 the mobile app has grown well past initial parity and now
+has its own app-wide day/night theme system, a real e-reader, and several
+features (sticky notes, book-level chapter creation, account settings) the
+PWA either doesn't have on mobile at all or handles differently. Built and
+verified on a real device: auth, project CRUD (including reordering, a
+PWA gap filled mobile-first), List view (Book→Act→Chapter, book-wide drag-
+reorder, a "+" per book to create a chapter directly into a chosen act),
+the chapter drawer (word count that glows blue/gold/red against the book's
+target instead of printing the raw numbers), a single always-editing
+chapter editor (TextInput-native selection for Plant/Reveal/Note flagging,
+autosave, version history), a from-scratch Reader (real page-level
+pagination via off-screen text measurement, a chrome-hidden fullscreen mode
+and a chrome-visible peeking three-page carousel, a table of contents that
+slides in from the left, Font/Layout controls including alignment and a
+curated font choice, local moving/pinned bookmarks, and two-way
+"View in Editor"/"View in Reader" jumps that land on the exact selected
+text), sticky notes ("The Margin", real `sticky_notes` table CRUD, cards
+that open into a full-screen editor), and a Settings screen (day/night/auto
+theme — auto follows the device clock, not the OS light/dark setting — plus
+an app-scoped screen-brightness slider). The main hamburger menu and the
+Reader's table of contents are both real slide-in-from-the-left panels
+opened purely by an edge swipe, no button. Still not built: Map view, the
+remaining secondary features (continuity checker, POV tracker, Mythic
+Threads, documents, search, trash), and a dictionary/word-lookup feature in
+the Reader (deferred by explicit choice). See handoff doc §14 for the full,
+current, session-by-session detail — this paragraph is the summary only.
 
 ## Design principles worth preserving
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { useAuthStore } from '../store/authStore';
+import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 // Phase-1 scope: plain email/password form only. The PWA's OAuth buttons are inert
 // there too (no provider apps registered yet, see handoff doc) — not worth porting
@@ -24,6 +25,8 @@ export default function SignInScreen() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   async function handleSubmit() {
     setError('');
@@ -59,7 +62,7 @@ export default function SignInScreen() {
           autoComplete="email"
           keyboardType="email-address"
           placeholder="you@example.com"
-          placeholderTextColor="#8a7355"
+          placeholderTextColor={colors.textFaint}
         />
       </View>
       <View style={styles.field}>
@@ -71,7 +74,7 @@ export default function SignInScreen() {
           secureTextEntry
           autoComplete="password"
           placeholder="Enter your password"
-          placeholderTextColor="#8a7355"
+          placeholderTextColor={colors.textFaint}
         />
       </View>
 
@@ -96,25 +99,34 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#120d08', padding: 24, justifyContent: 'center' },
-  title: { fontSize: 32, fontWeight: '700', color: '#e9dcb8', textAlign: 'center' },
-  tagline: { fontSize: 13, color: '#a8926a', textAlign: 'center', marginBottom: 32, fontStyle: 'italic' },
-  field: { marginBottom: 14 },
-  label: { fontSize: 10.5, color: '#a8926a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
-  input: {
-    backgroundColor: '#1a130b',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 6,
-    padding: 11,
-    fontSize: 16,
-    color: '#e9dcb8',
-  },
-  error: { color: '#b8542e', fontSize: 12, marginBottom: 10 },
-  info: { color: '#2f9d8a', fontSize: 12, marginBottom: 10 },
-  submitBtn: { backgroundColor: '#c69a3a', borderRadius: 6, padding: 13, alignItems: 'center', marginTop: 6 },
-  submitText: { color: '#2b1a05', fontWeight: '700', fontSize: 15 },
-  toggle: { color: '#a8926a', fontSize: 12, textAlign: 'center', marginTop: 18 },
-  toggleLink: { color: '#c69a3a', textDecorationLine: 'underline' },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg, padding: 24, justifyContent: 'center' },
+    title: { fontFamily: FONTS.display, fontSize: 32, color: colors.text, textAlign: 'center' },
+    tagline: {
+      fontFamily: FONTS.literaryItalic,
+      fontSize: 13,
+      color: colors.textDim,
+      textAlign: 'center',
+      marginBottom: 32,
+      fontStyle: 'italic',
+    },
+    field: { marginBottom: 14 },
+    label: { fontFamily: FONTS.mono, fontSize: 10.5, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
+    input: {
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      padding: 11,
+      fontSize: 16,
+      color: colors.text,
+    },
+    error: { color: colors.error, fontSize: 12, marginBottom: 10 },
+    info: { color: '#2f9d8a', fontSize: 12, marginBottom: 10 },
+    submitBtn: { backgroundColor: colors.gold, borderRadius: 6, padding: 13, alignItems: 'center', marginTop: 6 },
+    submitText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 15 },
+    toggle: { color: colors.textDim, fontSize: 12, textAlign: 'center', marginTop: 18 },
+    toggleLink: { color: colors.gold, textDecorationLine: 'underline' },
+  });
+}

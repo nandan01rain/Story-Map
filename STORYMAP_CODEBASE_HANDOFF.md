@@ -1903,7 +1903,7 @@ non-obvious platform issues every single round:
    screens; if a third screen ever needs a dynamic header title, use
    `useLayoutEffect` and don't give the fallback a placeholder string.
 
-### 14.6 Not yet built
+### 14.6 Not yet built (as of the 2026-08-16 session; superseded by §14.7-§14.9)
 
 In rough intended order (no firm commitment to this exact sequence):
 Map view (interactive drag-and-drop Book→Act→Chapter trail — the PWA's
@@ -1922,3 +1922,239 @@ overhead (no compiled optimizations, debugging instrumentation always
 on) — flagged to the user as a likely factor, not chased further yet.
 Worth a real perf pass against a production build (`eas build`) before
 concluding anything either way, not against Expo Go.
+
+**Sticky notes and the Reader were built in the 2026-08-19 session** (§14.7)
+— this list is kept as written for history; see §14.9 for what's still
+actually outstanding.
+
+### 14.7 Session 2026-08-19 — day/night theme, the Reader, Settings, sticky notes
+
+A single long session that took the mobile app well past initial PWA
+parity. Built and iterated on a real device across many rounds of
+feedback (the number of rounds is itself worth knowing — several pieces,
+especially Reader text selection, took 3-4 attempts before landing; see
+§14.8 for what was actually wrong each time).
+
+**App-wide day/night theme** (`mobile/src/theme.ts`): `ThemeProvider` +
+`useTheme()`, two palettes (`NIGHT_COLORS` — the app's original dark
+brown/leather/gold look, unchanged — and `DAY_COLORS` — white/cream
+surface, dark brown/black text; gold and error colors are IDENTICAL in
+both palettes by construction, not convention, since nothing outside
+theme.ts holds a raw gold/error hex anymore). Every screen consumes
+`colors` via `useTheme()` and builds its `StyleSheet` from a
+`makeStyles(colors)` factory instead of a static module-level object.
+`ThemePreference` is `'day' | 'night' | 'auto'` — `'auto'` resolves off
+the **device's own clock** (6am-6pm = day), rechecked every 60s via
+`setInterval`, not the OS's light/dark display setting (an earlier version
+used `useColorScheme()`; changed after explicit feedback that "auto"
+should track when it actually is). The Reader's own page surface (the
+actual prose) follows day/night like everything else; the Reader's
+*chrome* (header/footer/action bar) is a translucent band of the current
+theme's own `bg` at ~94% opacity (`withOpacity()` helper) rather than a
+fixed dark overlay, so day mode's chrome reads as beige, not brown.
+
+**Icons** (`mobile/src/components/Icon.tsx`): every icon in the app is a
+hand-ported `react-native-svg` re-render of the PWA's own `<symbol>` sprite
+paths (index.html:1363-1390) at the exact same `d` data — pixel-identical
+shapes, not a different icon set. Extended this session with new icons
+that don't exist in the PWA yet: `flag`, `copy`, `share` (Reader's
+selection action bar), `align-left/center/right/justify` (Reader's Font
+sheet), `sun`/`moon`/`sun-moon-auto` (Settings).
+
+**Reader** (`ReaderScreen.tsx`, `lib/paginate.ts`, `lib/readerPrefs.ts`) —
+built from scratch, not a port of the PWA's own Reader (§12.1), since the
+PWA's implementation is DOM/CSS-based and has no native equivalent:
+- **Real page-level pagination**: each chapter's prose is split into
+  fixed-height pages via an off-screen `Text` per chapter using
+  `onTextLayout` line metrics — the only way to know where text actually
+  wraps without a native text-measurement API. A line's rendered text is
+  matched back to a real character offset in `chapter.content` via
+  sequential `indexOf` (`buildPagesFromLines`), which is what makes
+  precise cross-screen jumps (see below) possible at all. Pages from every
+  chapter in the current book flatten into one continuous sequence — a
+  real book, not a chapter browser; paging past a chapter's last page
+  lands on the next chapter's first page.
+- **Two view modes**: chrome-hidden is a single edge-to-edge page,
+  immersive (OS status bar + Android nav bar both hidden for as long as
+  the screen is focused, `expo-navigation-bar`); chrome-visible shows the
+  header/footer AND switches to a peeking three-page carousel. A tap
+  toggles between them (unless a selection is active, where a tap instead
+  dismisses the selection).
+- **Chapter heading + page number are baked into the page itself**
+  (not part of the toggleable chrome, so they're always visible), heading
+  only on a chapter's first page, page number is the book-wide position
+  (`bookPageNumber`), not the chapter-relative one.
+- **Table of contents**: one combined slide-in-from-the-left panel (not
+  RN's `Modal` slide, which only does bottom — a custom `useSlideInPanel`
+  hook drives an `Animated.Value` translateX, shared with the main
+  hamburger menu, see below) listing every book, expandable in place to
+  its chapters. Opening it from the header ☰ (or the footer's grid icon)
+  pre-expands the CURRENT book, since a bare "pick a book" list is
+  redundant once you're already reading one.
+- **Bookmarking**: no header button — tap the top-right corner of a page
+  to set a "moving" bookmark there (local `AsyncStorage`, `lib/
+  readerPrefs.ts`, anchored by `{chapterId, charOffset}` rather than a
+  page number, since pagination is geometry/font-dependent and a raw page
+  index would silently point at the wrong text the moment either changes).
+  Tap the same corner again to remove it. A "pinned bookmark" variant
+  exists in the data layer (`addPinnedBookmark`) via the selection action
+  bar's Pin button, but has no browsing UI yet (§14.9).
+- **Selection**: word-level (`tokenizeWords`, storyData.ts), long-press
+  ONLY. A long-press always (re)starts a fresh single-word selection.
+  Extending to a range rides on a plain TAP on a different word while a
+  selection is active (not a second long-press — see §14.8 for why that
+  didn't work). Tapping the sole-selected word again deselects; tapping
+  empty space always dismisses. No drag-to-extend (dragging a selection
+  handle, the way native text selection works) — RN has no reliable way
+  to hit-test which word is under a moving finger without per-word layout
+  measurement, and this codebase already has a documented ANR from
+  per-word touchables at chapter scale (§14.5); two-taps-not-a-drag is the
+  deliberate, safe substitute given that real constraint.
+- **Selection action bar**: Flag (writes a Plant/Reveal/Note straight to
+  `chapterStore`), Copy (`expo-clipboard`), Pin (local pinned bookmark),
+  Share (native share sheet), Editor (jumps to `EditorScreen` with the
+  exact substring as `jumpToText`) — all icon buttons matching the app's
+  gold-outline style, not emoji.
+- **Two-way Editor↔Reader jump**: `Editor: { chapterId, jumpToText? }` /
+  `Reader: { ..., jumpToText? }` nav params. Reader landing is exact (it
+  can search its own paginated, offset-tracked pages for the substring).
+  Editor landing selects the exact substring via `TextInput.
+  setNativeProps({selection})`, wrapped in `InteractionManager.
+  runAfterInteractions` (not just one `requestAnimationFrame`) so it fires
+  after the screen's push transition actually finishes settling.
+- **Font & Layout sheet**: text size, line spacing, alignment (left/
+  center/right/justify — `textAlign: 'justify'` has known inconsistent
+  Android support in RN, untested how it actually renders there), a
+  curated font-family choice kept to the app's own three already-loaded
+  families (Serif/Sans/Mono — not a generic picker, deliberately, so it
+  doesn't undercut the app-wide "same font throughout" work also done this
+  session), and an in-app reading dimmer (a dark overlay, NOT the same
+  thing as the Settings screen's real device brightness).
+
+**Settings screen** (new, `SettingsScreen.tsx`, reached from the
+hamburger's Assist & Project section): Day/Auto/Night as a swipeable
+paging strip (not tap buttons — three segments, snap-to-page, dots below
+show which is active) and a real device screen-brightness slider
+(`expo-brightness`, `Brightness.setBrightnessAsync` — the **app-scoped**
+call, not `setSystemBrightnessAsync`, which needs a heavier Android
+permission and would affect other apps too; this only affects the screen
+while StoryMap is open). The brightness slider is visually distinct from
+the rest of the app — a dedicated orange-yellow color (`#f2a13c`, not the
+app's usual gold) and scaled up (`transform: scaleY(1.8)`, since the
+slider library exposes no track-thickness prop) per explicit request for
+a "thicker" control.
+
+**Sticky notes / "The Margin"** (new, `stickyNoteStore.ts`,
+`StickyNotesScreen.tsx`, real `sticky_notes` table — id, user_id,
+project_id, content, created_at, rotation): a wrapping board of
+parchment-toned cards (fixed look, not theme-swapped — meant to read as
+actual paper in both day and night), each with a small random rotation
+generated once at creation. Cards are a **read-only preview** — tapping
+one opens a full-screen editor sheet (`Modal`, big `TextInput`, same
+800ms-debounce autosave pattern as elsewhere) rather than typing directly
+into the 160x160 card, which was the original (worse) design. Reached from
+the hamburger's "Notes" item.
+
+**Main hamburger menu — swipe-only, no button** (`NavDrawer.tsx`): the
+button was removed entirely. A thin (24px) invisible edge-swipe zone on
+the left of `ChapterListScreen` (`react-native-gesture-handler`'s
+`Gesture.Pan()`) opens it on a rightward swipe; a leftward swipe on the
+open panel itself closes it (`failOffsetY` configured so a vertical drag —
+scrolling the menu's own item list — falls through to the `ScrollView`
+untouched, only a clearly-horizontal drag triggers the close). Both the
+menu and the Reader's TOC share the same `useSlideInPanel` hook
+(`mobile/src/lib/useSlideInPanel.ts`) for their slide animation.
+
+**Other changes this session**:
+- `EditorScreen`'s header now shows only the back arrow (no chapter
+  title — it already appears in the in-page position line).
+- Chapter drawer's word count glows blue (under 75% of the book's target)
+  / gold (75%-100%) / red (over) instead of printing "book target: X-Y"
+  as text — the target is still book-level config (`project_settings.
+  chapter_word_targets`), it's just not re-stated per chapter anymore.
+  "Open full editor →" → "Editor".
+- List view: a "+" on each book header opens a small dialog (title + act)
+  that creates a chapter directly at the top of that act
+  (`chapterStore.createChapter`, `order` set below every existing sibling
+  in that act so nothing else needs renumbering).
+- Editor's flag Plant/Reveal label input is now multiline with real
+  height (was one line); the confirm button reads "Flag" (was "Flag it");
+  the selection popup is a visible gold pill with an icon + "Flag" label
+  (was an ambiguous "⋮").
+
+### 14.8 Real-device bugs found and fixed in the 2026-08-19 session
+
+- **Reader got permanently stuck on a loading spinner after returning
+  from EditorScreen.** Root cause: the pagination-reset `useEffect` keyed
+  off raw `useWindowDimensions()`, and Android's own nav-bar hide/show
+  animation (triggered on every focus/blur of the Reader, since it's
+  immersive-fullscreen) produces small width/height jitter — each jitter
+  re-triggered a full re-pagination, and if the jitter kept arriving
+  faster than pagination could finish, it never terminated. Fixed with a
+  10px change-threshold filter before that state actually updates.
+- **EditorScreen: couldn't scroll down reliably once the keyboard/cursor
+  were active.** Two contributing causes, both fixed: (1) `onScroll` was
+  calling `setState` on every frame while scrolling, forcing a full
+  re-render per frame and fighting the `TextInput`'s own native scroll
+  momentum — now writes to a `ref` instead, only read (lazily, at render
+  time) when a selection changes. (2) `KeyboardAvoidingView`'s `behavior`
+  was `undefined` on Android (only iOS got `'padding'`) — now uses
+  `'height'` on Android too.
+- **Reader selection: multiple attempts before something that actually
+  held up.** In order: (1) a sentence-level anchor/focus range that could
+  select "everything between two far-apart taps" — root cause was that
+  EVERY tap on prose (not just long-presses) was calling the same
+  select/extend handler, so ordinary reading taps kept silently extending
+  a stale selection. (2) switched to word-level, single-long-press-only,
+  no extend — fixed the overselection but then couldn't select more than
+  one word at all. (3) removed touch handlers from gap segments (~half of
+  all segments per page) to reduce touch-responder contention — didn't
+  fix it. (4) the fix that actually addressed it: stopped relying on a
+  SECOND long-press to extend a selection at all (two consecutive 500ms
+  holds negotiating against the page's own paging `ScrollView` turned out
+  fundamentally unreliable) and moved extension onto a plain TAP on a
+  second word while a selection is already active — taps are a much
+  simpler, more reliably-recognized gesture than a second long-press.
+  Worth remembering if selection problems resurface: the failure mode was
+  never really about word-vs-sentence granularity, it was two-long-presses
+  being an unreliable gesture pairing in this exact context (nested touch
+  targets inside a horizontal paging ScrollView).
+- **Chapter heading in the Reader was too small/high/off-font** relative
+  to what was actually wanted — moved down (`top: 18` → `32`, with
+  `PAGE_PAD_V` bumped `56` → `66` to keep it clear of the prose), enlarged
+  (`10.5px` mono/uppercase → `17px`), and switched to track whichever
+  reading font is currently selected (`proseFontFamily`, applied inline)
+  instead of a fixed mono style of its own.
+- A transient `Element type is invalid... SceneView` error appeared once
+  in Metro's log mid-session; `tsc --noEmit` stayed clean throughout and
+  every new file's default export checked out, so this was most likely a
+  hot reload landing mid-edit rather than a real bug — flagged here in
+  case it recurs, but not chased further since it didn't reproduce.
+
+### 14.9 Not yet built (current, supersedes §14.6)
+
+Map view, continuity checker/Plant Ledger/Mythic Threads/POV tracker,
+documents library, full-text search, real trash (chapter/scene delete is
+still a **hard delete** — the PWA soft-deletes to a trash table), the AI
+features (already broken even in the PWA — needs a real serverless proxy
+either way, see §7). Also specifically:
+- **Dictionary/word-lookup on tap** in the Reader — deferred by explicit
+  user choice (needs a data source/API decision first).
+- **Real device-wide brightness** — Settings' slider is app-scoped
+  (`setBrightnessAsync`), not the system setting; that needs a heavier
+  Android permission and was explicitly scoped out.
+- **Pinned bookmarks have no browsing UI** — they save (Reader's
+  selection action bar → Pin) but there's nowhere to see or jump through
+  the list yet.
+- **Drag-to-extend text selection** in the Reader (dragging a selection
+  handle, the way native text selection works) — see §14.8, two-taps is
+  the deliberate substitute given real RN platform constraints, not a
+  stopgap expected to be revisited soon.
+- **True blur-behind-panel** for the hamburger menu / Reader TOC — both
+  use a plain dim scrim (`rgba(0,0,0,0.55)`), not an actual blur
+  (`expo-blur` isn't a dependency); consistent with each other, not a bug.
+
+Also **not verified**: whether the general "jerky" feel reported once in
+an earlier session is a real performance problem or just Expo Go's
+dev-mode overhead — still not chased further; worth a real perf pass
+against a production build (`eas build`) before concluding anything.

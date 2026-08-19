@@ -43,6 +43,15 @@ type ChapterState = {
     patch: Partial<Pick<Chapter, 'title' | 'book' | 'act' | 'status' | 'notes' | 'content' | 'annotations' | 'versions'>>,
   ) => Promise<{ error: string | null }>;
   deleteChapter: (chapterId: string) => Promise<{ error: string | null }>;
+  // Creates a chapter directly from List view (a book's "+" button), not via the full
+  // editor flow -- title + act only, everything else defaults the same way a fresh row
+  // would (idea status, empty prose/notes, no annotations/versions yet).
+  createChapter: (
+    projectId: string,
+    book: number,
+    act: number,
+    title: string,
+  ) => Promise<{ chapter: Chapter | null; error: string | null }>;
   // Persists a new chapter order within a book -- ports the PWA's List view drag-to-
   // reorder (index.html, wireListDrag()), but extended to work across the whole book
   // rather than the PWA's within-act-only scope, per this session's explicit request
@@ -92,6 +101,36 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
     if (error) return { error: error.message };
     set({ chapters: get().chapters.filter((c) => c.id !== chapterId) });
     return { error: null };
+  },
+  // New chapters land at the TOP of their act -- an order strictly lower than every
+  // existing chapter in that act, so nothing else needs renumbering (matches how
+  // ChapterListScreen's own reorder already treats `order` as an act-scoped sort key,
+  // not a book-wide sequence).
+  createChapter: async (projectId, book, act, title) => {
+    const actOrders = get()
+      .chapters.filter((c) => c.project_id === projectId && c.book === book && c.act === act)
+      .map((c) => c.order);
+    const order = actOrders.length > 0 ? Math.min(...actOrders) - 1 : 0;
+    const { data, error } = await supabase
+      .from('chapters')
+      .insert({
+        project_id: projectId,
+        book,
+        act,
+        order,
+        title: title.trim() || 'Untitled chapter',
+        status: 'idea',
+        content: '',
+        notes: '',
+        annotations: [],
+        versions: [],
+      })
+      .select('id, project_id, book, act, "order", title, status, content, notes, annotations, versions')
+      .single();
+    if (error) return { chapter: null, error: error.message };
+    const chapter = { ...data, annotations: data.annotations ?? [], versions: data.versions ?? [] } as Chapter;
+    set({ chapters: [...get().chapters, chapter] });
+    return { chapter, error: null };
   },
   reorderChapters: async (updates) => {
     const results = await Promise.all(

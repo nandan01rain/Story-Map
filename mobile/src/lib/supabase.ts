@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { AppState } from 'react-native';
 
 // Same hosted Supabase project as the existing PWA (supabase-config.js at the repo
 // root) — this app reads/writes the exact same tables/rows, no backend changes needed.
@@ -15,4 +16,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false, // no browser URL to parse a session out of on native
   },
+});
+
+// Supabase's auto-refresh runs on a plain setInterval, which React Native suspends while
+// the app is backgrounded. Left unmanaged, the access token expires unnoticed and the
+// next resume/reload refreshes with an already-rotated refresh token, which the server
+// rejects -- the client then clears the stored session and the user lands back on the
+// sign-in screen. Driving it from AppState (start on foreground, stop on background) is
+// the supported native setup and is what keeps a signed-in session alive across reloads.
+supabase.auth.startAutoRefresh();
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
 });

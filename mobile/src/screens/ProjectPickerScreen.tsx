@@ -8,6 +8,7 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { type Project, useProjectStore } from '../store/projectStore';
+import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
 
@@ -37,6 +38,8 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const signOut = useAuthStore((s) => s.signOut);
   const { projects, loading, error, fetchProjects, createProject, renameProject, deleteProject } =
     useProjectStore();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const projectOrder = (user?.user_metadata?.project_order as string[] | undefined) ?? [];
   const orderedProjects = useMemo(() => applyProjectOrder(projects, projectOrder), [projects, projectOrder]);
@@ -136,7 +139,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
       </View>
       <Text style={styles.welcome}>{user?.email}</Text>
 
-      {loading && <ActivityIndicator style={styles.spinner} color="#c69a3a" />}
+      {loading && <ActivityIndicator style={styles.spinner} color={colors.gold} />}
       {(error || actionError) ? <Text style={styles.error}>{error || actionError}</Text> : null}
       {!loading && !error && projects.length === 0 && (
         <Text style={styles.empty}>No projects yet — create one below.</Text>
@@ -183,7 +186,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
           value={newName}
           onChangeText={setNewName}
           placeholder="New project name"
-          placeholderTextColor="#8a7355"
+          placeholderTextColor={colors.textFaint}
           onSubmitEditing={handleCreate}
         />
         <Pressable style={styles.newBtn} onPress={handleCreate} disabled={creating}>
@@ -256,56 +259,58 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#120d08', padding: 20, paddingTop: 60 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '700', color: '#e9dcb8' },
-  signOut: { color: '#c69a3a', fontSize: 13 },
-  welcome: { color: '#a8926a', fontSize: 12, marginTop: 4, marginBottom: 20 },
-  spinner: { marginTop: 20 },
-  error: { color: '#b8542e', fontSize: 13, marginBottom: 12 },
-  empty: { color: '#a8926a', fontSize: 13, marginTop: 20 },
-  row: {
-    backgroundColor: '#1a130b',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 6,
-    height: ROW_HEIGHT - 8,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    gap: 6,
-  },
-  dragHandle: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  dragHandleText: { color: '#8a7355', fontSize: 16 },
-  rowMain: { flex: 1 },
-  rowText: { color: '#e9dcb8', fontSize: 15 },
-  rowActions: { flexDirection: 'row', gap: 16 },
-  rowActionText: { color: '#a8926a', fontSize: 12 },
-  rowActionDanger: { color: '#b8542e' },
-  newRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  newInput: {
-    flex: 1,
-    backgroundColor: '#1a130b',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 6,
-    padding: 11,
-    fontSize: 15,
-    color: '#e9dcb8',
-  },
-  newBtn: { backgroundColor: '#c69a3a', borderRadius: 6, paddingHorizontal: 16, justifyContent: 'center' },
-  newBtnText: { color: '#2b1a05', fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#1a130b', borderRadius: 10, padding: 20, borderWidth: 1, borderColor: '#4a3a22' },
-  modalTitle: { color: '#e9dcb8', fontSize: 17, fontWeight: '700', marginBottom: 12 },
-  modalWarning: { color: '#a8926a', fontSize: 13, lineHeight: 19, marginBottom: 12 },
-  bold: { fontWeight: '700', color: '#e9dcb8' },
-  modalHint: { color: '#a8926a', fontSize: 12, marginBottom: 6 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20, marginTop: 16 },
-  modalCancel: { color: '#a8926a', fontSize: 14 },
-  modalConfirm: { color: '#c69a3a', fontSize: 14, fontWeight: '700' },
-  modalDanger: { color: '#b8542e' },
-  modalDisabled: { opacity: 0.4 },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg, padding: 20, paddingTop: 60 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    title: { fontFamily: FONTS.headingBold, fontSize: 22, color: colors.text },
+    signOut: { color: colors.gold, fontSize: 13 },
+    welcome: { color: colors.textDim, fontFamily: FONTS.mono, fontSize: 12, marginTop: 4, marginBottom: 20 },
+    spinner: { marginTop: 20 },
+    error: { color: colors.error, fontSize: 13, marginBottom: 12 },
+    empty: { color: colors.textDim, fontSize: 13, marginTop: 20 },
+    row: {
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      height: ROW_HEIGHT - 8,
+      marginBottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      gap: 6,
+    },
+    dragHandle: { width: 28, alignItems: 'center', justifyContent: 'center' },
+    dragHandleText: { color: colors.textFaint, fontSize: 16 },
+    rowMain: { flex: 1 },
+    rowText: { color: colors.text, fontFamily: FONTS.heading, fontSize: 15.5 },
+    rowActions: { flexDirection: 'row', gap: 16 },
+    rowActionText: { color: colors.textDim, fontSize: 12 },
+    rowActionDanger: { color: colors.error },
+    newRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    newInput: {
+      flex: 1,
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      padding: 11,
+      fontSize: 15,
+      color: colors.text,
+    },
+    newBtn: { backgroundColor: colors.gold, borderRadius: 6, paddingHorizontal: 16, justifyContent: 'center' },
+    newBtnText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+    modalCard: { backgroundColor: colors.panel, borderRadius: 10, padding: 20, borderWidth: 1, borderColor: colors.border },
+    modalTitle: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 17, marginBottom: 12 },
+    modalWarning: { color: colors.textDim, fontSize: 13, lineHeight: 19, marginBottom: 12 },
+    bold: { fontFamily: FONTS.bodySemiBold, color: colors.text },
+    modalHint: { color: colors.textDim, fontSize: 12, marginBottom: 6 },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20, marginTop: 16 },
+    modalCancel: { color: colors.textDim, fontSize: 14 },
+    modalConfirm: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+    modalDanger: { color: colors.error },
+    modalDisabled: { opacity: 0.4 },
+  });
+}

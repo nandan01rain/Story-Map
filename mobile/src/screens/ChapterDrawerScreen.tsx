@@ -17,10 +17,14 @@ import { BOOKS, chapterNumberInBook, statusColor, wordCount } from '../lib/story
 import { supabase } from '../lib/supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useSceneStore } from '../store/sceneStore';
+import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ChapterDrawer'>;
 
 const STATUSES: Chapter['status'][] = ['idea', 'outline', 'drafted', 'final'];
+// Fixed (not theme-swapped) -- a semantic "within target" indicator, same blue in both
+// day and night, the same way colors.error/colors.gold stay fixed for their own signals.
+const WORD_COUNT_OK = '#4a90d9';
 
 // Ports the PWA's chapter drawer (index.html, openDrawer()/renderChapterScenes()):
 // title, position (book/act), status, notes, word count vs. book target, scenes list,
@@ -34,6 +38,8 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   const updateChapter = useChapterStore((s) => s.updateChapter);
   const deleteChapter = useChapterStore((s) => s.deleteChapter);
   const { scenes, fetchScenes, createScene, updateScene, deleteScene } = useSceneStore();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const chapterNumber = useMemo(
     () => (chapter ? chapterNumberInBook(chapter, allChapters) : null),
@@ -80,7 +86,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   if (!chapter) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#c69a3a" />
+        <ActivityIndicator color={colors.gold} />
       </View>
     );
   }
@@ -110,7 +116,13 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   }
 
   const wc = wordCount(chapter.content);
-  const [targetMin, targetMax] = wordTarget;
+  const [, targetMax] = wordTarget;
+  // Book-level target, not re-entered per chapter -- see project_settings fetch above.
+  // Rather than repeating "target: X-Y" on every single chapter, the count itself just
+  // glows: blue under 75% of target, yellow from 75% up to the target, red past it.
+  // No target set at all -> default text color, no judgment either way.
+  const wordCountColor =
+    targetMax === null ? colors.text : wc > targetMax ? colors.error : wc >= targetMax * 0.75 ? colors.gold : WORD_COUNT_OK;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -124,7 +136,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
         onChangeText={setTitle}
         onBlur={commitTitle}
         placeholder="Chapter title"
-        placeholderTextColor="#8a7355"
+        placeholderTextColor={colors.textFaint}
       />
 
       <View style={styles.statusRow}>
@@ -143,12 +155,8 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
         ))}
       </View>
 
-      <Text style={styles.wordCount}>
+      <Text style={[styles.wordCount, { color: wordCountColor }]}>
         {wc} {wc === 1 ? 'word' : 'words'}
-        <Text style={styles.wordTarget}>
-          {'  ·  book target: '}
-          {targetMin ?? '—'}–{targetMax ?? '—'} per chapter
-        </Text>
       </Text>
 
       <Text style={styles.label}>Notes</Text>
@@ -158,7 +166,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
         onChangeText={setNotes}
         onBlur={commitNotes}
         placeholder="Anything to remember about this chapter..."
-        placeholderTextColor="#8a7355"
+        placeholderTextColor={colors.textFaint}
         multiline
       />
 
@@ -176,7 +184,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
               value={scene.title}
               onChangeText={(t) => updateScene(scene.id, { title: t })}
               placeholder="Scene title"
-              placeholderTextColor="#8a7355"
+              placeholderTextColor={colors.textFaint}
             />
             <Pressable onPress={() => deleteScene(scene.id)} hitSlop={10}>
               <Text style={styles.sceneRemove}>×</Text>
@@ -202,14 +210,14 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
             value={scene.summary}
             onChangeText={(t) => updateScene(scene.id, { summary: t })}
             placeholder="What happens in this scene..."
-            placeholderTextColor="#8a7355"
+            placeholderTextColor={colors.textFaint}
             multiline
           />
         </View>
       ))}
 
       <Pressable style={styles.editorBtn} onPress={() => navigation.navigate('Editor', { chapterId })}>
-        <Text style={styles.editorBtnText}>Open full editor →</Text>
+        <Text style={styles.editorBtnText}>Editor</Text>
       </Pressable>
 
       <Pressable style={styles.deleteBtn} onPress={handleDelete}>
@@ -219,63 +227,67 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#120d08' },
-  content: { padding: 20, paddingBottom: 60 },
-  centered: { flex: 1, backgroundColor: '#120d08', alignItems: 'center', justifyContent: 'center' },
-  position: { color: '#8a7355', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  titleInput: { color: '#e9dcb8', fontSize: 20, fontWeight: '600', paddingVertical: 4 },
-  statusRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  statusPill: { borderWidth: 1, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12 },
-  statusPillText: { color: '#a8926a', fontSize: 11, textTransform: 'capitalize' },
-  statusPillTextActive: { color: '#120d08', fontWeight: '700' },
-  wordCount: { color: '#e9dcb8', fontSize: 13, marginTop: 14 },
-  wordTarget: { color: '#8a7355', fontSize: 12 },
-  label: {
-    color: '#8a7355',
-    fontSize: 10.5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  notesInput: {
-    backgroundColor: '#1a130b',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 6,
-    padding: 11,
-    fontSize: 14,
-    color: '#e9dcb8',
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  scenesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 },
-  addSceneBtn: { color: '#c69a3a', fontSize: 12 },
-  sceneCard: {
-    backgroundColor: '#1a130b',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-  },
-  sceneCardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sceneTitleInput: { flex: 1, color: '#e9dcb8', fontSize: 14, fontWeight: '600' },
-  sceneRemove: { color: '#b8542e', fontSize: 18, paddingHorizontal: 4 },
-  sceneStatusRow: { flexDirection: 'row', gap: 6, marginTop: 8, marginBottom: 8 },
-  sceneStatusPill: { borderWidth: 1, borderRadius: 12, paddingVertical: 3, paddingHorizontal: 8 },
-  sceneStatusPillText: { color: '#a8926a', fontSize: 9, textTransform: 'capitalize' },
-  sceneSummaryInput: { color: '#c9b892', fontSize: 13, minHeight: 40, textAlignVertical: 'top' },
-  deleteBtn: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#b8542e',
-    borderRadius: 6,
-    padding: 12,
-    alignItems: 'center',
-  },
-  deleteBtnText: { color: '#b8542e', fontWeight: '600' },
-  editorBtn: { marginTop: 28, backgroundColor: '#c69a3a', borderRadius: 6, padding: 14, alignItems: 'center' },
-  editorBtnText: { color: '#2b1a05', fontWeight: '700', fontSize: 15 },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 20, paddingBottom: 60 },
+    centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+    position: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+    titleInput: { color: colors.text, fontFamily: FONTS.heading, fontSize: 20, paddingVertical: 4 },
+    statusRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+    statusPill: { borderWidth: 1, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12 },
+    statusPillText: { color: colors.textDim, fontFamily: FONTS.mono, fontSize: 11, textTransform: 'capitalize' },
+    // Fixed dark text, not theme-driven -- this renders on top of a saturated status
+    // color (statusColor(s)), not the page background, so it needs to stay legible
+    // against those specific colors in both day and night, not swap with the theme.
+    statusPillTextActive: { color: '#120d08', fontFamily: FONTS.bodySemiBold },
+    wordCount: { color: colors.text, fontFamily: FONTS.mono, fontSize: 13, marginTop: 14 },
+    label: {
+      color: colors.textFaint,
+      fontSize: 10.5,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    notesInput: {
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      padding: 11,
+      fontSize: 14,
+      color: colors.text,
+      minHeight: 70,
+      textAlignVertical: 'top',
+    },
+    scenesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 },
+    addSceneBtn: { color: colors.gold, fontSize: 12 },
+    sceneCard: {
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 10,
+    },
+    sceneCardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    sceneTitleInput: { flex: 1, color: colors.text, fontFamily: FONTS.literaryMedium, fontSize: 14.5 },
+    sceneRemove: { color: colors.error, fontSize: 18, paddingHorizontal: 4 },
+    sceneStatusRow: { flexDirection: 'row', gap: 6, marginTop: 8, marginBottom: 8 },
+    sceneStatusPill: { borderWidth: 1, borderRadius: 12, paddingVertical: 3, paddingHorizontal: 8 },
+    sceneStatusPillText: { color: colors.textDim, fontFamily: FONTS.mono, fontSize: 9, textTransform: 'capitalize' },
+    sceneSummaryInput: { color: colors.textDim, fontFamily: FONTS.literary, fontSize: 13.5, minHeight: 40, textAlignVertical: 'top' },
+    deleteBtn: {
+      marginTop: 12,
+      borderWidth: 1,
+      borderColor: colors.error,
+      borderRadius: 6,
+      padding: 12,
+      alignItems: 'center',
+    },
+    deleteBtnText: { color: colors.error, fontFamily: FONTS.bodySemiBold },
+    editorBtn: { marginTop: 28, backgroundColor: colors.gold, borderRadius: 6, padding: 14, alignItems: 'center' },
+    editorBtnText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 15 },
+  });
+}

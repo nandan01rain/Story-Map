@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,49 +12,45 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
-import {
-  ANNOTATION_COLORS,
-  BOOKS,
-  chapterNumberInBook,
-  computeHighlightSegments,
-  tokenizeSentences,
-  wordCount,
-} from '../lib/storyData';
+import { ANNOTATION_COLORS, BOOKS, chapterNumberInBook, wordCount } from '../lib/storyData';
 import { type Annotation, useChapterStore } from '../store/chapterStore';
+import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
 
 const AUTOSAVE_DELAY_MS = 1200; // matches the PWA's editorSaveTimer exactly (index.html)
 const FLAG_LABELS: Record<Annotation['type'], string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
-const SELECTION_TINT = 'rgba(198,154,58,0.4)'; // gold, distinct from any ANNOTATION_COLORS value
+const LINE_HEIGHT = 27;
+const TEXTINPUT_TOP_OFFSET = 96; // position label + toolbar height, above the TextInput itself
 
-// Ports the PWA's contenteditable-based editor (index.html §3.5) to RN's TextInput, which
-// has no equivalent for inline-styled editable text -- see the plan doc's editor risk
-// section. Two modes: a read view with real inline highlight spans (nested <Text>,
-// ported from renderAnnotatedContent()'s exact substring-relocation algorithm -- see
-// computeHighlightSegments), and a plain-TextInput edit mode for actual typing.
+// Single always-editing screen now that ReaderScreen (page-level, chrome-free) is the
+// real reading surface -- the earlier read/edit mode toggle and the separate "Flag text"
+// mode (a modal with its own tap-a-sentence-to-select mechanic) are both gone per
+// explicit feedback: reading lives in the Reader now, and flagging should happen inline
+// on whatever's selected in the TextInput itself, not behind a second screen.
 //
-// Flagging lives inside edit mode itself now (a "Flag text" button opens a modal over
-// the still-live TextInput), not as a separate top-level mode -- an earlier version had
-// a dedicated "select" mode reached from read mode, changed after feedback that it
-// should work from within editing instead. The modal's tap-a-sentence-to-select
-// mechanic (still not native TextInput text selection -- Android's drag-to-extend-
-// selection on multiline TextInput is a longstanding, still-unresolved RN platform bug,
-// only ever selects a single word on some devices/keyboards, confirmed on real hardware)
-// is otherwise unchanged, including sentence-level chunking (tokenizeSentences in
-// storyData.ts) to keep node count low enough not to block the JS thread (also confirmed
-// on real hardware -- a per-word version took 10-15s per tap on a real chapter).
+// Flagging now rides on TextInput's own `selection` (start/end indices via
+// onSelectionChange) rather than the old tap-sentence mechanic -- simpler, though it
+// inherits Android's real, still-unresolved RN platform limitation that multiline
+// TextInput drag-to-extend-selection is unreliable (often only ever grows to one word);
+// single/double-tap-to-select-word still works, which is enough to flag a phrase.
+// Whenever start !== end, a floating "⋮" popup appears near the selection (positioned by
+// measuring how many lines of text precede the selection start against an offscreen
+// mirror Text, since RN exposes no direct layout API for a caret/selection position) --
+// tapping it opens the Plant/Reveal/Note picker directly with that exact substring.
 //
 // Deferred to Phase 3 (continuity checker / POV tracker), same as the drawer's scene
 // fields: linked-plant search for reveals, auto-feeding scene requires/provides, and
 // thread-based Mythic Threads. Annotations here store type/text/label(+thread for
 // notes) only.
 export default function EditorScreen({ route, navigation }: Props) {
-  const { chapterId } = route.params;
+  const { chapterId, jumpToText } = route.params;
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
   const allChapters = useChapterStore((s) => s.chapters);
   const updateChapter = useChapterStore((s) => s.updateChapter);
@@ -63,31 +60,40 @@ export default function EditorScreen({ route, navigation }: Props) {
     [allChapters, chapter],
   );
 
-  const [mode, setMode] = useState<'read' | 'edit'>('read');
   const [content, setContent] = useState(chapter?.content ?? '');
   const [annotations, setAnnotations] = useState<Annotation[]>(chapter?.annotations ?? []);
   const [status, setStatus] = useState('');
   const [historyVisible, setHistoryVisible] = useState(false);
-  const [flagSelectVisible, setFlagSelectVisible] = useState(false);
+  const [flagsVisible, setFlagsVisible] = useState(false);
   const [flagPickerVisible, setFlagPickerVisible] = useState(false);
   const [pendingFlag, setPendingFlag] = useState<{ type: Annotation['type']; text: string } | null>(null);
   const [labelInput, setLabelInput] = useState('');
   const [threadInput, setThreadInput] = useState('');
-  const [sentAnchor, setWordAnchor] = useState<number | null>(null);
-  const [sentFocus, setWordFocus] = useState<number | null>(null);
+  const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [linesBeforeSelection, setLinesBeforeSelection] = useState(0);
+
   const insets = useSafeAreaInsets();
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const savedContentRef = useRef(chapter?.content ?? '');
   const savedAnnotationsRef = useRef<Annotation[]>(chapter?.annotations ?? []);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textInputRef = useRef<TextInput>(null);
+  // A ref, not state -- onScroll fires many times a second while dragging, and setting
+  // React state on every one of those forced a re-render per frame, which was fighting
+  // the TextInput's own native scroll momentum (reported as "can't scroll down" /
+  // inconsistent scrolling once the keyboard and cursor were both active). The popup's Y
+  // position only actually needs to be current at the moment a selection changes, which
+  // already triggers a render via onSelectionChange -- so reading the ref there is enough.
+  const inputScrollYRef = useRef(0);
 
-  // useLayoutEffect (not useEffect) per React Navigation's own guidance for setOptions,
-  // to avoid a flash of the wrong title. Set directly to the chapter's title, or left
-  // unset (falls back to the route name) when there isn't one yet -- not the literal
-  // word "Chapter", which read as a broken placeholder rather than "no title".
+  // Header shows just the back arrow, nothing else -- per explicit feedback, no title
+  // text (the chapter's position/title already appear in the in-page `position` line).
   useLayoutEffect(() => {
-    if (chapter?.title) navigation.setOptions({ title: chapter.title });
-  }, [navigation, chapter?.title]);
+    navigation.setOptions({ title: '' });
+  }, [navigation]);
 
   // pushVersionSnapshot(), ported: skip if nothing changed or content is empty, cap at 10.
   function snapshotIfChanged(latestContent: string) {
@@ -123,8 +129,6 @@ export default function EditorScreen({ route, navigation }: Props) {
     scheduleAutosave(text, annotations);
   }
 
-  // Leaving edit mode (or the screen) flushes immediately rather than waiting on the
-  // debounce, same intent as the PWA's editor-close handler firing autosaveChapter().
   function flushSave() {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -137,36 +141,30 @@ export default function EditorScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     return () => {
+      flushSave();
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const segments = useMemo(() => computeHighlightSegments(content, annotations), [content, annotations]);
-  const tokens = useMemo(() => tokenizeSentences(content), [content]);
+  const hasSelection = selection.end > selection.start;
+  const selectedText = hasSelection ? content.slice(selection.start, selection.end) : null;
 
-  const sentSelStart = sentAnchor !== null && sentFocus !== null ? Math.min(sentAnchor, sentFocus) : null;
-  const sentSelEnd = sentAnchor !== null && sentFocus !== null ? Math.max(sentAnchor, sentFocus) : null;
+  const popupTop = Math.min(
+    Math.max(insets.top + 60, TEXTINPUT_TOP_OFFSET + linesBeforeSelection * LINE_HEIGHT - inputScrollYRef.current),
+    winHeight - 90,
+  );
+  const popupLeft = winWidth / 2 - 60;
 
-  function tapSentence(index: number) {
-    if (sentAnchor === null) {
-      setWordAnchor(index);
-      setWordFocus(index);
-    } else {
-      setWordFocus(index);
-    }
-  }
-
-  function closeFlagSelect() {
-    setFlagSelectVisible(false);
-    setWordAnchor(null);
-    setWordFocus(null);
+  function openFlagPicker() {
+    if (!selectedText) return;
+    setFlagPickerVisible(true);
   }
 
   function beginFlag(type: Annotation['type']) {
-    if (sentSelStart === null || sentSelEnd === null) return;
-    const text = content.slice(tokens[sentSelStart].start, tokens[sentSelEnd].end);
+    if (!selectedText) return;
     setFlagPickerVisible(false);
-    setPendingFlag({ type, text });
+    setPendingFlag({ type, text: selectedText });
     setLabelInput('');
     setThreadInput('');
   }
@@ -184,7 +182,7 @@ export default function EditorScreen({ route, navigation }: Props) {
     setAnnotations(next);
     scheduleAutosave(content, next);
     setPendingFlag(null);
-    closeFlagSelect();
+    setSelection({ start: 0, end: 0 });
   }
 
   function removeAnnotation(id: string) {
@@ -216,135 +214,89 @@ export default function EditorScreen({ route, navigation }: Props) {
     );
   }
 
+  // Jump in from ReaderScreen's "View in Editor": select the exact matched substring so
+  // it shows highlighted via the TextInput's own native selection UI. Applied imperatively
+  // (setNativeProps, not a controlled `selection` prop) -- a continuously-controlled
+  // selection prop is a known way to fight/reset the native selection handles on Android
+  // mid-gesture, so it's only ever set here, once, for this one programmatic jump.
+  // Waits for InteractionManager (not just one requestAnimationFrame) before touching the
+  // TextInput -- firing this while the screen's own push transition/layout is still
+  // settling was the likely reason the landing was unreliable (focus + setNativeProps on
+  // a TextInput that hasn't finished mounting/laying out doesn't reliably take).
+  const consumedJump = useRef<string | null>(null);
+  useEffect(() => {
+    if (!jumpToText || !content || consumedJump.current === jumpToText) return;
+    consumedJump.current = jumpToText;
+    const idx = content.indexOf(jumpToText);
+    if (idx === -1) return;
+    const range = { start: idx, end: idx + jumpToText.length };
+    setSelection(range);
+    const task = InteractionManager.runAfterInteractions(() => {
+      textInputRef.current?.focus();
+      textInputRef.current?.setNativeProps({ selection: range });
+    });
+    return () => task.cancel();
+  }, [jumpToText, content]);
+
   if (!chapter) return null;
 
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Text style={styles.position}>
         {BOOKS[chapter.book]}, Act {chapter.act}
         {chapterNumber !== null ? `, Chapter ${chapterNumber}` : ''}
       </Text>
       <View style={styles.toolbar}>
-        <Pressable
-          onPress={() => {
-            if (mode === 'edit') flushSave();
-            setMode(mode === 'edit' ? 'read' : 'edit');
-          }}
-        >
-          <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : 'Edit'}</Text>
+        <Pressable onPress={() => navigation.navigate('Reader', { projectId: chapter.project_id, chapterId })}>
+          <Text style={styles.toolbarBtn}>Reader</Text>
         </Pressable>
         <Text style={styles.status}>{status}</Text>
-        {mode === 'edit' && (
-          <Pressable onPress={() => setFlagSelectVisible(true)}>
-            <Text style={styles.toolbarBtn}>Flag text</Text>
-          </Pressable>
-        )}
+        <Pressable onPress={() => setFlagsVisible(true)}>
+          <Text style={styles.toolbarBtn}>Flags{annotations.length > 0 ? ` (${annotations.length})` : ''}</Text>
+        </Pressable>
         <Pressable onPress={() => setHistoryVisible(true)}>
           <Text style={styles.toolbarBtn}>History</Text>
         </Pressable>
       </View>
 
-      {mode === 'read' && (
-        <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
-          <Text style={styles.proseText}>
-            {segments.map((seg, i) =>
-              seg.type ? (
-                <Text key={i} style={{ backgroundColor: ANNOTATION_COLORS[seg.type] }}>
-                  {seg.text}
-                </Text>
-              ) : (
-                <Text key={i}>{seg.text}</Text>
-              ),
-            )}
-            {content.length === 0 && <Text style={styles.placeholder}>Tap Edit to start writing...</Text>}
-          </Text>
+      {/* Off-screen mirror of the text up to the selection start, used only to measure how
+          many lines precede it (onTextLayout) so the "⋮" popup can land near the
+          selection -- RN gives no direct caret/selection layout API. */}
+      <Text
+        style={[styles.editInput, styles.measurer]}
+        onTextLayout={(e) => setLinesBeforeSelection(e.nativeEvent.lines.length)}
+      >
+        {content.slice(0, selection.start)}
+      </Text>
 
-          {annotations.length > 0 && (
-            <View style={styles.flagsSection}>
-              <Text style={styles.flagsHeading}>Flags</Text>
-              {annotations.map((a) => (
-                <View key={a.id} style={styles.flagRow}>
-                  <View style={[styles.flagSwatch, { backgroundColor: ANNOTATION_COLORS[a.type] }]} />
-                  <View style={styles.flagBody}>
-                    <Text style={styles.flagType}>{FLAG_LABELS[a.type]}</Text>
-                    <Text style={styles.flagText} numberOfLines={1}>
-                      "{a.text}"
-                    </Text>
-                    {!!a.label && <Text style={styles.flagLabel}>{a.label}</Text>}
-                  </View>
-                  <Pressable onPress={() => removeAnnotation(a.id)} hitSlop={10}>
-                    <Text style={styles.flagRemove}>×</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-        </ScrollView>
+      <TextInput
+        ref={textInputRef}
+        style={styles.editInput}
+        value={content}
+        onChangeText={handleContentChange}
+        onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+        onScroll={(e) => {
+          inputScrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        multiline
+        autoFocus
+        textAlignVertical="top"
+        placeholder="Start writing..."
+        placeholderTextColor={colors.textFaint}
+      />
+
+      {hasSelection && (
+        <Pressable style={[styles.jumpPopup, { top: popupTop, left: popupLeft }]} onPress={openFlagPicker}>
+          <Icon name="flag" size={16} color="#2b1a05" />
+          <Text style={styles.jumpPopupText}>Flag</Text>
+        </Pressable>
       )}
 
-      {mode === 'edit' && (
-        <TextInput
-          style={styles.editInput}
-          value={content}
-          onChangeText={handleContentChange}
-          multiline
-          autoFocus
-          textAlignVertical="top"
-          placeholder="Start writing..."
-          placeholderTextColor="#8a7355"
-        />
-      )}
-
-      {/* Flag-select modal: opened from edit mode's "Flag text" button, not a separate
-          top-level mode -- the TextInput underneath keeps its content, so closing this
-          without flagging anything drops you right back into typing where you left off. */}
-      <Modal visible={flagSelectVisible} animationType="slide" onRequestClose={closeFlagSelect}>
-        <View style={[styles.flagPickerScreen, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.flagPickerHeader}>
-            <Text style={styles.modalTitle}>Flag text</Text>
-            <Pressable onPress={closeFlagSelect} hitSlop={10}>
-              <Text style={styles.flagPickerClose}>×</Text>
-            </Pressable>
-          </View>
-          <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
-            <Text style={styles.selectHint}>Tap a sentence to start, tap another to extend the selection.</Text>
-            {tokens.length === 0 && <Text style={styles.placeholder}>This chapter has no text yet.</Text>}
-            <Text style={styles.proseText}>
-              {tokens.map((tok, i) => {
-                const selected = sentSelStart !== null && i >= sentSelStart && i <= sentSelEnd!;
-                const gap = i > 0 ? content.slice(tokens[i - 1].end, tok.start) : '';
-                return (
-                  <Text key={i}>
-                    {gap}
-                    <Text
-                      onPress={() => tapSentence(i)}
-                      style={selected ? { backgroundColor: SELECTION_TINT } : undefined}
-                    >
-                      {tok.text}
-                    </Text>
-                  </Text>
-                );
-              })}
-            </Text>
-          </ScrollView>
-          {sentSelStart !== null && (
-            <View style={[styles.selectionBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-              <Text style={styles.selectionBarHint}>
-                {sentSelEnd! - sentSelStart + 1} sentence{sentSelEnd === sentSelStart ? '' : 's'} selected
-              </Text>
-              <Pressable style={styles.selectionBarMore} onPress={() => setFlagPickerVisible(true)}>
-                <Text style={styles.selectionBarMoreText}>⋮</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      </Modal>
-
-      {/* Full-screen flag-type picker, opened from the "⋮" on a selection */}
+      {/* Plant/Reveal/Note picker -- opened directly from the "⋮" popup on a selection */}
       <Modal visible={flagPickerVisible} animationType="slide" onRequestClose={() => setFlagPickerVisible(false)}>
         <View style={[styles.flagPickerScreen, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.flagPickerHeader}>
@@ -354,7 +306,7 @@ export default function EditorScreen({ route, navigation }: Props) {
             </Pressable>
           </View>
           <Text style={styles.modalSelectedText} numberOfLines={4}>
-            "{sentSelStart !== null ? content.slice(tokens[sentSelStart].start, tokens[sentSelEnd!].end) : ''}"
+            "{selectedText ?? ''}"
           </Text>
           <Pressable style={styles.flagPickerOption} onPress={() => beginFlag('plant')}>
             <Text style={styles.flagPickerOptionEmoji}>🌱</Text>
@@ -391,20 +343,24 @@ export default function EditorScreen({ route, navigation }: Props) {
               "{pendingFlag?.text}"
             </Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, styles.modalInputMultiline]}
               value={labelInput}
               onChangeText={setLabelInput}
               placeholder="Label (what does this pay off / complete / mean?)"
-              placeholderTextColor="#8a7355"
+              placeholderTextColor={colors.textFaint}
+              multiline
+              textAlignVertical="top"
               autoFocus
             />
             {pendingFlag?.type === 'note' && (
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, styles.modalInputMultiline]}
                 value={threadInput}
                 onChangeText={setThreadInput}
                 placeholder="Thread name (optional -- for recurring motifs)"
-                placeholderTextColor="#8a7355"
+                placeholderTextColor={colors.textFaint}
+                multiline
+                textAlignVertical="top"
               />
             )}
             <View style={styles.modalActions}>
@@ -412,9 +368,43 @@ export default function EditorScreen({ route, navigation }: Props) {
                 <Text style={styles.modalCancel}>Cancel</Text>
               </Pressable>
               <Pressable onPress={confirmFlag}>
-                <Text style={styles.modalConfirm}>Flag it</Text>
+                <Text style={styles.modalConfirm}>Flag</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Flags list -- every Plant/Reveal/Note on this chapter, removable. Read mode used
+          to show these inline; now it's a small toolbar-triggered list instead. */}
+      <Modal visible={flagsVisible} transparent animationType="fade" onRequestClose={() => setFlagsVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Flags</Text>
+            {annotations.length === 0 ? (
+              <Text style={styles.modalEmpty}>No flags yet -- select text and tap the "⋮" popup to add one.</Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 360 }}>
+                {annotations.map((a) => (
+                  <View key={a.id} style={styles.flagRow}>
+                    <View style={[styles.flagSwatch, { backgroundColor: ANNOTATION_COLORS[a.type] }]} />
+                    <View style={styles.flagBody}>
+                      <Text style={styles.flagType}>{FLAG_LABELS[a.type]}</Text>
+                      <Text style={styles.flagText} numberOfLines={1}>
+                        "{a.text}"
+                      </Text>
+                      {!!a.label && <Text style={styles.flagLabel}>{a.label}</Text>}
+                    </View>
+                    <Pressable onPress={() => removeAnnotation(a.id)} hitSlop={10}>
+                      <Text style={styles.flagRemove}>×</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            <Pressable onPress={() => setFlagsVisible(false)} style={{ marginTop: 14, alignSelf: 'flex-end' }}>
+              <Text style={styles.modalCancel}>Close</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -453,118 +443,107 @@ export default function EditorScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#120d08' },
-  position: {
-    color: '#8a7355',
-    fontSize: 10.5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2013',
-    gap: 12,
-  },
-  toolbarBtn: { color: '#c69a3a', fontSize: 14, fontWeight: '600' },
-  status: { color: '#8a7355', fontSize: 11, flex: 1, textAlign: 'center' },
-  body: { flex: 1 },
-  readContent: { padding: 20, paddingBottom: 60 },
-  proseText: { color: '#e9dcb8', fontSize: 16, lineHeight: 26 },
-  placeholder: { color: '#8a7355', fontStyle: 'italic' },
-  selectHint: { color: '#8a7355', fontSize: 12, fontStyle: 'italic', marginBottom: 12 },
-  editInput: {
-    flex: 1,
-    color: '#e9dcb8',
-    fontSize: 16,
-    lineHeight: 26,
-    padding: 20,
-  },
-  selectionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#4a3a22',
-    backgroundColor: '#1a130b',
-  },
-  selectionBarHint: { color: '#a8926a', fontSize: 12 },
-  selectionBarMore: {
-    backgroundColor: '#c69a3a',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectionBarMoreText: { color: '#2b1a05', fontSize: 18, fontWeight: '900', lineHeight: 18 },
-  flagPickerScreen: { flex: 1, backgroundColor: '#120d08', paddingHorizontal: 20 },
-  flagPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  flagPickerClose: { color: '#a8926a', fontSize: 26, lineHeight: 26 },
-  flagPickerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: '#1a130b',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 10,
-    padding: 16,
-    marginTop: 12,
-  },
-  flagPickerOptionEmoji: { fontSize: 26 },
-  flagPickerOptionTitle: { color: '#e9dcb8', fontSize: 16, fontWeight: '700' },
-  flagPickerOptionDesc: { color: '#8a7355', fontSize: 12, marginTop: 2 },
-  flagsSection: { marginTop: 30, borderTopWidth: 1, borderTopColor: '#2a2013', paddingTop: 16 },
-  flagsHeading: {
-    color: '#8a7355',
-    fontSize: 10.5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  flagRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  flagSwatch: { width: 10, height: 10, borderRadius: 5 },
-  flagBody: { flex: 1 },
-  flagType: { color: '#a8926a', fontSize: 11 },
-  flagText: { color: '#c9b892', fontSize: 13, fontStyle: 'italic' },
-  flagLabel: { color: '#8a7355', fontSize: 12 },
-  flagRemove: { color: '#b8542e', fontSize: 18, paddingHorizontal: 4 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#1a130b', borderRadius: 10, padding: 20, borderWidth: 1, borderColor: '#4a3a22' },
-  modalTitle: { color: '#e9dcb8', fontSize: 16, fontWeight: '700', marginBottom: 10 },
-  modalSelectedText: { color: '#8a7355', fontSize: 13, fontStyle: 'italic', marginBottom: 12 },
-  modalInput: {
-    backgroundColor: '#120d08',
-    borderWidth: 1,
-    borderColor: '#4a3a22',
-    borderRadius: 6,
-    padding: 10,
-    color: '#e9dcb8',
-    fontSize: 14,
-    marginBottom: 10,
-  },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20, marginTop: 8 },
-  modalCancel: { color: '#a8926a', fontSize: 14 },
-  modalConfirm: { color: '#c69a3a', fontSize: 14, fontWeight: '700' },
-  modalEmpty: { color: '#8a7355', fontSize: 13, fontStyle: 'italic' },
-  versionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2013',
-  },
-  versionTime: { color: '#8a7355', fontSize: 11 },
-  versionPreview: { color: '#c9b892', fontSize: 12.5, fontStyle: 'italic' },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg },
+    position: {
+      color: colors.textFaint,
+      fontFamily: FONTS.mono,
+      fontSize: 10.5,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      paddingHorizontal: 16,
+      paddingTop: 8,
+    },
+    toolbar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderDim,
+      gap: 12,
+    },
+    toolbarBtn: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+    status: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 11, flex: 1, textAlign: 'center' },
+    measurer: { position: 'absolute', left: -9999, top: 0, opacity: 0 },
+    editInput: {
+      flex: 1,
+      color: colors.text,
+      fontFamily: FONTS.literary,
+      fontSize: 16.5,
+      lineHeight: LINE_HEIGHT,
+      padding: 20,
+    },
+    jumpPopup: {
+      position: 'absolute',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      height: 38,
+      paddingHorizontal: 16,
+      backgroundColor: colors.gold,
+      borderRadius: 19,
+      shadowColor: '#000',
+      shadowOpacity: 0.4,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 6,
+    },
+    jumpPopupText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+    flagPickerScreen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
+    flagPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+    flagPickerClose: { color: colors.textDim, fontSize: 26, lineHeight: 26 },
+    flagPickerOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      padding: 16,
+      marginTop: 12,
+    },
+    flagPickerOptionEmoji: { fontSize: 26 },
+    flagPickerOptionTitle: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 16 },
+    flagPickerOptionDesc: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
+    flagRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+    flagSwatch: { width: 10, height: 10, borderRadius: 5 },
+    flagBody: { flex: 1 },
+    flagType: { color: colors.textDim, fontSize: 11 },
+    flagText: { color: colors.textDim, fontSize: 13, fontStyle: 'italic' },
+    flagLabel: { color: colors.textFaint, fontSize: 12 },
+    flagRemove: { color: colors.error, fontSize: 18, paddingHorizontal: 4 },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+    modalCard: { backgroundColor: colors.panel, borderRadius: 10, padding: 20, borderWidth: 1, borderColor: colors.border },
+    modalTitle: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 16, marginBottom: 10 },
+    modalSelectedText: { color: colors.textFaint, fontSize: 13, fontStyle: 'italic', marginBottom: 12 },
+    modalInput: {
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      padding: 10,
+      color: colors.text,
+      fontSize: 14,
+      marginBottom: 10,
+    },
+    modalInputMultiline: { minHeight: 76 },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20, marginTop: 8 },
+    modalCancel: { color: colors.textDim, fontSize: 14 },
+    modalConfirm: { color: colors.gold, fontSize: 14, fontWeight: '700' },
+    modalEmpty: { color: colors.textFaint, fontSize: 13, fontStyle: 'italic' },
+    versionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderDim,
+    },
+    versionTime: { color: colors.textFaint, fontSize: 11 },
+    versionPreview: { color: colors.textDim, fontSize: 12.5, fontStyle: 'italic' },
+  });
+}

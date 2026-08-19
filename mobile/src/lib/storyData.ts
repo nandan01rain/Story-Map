@@ -70,6 +70,23 @@ export function tokenizeSentences(text: string): SentenceToken[] {
   return tokens;
 }
 
+// Word-level tokens, same {text,start,end} shape as SentenceToken -- used by
+// ReaderScreen's long-press selection (paginate.ts's buildPageSegments is generic over
+// either). Computing tokens for a whole chapter is cheap (a regex pass, no rendering);
+// what actually caused the 10-15s-per-tap ANR noted above was rendering a touchable
+// element per word for an entire CHAPTER. ReaderScreen only ever renders tokens that
+// buildPageSegments has already filtered down to the current PAGE (a few hundred words),
+// so the render cost stays small even though tokenizeWords itself runs over the full text.
+export function tokenizeWords(text: string): SentenceToken[] {
+  const tokens: SentenceToken[] = [];
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    tokens.push({ text: m[0], start: m.index, end: m.index + m[0].length });
+  }
+  return tokens;
+}
+
 // Ports renderAnnotatedContent()'s algorithm exactly (index.html): each annotation
 // relocates by searching for its exact flagged substring (first occurrence only) rather
 // than tracking a fixed offset -- if prose is edited enough to break the match, the

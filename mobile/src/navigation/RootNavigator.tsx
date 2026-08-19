@@ -1,4 +1,4 @@
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -6,8 +6,13 @@ import ChapterDrawerScreen from '../screens/ChapterDrawerScreen';
 import ChapterListScreen from '../screens/ChapterListScreen';
 import EditorScreen from '../screens/EditorScreen';
 import ProjectPickerScreen from '../screens/ProjectPickerScreen';
+import ReaderScreen from '../screens/ReaderScreen';
+import SearchScreen from '../screens/SearchScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
+import StickyNotesScreen from '../screens/StickyNotesScreen';
 import { useAuthStore } from '../store/authStore';
+import { FONTS, useTheme } from '../theme';
 import type { SignedInStackParamList } from './types';
 
 // Mirrors the PWA's own auth-driven screen flow (index.html: auth-screen -> project-
@@ -18,31 +23,38 @@ import type { SignedInStackParamList } from './types';
 const Stack = createNativeStackNavigator<SignedInStackParamList>();
 const AuthStack = createNativeStackNavigator();
 
-const theme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: '#120d08', card: '#1a130b', border: '#4a3a22', text: '#e9dcb8' },
-};
-
 export default function RootNavigator() {
   const session = useAuthStore((s) => s.session);
   const initializing = useAuthStore((s) => s.initializing);
+  const { mode, colors } = useTheme();
+
+  const navTheme = {
+    ...(mode === 'day' ? DefaultTheme : DarkTheme),
+    colors: { ...(mode === 'day' ? DefaultTheme : DarkTheme).colors, background: colors.bg, card: colors.panel, border: colors.border, text: colors.text },
+  };
 
   if (initializing) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#120d08', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#c69a3a" />
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.gold} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer theme={theme}>
+    <NavigationContainer theme={navTheme}>
       {session ? (
-        <Stack.Navigator screenOptions={{ headerTintColor: '#c69a3a' }}>
+        <Stack.Navigator
+          screenOptions={{ headerTintColor: colors.gold, headerTitleStyle: { fontFamily: FONTS.heading, fontSize: 17 } }}
+        >
           <Stack.Screen name="ProjectPicker" component={ProjectPickerScreen} options={{ headerShown: false }} />
           <Stack.Screen name="ChapterList" component={ChapterListScreen} options={{ title: '' }} />
           <Stack.Screen name="ChapterDrawer" component={ChapterDrawerScreen} options={{ title: 'Chapter' }} />
           <Stack.Screen name="Editor" component={EditorScreen} options={{ title: '' }} />
+          <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="StickyNotes" component={StickyNotesScreen} options={{ title: '' }} />
+          <Stack.Screen name="Search" component={SearchScreen} />
         </Stack.Navigator>
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
