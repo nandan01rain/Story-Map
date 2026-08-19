@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import ChapterDrawerScreen from '../screens/ChapterDrawerScreen';
 import ChapterListScreen from '../screens/ChapterListScreen';
+import EditorScreen from '../screens/EditorScreen';
 import ProjectPickerScreen from '../screens/ProjectPickerScreen';
 import SignInScreen from '../screens/SignInScreen';
 import { useAuthStore } from '../store/authStore';
@@ -41,6 +42,7 @@ export default function RootNavigator() {
           <Stack.Screen name="ProjectPicker" component={ProjectPickerScreen} options={{ headerShown: false }} />
           <Stack.Screen name="ChapterList" component={ChapterListScreen} options={{ title: '' }} />
           <Stack.Screen name="ChapterDrawer" component={ChapterDrawerScreen} options={{ title: 'Chapter' }} />
+          <Stack.Screen name="Editor" component={EditorScreen} options={{ title: '' }} />
         </Stack.Navigator>
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>

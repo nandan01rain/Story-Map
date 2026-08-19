@@ -199,10 +199,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
         <Text style={styles.deleteBtnText}>Delete chapter</Text>
       </Pressable>
 
-      <Pressable
-        style={styles.editorBtn}
-        onPress={() => Alert.alert('Coming next', 'The full chapter editor is the next thing being built.')}
-      >
+      <Pressable style={styles.editorBtn} onPress={() => navigation.navigate('Editor', { chapterId })}>
         <Text style={styles.editorBtnText}>Open full editor →</Text>
       </Pressable>
     </ScrollView>
