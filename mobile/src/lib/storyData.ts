@@ -28,6 +28,24 @@ export const ANNOTATION_COLORS: Record<'plant' | 'reveal' | 'note', string> = {
 
 export type HighlightSegment = { text: string; type: 'plant' | 'reveal' | 'note' | null; label?: string };
 
+export type WordToken = { word: string; start: number; end: number };
+
+// Android's native TextInput drag-to-extend-selection is unreliable enough (longstanding
+// RN platform bug, only ever selects a single word on some devices/keyboards -- see
+// EditorScreen's comments) that flagging is built on top of this instead: tap a word to
+// anchor a selection, tap another to extend it, entirely independent of native text
+// selection. \S+ tokens include attached punctuation (e.g. "sentence." is one token) --
+// that's the intended granularity, not a bug.
+export function tokenizeWords(text: string): WordToken[] {
+  const tokens: WordToken[] = [];
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    tokens.push({ word: m[0], start: m.index, end: m.index + m[0].length });
+  }
+  return tokens;
+}
+
 // Ports renderAnnotatedContent()'s algorithm exactly (index.html): each annotation
 // relocates by searching for its exact flagged substring (first occurrence only) rather
 // than tracking a fixed offset -- if prose is edited enough to break the match, the

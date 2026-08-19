@@ -15,39 +15,45 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { ANNOTATION_COLORS, computeHighlightSegments, wordCount } from '../lib/storyData';
+import { ANNOTATION_COLORS, computeHighlightSegments, tokenizeWords, wordCount } from '../lib/storyData';
 import { type Annotation, useChapterStore } from '../store/chapterStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
 
 const AUTOSAVE_DELAY_MS = 1200; // matches the PWA's editorSaveTimer exactly (index.html)
 const FLAG_LABELS: Record<Annotation['type'], string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
+const SELECTION_TINT = 'rgba(198,154,58,0.4)'; // gold, distinct from any ANNOTATION_COLORS value
 
 // Ports the PWA's contenteditable-based editor (index.html §3.5) to RN's TextInput, which
 // has no equivalent for inline-styled editable text -- see the plan doc's editor risk
-// section. Two modes instead: a read view with real inline highlight spans (nested
-// <Text>, ported from renderAnnotatedContent()'s exact substring-relocation algorithm --
-// see computeHighlightSegments), and a plain-TextInput edit mode for actual typing.
-// Deferred to Phase 3 (continuity checker / POV tracker), same as the drawer's scene
-// fields: linked-plant search/matching for reveals, auto-feeding scene requires/
-// provides, and thread-based Mythic Threads. Annotations here store type/text/label
-// (+thread for notes) only.
+// section. Three modes: a read view with real inline highlight spans (nested <Text>,
+// ported from renderAnnotatedContent()'s exact substring-relocation algorithm -- see
+// computeHighlightSegments), a plain-TextInput edit mode for actual typing, and a
+// "select mode" for flagging built entirely on custom word-tap selection rather than
+// native TextInput text selection -- Android's drag-to-extend-selection on multiline
+// TextInput is a longstanding, still-unresolved RN platform bug (only ever selects a
+// single word on some devices/keyboards, confirmed on real hardware this session), so
+// flagging doesn't depend on it at all. Deferred to Phase 3 (continuity checker / POV
+// tracker), same as the drawer's scene fields: linked-plant search for reveals,
+// auto-feeding scene requires/provides, and thread-based Mythic Threads. Annotations
+// here store type/text/label(+thread for notes) only.
 export default function EditorScreen({ route, navigation }: Props) {
   const { chapterId } = route.params;
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
   const updateChapter = useChapterStore((s) => s.updateChapter);
 
-  const [mode, setMode] = useState<'read' | 'edit'>('read');
+  const [mode, setMode] = useState<'read' | 'edit' | 'select'>('read');
   const [content, setContent] = useState(chapter?.content ?? '');
   const [annotations, setAnnotations] = useState<Annotation[]>(chapter?.annotations ?? []);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [status, setStatus] = useState('');
   const [historyVisible, setHistoryVisible] = useState(false);
   const [flagPickerVisible, setFlagPickerVisible] = useState(false);
   const [pendingFlag, setPendingFlag] = useState<{ type: Annotation['type']; text: string } | null>(null);
-  const insets = useSafeAreaInsets();
   const [labelInput, setLabelInput] = useState('');
   const [threadInput, setThreadInput] = useState('');
+  const [wordAnchor, setWordAnchor] = useState<number | null>(null);
+  const [wordFocus, setWordFocus] = useState<number | null>(null);
+  const insets = useSafeAreaInsets();
 
   const savedContentRef = useRef(chapter?.content ?? '');
   const savedAnnotationsRef = useRef<Annotation[]>(chapter?.annotations ?? []);
@@ -110,14 +116,30 @@ export default function EditorScreen({ route, navigation }: Props) {
   }, []);
 
   const segments = useMemo(() => computeHighlightSegments(content, annotations), [content, annotations]);
+  const tokens = useMemo(() => tokenizeWords(content), [content]);
+
+  const wordSelStart = wordAnchor !== null && wordFocus !== null ? Math.min(wordAnchor, wordFocus) : null;
+  const wordSelEnd = wordAnchor !== null && wordFocus !== null ? Math.max(wordAnchor, wordFocus) : null;
+
+  function tapWord(index: number) {
+    if (wordAnchor === null) {
+      setWordAnchor(index);
+      setWordFocus(index);
+    } else {
+      setWordFocus(index);
+    }
+  }
+
+  function exitSelectMode() {
+    setMode('read');
+    setWordAnchor(null);
+    setWordFocus(null);
+  }
 
   function beginFlag(type: Annotation['type']) {
-    const text = content.slice(selection.start, selection.end);
+    if (wordSelStart === null || wordSelEnd === null) return;
+    const text = content.slice(tokens[wordSelStart].start, tokens[wordSelEnd].end);
     setFlagPickerVisible(false);
-    if (!text.trim()) {
-      Alert.alert('Select some text first', `Select the text in the chapter you want to flag, then tap ${type}.`);
-      return;
-    }
     setPendingFlag({ type, text });
     setLabelInput('');
     setThreadInput('');
@@ -136,6 +158,7 @@ export default function EditorScreen({ route, navigation }: Props) {
     setAnnotations(next);
     scheduleAutosave(content, next);
     setPendingFlag(null);
+    exitSelectMode();
   }
 
   function removeAnnotation(id: string) {
@@ -178,19 +201,27 @@ export default function EditorScreen({ route, navigation }: Props) {
       <View style={styles.toolbar}>
         <Pressable
           onPress={() => {
+            if (mode === 'select') { exitSelectMode(); return; }
             if (mode === 'edit') flushSave();
             setMode(mode === 'edit' ? 'read' : 'edit');
           }}
         >
-          <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : 'Edit'}</Text>
+          <Text style={styles.toolbarBtn}>{mode === 'edit' ? 'Done' : mode === 'select' ? 'Cancel' : 'Edit'}</Text>
         </Pressable>
         <Text style={styles.status}>{status}</Text>
-        <Pressable onPress={() => setHistoryVisible(true)}>
-          <Text style={styles.toolbarBtn}>History</Text>
-        </Pressable>
+        {mode === 'read' && (
+          <Pressable onPress={() => setMode('select')}>
+            <Text style={styles.toolbarBtn}>Flag text</Text>
+          </Pressable>
+        )}
+        {mode !== 'select' && (
+          <Pressable onPress={() => setHistoryVisible(true)}>
+            <Text style={styles.toolbarBtn}>History</Text>
+          </Pressable>
+        )}
       </View>
 
-      {mode === 'read' ? (
+      {mode === 'read' && (
         <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
           <Text style={styles.proseText}>
             {segments.map((seg, i) =>
@@ -226,27 +257,48 @@ export default function EditorScreen({ route, navigation }: Props) {
             </View>
           )}
         </ScrollView>
-      ) : (
+      )}
+
+      {mode === 'edit' && (
+        <TextInput
+          style={styles.editInput}
+          value={content}
+          onChangeText={handleContentChange}
+          multiline
+          autoFocus
+          textAlignVertical="top"
+          placeholder="Start writing..."
+          placeholderTextColor="#8a7355"
+        />
+      )}
+
+      {mode === 'select' && (
         <>
-          <TextInput
-            style={styles.editInput}
-            value={content}
-            onChangeText={handleContentChange}
-            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-            multiline
-            autoFocus
-            textAlignVertical="top"
-            placeholder="Start writing..."
-            placeholderTextColor="#8a7355"
-          />
-          {/* Contextual, not always-on: only appears once there's an actual selection.
-              Sits in a normal (non-absolute) flex row so it's never fixed off past the
-              bottom of the screen -- padded by the real safe-area inset so it clears the
-              phone's own gesture/nav bar, which the previous always-visible bar didn't
-              account for at all (that, not selection detection, was the actual bug). */}
-          {selection.end > selection.start && (
+          <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
+            <Text style={styles.selectHint}>Tap a word to start, tap another to extend the selection.</Text>
+            <Text style={styles.proseText}>
+              {tokens.map((tok, i) => {
+                const selected = wordSelStart !== null && i >= wordSelStart && i <= wordSelEnd!;
+                const gap = i > 0 ? content.slice(tokens[i - 1].end, tok.start) : '';
+                return (
+                  <Text key={i}>
+                    {gap}
+                    <Text
+                      onPress={() => tapWord(i)}
+                      style={selected ? { backgroundColor: SELECTION_TINT } : undefined}
+                    >
+                      {tok.word}
+                    </Text>
+                  </Text>
+                );
+              })}
+            </Text>
+          </ScrollView>
+          {wordSelStart !== null && (
             <View style={[styles.selectionBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-              <Text style={styles.selectionBarHint}>{selection.end - selection.start} characters selected</Text>
+              <Text style={styles.selectionBarHint}>
+                {wordSelEnd! - wordSelStart + 1} word{wordSelEnd === wordSelStart ? '' : 's'} selected
+              </Text>
               <Pressable style={styles.selectionBarMore} onPress={() => setFlagPickerVisible(true)}>
                 <Text style={styles.selectionBarMoreText}>⋮</Text>
               </Pressable>
@@ -256,11 +308,7 @@ export default function EditorScreen({ route, navigation }: Props) {
       )}
 
       {/* Full-screen flag-type picker, opened from the "⋮" on a selection */}
-      <Modal
-        visible={flagPickerVisible}
-        animationType="slide"
-        onRequestClose={() => setFlagPickerVisible(false)}
-      >
+      <Modal visible={flagPickerVisible} animationType="slide" onRequestClose={() => setFlagPickerVisible(false)}>
         <View style={[styles.flagPickerScreen, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.flagPickerHeader}>
             <Text style={styles.modalTitle}>Flag this text</Text>
@@ -269,7 +317,7 @@ export default function EditorScreen({ route, navigation }: Props) {
             </Pressable>
           </View>
           <Text style={styles.modalSelectedText} numberOfLines={4}>
-            "{content.slice(selection.start, selection.end)}"
+            "{wordSelStart !== null ? content.slice(tokens[wordSelStart].start, tokens[wordSelEnd!].end) : ''}"
           </Text>
           <Pressable style={styles.flagPickerOption} onPress={() => beginFlag('plant')}>
             <Text style={styles.flagPickerOptionEmoji}>🌱</Text>
@@ -378,13 +426,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2013',
+    gap: 12,
   },
   toolbarBtn: { color: '#c69a3a', fontSize: 14, fontWeight: '600' },
-  status: { color: '#8a7355', fontSize: 11 },
+  status: { color: '#8a7355', fontSize: 11, flex: 1, textAlign: 'center' },
   body: { flex: 1 },
   readContent: { padding: 20, paddingBottom: 60 },
   proseText: { color: '#e9dcb8', fontSize: 16, lineHeight: 26 },
   placeholder: { color: '#8a7355', fontStyle: 'italic' },
+  selectHint: { color: '#8a7355', fontSize: 12, fontStyle: 'italic', marginBottom: 12 },
   editInput: {
     flex: 1,
     color: '#e9dcb8',
