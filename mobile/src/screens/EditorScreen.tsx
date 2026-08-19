@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { ANNOTATION_COLORS, computeHighlightSegments, tokenizeWords, wordCount } from '../lib/storyData';
+import { ANNOTATION_COLORS, computeHighlightSegments, tokenizeSentences, wordCount } from '../lib/storyData';
 import { type Annotation, useChapterStore } from '../store/chapterStore';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
@@ -29,11 +29,15 @@ const SELECTION_TINT = 'rgba(198,154,58,0.4)'; // gold, distinct from any ANNOTA
 // section. Three modes: a read view with real inline highlight spans (nested <Text>,
 // ported from renderAnnotatedContent()'s exact substring-relocation algorithm -- see
 // computeHighlightSegments), a plain-TextInput edit mode for actual typing, and a
-// "select mode" for flagging built entirely on custom word-tap selection rather than
-// native TextInput text selection -- Android's drag-to-extend-selection on multiline
-// TextInput is a longstanding, still-unresolved RN platform bug (only ever selects a
-// single word on some devices/keyboards, confirmed on real hardware this session), so
-// flagging doesn't depend on it at all. Deferred to Phase 3 (continuity checker / POV
+// "select mode" for flagging built entirely on custom tap-a-sentence-to-select rather
+// than native TextInput text selection -- Android's drag-to-extend-selection on
+// multiline TextInput is a longstanding, still-unresolved RN platform bug (only ever
+// selects a single word on some devices/keyboards, confirmed on real hardware this
+// session), so flagging doesn't depend on it at all. Chunked by sentence rather than
+// word (see tokenizeSentences in storyData.ts) -- a per-word version wrapped every word
+// in its own touchable element, which for a real chapter blocked the JS thread for
+// several seconds on every tap (also confirmed on real hardware). Deferred to Phase 3
+// (continuity checker / POV
 // tracker), same as the drawer's scene fields: linked-plant search for reveals,
 // auto-feeding scene requires/provides, and thread-based Mythic Threads. Annotations
 // here store type/text/label(+thread for notes) only.
@@ -51,8 +55,8 @@ export default function EditorScreen({ route, navigation }: Props) {
   const [pendingFlag, setPendingFlag] = useState<{ type: Annotation['type']; text: string } | null>(null);
   const [labelInput, setLabelInput] = useState('');
   const [threadInput, setThreadInput] = useState('');
-  const [wordAnchor, setWordAnchor] = useState<number | null>(null);
-  const [wordFocus, setWordFocus] = useState<number | null>(null);
+  const [sentAnchor, setWordAnchor] = useState<number | null>(null);
+  const [sentFocus, setWordFocus] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
 
   const savedContentRef = useRef(chapter?.content ?? '');
@@ -116,13 +120,13 @@ export default function EditorScreen({ route, navigation }: Props) {
   }, []);
 
   const segments = useMemo(() => computeHighlightSegments(content, annotations), [content, annotations]);
-  const tokens = useMemo(() => tokenizeWords(content), [content]);
+  const tokens = useMemo(() => tokenizeSentences(content), [content]);
 
-  const wordSelStart = wordAnchor !== null && wordFocus !== null ? Math.min(wordAnchor, wordFocus) : null;
-  const wordSelEnd = wordAnchor !== null && wordFocus !== null ? Math.max(wordAnchor, wordFocus) : null;
+  const sentSelStart = sentAnchor !== null && sentFocus !== null ? Math.min(sentAnchor, sentFocus) : null;
+  const sentSelEnd = sentAnchor !== null && sentFocus !== null ? Math.max(sentAnchor, sentFocus) : null;
 
-  function tapWord(index: number) {
-    if (wordAnchor === null) {
+  function tapSentence(index: number) {
+    if (sentAnchor === null) {
       setWordAnchor(index);
       setWordFocus(index);
     } else {
@@ -137,8 +141,8 @@ export default function EditorScreen({ route, navigation }: Props) {
   }
 
   function beginFlag(type: Annotation['type']) {
-    if (wordSelStart === null || wordSelEnd === null) return;
-    const text = content.slice(tokens[wordSelStart].start, tokens[wordSelEnd].end);
+    if (sentSelStart === null || sentSelEnd === null) return;
+    const text = content.slice(tokens[sentSelStart].start, tokens[sentSelEnd].end);
     setFlagPickerVisible(false);
     setPendingFlag({ type, text });
     setLabelInput('');
@@ -275,30 +279,30 @@ export default function EditorScreen({ route, navigation }: Props) {
       {mode === 'select' && (
         <>
           <ScrollView style={styles.body} contentContainerStyle={styles.readContent}>
-            <Text style={styles.selectHint}>Tap a word to start, tap another to extend the selection.</Text>
+            <Text style={styles.selectHint}>Tap a sentence to start, tap another to extend the selection.</Text>
             {tokens.length === 0 && <Text style={styles.placeholder}>This chapter has no text yet.</Text>}
             <Text style={styles.proseText}>
               {tokens.map((tok, i) => {
-                const selected = wordSelStart !== null && i >= wordSelStart && i <= wordSelEnd!;
+                const selected = sentSelStart !== null && i >= sentSelStart && i <= sentSelEnd!;
                 const gap = i > 0 ? content.slice(tokens[i - 1].end, tok.start) : '';
                 return (
                   <Text key={i}>
                     {gap}
                     <Text
-                      onPress={() => tapWord(i)}
+                      onPress={() => tapSentence(i)}
                       style={selected ? { backgroundColor: SELECTION_TINT } : undefined}
                     >
-                      {tok.word}
+                      {tok.text}
                     </Text>
                   </Text>
                 );
               })}
             </Text>
           </ScrollView>
-          {wordSelStart !== null && (
+          {sentSelStart !== null && (
             <View style={[styles.selectionBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
               <Text style={styles.selectionBarHint}>
-                {wordSelEnd! - wordSelStart + 1} word{wordSelEnd === wordSelStart ? '' : 's'} selected
+                {sentSelEnd! - sentSelStart + 1} sentence{sentSelEnd === sentSelStart ? '' : 's'} selected
               </Text>
               <Pressable style={styles.selectionBarMore} onPress={() => setFlagPickerVisible(true)}>
                 <Text style={styles.selectionBarMoreText}>⋮</Text>
@@ -318,7 +322,7 @@ export default function EditorScreen({ route, navigation }: Props) {
             </Pressable>
           </View>
           <Text style={styles.modalSelectedText} numberOfLines={4}>
-            "{wordSelStart !== null ? content.slice(tokens[wordSelStart].start, tokens[wordSelEnd!].end) : ''}"
+            "{sentSelStart !== null ? content.slice(tokens[sentSelStart].start, tokens[sentSelEnd!].end) : ''}"
           </Text>
           <Pressable style={styles.flagPickerOption} onPress={() => beginFlag('plant')}>
             <Text style={styles.flagPickerOptionEmoji}>🌱</Text>

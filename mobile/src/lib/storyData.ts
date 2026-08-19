@@ -28,20 +28,28 @@ export const ANNOTATION_COLORS: Record<'plant' | 'reveal' | 'note', string> = {
 
 export type HighlightSegment = { text: string; type: 'plant' | 'reveal' | 'note' | null; label?: string };
 
-export type WordToken = { word: string; start: number; end: number };
+export type SentenceToken = { text: string; start: number; end: number };
 
 // Android's native TextInput drag-to-extend-selection is unreliable enough (longstanding
 // RN platform bug, only ever selects a single word on some devices/keyboards -- see
-// EditorScreen's comments) that flagging is built on top of this instead: tap a word to
-// anchor a selection, tap another to extend it, entirely independent of native text
-// selection. \S+ tokens include attached punctuation (e.g. "sentence." is one token) --
-// that's the intended granularity, not a bug.
-export function tokenizeWords(text: string): WordToken[] {
-  const tokens: WordToken[] = [];
-  const re = /\S+/g;
+// EditorScreen's comments) that flagging is built on top of this instead: tap a sentence
+// to anchor a selection, tap another to extend it, entirely independent of native text
+// selection. Chunked by sentence rather than by word -- an earlier per-word version
+// wrapped every word in the chapter in its own touchable element, which for a real
+// chapter (thousands of words) meant thousands of nodes re-evaluating on every tap and
+// blocked the JS thread for seconds (confirmed on real hardware: taps took 10-15s to
+// register). Sentences cut that by roughly the average sentence length in words, and are
+// a more natural unit for flagging a Plant/Reveal/Note anyway. `[^.!?\n]` stops a chunk
+// at a paragraph break even without terminal punctuation (mid-draft prose often has
+// none yet); the newline itself lands in the gap between tokens the same way inter-word
+// whitespace does, so it's preserved when reconstructing the exact substring.
+export function tokenizeSentences(text: string): SentenceToken[] {
+  const tokens: SentenceToken[] = [];
+  const re = /[^.!?\n]*[.!?]+|[^.!?\n]+/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
-    tokens.push({ word: m[0], start: m.index, end: m.index + m[0].length });
+    if (!m[0].trim()) continue;
+    tokens.push({ text: m[0], start: m.index, end: m.index + m[0].length });
   }
   return tokens;
 }
