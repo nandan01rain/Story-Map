@@ -5,7 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import ChapterDrawerScreen from '../screens/ChapterDrawerScreen';
 import ChapterListScreen from '../screens/ChapterListScreen';
 import EditorScreen from '../screens/EditorScreen';
-import ProjectPickerScreen from '../screens/ProjectPickerScreen';
+import LandingScreen from '../screens/LandingScreen';
 import ReaderScreen from '../screens/ReaderScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -47,7 +47,10 @@ export default function RootNavigator() {
         <Stack.Navigator
           screenOptions={{ headerTintColor: colors.gold, headerTitleStyle: { fontFamily: FONTS.heading, fontSize: 17 } }}
         >
-          <Stack.Screen name="ProjectPicker" component={ProjectPickerScreen} options={{ headerShown: false }} />
+          {/* The landing page owns this route now -- the project picker is one tab inside
+              it (see LandingScreen), so every existing navigate('ProjectPicker') still
+              lands in the right place. */}
+          <Stack.Screen name="ProjectPicker" component={LandingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="ChapterList" component={ChapterListScreen} options={{ title: '' }} />
           <Stack.Screen name="ChapterDrawer" component={ChapterDrawerScreen} options={{ title: 'Chapter' }} />
           <Stack.Screen name="Editor" component={EditorScreen} options={{ title: '' }} />
