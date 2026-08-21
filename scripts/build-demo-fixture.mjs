@@ -120,10 +120,94 @@ const documents = [
   ['08_InWorld_Document_Namboodiri_Ritual_Notes.md', "Namboodiri's Ritual Notes", 'reference'],
 ].map(([file, title, type]) => ({ title, type, content: read(file) }));
 
+// --- character graph ------------------------------------------------------
+// Characters are parsed from the bible's headings; aliases come from the short names the
+// relationship blocks actually use ("Sunny" for "Dr. Sunny Joseph"), which is exactly the
+// resolution problem the graph's alias handling exists for.
+const bible = read('02_Character_Bible.md');
+const graphCharacters = [];
+for (const line of bible.split('\n')) {
+  const m = line.match(/^###? ([A-Z][A-Z .'—-]+?)(?: — .*)?$/);
+  if (!m) continue;
+  const raw = m[1].trim();
+  if (/^HISTORICAL/.test(raw)) continue;
+  graphCharacters.push(raw);
+}
+
+function pretty(name) {
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map((w) => (w === 'dr.' ? 'Dr.' : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+// Deriving the short name positionally does not work: it is the last word for
+// "Karanavar Sankaran Thambi" but the middle one for "Dr. Sunny Joseph", and taking the
+// last there silently dropped every edge involving Sunny. Stated explicitly instead --
+// four names, and being wrong about them is invisible until the graph is missing its
+// busiest character.
+const SHORT_NAMES = {
+  'Dr. Sunny Joseph': 'Sunny',
+  'The Elders': 'Elders',
+  'Pullattuparam Brahmadathan Namboodiri': 'Namboodiri',
+  'Karanavar Sankaran Thambi': 'Thambi',
+};
+
+const characters = graphCharacters.map((raw) => {
+  const label = pretty(raw);
+  const short = SHORT_NAMES[label] ?? label;
+  return {
+    key: short.toLowerCase(),
+    label,
+    aliases: short !== label ? [short] : [],
+  };
+});
+
+// Relationships as stated in the bible's own Role/Relationships/Function prose. Curated
+// rather than inferred: the text describes what happens between people but not in a fixed
+// grammar, so classifying it by keyword would invent as much as it read. Confidence is set
+// low on the genuinely ambiguous ones so the review queue has something real to show.
+const relationships = [
+  ['ganga', 'nakulan', 'romantic', 'positive', null],
+  ['ganga', 'nakulan', 'confrontation', 'negative', 0.55],
+  ['ganga', 'sunny', 'alliance', 'positive', null],
+  ['ganga', 'sridevi', 'alliance', 'positive', null],
+  ['ganga', 'alli', 'other', 'ambiguous', 0.5],
+  ['ganga', 'mahadevan', 'confrontation', 'ambiguous', 0.45],
+  ['nakulan', 'sunny', 'alliance', 'positive', null],
+  ['nakulan', 'elders', 'confrontation', 'ambiguous', 0.58],
+  ['sunny', 'sridevi', 'romantic', 'positive', null],
+  ['sunny', 'namboodiri', 'alliance', 'ambiguous', null],
+  ['sunny', 'elders', 'confrontation', 'ambiguous', 0.52],
+  ['sridevi', 'elders', 'confrontation', 'negative', null],
+  ['alli', 'mahadevan', 'romantic', 'positive', null],
+  ['mahadevan', 'elders', 'confrontation', 'negative', 0.4],
+  ['namboodiri', 'elders', 'alliance', 'positive', null],
+  ['nagavalli', 'ramanathan', 'romantic', 'positive', null],
+  ['nagavalli', 'thambi', 'betrayal', 'negative', null],
+  ['ramanathan', 'thambi', 'betrayal', 'negative', null],
+  ['nakulan', 'thambi', 'other', 'ambiguous', 0.35],
+  ['mahadevan', 'ramanathan', 'other', 'ambiguous', 0.35],
+];
+
+const knownKeys = new Set(characters.map((c) => c.key));
+const graphEdges = relationships
+  .filter(([a, b]) => knownKeys.has(a) && knownKeys.has(b))
+  .map(([from, to, interactionType, valence, confidence]) => ({
+    from,
+    to,
+    interactionType,
+    valence,
+    confidence,
+  }));
+
 const fixture = {
   projectName: 'The Southern Wing (Demo)',
   chapters,
   documents,
+  characters,
+  graphEdges,
 };
 
 const banner = `// GENERATED FILE -- do not edit by hand.
@@ -146,10 +230,20 @@ export type DemoChapter = {
   scenes: DemoScene[];
 };
 export type DemoDocument = { title: string; type: string; content: string };
+export type DemoCharacter = { key: string; label: string; aliases: string[] };
+export type DemoGraphEdge = {
+  from: string;
+  to: string;
+  interactionType: string;
+  valence: string;
+  confidence: number | null;
+};
 export type DemoFixture = {
   projectName: string;
   chapters: DemoChapter[];
   documents: DemoDocument[];
+  characters: DemoCharacter[];
+  graphEdges: DemoGraphEdge[];
 };
 
 export const DEMO_FIXTURE: DemoFixture = `;
@@ -165,4 +259,7 @@ console.log(`documents     ${documents.length}`);
 console.log(`prose words   ${words.toLocaleString()}`);
 console.log(`missing prose ${chapters.filter((c) => c.content.length < 50).map((c) => c.number).join(', ') || 'none'}`);
 console.log(`missing POV   ${chapters.filter((c) => !c.pov).map((c) => c.number).join(', ') || 'none'}`);
+console.log(`characters    ${characters.length} (${characters.map((c) => c.label).join(', ')})`);
+console.log(`graph edges   ${graphEdges.length} of ${relationships.length} (rest reference unknown names)`);
+console.log(`for review    ${graphEdges.filter((e) => e.confidence !== null).length}`);
 console.log(`wrote         ${path.relative(process.cwd(), OUT)}`);

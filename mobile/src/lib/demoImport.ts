@@ -18,7 +18,7 @@ export async function importDemoProject(
   onProgress: (p: ImportProgress) => void,
 ): Promise<{ projectId: string | null; projectName: string; error: string | null }> {
   const fixture = DEMO_FIXTURE;
-  const total = fixture.chapters.length + fixture.documents.length + 1;
+  const total = fixture.chapters.length + fixture.documents.length + 2;
   let done = 0;
 
   const tick = (step: string) => {
@@ -114,6 +114,68 @@ export async function importDemoProject(
   }
   fixture.documents.forEach(() => tick('Documents'));
 
+  // The character graph, seeded from the bible's own cast and relationships. This is what
+  // makes the graph testable without an API key: extraction is the normal way in, but it
+  // costs money, and a graph that can only be filled by paying is a graph that cannot be
+  // tried.
+  const characterRows = fixture.characters.map((c) => ({
+    user_id: userId,
+    project_id: project.id,
+    node_type: 'character',
+    label: c.label,
+    properties: { aliases: c.aliases, pov_eligible: true, factions: [] },
+    source: 'manual',
+    needs_review: false,
+  }));
+
+  const { data: insertedCharacters, error: characterError } = await supabase
+    .from('graph_nodes')
+    .insert(characterRows)
+    .select('id, label');
+  if (characterError) {
+    return { projectId: project.id, projectName, error: `Characters: ${characterError.message}` };
+  }
+
+  const idByLabel = new Map<string, string>();
+  for (const row of insertedCharacters ?? []) idByLabel.set(row.label as string, row.id as string);
+  const idByKey = new Map<string, string>();
+  for (const c of fixture.characters) {
+    const id = idByLabel.get(c.label);
+    if (id) idByKey.set(c.key, id);
+  }
+
+  const edgeRows = fixture.graphEdges
+    .map((e) => {
+      const from = idByKey.get(e.from);
+      const to = idByKey.get(e.to);
+      if (!from || !to) return null;
+      return {
+        user_id: userId,
+        project_id: project.id,
+        from_node_id: from,
+        to_node_id: to,
+        edge_type: 'INTERACTS_WITH',
+        // Saga-level relationships, not scoped to one scene -- which is exactly the case
+        // the unscoped unique index exists for.
+        event_id: null,
+        properties: { interaction_type: e.interactionType, valence: e.valence },
+        confidence: e.confidence,
+        // The ones the fixture marks uncertain arrive needing review, so the review queue
+        // has real work in it rather than being an empty screen.
+        needs_review: e.confidence !== null,
+        source: 'manual',
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+
+  if (edgeRows.length > 0) {
+    const { error: edgeError } = await supabase.from('graph_edges').insert(edgeRows);
+    if (edgeError) {
+      return { projectId: project.id, projectName, error: `Relationships: ${edgeError.message}` };
+    }
+  }
+  tick('Character graph');
+
   return { projectId: project.id, projectName, error: null };
 }
 
@@ -122,5 +184,13 @@ export function demoSummary() {
   const scenes = f.chapters.reduce((n, c) => n + c.scenes.length, 0);
   const words = f.chapters.reduce((n, c) => n + c.content.split(/\s+/).length, 0);
   const povs = [...new Set(f.chapters.map((c) => c.pov).filter(Boolean))];
-  return { chapters: f.chapters.length, scenes, documents: f.documents.length, words, povs };
+  return {
+    chapters: f.chapters.length,
+    scenes,
+    documents: f.documents.length,
+    words,
+    povs,
+    characters: f.characters.length,
+    relationships: f.graphEdges.length,
+  };
 }

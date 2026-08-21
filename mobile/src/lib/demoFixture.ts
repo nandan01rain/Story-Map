@@ -18,10 +18,20 @@ export type DemoChapter = {
   scenes: DemoScene[];
 };
 export type DemoDocument = { title: string; type: string; content: string };
+export type DemoCharacter = { key: string; label: string; aliases: string[] };
+export type DemoGraphEdge = {
+  from: string;
+  to: string;
+  interactionType: string;
+  valence: string;
+  confidence: number | null;
+};
 export type DemoFixture = {
   projectName: string;
   chapters: DemoChapter[];
   documents: DemoDocument[];
+  characters: DemoCharacter[];
+  graphEdges: DemoGraphEdge[];
 };
 
 export const DEMO_FIXTURE: DemoFixture = {
@@ -687,6 +697,213 @@ export const DEMO_FIXTURE: DemoFixture = {
       "title": "Namboodiri's Ritual Notes",
       "type": "reference",
       "content": "# [IN-WORLD DOCUMENT] — Namboodiri's Private Ritual Notes\n*Test artifact for the \"Documents\" feature — an in-world document a character would plausibly carry, distinct from the story-bible/meta documents above. Referenced in Ch 12; could be shown on-page as an inset or left as background texture.*\n\n---\n\n*Written in Brahmadathan Namboodiri's own hand, in the small ledger he keeps for difficult cases. Never shown to the family.*\n\n**On the case at Madampalli.**\n\nThe household believes I have come to expel a spirit. I have not corrected them, and I do not intend to. What Dr. Joseph describes to me is not, in my understanding of these things, a contradiction of what I do — it is a description of the same event from a vantage I was not trained to use.\n\nA spirit that will not leave is, in my tradition, a grievance that has not been answered. The doctor tells me this is also true in his — a wound that was never permitted to finish happening, replaying itself because it was interrupted rather than resolved. We are, I think, describing the same shape from two directions, and I see no virtue in insisting mine is the only true one merely because it is mine.\n\nThe ritual for Durgashtami must therefore do two things at once, and neither may be allowed to fail for the sake of the other:\n\n1. It must be, in every particular the family can observe, a correct and complete rite — the invocation, the offering, the confrontation, the release. If it is not ritually sound, it will not be *believed*, and an unbelieved cure is no cure at all to people who need to believe it.\n2. It must also, without any visible seam, accomplish precisely what the doctor requires — a controlled confrontation, a decisive and convincing \"death\" of the offending party that will satisfy the grievance without harming the man wearing its face, and a clean exit for whatever it is that has been carrying this weight so long.\n\nThe smoke and ash are, in this sense, doing two jobs honestly at once — I would use them regardless of the doctor's plan, and he requires exactly this kind of cover regardless of my ritual. I have not had to lie to my own tradition to help him. I suspect he would say the same of his.\n\n*Note to self: confirm the lever mechanism is silent. Confirm the dummy's weight is convincing under a blade. Confirm Nakulan understands he must not move.*\n\n*Second note, added later: I do not know if what leaves her tonight is a spirit or a symptom. I have decided this is not a question I am required to answer to do my work well.*\n"
+    }
+  ],
+  "characters": [
+    {
+      "key": "ganga",
+      "label": "Ganga",
+      "aliases": []
+    },
+    {
+      "key": "nakulan",
+      "label": "Nakulan",
+      "aliases": []
+    },
+    {
+      "key": "sunny",
+      "label": "Dr. Sunny Joseph",
+      "aliases": [
+        "Sunny"
+      ]
+    },
+    {
+      "key": "sridevi",
+      "label": "Sridevi",
+      "aliases": []
+    },
+    {
+      "key": "alli",
+      "label": "Alli",
+      "aliases": []
+    },
+    {
+      "key": "mahadevan",
+      "label": "Mahadevan",
+      "aliases": []
+    },
+    {
+      "key": "elders",
+      "label": "The Elders",
+      "aliases": [
+        "Elders"
+      ]
+    },
+    {
+      "key": "namboodiri",
+      "label": "Pullattuparam Brahmadathan Namboodiri",
+      "aliases": [
+        "Namboodiri"
+      ]
+    },
+    {
+      "key": "nagavalli",
+      "label": "Nagavalli",
+      "aliases": []
+    },
+    {
+      "key": "ramanathan",
+      "label": "Ramanathan",
+      "aliases": []
+    },
+    {
+      "key": "thambi",
+      "label": "Karanavar Sankaran Thambi",
+      "aliases": [
+        "Thambi"
+      ]
+    }
+  ],
+  "graphEdges": [
+    {
+      "from": "ganga",
+      "to": "nakulan",
+      "interactionType": "romantic",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "ganga",
+      "to": "nakulan",
+      "interactionType": "confrontation",
+      "valence": "negative",
+      "confidence": 0.55
+    },
+    {
+      "from": "ganga",
+      "to": "sunny",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "ganga",
+      "to": "sridevi",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "ganga",
+      "to": "alli",
+      "interactionType": "other",
+      "valence": "ambiguous",
+      "confidence": 0.5
+    },
+    {
+      "from": "ganga",
+      "to": "mahadevan",
+      "interactionType": "confrontation",
+      "valence": "ambiguous",
+      "confidence": 0.45
+    },
+    {
+      "from": "nakulan",
+      "to": "sunny",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "nakulan",
+      "to": "elders",
+      "interactionType": "confrontation",
+      "valence": "ambiguous",
+      "confidence": 0.58
+    },
+    {
+      "from": "sunny",
+      "to": "sridevi",
+      "interactionType": "romantic",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "sunny",
+      "to": "namboodiri",
+      "interactionType": "alliance",
+      "valence": "ambiguous",
+      "confidence": null
+    },
+    {
+      "from": "sunny",
+      "to": "elders",
+      "interactionType": "confrontation",
+      "valence": "ambiguous",
+      "confidence": 0.52
+    },
+    {
+      "from": "sridevi",
+      "to": "elders",
+      "interactionType": "confrontation",
+      "valence": "negative",
+      "confidence": null
+    },
+    {
+      "from": "alli",
+      "to": "mahadevan",
+      "interactionType": "romantic",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "mahadevan",
+      "to": "elders",
+      "interactionType": "confrontation",
+      "valence": "negative",
+      "confidence": 0.4
+    },
+    {
+      "from": "namboodiri",
+      "to": "elders",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "nagavalli",
+      "to": "ramanathan",
+      "interactionType": "romantic",
+      "valence": "positive",
+      "confidence": null
+    },
+    {
+      "from": "nagavalli",
+      "to": "thambi",
+      "interactionType": "betrayal",
+      "valence": "negative",
+      "confidence": null
+    },
+    {
+      "from": "ramanathan",
+      "to": "thambi",
+      "interactionType": "betrayal",
+      "valence": "negative",
+      "confidence": null
+    },
+    {
+      "from": "nakulan",
+      "to": "thambi",
+      "interactionType": "other",
+      "valence": "ambiguous",
+      "confidence": 0.35
+    },
+    {
+      "from": "mahadevan",
+      "to": "ramanathan",
+      "interactionType": "other",
+      "valence": "ambiguous",
+      "confidence": 0.35
     }
   ]
 };
