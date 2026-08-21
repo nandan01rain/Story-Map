@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 // Time-of-day resolution for the app's three visual modes, ported from the PWA
 // (index.html's calcSunTimes/resolveTimeMode block). Real astronomical sunrise/sunset
@@ -92,4 +93,70 @@ export function useTimeOfDay(): TimeOfDay {
     return () => clearInterval(id);
   }, []);
   return mode;
+}
+
+// The manual override, mirroring the PWA's #authscene-select: 'auto' follows real time,
+// any other value pins the scene to that one. Kept in AsyncStorage rather than the
+// account, because the sign-in screen has to pick its scene before anyone is signed in --
+// same reason the PWA reads this from localStorage rather than user_metadata.
+//
+// A plain module-level store with subscribers, not React context: Settings and the
+// sign-in screen sit in different parts of the tree and neither is a child of the other,
+// and this is a single enum that changes about once a session.
+export type ScenePreference = TimeOfDay | 'auto';
+export const SCENE_PREFERENCES: { value: ScenePreference; label: string }[] = [
+  { value: 'auto', label: 'Follow time' },
+  { value: 'day', label: 'Day' },
+  { value: 'sunset', label: 'Sunrise & sunset' },
+  { value: 'night', label: 'Night' },
+];
+const SCENE_STORAGE_KEY = 'auth-scene-mode';
+
+function isScenePreference(value: unknown): value is ScenePreference {
+  return value === 'auto' || value === 'day' || value === 'sunset' || value === 'night';
+}
+
+let scenePreference: ScenePreference = 'auto';
+let hydrated = false;
+const listeners = new Set<() => void>();
+
+function emit() {
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function hydrateScenePreference() {
+  if (hydrated) return;
+  hydrated = true;
+  AsyncStorage.getItem(SCENE_STORAGE_KEY).then((saved) => {
+    if (isScenePreference(saved)) {
+      scenePreference = saved;
+      emit();
+    }
+  });
+}
+
+export function setScenePreference(next: ScenePreference) {
+  scenePreference = next;
+  AsyncStorage.setItem(SCENE_STORAGE_KEY, next);
+  emit();
+}
+
+export function useScenePreference(): ScenePreference {
+  useEffect(hydrateScenePreference, []);
+  return useSyncExternalStore(subscribe, () => scenePreference);
+}
+
+// What every surface that draws a scene should read: the override when one is set, the
+// real time of day otherwise.
+export function useSceneMode(): TimeOfDay {
+  const preference = useScenePreference();
+  const byTime = useTimeOfDay();
+  return preference === 'auto' ? byTime : preference;
 }

@@ -4,7 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
-import { type TimeOfDay, useTimeOfDay } from '../lib/timeOfDay';
+import { type TimeOfDay, useSceneMode } from '../lib/timeOfDay';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { FONTS } from '../theme';
@@ -87,7 +87,7 @@ const TABS: { key: TabKey; icon: string; label: string }[] = [
 // PWA -- cross-project search was never built there either.
 export default function LandingScreen({ navigation, route }: Props) {
   const [tab, setTab] = useState<TabKey>('home');
-  const timeOfDay = useTimeOfDay();
+  const timeOfDay = useSceneMode();
   const palette = PALETTES[timeOfDay];
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(palette, insets.bottom), [palette, insets.bottom]);

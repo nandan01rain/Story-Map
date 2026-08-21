@@ -47,6 +47,9 @@ const ICONS: Record<string, { d: string[]; fill?: boolean; strokeWidth?: number 
   sun: { d: ['M12 3v2.5M12 18.5V21M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M3 12h2.5M18.5 12H21M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8'] },
   moon: { d: ['M20 14.5A8.5 8.5 0 1110 3.2 6.8 6.8 0 0020 14.5z'] },
   'sun-moon-auto': { d: ['M12 3v18M6 6a8 8 0 000 12'] },
+  // Half a sun on the horizon -- the one state the PWA's sprite sheet has no symbol for,
+  // because only the mobile app exposes sunrise/sunset as a picker option.
+  sunset: { d: ['M3 18h18', 'M12 3v3', 'M5.6 8.6l1.5 1.5', 'M18.4 8.6l-1.5 1.5', 'M7 18a5 5 0 0110 0'] },
 };
 
 // Icons whose full outline is a single circle plus paths (react-native-svg needs

@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthEnvironment from '../components/AuthEnvironment';
 import { AppleMark, GoogleMark, MicrosoftMark } from '../components/BrandIcons';
 import Icon from '../components/Icon';
-import { useTimeOfDay } from '../lib/timeOfDay';
+import { useSceneMode } from '../lib/timeOfDay';
 import { useAuthStore } from '../store/authStore';
 import { FONTS } from '../theme';
 
@@ -57,7 +57,7 @@ export default function SignInScreen() {
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const timeOfDay = useTimeOfDay();
+  const timeOfDay = useSceneMode();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(insets.bottom), [insets.bottom]);
 
