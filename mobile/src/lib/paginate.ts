@@ -40,13 +40,22 @@ export function buildPagesFromLines(
     const end = chunk[chunk.length - 1].end;
     const pageLines: PageLine[] = chunk.map((span, j) => {
       const nextStart = j + 1 < chunk.length ? chunk[j + 1].start : spans[i + chunk.length]?.start ?? content.length;
+      // Justified text stretches every line except the one that ends a paragraph. A line
+      // ends a paragraph when a newline (or the end of the chapter) follows its last
+      // visible character rather than more of the same wrapped sentence.
+      //
+      // Looking at the gap BETWEEN this line's end and the next line's start is not
+      // enough: onTextLayout hands back line text that can already include the trailing
+      // newline, which makes that gap empty and every line look like a soft wrap -- so
+      // every last line got stretched, and a one-line paragraph became a row of words
+      // spread across the full column. Measuring the whitespace run at the end of the
+      // line PLUS that gap gets the same answer either way.
+      const region = content.slice(span.start, Math.max(span.end, nextStart));
+      const trailingWhitespace = region.slice(region.trimEnd().length);
       return {
         start: span.start,
         end: span.end,
-        // Justified text stretches every line except the one that ends a paragraph. A
-        // line ends a paragraph when a newline (or the end of the chapter) follows it
-        // rather than more of the same wrapped sentence.
-        endsParagraph: span.end >= content.length || content.slice(span.end, nextStart).includes('\n'),
+        endsParagraph: span.end >= content.length || trailingWhitespace.includes('\n'),
       };
     });
     pages.push({ startIndex: start, endIndex: end, text: content.slice(start, end), lines: pageLines });

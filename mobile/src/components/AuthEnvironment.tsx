@@ -10,6 +10,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import type { TimeOfDay } from '../lib/timeOfDay';
 
@@ -26,16 +27,15 @@ import type { TimeOfDay } from '../lib/timeOfDay';
 // from the sunset painting specifically and have no day/night counterparts, so -- exactly
 // as in the PWA -- day and night render the flat background alone.
 //
-// Blending is real, not approximated: RN's mixBlendMode carries the overlay/soft-light/
-// screen modes the CSS uses, with isolation:'isolate' on the stage so they composite
-// against the painting. It lives on ViewStyle only, so image layers that need a blend
-// mode are wrapped in a View that carries it.
-//
-// Nothing here uses react-native-svg. The first cut drew the lantern glows and the water
-// bands with it, and on device both came out invisible while every plain Image/View layer
-// rendered correctly -- an SVG surface inside a mixBlendMode view does not survive
-// compositing on Android. Both are gradients, and RN paints gradients natively now
-// (experimental_backgroundImage), so neither needed SVG in the first place.
+// No mixBlendMode anywhere, deliberately. The CSS version blends the lanterns and lights
+// with `screen` and the two ripple sets with `overlay`/`soft-light`, and RN 0.86 does
+// accept those values -- but on device every layer carrying one rendered as nothing,
+// twice over, across two completely different implementations of the layers themselves.
+// The layers that always worked (ships, birds, lights before a blend mode was put on
+// them) are the ones that never had one. So the blending is dropped and the layers are
+// tuned as plain alpha compositing instead: warm light on dark art reads close enough to
+// `screen`, and the ripple bands are pale and translucent enough that `overlay` was never
+// doing much beyond what their own alpha does.
 const ART_WIDTH = 853;
 const ART_HEIGHT = 1844;
 
@@ -118,8 +118,10 @@ const LANTERN_SIZE_PCT = 11;
 // visibly bleeds the bands onto the city hillside.
 const WATER_MASK = require('../../assets/env/water-mask.png');
 const RIPPLES = [
-  { id: 'a', color: '255,252,238', peak: 0.3, peakAt: 3, period: 9, duration: 2600, tilt: -1, blend: 'overlay' as const },
-  { id: 'b', color: '255,246,222', peak: 0.34, peakAt: 4, period: 14, duration: 3900, tilt: 1, blend: 'soft-light' as const },
+  // Peaks are lifted from the CSS's 0.30/0.34 to compensate for losing overlay/soft-light,
+  // which brightened them against the lit water.
+  { id: 'a', color: '#fffcee', peak: 0.42, peakAt: 3, period: 9, duration: 2600, tilt: -1 },
+  { id: 'b', color: '#fff6de', peak: 0.46, peakAt: 4, period: 14, duration: 3900, tilt: 1 },
 ];
 
 function useAlternatingLoop(duration: number, delay: number) {
@@ -213,13 +215,8 @@ function CityLights({ layer, stageW, stageH }: { layer: (typeof LIGHT_LAYERS)[nu
     );
   }, [layer.duration, layer.delay, opacity]);
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  // The blend mode has to live on a wrapping View: mixBlendMode is part of RN's ViewStyle,
-  // not ImageStyle, even though the underlying platform support is the same.
   return (
-    <View
-      style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: stageH, mixBlendMode: 'screen' }}
-      pointerEvents="none"
-    >
+    <View style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: stageH }} pointerEvents="none">
       <Animated.Image
         source={layer.src}
         resizeMode="stretch"
@@ -230,12 +227,12 @@ function CityLights({ layer, stageW, stageH }: { layer: (typeof LIGHT_LAYERS)[nu
   );
 }
 
-// React Native has no mask-image, so the CSS repeating-gradient-plus-mask pair is rebuilt
-// inside one SVG: a <Pattern> supplies the repeating bands (RN's own gradient support does
-// not parse repeating-linear-gradient), and a <Mask maskType="alpha"> holds the shoreline
-// PNG -- alpha, not luminance, to match how CSS mask-image reads an image by default.
-// Only the filled rect's y is animated, so each frame is a scroll of an already-rasterized
-// pattern rather than a re-tiling of it.
+// Built only from things this app already proves work on device: SVG shapes (the whole
+// icon set is react-native-svg), a plain Reanimated transform, and MaskedView for the
+// shoreline. The bands are an SVG <Pattern> because CSS's repeating-linear-gradient has no
+// RN equivalent; the motion is a transform on the wrapping View rather than an animated
+// SVG attribute, and the mask sits OUTSIDE that view so the water shape stays put while
+// the bands drift through it.
 function RippleLayer({ ripple, stageW, stageH }: { ripple: (typeof RIPPLES)[number]; stageW: number; stageH: number }) {
   const shift = useSharedValue(0);
   useEffect(() => {
@@ -256,23 +253,13 @@ function RippleLayer({ ripple, stageW, stageH }: { ripple: (typeof RIPPLES)[numb
     transform: [{ rotate: `${ripple.tilt}deg` }, { translateY: shift.value }],
   }));
 
-  const bands = {
-    // One tile of the band pattern, repeated -- RN's gradient support parses
-    // linear-gradient but not the repeating- form, and a repeated single tile is exactly
-    // what repeating-linear-gradient means anyway.
-    experimental_backgroundImage:
-      `linear-gradient(180deg, rgba(${ripple.color},0) 0%, ` +
-      `rgba(${ripple.color},${ripple.peak}) ${(ripple.peakAt / ripple.period) * 100}%, ` +
-      `rgba(${ripple.color},0) 100%)`,
-    experimental_backgroundSize: `100% ${ripple.period}px`,
-    experimental_backgroundRepeat: 'repeat',
-  } as const;
+  const bandsW = stageW + overhangX * 2;
+  const bandsH = stageH + overhangY * 2;
+  const patternId = `bands-${ripple.id}`;
+  const gradientId = `band-grad-${ripple.id}`;
 
   return (
-    <View
-      style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: stageH, mixBlendMode: ripple.blend }}
-      pointerEvents="none"
-    >
+    <View style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: stageH }} pointerEvents="none">
       <MaskedView
         style={{ width: stageW, height: stageH }}
         maskElement={
@@ -281,28 +268,48 @@ function RippleLayer({ ripple, stageW, stageH }: { ripple: (typeof RIPPLES)[numb
       >
         <Animated.View
           style={[
-            {
-              position: 'absolute',
-              left: -overhangX,
-              top: -overhangY,
-              width: stageW + overhangX * 2,
-              height: stageH + overhangY * 2,
-            },
-            bands,
+            { position: 'absolute', left: -overhangX, top: -overhangY, width: bandsW, height: bandsH },
             animatedStyle,
           ]}
-        />
+        >
+          <Svg width={bandsW} height={bandsH}>
+            <Defs>
+              <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2={ripple.period} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor={ripple.color} stopOpacity={0} />
+                <Stop offset={ripple.peakAt / ripple.period} stopColor={ripple.color} stopOpacity={ripple.peak} />
+                <Stop offset="1" stopColor={ripple.color} stopOpacity={0} />
+              </LinearGradient>
+              <Pattern
+                id={patternId}
+                x={0}
+                y={0}
+                width={bandsW}
+                height={ripple.period}
+                patternUnits="userSpaceOnUse"
+              >
+                <Rect x={0} y={0} width={bandsW} height={ripple.period} fill={`url(#${gradientId})`} />
+              </Pattern>
+            </Defs>
+            <Rect x={0} y={0} width={bandsW} height={bandsH} fill={`url(#${patternId})`} />
+          </Svg>
+        </Animated.View>
       </MaskedView>
     </View>
   );
 }
 
-function Lantern({ lantern, stageW, stageH }: { lantern: (typeof LANTERNS)[number]; stageW: number; stageH: number }) {
+// Warm glows over the painted lantern flames, flickering on uneven timing so they read as
+// flame rather than a smooth pulse. Drawn with SVG (the same primitive the app's whole
+// icon set uses) and composited normally -- see the note at the top about mixBlendMode.
+// Each needs its own gradient id: react-native-svg resolves url(#id) references through a
+// shared registry, so two instances sharing one id collide.
+function Lantern({ lantern, index, stageW, stageH }: { lantern: (typeof LANTERNS)[number]; index: number; stageW: number; stageH: number }) {
   const progress = useAlternatingLoop(3700, lantern.delay);
   const size = (LANTERN_SIZE_PCT / 100) * stageW;
+  const gradientId = `lantern-${index}`;
   const style = useAnimatedStyle(() => {
     const t = progress.value;
-    return { opacity: 0.48 + t * 0.22, transform: [{ scale: 0.98 + t * 0.07 }] };
+    return { opacity: 0.55 + t * 0.3, transform: [{ scale: 0.98 + t * 0.07 }] };
   });
   return (
     <Animated.View
@@ -313,16 +320,22 @@ function Lantern({ lantern, stageW, stageH }: { lantern: (typeof LANTERNS)[numbe
           top: (lantern.top / 100) * stageH - size / 2,
           width: size,
           height: size,
-          mixBlendMode: 'screen',
-          borderRadius: size / 2,
-          experimental_backgroundImage:
-            'radial-gradient(circle farthest-side at 50% 50%, ' +
-            'rgba(255,203,118,0.96) 0%, rgba(255,182,88,0.5) 32%, rgba(255,182,88,0) 68%)',
         },
         style,
       ]}
       pointerEvents="none"
-    />
+    >
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id={gradientId} cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor="#ffcb76" stopOpacity={0.96} />
+            <Stop offset="32%" stopColor="#ffb658" stopOpacity={0.5} />
+            <Stop offset="68%" stopColor="#ffb658" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={size} height={size} fill={`url(#${gradientId})`} />
+      </Svg>
+    </Animated.View>
   );
 }
 
@@ -364,9 +377,6 @@ export default function AuthEnvironment({ mode, onReady }: { mode: TimeOfDay; on
             width: stageW,
             height: stageH,
             overflow: 'hidden',
-            // Contains the blended layers to the stage, so they composite against the
-            // painting rather than against whatever the app happens to draw underneath it.
-            isolation: 'isolate',
           },
           revealStyle,
         ]}
@@ -403,7 +413,7 @@ export default function AuthEnvironment({ mode, onReady }: { mode: TimeOfDay; on
               <Ship key={`ship-${i}`} ship={ship} stageW={stageW} stageH={stageH} />
             ))}
             {LANTERNS.map((lantern, i) => (
-              <Lantern key={`lantern-${i}`} lantern={lantern} stageW={stageW} stageH={stageH} />
+              <Lantern key={`lantern-${i}`} lantern={lantern} index={i} stageW={stageW} stageH={stageH} />
             ))}
           </>
         )}

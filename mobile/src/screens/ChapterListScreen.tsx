@@ -8,6 +8,7 @@ import type { SignedInStackParamList } from '../navigation/types';
 import NavDrawer from '../components/NavDrawer';
 import { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSlidePanel } from '../lib/useSlidePanel';
+import { useSortablePositions } from '../lib/useSortablePositions';
 import { BOOKS, statusColor, wordCount } from '../lib/storyData';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useAuthStore } from '../store/authStore';
@@ -307,8 +308,11 @@ function BookChapterList({
     [items, reorderChapters],
   );
 
-  const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
+  const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
     useSortableList({ data: items, itemHeight: ITEM_HEIGHT });
+  // Same stacked-rows hazard the project list hit: chapters arrive from a fetch after
+  // this mounts, and a chapter created later changes the set too.
+  useSortablePositions(items, positions);
 
   // Live act labels: which item starts a new act, given the dragged item's provisional
   // act (previous-neighbor rule, same as handleDrop) while a drag is in progress.

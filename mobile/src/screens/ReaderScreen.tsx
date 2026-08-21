@@ -38,7 +38,7 @@ import {
 } from '../lib/readerPrefs';
 import { BOOKS, tokenizeWords } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
-import { type Annotation, type Chapter, useChapterStore } from '../store/chapterStore';
+import { type Annotation, type Chapter, type FlagType, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Reader'>;
@@ -53,6 +53,12 @@ const PAGE_PAD_BOTTOM = 52;
 const HEADING_TOP = 46;
 const HEADING_FONT_SIZE = 23;
 const SELECTION_TINT = 'rgba(198,154,58,0.45)';
+// Marker ink: a warmer, more yellow wash than the selection tint so a highlight still
+// reads as a highlight while text is selected on top of it.
+const HIGHLIGHT_TINT = 'rgba(242,201,76,0.34)';
+const HIGHLIGHT_INK = '#f2c94c';
+// Shared empty set for pages outside the current chapter, so they don't each allocate one.
+const EMPTY_TOKENS: Set<number> = new Set();
 const CAROUSEL_ITEM_RATIO = 0.74;
 const CAROUSEL_GAP = 12;
 // How many pages either side of the current one actually get rendered. Both pagers used
@@ -67,7 +73,7 @@ const SELECT_LONG_PRESS_MS = 320;
 // re-triggering the pagination-reset effect over and over, which is what made the
 // screen get stuck permanently "loading" after returning from EditorScreen.
 const DIMENSION_CHANGE_THRESHOLD = 10;
-const FLAG_LABELS: Record<Annotation['type'], string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
+const FLAG_LABELS: Record<FlagType, string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
 
 const FONT_FAMILY_OPTIONS: { key: ReaderFontFamily; label: string; family: string }[] = [
   { key: 'serif', label: 'Serif', family: FONTS.literary },
@@ -563,7 +569,78 @@ export default function ReaderScreen({ route, navigation }: Props) {
     setBookmarkedFlatIndex(pageIndex);
   }
 
-  function beginFlag(type: Annotation['type']) {
+  // Every highlight in the current chapter, resolved to token indices. Highlights are
+  // stored the way every annotation is -- by the exact substring, not an offset (handoff
+  // doc §3.5) -- so they are located by searching the prose, and every occurrence of that
+  // substring is marked, not just the first.
+  const highlightSpans = useMemo(() => {
+    if (!currentChapter) return [] as { id: string; start: number; end: number }[];
+    const spans: { id: string; start: number; end: number }[] = [];
+    for (const annotation of currentChapter.annotations) {
+      if (annotation.type !== 'highlight' || !annotation.text) continue;
+      let from = 0;
+      for (;;) {
+        const charStart = currentChapter.content.indexOf(annotation.text, from);
+        if (charStart === -1) break;
+        const charEnd = charStart + annotation.text.length;
+        let start = -1;
+        let end = -1;
+        for (let i = 0; i < currentChapterTokens.length; i += 1) {
+          const token = currentChapterTokens[i];
+          if (token.end <= charStart) continue;
+          if (token.start >= charEnd) break;
+          if (start === -1) start = i;
+          end = i;
+        }
+        if (start !== -1) spans.push({ id: annotation.id, start, end });
+        from = charEnd;
+      }
+    }
+    return spans;
+  }, [currentChapter, currentChapterTokens]);
+
+  const highlightedTokens = useMemo(() => {
+    const marked = new Set<number>();
+    for (const span of highlightSpans) {
+      for (let i = span.start; i <= span.end; i += 1) marked.add(i);
+    }
+    return marked;
+  }, [highlightSpans]);
+
+  // Which highlights the current selection touches -- drives both the icon's state and
+  // what removing does.
+  const overlappingHighlights = useMemo(
+    () =>
+      selStart === null || selEnd === null
+        ? []
+        : highlightSpans.filter((span) => span.start <= selEnd && span.end >= selStart),
+    [highlightSpans, selStart, selEnd],
+  );
+  const selectionHighlighted = overlappingHighlights.length > 0;
+
+  function toggleHighlight() {
+    if (!selectedText || !currentChapter) return;
+    if (selectionHighlighted) {
+      // Removing clears every highlight the selection touches, not just one fully
+      // enclosing it -- otherwise selecting across two adjacent highlights would leave
+      // the marker looking on with nothing to un-mark.
+      const removing = new Set(overlappingHighlights.map((span) => span.id));
+      updateChapter(currentChapter.id, {
+        annotations: currentChapter.annotations.filter((a) => !removing.has(a.id)),
+      });
+    } else {
+      const annotation: Annotation = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: 'highlight',
+        text: selectedText,
+        label: '',
+      };
+      updateChapter(currentChapter.id, { annotations: [...currentChapter.annotations, annotation] });
+    }
+    clearSelection();
+  }
+
+  function beginFlag(type: FlagType) {
     if (!selectedText || !currentChapter) return;
     setFlagPickerOpen(false);
     const annotation: Annotation = {
@@ -664,8 +741,12 @@ export default function ReaderScreen({ route, navigation }: Props) {
                       selStart={isCurrent ? selStart : null}
                       selEnd={isCurrent ? selEnd : null}
                       highlightRange={isCurrent ? highlightRange : null}
+                      // Saved highlights are drawn on every rendered page, not just the
+                      // current one -- they belong to the text, not to the selection.
+                      highlightedTokens={page.chapterId === current?.chapterId ? highlightedTokens : EMPTY_TOKENS}
                       onRegisterWord={isCurrent ? registerWordRect : null}
                       selectedStyle={styles.selected}
+                      highlightStyle={styles.highlighted}
                     />
                     <Text style={styles.pageNumber}>{page.bookPageNumber}</Text>
                     {isCurrent && (
@@ -778,6 +859,15 @@ export default function ReaderScreen({ route, navigation }: Props) {
             },
           ]}
         >
+          {/* Icon-only, and one control rather than two: a hollow marker means this text
+              carries no highlight, a solid one means it does and tapping clears it. */}
+          <Pressable style={styles.actionBtn} onPress={toggleHighlight}>
+            <Icon
+              name={selectionHighlighted ? 'marker-filled' : 'marker'}
+              size={19}
+              color={selectionHighlighted ? HIGHLIGHT_INK : colors.gold}
+            />
+          </Pressable>
           <Pressable style={styles.actionBtn} onPress={() => setFlagPickerOpen(true)}>
             <Icon name="flag" size={17} color={colors.gold} />
             <Text style={styles.actionBtnLabel}>Flag</Text>
@@ -1002,8 +1092,10 @@ function PageProse({
   selStart,
   selEnd,
   highlightRange,
+  highlightedTokens,
   onRegisterWord,
   selectedStyle,
+  highlightStyle,
 }: {
   page: ChapterPage;
   lineWords: LineWord[][];
@@ -1013,8 +1105,10 @@ function PageProse({
   selStart: number | null;
   selEnd: number | null;
   highlightRange: { start: number; end: number } | null;
+  highlightedTokens: Set<number>;
   onRegisterWord: ((tokenIndex: number, rect: WordRect) => void) | null;
   selectedStyle: object;
+  highlightStyle: object;
 }) {
   return (
     <View style={{ flex: 1 }}>
@@ -1040,10 +1134,13 @@ function PageProse({
               const selected =
                 (selStart !== null && selEnd !== null && w.tokenIndex >= selStart && w.tokenIndex <= selEnd) ||
                 (highlightRange !== null && w.tokenIndex >= highlightRange.start && w.tokenIndex <= highlightRange.end);
+              // A saved highlight sits under the live selection: both can apply, and the
+              // selection tint is listed last so it wins where they overlap.
+              const highlighted = highlightedTokens.has(w.tokenIndex);
               return (
                 <Text
                   key={w.tokenIndex}
-                  style={[proseStyle, selected && selectedStyle]}
+                  style={[proseStyle, highlighted && highlightStyle, selected && selectedStyle]}
                   onLayout={
                     onRegisterWord
                       ? (e) =>
@@ -1084,6 +1181,7 @@ function makeStyles(colors: ThemeColors) {
     },
     pageProse: { color: colors.text, fontFamily: FONTS.literary },
     selected: { backgroundColor: SELECTION_TINT },
+    highlighted: { backgroundColor: HIGHLIGHT_TINT },
     // Always-visible chapter heading, independent of the toggleable chrome. fontFamily is
     // overridden inline to whatever reading font is currently selected so it always
     // matches the prose.

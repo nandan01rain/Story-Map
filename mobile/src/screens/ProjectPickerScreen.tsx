@@ -6,6 +6,7 @@ import { DropProvider, SortableItem, useSortableList } from 'react-native-reanim
 
 import type { SignedInStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
+import { useSortablePositions } from '../lib/useSortablePositions';
 import { useAuthStore } from '../store/authStore';
 import { type Project, useProjectStore } from '../store/projectStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
@@ -70,8 +71,11 @@ export default function ProjectPickerScreen({ navigation }: Props) {
     supabase.auth.updateUser({ data: { project_order: items.map((p) => p.id) } });
   }, [items]);
 
-  const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
+  const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
     useSortableList({ data: items, itemHeight: ROW_HEIGHT });
+  // This screen mounts before the fetch resolves, so without this every project row draws
+  // on top of the first one -- see useSortablePositions.
+  useSortablePositions(items, positions);
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);

@@ -3,9 +3,15 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
 // Mirrors the PWA's chapters table shape (handoff doc §4) and loadData() (index.html).
+// The three flag types plus 'highlight'. A highlight is stored the same way -- an
+// annotation carrying the exact substring -- but it is a reading mark, not a story flag:
+// it has no label, never appears in the Flags list or its count, and exists only to tint
+// the text in the Reader.
+export type FlagType = 'plant' | 'reveal' | 'note';
+
 export type Annotation = {
   id: string;
-  type: 'plant' | 'reveal' | 'note';
+  type: FlagType | 'highlight';
   text: string; // the exact flagged substring -- annotations relocate by searching for
   // this on every render rather than tracking a fixed offset (handoff doc §3.5). Linked-
   // plant matching and thread-based Mythic Threads are Phase 3 scope, not modeled yet.

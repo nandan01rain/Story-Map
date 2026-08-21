@@ -4,7 +4,9 @@ import { Path, Svg } from 'react-native-svg';
 // same viewBox (0 0 24 24), same `d` data, same stroke-width, so every icon in the
 // mobile app is pixel-identical in shape to its PWA counterpart, just re-rendered via
 // react-native-svg instead of <use href="#icon-x">.
-const ICONS: Record<string, { d: string[]; fill?: boolean; strokeWidth?: number }> = {
+// `extra` paths are always stroked and never filled, so a filled icon can still carry an
+// outline-only detail alongside its solid body.
+const ICONS: Record<string, { d: string[]; fill?: boolean; strokeWidth?: number; extra?: string[] }> = {
   map: { d: ['M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2z', 'M9 4v14M15 6v14'] },
   list: { d: ['M9 3h6v3H9zM8 10h8M8 14h8M8 18h5'], fill: false },
   search: { d: ['M15 15l5 5'] },
@@ -50,6 +52,11 @@ const ICONS: Record<string, { d: string[]; fill?: boolean; strokeWidth?: number 
   // Half a sun on the horizon -- the one state the PWA's sprite sheet has no symbol for,
   // because only the mobile app exposes sunrise/sunset as a picker option.
   sunset: { d: ['M3 18h18', 'M12 3v3', 'M5.6 8.6l1.5 1.5', 'M18.4 8.6l-1.5 1.5', 'M7 18a5 5 0 0110 0'] },
+  // A highlighter pen over the stroke it lays down. The two variants differ only in
+  // whether the nib is filled, which is the whole state read: hollow marker = this text
+  // is not highlighted, solid marker = it is.
+  marker: { d: ['M15.2 3.4l5.4 5.4-7.6 7.6H7.6v-5.4z', 'M4 21h16'] },
+  'marker-filled': { d: ['M15.2 3.4l5.4 5.4-7.6 7.6H7.6v-5.4z'], fill: true, extra: ['M4 21h16'] },
 };
 
 // Icons whose full outline is a single circle plus paths (react-native-svg needs
@@ -110,6 +117,17 @@ export default function Icon({ name, size = 18, color = '#c69a3a' }: { name: str
           strokeLinecap="round"
           strokeLinejoin="round"
           fill={spec.fill ? color : 'none'}
+        />
+      ))}
+      {(spec.extra ?? []).map((d, i) => (
+        <Path
+          key={`e${i}`}
+          d={d}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
         />
       ))}
     </Svg>

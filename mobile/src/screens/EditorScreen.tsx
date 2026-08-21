@@ -19,13 +19,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, BOOKS, chapterNumberInBook, wordCount } from '../lib/storyData';
-import { type Annotation, useChapterStore } from '../store/chapterStore';
+import { type Annotation, type FlagType, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
 
 const AUTOSAVE_DELAY_MS = 1200; // matches the PWA's editorSaveTimer exactly (index.html)
-const FLAG_LABELS: Record<Annotation['type'], string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
+const FLAG_LABELS: Record<FlagType, string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
 const LINE_HEIGHT = 27;
 const TEXTINPUT_TOP_OFFSET = 96; // position label + toolbar height, above the TextInput itself
 
@@ -66,7 +66,7 @@ export default function EditorScreen({ route, navigation }: Props) {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [flagsVisible, setFlagsVisible] = useState(false);
   const [flagPickerVisible, setFlagPickerVisible] = useState(false);
-  const [pendingFlag, setPendingFlag] = useState<{ type: Annotation['type']; text: string } | null>(null);
+  const [pendingFlag, setPendingFlag] = useState<{ type: FlagType; text: string } | null>(null);
   const [labelInput, setLabelInput] = useState('');
   const [threadInput, setThreadInput] = useState('');
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
@@ -147,6 +147,13 @@ export default function EditorScreen({ route, navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reader highlights live in the same array but are not story flags -- they carry no
+  // label and would only pad the Flags list and its count.
+  const flagAnnotations = useMemo(
+    () => annotations.filter((a): a is Annotation & { type: FlagType } => a.type !== 'highlight'),
+    [annotations],
+  );
+
   const hasSelection = selection.end > selection.start;
   const selectedText = hasSelection ? content.slice(selection.start, selection.end) : null;
 
@@ -161,7 +168,7 @@ export default function EditorScreen({ route, navigation }: Props) {
     setFlagPickerVisible(true);
   }
 
-  function beginFlag(type: Annotation['type']) {
+  function beginFlag(type: FlagType) {
     if (!selectedText) return;
     setFlagPickerVisible(false);
     setPendingFlag({ type, text: selectedText });
@@ -231,11 +238,30 @@ export default function EditorScreen({ route, navigation }: Props) {
     if (idx === -1) return;
     const range = { start: idx, end: idx + jumpToText.length };
     setSelection(range);
-    const task = InteractionManager.runAfterInteractions(() => {
-      textInputRef.current?.focus();
-      textInputRef.current?.setNativeProps({ selection: range });
-    });
-    return () => task.cancel();
+
+    // setSelection, not setNativeProps({selection}): the imperative method moves the
+    // native cursor, and Android's EditText scrolls a moved cursor into view. Assigning
+    // the prop only restyles the selection where it already is, which is why the jump
+    // highlighted the right words but left the view wherever it had opened.
+    //
+    // Re-applied a couple of times because the first attempt can land before a long
+    // chapter has finished laying out, and scroll-to-cursor on an unmeasured text does
+    // nothing. Each retry is idempotent -- same range, same result once it takes.
+    let attempts = 0;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    const apply = () => {
+      const input = textInputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelection(range.start, range.end);
+      attempts += 1;
+      if (attempts < 3) retry = setTimeout(apply, 180);
+    };
+    const task = InteractionManager.runAfterInteractions(apply);
+    return () => {
+      task.cancel();
+      if (retry) clearTimeout(retry);
+    };
   }, [jumpToText, content]);
 
   if (!chapter) return null;
@@ -256,7 +282,7 @@ export default function EditorScreen({ route, navigation }: Props) {
         </Pressable>
         <Text style={styles.status}>{status}</Text>
         <Pressable onPress={() => setFlagsVisible(true)}>
-          <Text style={styles.toolbarBtn}>Flags{annotations.length > 0 ? ` (${annotations.length})` : ''}</Text>
+          <Text style={styles.toolbarBtn}>Flags{flagAnnotations.length > 0 ? ` (${flagAnnotations.length})` : ''}</Text>
         </Pressable>
         <Pressable onPress={() => setHistoryVisible(true)}>
           <Text style={styles.toolbarBtn}>History</Text>
@@ -381,11 +407,11 @@ export default function EditorScreen({ route, navigation }: Props) {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Flags</Text>
-            {annotations.length === 0 ? (
+            {flagAnnotations.length === 0 ? (
               <Text style={styles.modalEmpty}>No flags yet -- select text and tap the "⋮" popup to add one.</Text>
             ) : (
               <ScrollView style={{ maxHeight: 360 }}>
-                {annotations.map((a) => (
+                {flagAnnotations.map((a) => (
                   <View key={a.id} style={styles.flagRow}>
                     <View style={[styles.flagSwatch, { backgroundColor: ANNOTATION_COLORS[a.type] }]} />
                     <View style={styles.flagBody}>
