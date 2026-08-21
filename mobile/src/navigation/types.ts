@@ -8,4 +8,6 @@ export type SignedInStackParamList = {
   Settings: undefined;
   StickyNotes: { projectId: string; noteId?: string };
   Search: { projectId: string };
+  Documents: { projectId: string };
+  DriveImport: { projectId: string };
 };

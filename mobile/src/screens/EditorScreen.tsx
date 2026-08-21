@@ -163,6 +163,18 @@ export default function EditorScreen({ route, navigation }: Props) {
   );
   const popupLeft = winWidth / 2 - 60;
 
+  // Flushes first: the Reader reads chapters from the store/database, so an unsaved edit
+  // would mean searching for a substring that only exists in this screen's state.
+  function viewInReader() {
+    if (!selectedText || !chapter) return;
+    flushSave();
+    navigation.navigate('Reader', {
+      projectId: chapter.project_id,
+      chapterId,
+      jumpToText: selectedText,
+    });
+  }
+
   function openFlagPicker() {
     if (!selectedText) return;
     setFlagPickerVisible(true);
@@ -315,11 +327,22 @@ export default function EditorScreen({ route, navigation }: Props) {
         placeholderTextColor={colors.textFaint}
       />
 
+      {/* The mirror of the Reader's "Editor" action: flag the selection, or follow it into
+          the Reader and land on the same words. Both directions now pass the selected
+          substring rather than a position, so the destination finds it by searching its own
+          copy of the prose -- the same way annotations relocate themselves. */}
       {hasSelection && (
-        <Pressable style={[styles.jumpPopup, { top: popupTop, left: popupLeft }]} onPress={openFlagPicker}>
-          <Icon name="flag" size={16} color="#2b1a05" />
-          <Text style={styles.jumpPopupText}>Flag</Text>
-        </Pressable>
+        <View style={[styles.jumpPopup, { top: popupTop, left: popupLeft }]}>
+          <Pressable style={styles.jumpPopupBtn} onPress={openFlagPicker}>
+            <Icon name="flag" size={16} color="#2b1a05" />
+            <Text style={styles.jumpPopupText}>Flag</Text>
+          </Pressable>
+          <View style={styles.jumpPopupDivider} />
+          <Pressable style={styles.jumpPopupBtn} onPress={viewInReader}>
+            <Icon name="book-open" size={16} color="#2b1a05" />
+            <Text style={styles.jumpPopupText}>Reader</Text>
+          </Pressable>
+        </View>
       )}
 
       {/* Plant/Reveal/Note picker -- opened directly from the "⋮" popup on a selection */}
@@ -506,9 +529,8 @@ function makeStyles(colors: ThemeColors) {
       position: 'absolute',
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
       height: 38,
-      paddingHorizontal: 16,
+      paddingHorizontal: 4,
       backgroundColor: colors.gold,
       borderRadius: 19,
       shadowColor: '#000',
@@ -517,6 +539,8 @@ function makeStyles(colors: ThemeColors) {
       shadowOffset: { width: 0, height: 2 },
       elevation: 6,
     },
+    jumpPopupBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 2 },
+    jumpPopupDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(43,26,5,0.25)' },
     jumpPopupText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 14 },
     flagPickerScreen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
     flagPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },

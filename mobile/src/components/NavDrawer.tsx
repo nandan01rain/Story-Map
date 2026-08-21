@@ -66,6 +66,7 @@ export default function NavDrawer({
   onOpenReader,
   onOpenSettings,
   onOpenNotes,
+  onOpenDocuments,
 }: {
   controller: SlidePanelController;
   panelWidth: number;
@@ -76,6 +77,7 @@ export default function NavDrawer({
   onOpenReader: () => void;
   onOpenSettings: () => void;
   onOpenNotes: () => void;
+  onOpenDocuments: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
   const { colors } = useTheme();
@@ -91,9 +93,11 @@ export default function NavDrawer({
     });
   }
 
-  const discoverItems = DISCOVER.map((item) =>
-    item.key === 'search' ? { ...item, onPress: onSearch } : item,
-  );
+  const discoverItems = DISCOVER.map((item) => {
+    if (item.key === 'search') return { ...item, onPress: onSearch };
+    if (item.key === 'documents') return { ...item, onPress: onOpenDocuments };
+    return item;
+  });
 
   const manageItems = MANAGE.map((item) => {
     if (item.key === 'read') return { ...item, onPress: onOpenReader };
