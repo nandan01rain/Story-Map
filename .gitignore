@@ -1,0 +1,18 @@
+# Secrets. supabase/.env holds the Anthropic and Voyage API keys that get pushed to the
+# Edge Function with `supabase secrets set --env-file`. It must never be committed --
+# anything in git history is recoverable even after a later delete, so a key committed once
+# has to be rotated, not removed.
+.env
+.env.*
+!.env.example
+supabase/.env
+
+# Supabase CLI local state (contains the linked project ref and local credentials)
+supabase/.temp/
+supabase/.branches/
+
+# OS and editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
