@@ -21,6 +21,11 @@ Single self-contained HTML file (`index.html`) plus small static sidecar
 files (`manifest.json`, `service-worker.js`, `supabase-config.js`). All CSS,
 JS, and a base64-embedded map background image live inline in `index.html`.
 
+Alongside those: `supabase/` holds the migrations and the assistant Edge
+Function (the only place any API key lives); `demo/` is a disposable test
+project converted into a fixture by `scripts/build-demo-fixture.mjs`; `graph/`
+holds a browser-runnable copy of the character web's renderer.
+
 A separate, from-scratch React Native/Expo rewrite lives in `mobile/` (its
 own `package.json`, node_modules, etc. — not built from or dependent on
 `index.html`), targeting the same Supabase backend. See "Native mobile app"
@@ -173,6 +178,12 @@ chapter boundaries for pacing).
   exact text in the other. See the handoff doc §12.1 for the full detail
   and the architectural note on why the header/footer are overlays rather
   than real layout-affecting elements.
+- **🕸 Character web (mobile)**: a force-directed graph of the cast, with two
+  switchable layers — **Relationships** between characters, and **Progression**,
+  a character's arc through the events they appear in, in chapter order, with
+  everyone else in those events lit alongside. Tapping any interaction or event
+  expands it to an explanation. Fills by hand, from the demo pack, or by
+  extraction from the prose. Replaces Map view on mobile rather than porting it.
 - **Account settings**: name/nickname, birthday, a free-form list of
   special occasions, plus email/password — all stored in Supabase Auth's
   `user_metadata` (no new table). Also where the global "moving
@@ -250,6 +261,11 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   conversation, no assets delivered yet beyond the one sunset scene. Now
   part of the broader app-wide day/night requirement above. See handoff
   doc §12.4 and §13.
+- **The character web's time-scrubber** — filtering the graph to "as of Book N"
+  was flagged in its own spec as the highest-value deferred piece, given how much
+  these relationships change across five books. Not built. Nor is automatic
+  faction/location extraction, or the PWA's own embedding of the renderer (the
+  document is written to be shared; the PWA just doesn't serve it yet).
 - **The in-app assistants are built but switched off.** Icarus and
   Daedalus have their database objects (migration already run against the
   live project), Edge Function, agent configurations, account-level toggle,
@@ -312,8 +328,21 @@ Stage 1.6 motion-preference toggle (`motion_enabled` in `user_metadata`, a
 `motion-on` class on `<html>`) was built in anticipation of gating this
 work's animated layers, but no surface reads it yet.
 
-**Stage 4 — in-app assistants (groundwork built 2026-08-21, dormant by
-choice)**: two in-house agents, **Icarus** (validation — continuity,
+**Stage 4 — in-app assistants and the character web (2026-08-21)**:
+
+The **character knowledge graph** is built and running, and needs no API key to
+use. It is the mobile answer to Map view, which a portrait phone cannot usefully
+show. Characters and events are nodes in one graph with two switchable layers:
+**Relationships** (who knows whom, coloured by what passes between them) and
+**Progression** (a character's arc through events in chapter order, lighting
+every other character standing in those same events). Both list their contents as
+headings that expand to an explanation. Populated three ways — by hand, by the
+demo pack, or by extraction from the prose, which is the only one that costs
+money. See handoff doc §17 for the schema, the deviations from the supplied spec,
+and the traps.
+
+The **assistants** themselves (groundwork built 2026-08-21, dormant by
+choice): two in-house agents, **Icarus** (validation — continuity,
 unreferenced ideas, arcs gone quiet; mostly deterministic SQL with a cheap
 model only for the judgment step) and **Daedalus** (craft judgment —
 structure, mythological parallels and where they should stop, technique,
@@ -326,6 +355,15 @@ and the only path that would run on a Claude subscription rather than an API
 key. See handoff doc §15 for the full design, the decisions worth not
 re-litigating, and the one open question (which embedding provider, since
 Anthropic has none).
+
+The **engine is selectable per agent** — Claude, Kimi, DeepSeek, Qwen, GPT, or
+any OpenAI-compatible host including a self-hosted one — because the model is the
+least important thing separating the two agents. What actually separates them is
+their tools, their permissions, their output contract and their retrieval
+strategy: Icarus is read-only, cannot write prose at all, and must answer under a
+schema of claim-and-evidence; Daedalus may propose document edits and additionally
+receives a digest of the whole saga. A cheap model running Icarus is still Icarus.
+Handoff doc §16.
 
 **Stage 3** (explicitly not started): storyboards, image generation, and
 anything extending past prose-only tooling.
@@ -376,14 +414,23 @@ project rather than making the writer copy them across by hand; **full-text
 search**; a real **highlight** in the Reader; and the dormant **assistant**
 groundwork described under Stage 4 above.
 
-Still not built: Map view, the remaining secondary features (continuity
-checker, POV tracker, Mythic Threads, trash), a dictionary/word-lookup
-feature in the Reader (deferred by explicit choice), and the two assistants'
-actual operation (built, not deployed — see Stage 4 and handoff §15). Google
-Drive import is written but needs a Google Cloud OAuth client and the Google
-provider enabled in the Supabase dashboard before it can connect — account
-work, not code. See handoff doc §14 for the full, current, session-by-session
-detail — this paragraph is the summary only.
+Added 2026-08-21: the **character web** described under Stage 4 above, which
+is the mobile replacement for Map view; a **demo pack** (`demo/`) that loads a
+complete 17-chapter test project — prose, scenes, POV, documents, cast and
+relationships — from the Projects tab in one tap, so every feature can be
+exercised against real material without writing any (handoff §18); and
+**selectable engines** for the two assistants.
+
+Still not built: Map view (**not planned for mobile** — the character web
+replaces it there), the remaining secondary features (continuity checker, POV
+tracker, Mythic Threads, trash), a dictionary/word-lookup feature in the Reader
+(deferred by explicit choice), and the two assistants' actual operation (built,
+not deployed — see Stage 4 and handoff §15). Google Drive import is written but
+needs a Google Cloud OAuth client and the Google provider enabled in the
+Supabase dashboard before it can connect — account work, not code. See handoff
+doc §14 for the mobile app's session-by-session detail, §16 for the engine
+layer, §17 for the character web and §18 for the demo pack — this paragraph is
+the summary only.
 
 ## Design principles worth preserving
 

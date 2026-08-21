@@ -2195,10 +2195,11 @@ are referenced nowhere" is a SQL query, "which POV has gone quiet" is a
 query over scene metadata. Paying an LLM to do arithmetic over our own
 tables is waste. The model is there only for the judgment step — *is this
 actually a contradiction, or two compatible phrasings?* — which is
-classification, and runs on **Haiku 4.5**. Its system prompt forbids
+classification, and defaults to **Haiku 4.5** (the engine is selectable per agent --
+see §16). Its system prompt forbids
 proposing replacement prose and requires a quote for every finding.
 
-**Daedalus — judgment.** Runs on **Opus 5** with adaptive thinking and
+**Daedalus — judgment.** Defaults to **Opus 5** with adaptive thinking and
 `effort: high`. The motivating question — *would a mythological parallel
 work for this character, why, how far should the resemblance run, and where
 should it stop* — is not answerable from retrieved passages, because it is
@@ -2308,3 +2309,220 @@ is designed but not written. The proposal/review queue for canon-document
 edits, so the assistant proposes a diff rather than writing directly, is also
 designed and not written; it exists specifically to honour the project's
 "destructive actions get a confirmation and a trash entry" rule.
+
+---
+
+## 16. SELECTABLE ENGINES, AND WHAT ACTUALLY DEFINES AN AGENT (2026-08-21)
+
+**Supersedes the model claims in §15.2.** Haiku 4.5 and Opus 5 are now only the
+*defaults* for Icarus and Daedalus. The engine is writer-selectable per agent, and
+deliberately so: the model is the least important thing separating the two.
+
+### 16.1 The provider layer
+
+`supabase/functions/assistant/models.ts` holds a catalogue; `call-model.ts` is the one
+place any provider is called. Two dialects cover the field — Anthropic's own, and the
+OpenAI chat-completions shape every open-model host has standardised on.
+
+- **Providers**: Anthropic, OpenRouter, Moonshot, OpenAI, and `custom` (any
+  OpenAI-compatible base URL — self-hosted vLLM, Ollama behind a tunnel, Together,
+  DeepInfra). Each names the Edge Function secret holding its key.
+- **Catalogue**: Opus 5 / Sonnet 5 / Haiku 4.5, Kimi K2.6 (via OpenRouter or Moonshot
+  direct), DeepSeek V3.2, Qwen3 235B, GPT-5. Each carries rough per-MTok pricing, used
+  only to show a per-question estimate in the picker.
+- **Selection is validated server-side** against the catalogue rather than trusted, so a
+  stale app build cannot ask for a model that no longer exists or route one provider's
+  key to another's host.
+- Thinking and effort parameters are applied **only to models that accept them**; web
+  search only where the agent has the tool and the provider exposes it.
+- The choice lives in `user_metadata.assistant_models`, per agent.
+
+**The catalogue is duplicated** in `mobile/src/lib/assistantModels.ts` because Deno and
+React Native cannot share a module. Both files say so and name each other. If they drift,
+the app offers a model the function rejects.
+
+### 16.2 What separates Icarus from Daedalus
+
+In descending order of importance — none of it is the model:
+
+1. **Tools.** Icarus reaches structured story data: open plants, unmet requirements,
+   deferred requirements, idle threads, POV gaps, unused notes. Daedalus reaches prose,
+   canon documents, the outline, and web search. Neither can call the other's.
+2. **Permissions.** Icarus is read-only and forbidden from writing prose at all.
+   Daedalus may propose document edits, which arrive as a diff to accept or reject.
+3. **Output contract.** Icarus answers under a JSON schema (verdict, summary, evidence
+   quotes) enforced rather than requested — a validation agent allowed free prose
+   eventually replies "this looks broadly consistent", which is not a finding and cannot
+   be acted on or dismissed. Daedalus answers in prose, because its job is explanation.
+   The app renders findings as an evidence checklist, falling back to raw text if a host
+   ignores the schema (open-model hosts vary on how strictly they honour it).
+4. **Retrieval.** Daedalus additionally receives a project digest, because the shape of a
+   saga is not retrievable from passages.
+5. **Lifecycle.** Icarus's findings are meant to be persistent dismissible items;
+   Daedalus is a conversation.
+
+A cheap model running Icarus is still Icarus. That is the point.
+
+The agent is chosen **per question by the writer**, not routed automatically — Daedalus
+costs several times more per answer, and that is the writer's call rather than something
+to hide behind a router.
+
+### 16.3 Still true from §15
+
+Everything is still dormant. No key has been bought, the function is not deployed, and
+nothing bills. The remaining steps and the open embedding-provider question are unchanged
+(§15.5, §15.6).
+
+---
+
+## 17. CHARACTER KNOWLEDGE GRAPH (2026-08-21, built)
+
+Built to a written spec supplied in conversation; that spec's §9 explicitly invited
+deviation with justification, and the deviations are listed at §17.5 below. Replaces Map
+view as the spatial surface on mobile — a portrait phone cannot usefully show the PWA's
+SVG trail.
+
+### 17.1 Schema
+
+`supabase/migrations/20260821_character_graph.sql`, plus `..._graph_progression.sql` and
+`..._graph_detail.sql` which replace the read function twice. **All three are run against
+the live project.**
+
+A property graph over two tables rather than a second database technology — at saga scale
+(dozens of characters, hundreds of events, low thousands of edges) recursive CTEs are
+more than adequate.
+
+- **`graph_nodes`** — `node_type` in character / event / location / faction / fact,
+  `label`, `properties` jsonb, `source` (extracted / manual / manual_override),
+  `confidence`, `needs_review`.
+- **`graph_edges`** — `from_node_id`, `to_node_id`, `edge_type` in PRESENT_AT /
+  INTERACTS_WITH / KNOWS_ABOUT / CAUSES / MEMBER_OF, `event_id` (nullable — null means
+  saga-level), `properties`, `confidence`, `needs_review`, `source`.
+- **`character_pair_edges`** view — collapses a character pair into one visual edge with
+  a count, event list and dominant type.
+- **`character_graph(project_id)`** — everything the renderer needs in one call: nodes,
+  events, aggregated links, individual interactions, and presence.
+- **`character_footprint(character_id)`** — every event a character touched, with a POV
+  flag. This is also the POV filter (spec §7.2), not a separate feature.
+
+### 17.2 Extraction
+
+`supabase/functions/assistant/extract-graph.ts`, on the Icarus tier (Haiku 4.5),
+structured-output only. Reuses the retrieval pipeline's paragraph chunker and content
+hashing, so only changed paragraphs are re-read. Receives a window of surrounding context
+for pronoun resolution and a roster of known characters with their aliases.
+
+Writes PRESENT_AT, INTERACTS_WITH and KNOWS_ABOUT edges plus fact nodes. A
+`manual_override` row is never overwritten; the conflict is logged instead.
+
+### 17.3 The renderer
+
+One HTML document — `mobile/src/lib/characterWebHtml.ts` — used by the WebView on mobile
+and intended for the PWA to serve verbatim rather than growing a second implementation.
+`graph/character-web-demo.html` is a generated copy with sample data, served by the
+`graph-preview` launch config for looking at it in a browser.
+
+**Two layers, switched rather than merged:**
+
+- **Relationships** — character to character, coloured by interaction type on a fixed
+  palette. Strictly one hop.
+- **Progression** — character to event, in chapter order. Selecting a character lights
+  their chain of events *and every other character standing in those events* — a
+  deliberate second hop, only in this mode, because the point of a progression is who
+  else is in the room.
+
+The panel changes with the mode: relationships lists individual interactions, progression
+lists the arc with POV chapters marked. Both are headings that expand to a paragraph or
+two, one open at a time.
+
+Characters are circles, events are diamonds — octahedra in 3D so the shape reads the same
+either way. Labels are drawn, not hovered: a graph of unlabelled dots cannot be navigated.
+
+**2D is the default and the only renderer loaded up front.** 3D and its dependencies are
+fetched on first use; if that fails the graph stays in 2D and says so.
+
+### 17.4 The three.js loading problem, recorded so nobody repeats it
+
+Three attempts, and the constraint is not obvious:
+
+- three.js has shipped **ESM-only since r160**, so there is no UMD build to put in a
+  script tag. `three@0.180/build/three.min.js` is a 404 — and it fails **silently**,
+  taking `three-spritetext` with it, since that needs the `THREE` global.
+- Pinning back to r160 for its UMD build then breaks `3d-force-graph`, which calls
+  `THREE.Timer` and requires a *newer* three.
+- The working arrangement: import three dynamically as a module and publish it as
+  `window.THREE` before loading the two UMD libraries that expect it.
+
+### 17.5 Deviations from the supplied spec
+
+1. **§9.1 aliases** live in the character node's `properties`, not a separate table, with
+   a unique index on `(project_id, lower(label))` making one canonical character per name.
+   A first-seen name is **always** queued for review regardless of confidence — a wrong
+   character is the error that compounds, since every later passage attaches to the twin.
+   Merging repoints every edge and folds the duplicate's name in as an alias.
+2. **§9.2 edge aggregation — resolved by doing both.** Storage keeps one edge per event;
+   the view collapses a pair for drawing. Neither fidelity nor legibility is traded.
+3. **§3.1 extraction does NOT hook the debounced autosave.** Autosave fires 1.2s after a
+   keystroke, so a paragraph being typed changes hash on nearly every save; content
+   hashing prevents wasted *embedding*, not wasted *model calls*. It runs on leaving the
+   editor, the first moment a paragraph is plausibly finished.
+4. **§3.4 nothing below the 0.6 threshold is discarded** — it is written with
+   `needs_review` set. A cautious model should never silently lose a real interaction; the
+   threshold only decides what gets confirmed.
+5. **§9.5** the renderer starts in 2D rather than falling back to it. Hit-testing a sphere
+   at portrait width proved unreliable in practice (a click two pixels off does nothing at
+   all). 3D remains available and is the full experience on a wide screen.
+6. **Not in the spec:** extraction is gated on the assistant toggle, like indexing. It is
+   a paid call.
+
+### 17.6 Traps worth remembering
+
+- **Two partial unique indexes**, not one, on the edge natural key. Postgres treats NULLs
+  as distinct, so a single index lets unlimited duplicate saga-level edges through —
+  exactly the rows most likely to be re-extracted.
+- A **unique violation rejects the whole insert**, which surfaces as an empty graph with
+  no error anywhere useful. This happened: the demo fixture had two saga-level edges
+  between the same pair, and the import produced every character and not one
+  relationship.
+- An event nobody is present at is **not drawn**. It is a chapter no one has been placed
+  in, and drawing it scatters unreachable dots.
+
+### 17.7 Not built
+
+Multi-hop cascade beyond the progression's deliberate second hop, the time-scrubber
+("as of Book N" — flagged in the spec as the highest-value deferred feature), automatic
+faction/location extraction, and the PWA's own embedding of the renderer.
+
+---
+
+## 18. DEMO PACK (`demo/`, 2026-08-21)
+
+A disposable test project — "The Southern Wing" — authored separately and converted into
+a fixture by `scripts/build-demo-fixture.mjs`. **The markdown is the source of truth:**
+edit it, re-run the script, the app picks it up.
+
+Loaded from the app's Projects tab, not pushed from a script here, because every table is
+behind row-level security — rows are written with the signed-in user's id, so a script
+holding only the anon key has no session and its inserts are correctly rejected.
+
+**Contents:** 17 chapters across 3 acts, 74 scenes carrying POV, 9 documents, ~15,000
+words of prose, 11 characters with aliases, and 26 relationships of which 15 are scoped
+to a chapter. Nine arrive flagged for review so the queue has real work in it.
+
+**Behaviours worth knowing:**
+
+- Chapter `order` is the chapter *number*, so the Ch 0 prologue keeps its place ahead of
+  Ch 1 rather than being renumbered.
+- POV lands on **scenes**, which is what the POV tracker reads.
+- Relationship explanations are **parsed from the bible's own prose**, not rewritten, so
+  editing the bible changes what the graph says. A build-time guard fails if any edge has
+  no explanation — an interaction that expands to nothing reads as broken rather than
+  unwritten. It caught one on the first run.
+- Short names are stated explicitly rather than derived positionally. Taking the last word
+  works for "Karanavar Sankaran Thambi" but yields "Joseph" for "Dr. Sunny Joseph", which
+  silently dropped all five edges involving the busiest character.
+- Presence is derived from a chapter's POV plus any relationship scoped to it. That
+  understates the truth — people appear in scenes they neither narrate nor interact in —
+  but never invents a presence, which is the right direction to be wrong in.
+- Each load supersedes the last: older demo projects are deleted **after** the new import
+  completes, and only projects matching the demo's own name prefix are touched.
