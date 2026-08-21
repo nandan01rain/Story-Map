@@ -164,6 +164,18 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
               </Text>
             </View>
           )}
+
+          {/* The state that is otherwise silent: characters and relationships exist, but no
+              event has anyone placed in it, so Progression has nothing to draw. Says which
+              of the two reasons it is rather than showing an empty mode. */}
+          {graph.nodes.length > 0 && graph.events.length === 0 && (
+            <View style={styles.hintNote}>
+              <Text style={styles.hintText}>
+                No events yet, so Progression is empty. A demo project loaded before this view
+                existed has no events in it — load the demo again from Projects to get them.
+              </Text>
+            </View>
+          )}
         </>
       )}
 
@@ -307,6 +319,18 @@ function makeStyles(colors: ThemeColors) {
     reviewChevron: { color: colors.gold, fontSize: 17 },
     offNote: { position: 'absolute', left: 20, right: 20, top: '45%' },
     offText: { color: '#8d9a97', fontSize: 13, lineHeight: 20, textAlign: 'center' },
+    hintNote: {
+      position: 'absolute',
+      left: 12,
+      right: 12,
+      bottom: 64,
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: withOpacity(colors.gold, 0.45),
+      backgroundColor: 'rgba(13,17,16,0.94)',
+    },
+    hintText: { color: '#cfd8d5', fontSize: 12.5, lineHeight: 18 },
     clearSel: {
       position: 'absolute',
       right: 12,
