@@ -26,12 +26,28 @@ async function callFunction<T>(
     // response body. Without this the user sees "Edge Function returned a non-2xx status
     // code" for a missing API key, which tells them nothing.
     const detail = await readFunctionError(error);
+    if (looksUndeployed(error, detail)) return { data: null, error: NOT_DEPLOYED };
     return { data: null, error: detail ?? error.message };
   }
   if (data && typeof data === 'object' && 'error' in data) {
     return { data: null, error: String((data as { error: unknown }).error) };
   }
   return { data: data as T, error: null };
+}
+
+// The state this app will sit in until the keys are paid for and the function is deployed:
+// the route simply does not exist. Left raw that reads as a network failure, which looks
+// like a bug rather than a step not taken yet.
+const NOT_DEPLOYED =
+  'The assistant is not set up on the server yet. See supabase/README.md — it needs the ' +
+  'Edge Function deployed and an API key set before it can answer anything.';
+
+function looksUndeployed(error: unknown, detail: string | null): boolean {
+  const status = (error as { context?: { status?: number } })?.context?.status;
+  if (status === 404) return true;
+  const name = (error as { name?: string })?.name ?? '';
+  // supabase-js raises FunctionsFetchError when it cannot reach the function at all.
+  return name === 'FunctionsFetchError' && !detail;
 }
 
 async function readFunctionError(error: unknown): Promise<string | null> {

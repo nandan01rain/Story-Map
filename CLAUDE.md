@@ -250,6 +250,15 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   conversation, no assets delivered yet beyond the one sunset scene. Now
   part of the broader app-wide day/night requirement above. See handoff
   doc §12.4 and §13.
+- **The in-app assistants are built but switched off.** Icarus and
+  Daedalus have their database objects (migration already run against the
+  live project), Edge Function, agent configurations, account-level toggle,
+  indexing pipeline and chat panel — all committed. What is missing is an
+  Anthropic API key, a decision on the embedding provider, and
+  `supabase functions deploy`. Also still unwritten: Icarus's deterministic
+  half (the SQL checks that should run before any model call) and the
+  proposal/review queue so canon-document edits arrive as a diff to accept
+  rather than a silent write. Handoff doc §15.
 - **Cross-project search ("Explore" tab)** on the landing page — the tab
   exists as a styled placeholder, the actual search-across-all-projects
   feature was never built.
@@ -303,6 +312,21 @@ Stage 1.6 motion-preference toggle (`motion_enabled` in `user_metadata`, a
 `motion-on` class on `<html>`) was built in anticipation of gating this
 work's animated layers, but no surface reads it yet.
 
+**Stage 4 — in-app assistants (groundwork built 2026-08-21, dormant by
+choice)**: two in-house agents, **Icarus** (validation — continuity,
+unreferenced ideas, arcs gone quiet; mostly deterministic SQL with a cheap
+model only for the judgment step) and **Daedalus** (craft judgment —
+structure, mythological parallels and where they should stop, technique,
+grounded comparison to published work). The retrieval layer, the Edge
+Function and the app-side toggle/panel are all built and committed; nothing
+is deployed and no API key has been bought, so nothing runs and nothing is
+billed. This is a deliberate pause, not an unfinished build. MCP is a
+complementary later addition — a second door onto the same retrieval layer,
+and the only path that would run on a Claude subscription rather than an API
+key. See handoff doc §15 for the full design, the decisions worth not
+re-litigating, and the one open question (which embedding provider, since
+Anthropic has none).
+
 **Stage 3** (explicitly not started): storyboards, image generation, and
 anything extending past prose-only tooling.
 
@@ -338,11 +362,28 @@ that open into a full-screen editor), and a Settings screen (day/night/auto
 theme — auto follows the device clock, not the OS light/dark setting — plus
 an app-scoped screen-brightness slider). The main hamburger menu and the
 Reader's table of contents are both real slide-in-from-the-left panels
-opened purely by an edge swipe, no button. Still not built: Map view, the
-remaining secondary features (continuity checker, POV tracker, Mythic
-Threads, documents, search, trash), and a dictionary/word-lookup feature in
-the Reader (deferred by explicit choice). See handoff doc §14 for the full,
-current, session-by-session detail — this paragraph is the summary only.
+opened purely by an edge swipe, no button.
+
+Added since (2026-08-21): a **living sign-in scene** ported from the PWA —
+the layered artwork with bobbing ships, gliding birds, twinkling city
+lights, flickering lanterns and drifting water bands, switching between
+day/sunrise-sunset/night on real time with a manual override in Settings;
+the PWA's **landing page** with its Home/Projects/+/Explore/Profile tab bar
+in the same three time modes; a **Documents library** (the PWA's Master
+Bible / character bibles / references / timelines, which mobile had lacked
+entirely); **Google Drive import**, which pulls documents straight into a
+project rather than making the writer copy them across by hand; **full-text
+search**; a real **highlight** in the Reader; and the dormant **assistant**
+groundwork described under Stage 4 above.
+
+Still not built: Map view, the remaining secondary features (continuity
+checker, POV tracker, Mythic Threads, trash), a dictionary/word-lookup
+feature in the Reader (deferred by explicit choice), and the two assistants'
+actual operation (built, not deployed — see Stage 4 and handoff §15). Google
+Drive import is written but needs a Google Cloud OAuth client and the Google
+provider enabled in the Supabase dashboard before it can connect — account
+work, not code. See handoff doc §14 for the full, current, session-by-session
+detail — this paragraph is the summary only.
 
 ## Design principles worth preserving
 

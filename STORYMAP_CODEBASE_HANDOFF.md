@@ -2158,3 +2158,153 @@ Also **not verified**: whether the general "jerky" feel reported once in
 an earlier session is a real performance problem or just Expo Go's
 dev-mode overhead — still not chased further; worth a real perf pass
 against a production build (`eas build`) before concluding anything.
+
+---
+
+## 15. IN-APP ASSISTANTS — Icarus and Daedalus (groundwork built 2026-08-21, dormant)
+
+**Status: infrastructure complete and committed, deliberately not switched
+on.** The database objects exist in the live project, the Edge Function and
+both agent configurations are written, and the app has a toggle, an indexing
+pipeline and a chat panel. Nothing runs and nothing is billed, because the
+function has not been deployed and no API keys have been bought. This was an
+explicit decision — build the groundwork now, defer the spend — not an
+unfinished build.
+
+### 15.1 Why an in-house agent rather than MCP
+
+Both were considered. MCP would let *Claude* reach into StoryMap, which is
+useful and worth adding later, but it cannot meet the stated objective: an
+assistant **inside StoryMap, in real time, without going back to Claude**.
+MCP is a second door onto the same retrieval layer, not a substitute for it,
+and the retrieval layer has to exist either way.
+
+The one real cost of choosing in-house: it bills to an API key. A Claude
+Pro/Max subscription cannot power a third-party app — that is what MCP would
+have given, and it is why MCP stays on the roadmap rather than being
+dismissed.
+
+### 15.2 The two agents, and why they differ structurally
+
+They are not one assistant with two prompts. They differ in model, context
+strategy and tools, because they answer different kinds of question.
+
+**Icarus — validation.** Most of its work should never reach a model at
+all: continuity checking is already keyword matching, "which sticky notes
+are referenced nowhere" is a SQL query, "which POV has gone quiet" is a
+query over scene metadata. Paying an LLM to do arithmetic over our own
+tables is waste. The model is there only for the judgment step — *is this
+actually a contradiction, or two compatible phrasings?* — which is
+classification, and runs on **Haiku 4.5**. Its system prompt forbids
+proposing replacement prose and requires a quote for every finding.
+
+**Daedalus — judgment.** Runs on **Opus 5** with adaptive thinking and
+`effort: high`. The motivating question — *would a mythological parallel
+work for this character, why, how far should the resemblance run, and where
+should it stop* — is not answerable from retrieved passages, because it is
+about the shape of the saga rather than any passage in it. So Daedalus also
+receives a **project digest** (every chapter's book/act/position/title/
+status plus the canon documents), assembled per request in `buildDigest()`.
+It has the **web search** server tool so comparisons to published work are
+grounded rather than recalled — a model reasoning from memory about what
+made a novel distinctive is exactly where confabulation appears, and here it
+would be confabulation the writer acts on.
+
+Deliberate choice: the agent is picked **per question by the writer**, not
+routed automatically. Daedalus costs several times what Icarus does per
+answer, and that is the writer's call, not something to hide behind a router.
+
+### 15.3 Files
+
+- `supabase/migrations/20260821_assistant_retrieval.sql` — **already run**
+  against the live project (verified: `content_chunks` returns `[]` under
+  RLS, `content_chunk_status` returns `{total: 0, embedded: 0}`).
+- `supabase/functions/assistant/` — `index.ts` (routes), `chunk.ts`
+  (chunking + hashing), `agents.ts` (the two configurations).
+- `supabase/README.md` — deployment procedure, including how to get DDL
+  access without the CLI.
+- `mobile/src/lib/assistant.ts`, `mobile/src/store/assistantStore.ts`,
+  `mobile/src/screens/AssistantScreen.tsx`.
+
+### 15.4 Decisions worth not re-litigating
+
+- **Chunks are a separate table**, not columns on `chapters`/`documents`:
+  one chapter is many chunks, and a chunk must be able to point at either
+  kind of source.
+- **`match_content_chunks` is SECURITY INVOKER.** RLS therefore still
+  applies and one account can never retrieve another's prose even if a
+  project id were wrong or forged. A SECURITY DEFINER function here would
+  bypass exactly the protection that matters most for this table.
+- **HNSW, not IVFFlat.** IVFFlat must be built against existing data to
+  choose its lists and degrades badly when created against an empty table,
+  which is precisely the situation at migration time.
+- **Chunking splits on paragraphs, never a character count.** A retrieved
+  chunk is quoted back to the writer as evidence; one starting mid-sentence
+  reads as a misquote of their own prose. Overlap is carried because a claim
+  and the sentence qualifying it often straddle a boundary. Tested against
+  manuscript-shaped prose, degenerate inputs, and a paragraph with no
+  sentence punctuation at all — that last case produced a single
+  22,889-character chunk before a hard word-boundary fallback was added, and
+  would have failed the embedding call outright.
+- **Chunks carry a content hash.** Editing one paragraph re-embeds one
+  chunk, not the chapter. This is the difference between indexing being
+  background noise and being a bill.
+- **The toggle lives in `user_metadata`, not on the device.** It is a
+  billing switch; it should not be possible to have it off on the phone and
+  quietly on somewhere else.
+- **Indexing is gated on the same toggle as asking.** Embedding is itself a
+  paid API call, so a toggle that still spends money in the background is
+  not a toggle.
+
+### 15.5 What remains before it can run
+
+1. Buy an Anthropic API key (set a spend cap in the console).
+2. Decide the embedding provider and get that key — see §15.6.
+3. `supabase secrets set --env-file supabase/.env` (the root `.gitignore`
+   added in the same session covers that file; a key reaching git history
+   must be **rotated**, not deleted).
+4. `supabase functions deploy assistant --use-api` — `--use-api` bundles
+   server-side, avoiding a local Docker requirement.
+
+Until then the app reports "not set up on the server yet" rather than a raw
+network error, so the dormant state reads as a step not taken rather than a
+bug.
+
+### 15.6 Open decision: the embedding provider
+
+**Anthropic has no embeddings API**, so retrieval needs a second vendor.
+Built against **Voyage** (`voyage-3.5`, 1024 dimensions), Anthropic's
+recommended partner. This is not settled:
+
+- The `vector(1024)` column type is sized for Voyage. Changing provider
+  later means altering that column and re-indexing everything, so it is
+  cheaper to decide before the first index than after.
+- Open-weight models were raised as an alternative and are worth taking
+  seriously. Kimi K2.6 is roughly $0.95/$4.00 per MTok against Opus 5's
+  $5/$25 — about five times cheaper — and the same providers serve open
+  embedding models, which would collapse this to **one vendor and one key**.
+- The honest split: Icarus's work (constrained classification against
+  supplied evidence) is where open models are genuinely competitive.
+  Daedalus's is not — what is bought there is judgment and calibration, and
+  cheaper models produce craft advice that sounds authoritative and is
+  generic, which is the hardest failure mode to detect without already
+  knowing the answer.
+- **Weigh data retention above cost.** This is five books of unpublished
+  fiction. Anthropic does not train on API traffic; policies vary widely
+  across open-model hosts, and the cheapest resellers tend to be the
+  vaguest.
+
+Recommended next step when this resumes: make provider and model **per-agent
+configuration** (most open-model providers are OpenAI-compatible, so the
+change is confined to the two model-calling functions), default Icarus to a
+cheap model and Daedalus to Opus, then evaluate Daedalus on questions where
+the writer already knows what good looks like.
+
+### 15.7 Not built
+
+The deterministic half of Icarus — the SQL checks that should run before any
+model is called (unpaid plants, unreferenced sticky notes, POV gone quiet) —
+is designed but not written. The proposal/review queue for canon-document
+edits, so the assistant proposes a diff rather than writing directly, is also
+designed and not written; it exists specifically to honour the project's
+"destructive actions get a confirmation and a trash entry" rule.
