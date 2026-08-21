@@ -129,14 +129,18 @@ export default function EditorScreen({ route, navigation }: Props) {
     scheduleAutosave(text, annotations);
   }
 
-  function flushSave() {
+  // Returns the write so callers that depend on the saved copy can wait for it. The
+  // Reader jump does: it searches the chapter as the STORE has it, so navigating while the
+  // save is still in flight means searching a stale copy of the prose.
+  function flushSave(): Promise<void> {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
     if (content !== savedContentRef.current || annotations !== savedAnnotationsRef.current) {
-      persist(content, annotations);
+      return persist(content, annotations);
     }
+    return Promise.resolve();
   }
 
   useEffect(() => {
@@ -163,16 +167,15 @@ export default function EditorScreen({ route, navigation }: Props) {
   );
   const popupLeft = winWidth / 2 - 60;
 
-  // Flushes first: the Reader reads chapters from the store/database, so an unsaved edit
-  // would mean searching for a substring that only exists in this screen's state.
-  function viewInReader() {
+  // Awaits the flush before navigating: the Reader searches the chapter as the store has
+  // it, so leaving while the save is still in flight means it hunts for text that only
+  // exists in this screen's state and silently gives up.
+  async function viewInReader() {
     if (!selectedText || !chapter) return;
-    flushSave();
-    navigation.navigate('Reader', {
-      projectId: chapter.project_id,
-      chapterId,
-      jumpToText: selectedText,
-    });
+    const text = selectedText;
+    const projectId = chapter.project_id;
+    await flushSave();
+    navigation.navigate('Reader', { projectId, chapterId, jumpToText: text });
   }
 
   function openFlagPicker() {

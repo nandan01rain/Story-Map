@@ -90,6 +90,30 @@ const ALIGN_OPTIONS: { key: ReaderTextAlign; icon: string }[] = [
   { key: 'justify', icon: 'align-justify' },
 ];
 
+// Finds the jumped-to text in the chapter. An exact match is the normal case; the
+// fallbacks cover a selection whose whitespace does not survive the round trip -- a
+// selection dragged across a line break carries a newline the reader's copy may have as a
+// space, and trailing whitespace is easy to pick up and invisible to the person selecting.
+function findJumpOffset(content: string, needle: string): number {
+  const exact = content.indexOf(needle);
+  if (exact !== -1) return exact;
+
+  const trimmed = needle.trim();
+  if (trimmed && trimmed !== needle) {
+    const trimmedIdx = content.indexOf(trimmed);
+    if (trimmedIdx !== -1) return trimmedIdx;
+  }
+  if (!trimmed) return -1;
+
+  // Last resort: match ignoring how whitespace is written, by walking the same characters
+  // through the content with any run of whitespace allowed to stand in for any other.
+  const pattern = trimmed
+    .replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+    .replace(/\s+/g, String.raw`\s+`);
+  const match = new RegExp(pattern).exec(content);
+  return match ? match.index : -1;
+}
+
 function resolveFontFamily(f: ReaderFontFamily): string {
   return FONT_FAMILY_OPTIONS.find((o) => o.key === f)?.family ?? FONTS.literary;
 }
@@ -367,16 +391,35 @@ export default function ReaderScreen({ route, navigation }: Props) {
         if (idx !== -1) targetIndex = idx;
       } else if (jumpToText && chapterId) {
         const chapter = chapters.find((c) => c.id === chapterId);
-        const idx = chapter ? chapter.content.indexOf(jumpToText) : -1;
+        // Every miss below used to leave targetIndex at 0, i.e. page one of the whole
+        // BOOK, which is why a jump that failed for any reason looked like it had ignored
+        // the chapter entirely. The chapter's own first page is the right fallback.
+        const chapterFirstPage = flatPages.findIndex((p) => p.chapterId === chapterId);
+        if (chapterFirstPage !== -1) targetIndex = chapterFirstPage;
+
+        const idx = chapter ? findJumpOffset(chapter.content, jumpToText) : -1;
         if (chapter && idx !== -1) {
           const tokens = tokenizeWords(chapter.content);
           const startTok = tokens.findIndex((t) => t.start <= idx && t.end > idx);
           const endIdx = idx + jumpToText.length;
           const endTok = tokens.findIndex((t) => t.start < endIdx && t.end >= endIdx);
           const pages = pagesByChapter.get(chapterId) ?? [];
-          const pageInChapter = pages.findIndex((p) => idx >= p.startIndex && idx < p.endIndex);
-          const foundFlatIndex = flatPages.findIndex((p) => p.chapterId === chapterId && p.pageInChapter === pageInChapter + 1);
-          if (foundFlatIndex !== -1) targetIndex = foundFlatIndex;
+          // A page's endIndex is where its last line ends, so the whitespace between two
+          // pages belongs to neither. An offset landing in one of those gaps matched no
+          // page at all; falling back to the last page that starts at or before the offset
+          // puts it on the right page instead of nowhere.
+          let pageInChapter = pages.findIndex((p) => idx >= p.startIndex && idx < p.endIndex);
+          if (pageInChapter === -1) {
+            for (let i = 0; i < pages.length; i += 1) {
+              if (pages[i].startIndex <= idx) pageInChapter = i;
+            }
+          }
+          if (pageInChapter !== -1) {
+            const foundFlatIndex = flatPages.findIndex(
+              (p) => p.chapterId === chapterId && p.pageInChapter === pageInChapter + 1,
+            );
+            if (foundFlatIndex !== -1) targetIndex = foundFlatIndex;
+          }
           if (startTok !== -1 && endTok !== -1) highlight = { start: startTok, end: endTok };
         }
       } else if (chapterId) {

@@ -154,10 +154,15 @@ const WATER_MASK = require('../../assets/env/water-mask.png');
 const WATER_TOP_PCT = 40;
 const WATER_BOTTOM_PCT = 70;
 const RIPPLES = [
-  // Peaks are lifted from the CSS's 0.30/0.34 to compensate for losing overlay/soft-light,
-  // which brightened them against the lit water.
-  { id: 'a', color: '#fffcee', peak: 0.42, peakAt: 3, period: 9, duration: 2600, tilt: -1 },
-  { id: 'b', color: '#fff6de', peak: 0.46, peakAt: 4, period: 14, duration: 3900, tilt: 1 },
+  // Lifting these to 0.42/0.46 to make up for losing overlay/soft-light overshot badly --
+  // opaque bands on painted water read as scanlines laid over the picture rather than as
+  // the surface moving. Back well under the CSS's own 0.30/0.34: the bands only have to be
+  // just visible enough for the eye to track their motion, and anything past that stops
+  // looking like water. The peak also sits closer to the start of each period now, so a
+  // thin bright line falls away into a long soft trough instead of the two halves reading
+  // as equal stripes.
+  { id: 'a', color: '#fffcee', peak: 0.15, peakAt: 2.5, period: 9, duration: 2600, tilt: -1 },
+  { id: 'b', color: '#fff6de', peak: 0.13, peakAt: 3.5, period: 14, duration: 3900, tilt: 1 },
 ];
 
 function useAlternatingLoop(duration: number, delay: number) {
