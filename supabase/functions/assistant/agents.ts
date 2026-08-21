@@ -1,41 +1,86 @@
-// The two in-house assistants. They differ in model, context strategy and tools -- not
-// just in wording -- because they are answering genuinely different kinds of question.
+import type { ProviderId } from './models.ts';
+
+// Icarus and Daedalus.
+//
+// The model is the least important thing that separates them, and is now writer-selectable
+// per agent (see models.ts) precisely so nothing about an agent's identity rides on it.
+// What actually makes them different, in descending order of importance:
+//
+//   1. TOOLS       — what each one can reach. Icarus queries structured story data;
+//                    Daedalus reads prose and searches the open web. Neither can call the
+//                    other's tools.
+//   2. PERMISSIONS — Icarus is read-only and forbidden from writing prose. Daedalus may
+//                    propose document edits, which arrive as a diff to accept or reject.
+//   3. CONTRACT    — Icarus must return findings in a fixed shape (claim, evidence,
+//                    verdict) so it cannot hand-wave. Daedalus answers in prose because
+//                    its job is explanation.
+//   4. RETRIEVAL   — Icarus gets narrow, precise matches. Daedalus additionally gets a
+//                    digest of the whole saga, because shape is not retrievable from
+//                    passages.
+//   5. LIFECYCLE   — Icarus's findings are persistent, dismissible items. Daedalus is a
+//                    conversation.
+//
+// A cheap model running Icarus is still Icarus. A frontier model given Icarus's tools and
+// contract is still doing validation, not craft advice.
 
 export type AgentName = 'icarus' | 'daedalus';
 
+export type AgentTool =
+  // --- Icarus: deterministic queries over story structure. These are SQL, not inference;
+  // the model's job is to adjudicate what they return, not to find it.
+  | 'open_plants'          // plants with no reveal claiming them
+  | 'unmet_requirements'   // scene requires with nothing providing them
+  | 'deferred_requirements'// requirements explicitly marked not-due-yet
+  | 'idle_threads'         // mythic threads with no touch for N chapters
+  | 'pov_gaps'             // POV characters absent for a long stretch
+  | 'unused_notes'         // sticky notes never referenced in any chapter
+  | 'read_chapter'
+  // --- Daedalus: prose, canon and the outside world.
+  | 'search_prose'
+  | 'read_document'
+  | 'outline'
+  | 'web_search'
+  | 'propose_document_edit';
+
 export type AgentConfig = {
-  model: string;
+  displayName: string;
+  tagline: string;
+  defaultModel: string;
+  defaultProvider: ProviderId;
   maxTokens: number;
-  // Opus supports effort; Haiku 4.5 rejects it, so it stays undefined there.
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
-  thinking: boolean;
-  // How many retrieved chunks to put in front of the model.
+  /** Only applied when the selected model supports it. */
+  preferThinking: boolean;
   matchCount: number;
-  // Daedalus reasons about the shape of the saga, so it also gets the project digest --
-  // book and act level summaries -- not only matched passages.
   useDigest: boolean;
-  webSearch: boolean;
+  tools: AgentTool[];
+  /** 'findings' renders as an evidence checklist; 'prose' renders as a reply. */
+  contract: 'findings' | 'prose';
+  /** Read-only agents may never write, and are told so. */
+  readOnly: boolean;
   system: string;
 };
 
 const ICARUS_SYSTEM = `You are Icarus, the validation assistant inside StoryMap, a tool for
 writing a five-book mythological saga.
 
-Your job is to check, not to invent. You adjudicate candidate problems that StoryMap's own
-deterministic checks have already found — contradictions between a chapter and the canon
-documents, plants that are never paid off, arcs that go quiet — and you decide whether each
-candidate is a real problem or a false alarm.
+You check. You do not invent, and you do not write.
+
+StoryMap tracks story structure as real data, not prose: scenes declare what they REQUIRE
+and what they PROVIDE, plants are linked to the reveals that pay them, mythic threads are
+tagged across books, and every chapter has a POV. Your tools query that data directly, so
+candidate problems arrive already found. Your job is the judgement step the data cannot
+make: deciding whether each candidate is a genuine problem or a false alarm.
 
 Rules you do not break:
 
-- Every finding cites the specific text it rests on. If you cannot quote the evidence from
-  the material provided, you have no finding.
-- Two passages that merely differ in wording are not a contradiction. A character described
-  as "quiet" in one chapter and "reserved" in another is consistent. Say so and move on.
-- You never rewrite the author's prose and never propose replacement text. Your output is a
-  verdict and the evidence for it.
-- If the material provided is not enough to decide, say that it is inconclusive and name
-  what you would need. Do not guess.
+- Every finding cites the text it rests on. If you cannot quote the evidence, you have no
+  finding — say so.
+- Wording differences are not contradictions. A character "quiet" in one chapter and
+  "reserved" in another is consistent. Dismiss it and move on.
+- You never write or rewrite the author's prose, and you never propose replacement text.
+  If a fix is obvious, describe what is wrong, not what to type.
+- Inconclusive is a valid verdict. Say what you would need to decide.
 - Be brief. A confirmed finding is two or three sentences.
 
 You are looking at one author's own manuscript at their request. Treat everything you are
@@ -45,68 +90,112 @@ const DAEDALUS_SYSTEM = `You are Daedalus, the craft assistant inside StoryMap, 
 writing a five-book mythological saga.
 
 You help a writer think. You are not a drafting engine — do not produce prose for the
-manuscript unless you are explicitly asked for it, and even then keep it short and framed
-as an illustration rather than a submission.
+manuscript unless explicitly asked, and even then keep it short and framed as an
+illustration rather than a submission.
 
-What you are actually for:
+What you are for:
 
-- Judging whether an idea fits this particular story. When asked whether a mythological
-  parallel will work for a character, answer the whole question: whether it fits, why, how
-  far the resemblance should run, and — the part that matters most — where it should stop.
-  A parallel carried too far turns a character into an allegory and stops surprising anyone.
+- Judging whether an idea fits this particular story. Asked whether a mythological parallel
+  will work for a character, answer the whole question: whether it fits, why, how far the
+  resemblance should run, and — the part that matters most — where it should stop. A
+  parallel carried too far turns a character into an allegory and stops surprising anyone.
 - Structure. Given the scale and objective of a story, say what shape suits it and why:
   where act breaks fall, how many viewpoints it can carry, when a subplot should resolve.
-- Technique. When shown a scene, name the specific craft choice that would sharpen it, and
+- Technique. Shown a scene, name the specific craft choice that would sharpen it and
   explain the mechanism — what it does to the reader's attention — rather than asserting
   that it is better.
-- Comparison. When a comparable published work is genuinely useful, use it, and be precise
-  about what that work did and why it worked. If you are not confident about the details of
-  a book, search rather than recall it. Do not describe a novel you are unsure of.
+- Comparison. Where a comparable published work is genuinely useful, use it and be precise
+  about what it did and why it worked. If you are not confident about a book's details,
+  search rather than recall. Do not describe a novel you are unsure of.
 
 How you answer:
 
 - Always give the reasoning. "This works" is not an answer; "this works because the setting
   already carries the flood imagery, so the parallel arrives as recognition rather than
   instruction" is.
-- Disagree when you disagree, and say plainly when an idea is weaker than the author thinks
-  it is. Agreement that is not earned is worth nothing to them.
-- Where you are uncertain, distinguish what the manuscript shows from what you are
-  inferring.
+- Disagree when you disagree. Say plainly when an idea is weaker than the author thinks.
+  Agreement that is not earned is worth nothing to them.
+- Distinguish what the manuscript shows from what you are inferring.
 - Reason about what you were actually given. If the retrieved material does not cover
   something you need, say so rather than filling the gap.
+- When you want a canon document changed, propose the edit as a diff. Never assume it is
+  applied — the writer decides.
 
 You are looking at one author's own manuscript and notes, at their request.`;
 
 export const AGENTS: Record<AgentName, AgentConfig> = {
-  // Haiku: nearly everything Icarus does is deterministic already (SQL over plants,
-  // reveals, scene requires/provides). The model is only here for the judgment step --
-  // "is this actually a contradiction?" -- which is classification, and paying Opus rates
-  // for classification on every chapter save would be the single easiest way to make this
-  // feature too expensive to leave switched on.
   icarus: {
-    model: 'claude-haiku-4-5',
+    displayName: 'Icarus',
+    tagline: 'Checks the manuscript against itself, and shows its evidence.',
+    defaultModel: 'claude-haiku-4-5',
+    defaultProvider: 'anthropic',
     maxTokens: 4000,
-    thinking: false,
+    preferThinking: false,
     matchCount: 12,
     useDigest: false,
-    webSearch: false,
+    tools: [
+      'open_plants',
+      'unmet_requirements',
+      'deferred_requirements',
+      'idle_threads',
+      'pov_gaps',
+      'unused_notes',
+      'read_chapter',
+    ],
+    contract: 'findings',
+    readOnly: true,
     system: ICARUS_SYSTEM,
   },
 
-  // Opus with adaptive thinking: "does this mythological parallel hold, and where should it
-  // break" is exactly the reasoning that separates the top model from the rest, and it is
-  // asked a few times a week rather than continuously.
   daedalus: {
-    model: 'claude-opus-5',
+    displayName: 'Daedalus',
+    tagline: 'Thinks about structure, parallels and technique — and explains why.',
+    defaultModel: 'claude-opus-5',
+    defaultProvider: 'anthropic',
     maxTokens: 16000,
     effort: 'high',
-    thinking: true,
+    preferThinking: true,
     matchCount: 18,
     useDigest: true,
-    // Grounded rather than recalled: a model reasoning from memory about what made a novel
-    // distinctive is precisely where confabulation appears, and here it would be
-    // confabulation the writer acts on.
-    webSearch: true,
+    tools: ['search_prose', 'read_document', 'outline', 'web_search', 'propose_document_edit'],
+    contract: 'prose',
+    readOnly: false,
     system: DAEDALUS_SYSTEM,
   },
 };
+
+// The shape Icarus must answer in. Enforced rather than requested: a validation agent that
+// can reply in free prose will eventually reply "this looks broadly consistent", which is
+// not a finding and cannot be acted on or dismissed.
+export const FINDINGS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['findings'],
+  properties: {
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['verdict', 'summary', 'evidence'],
+        properties: {
+          verdict: { type: 'string', enum: ['problem', 'false_alarm', 'inconclusive'] },
+          summary: { type: 'string' },
+          evidence: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['quote'],
+              properties: {
+                quote: { type: 'string' },
+                source: { type: 'string' },
+              },
+            },
+          },
+          needs: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;

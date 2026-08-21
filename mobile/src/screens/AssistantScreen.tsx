@@ -14,6 +14,7 @@ import {
 
 import Icon from '../components/Icon';
 import { type AgentName, type AssistantSource, type ChatTurn, askAssistant } from '../lib/assistant';
+import { MODELS, PROVIDER_LABELS, estimateCostPerQuestion, findModel } from '../lib/assistantModels';
 import type { SignedInStackParamList } from '../navigation/types';
 import { indexStatus, useAssistantStore } from '../store/assistantStore';
 import { useChapterStore } from '../store/chapterStore';
@@ -21,7 +22,36 @@ import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Assistant'>;
 
-type Message = ChatTurn & { sources?: AssistantSource[]; agent?: AgentName };
+type Finding = {
+  verdict: 'problem' | 'false_alarm' | 'inconclusive';
+  summary: string;
+  evidence?: { quote: string; source?: string }[];
+  needs?: string;
+};
+
+type Message = ChatTurn & {
+  sources?: AssistantSource[];
+  agent?: AgentName;
+  findings?: Finding[];
+};
+
+const VERDICT_LABEL: Record<Finding['verdict'], string> = {
+  problem: 'Problem',
+  false_alarm: 'False alarm',
+  inconclusive: 'Inconclusive',
+};
+
+// Icarus answers under a schema, so its reply is JSON rather than prose. If a model ignores
+// the schema -- open-model hosts vary on how strictly they honour it -- fall back to showing
+// whatever came back as text rather than an empty bubble.
+function parseFindings(text: string): Finding[] | null {
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed?.findings) ? parsed.findings : null;
+  } catch {
+    return null;
+  }
+}
 
 const AGENT_BLURB: Record<AgentName, string> = {
   icarus: 'Checks the manuscript against itself — contradictions, unpaid plants, arcs gone quiet. Cites what it finds.',
@@ -45,7 +75,10 @@ export default function AssistantScreen({ route, navigation }: Props) {
 
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
 
+  const models = useAssistantStore((s) => s.models);
+  const setAgentModel = useAssistantStore((s) => s.setAgentModel);
   const [agent, setAgent] = useState<AgentName>('icarus');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -87,7 +120,13 @@ export default function AssistantScreen({ route, navigation }: Props) {
     }
     setMessages((prev) => [
       ...prev,
-      { role: 'assistant', content: reply.text, sources: reply.sources, agent: reply.agent },
+      {
+        role: 'assistant',
+        content: reply.text,
+        sources: reply.sources,
+        agent: reply.agent,
+        findings: reply.contract === 'findings' ? parseFindings(reply.text) ?? undefined : undefined,
+      },
     ]);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }
@@ -131,6 +170,46 @@ export default function AssistantScreen({ route, navigation }: Props) {
       </View>
       <Text style={styles.agentBlurb}>{AGENT_BLURB[agent]}</Text>
 
+      <Pressable style={styles.modelRow} onPress={() => setPickerOpen((o) => !o)}>
+        <Text style={styles.modelLabel}>Engine</Text>
+        <Text style={styles.modelValue}>
+          {findModel(models[agent])?.label ?? models[agent]}
+        </Text>
+        <Text style={styles.modelChevron}>{pickerOpen ? '▴' : '▾'}</Text>
+      </Pressable>
+
+      {pickerOpen && (
+        <ScrollView style={styles.picker} contentContainerStyle={styles.pickerInner}>
+          {MODELS.map((option) => {
+            const active = models[agent] === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                style={[styles.modelOption, active && styles.modelOptionOn]}
+                onPress={() => {
+                  setAgentModel(agent, option.id);
+                  setPickerOpen(false);
+                }}
+              >
+                <View style={styles.modelOptionHead}>
+                  <Text style={[styles.modelOptionName, active && styles.modelOptionNameOn]}>
+                    {option.label}
+                  </Text>
+                  <Text style={styles.modelCost}>{estimateCostPerQuestion(option)}</Text>
+                </View>
+                <Text style={styles.modelMeta}>
+                  {PROVIDER_LABELS[option.provider]} · {option.note}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <Text style={styles.pickerFoot}>
+            Each engine needs its provider's key set on the function. Switching engines changes
+            cost and quality, never what {agent === 'icarus' ? 'Icarus' : 'Daedalus'} is allowed to do.
+          </Text>
+        </ScrollView>
+      )}
+
       {(needsIndex || indexing) && (
         <View style={styles.indexBar}>
           <Text style={styles.indexText}>
@@ -163,7 +242,29 @@ export default function AssistantScreen({ route, navigation }: Props) {
             {message.role === 'assistant' && (
               <Text style={styles.bubbleAuthor}>{message.agent === 'daedalus' ? 'Daedalus' : 'Icarus'}</Text>
             )}
-            <Text style={styles.bubbleText}>{message.content}</Text>
+
+            {message.findings ? (
+              message.findings.length === 0 ? (
+                <Text style={styles.bubbleText}>Nothing to flag.</Text>
+              ) : (
+                message.findings.map((finding, fi) => (
+                  <View key={fi} style={styles.finding}>
+                    <Text style={[styles.verdict, styles[`v_${finding.verdict}`]]}>
+                      {VERDICT_LABEL[finding.verdict]}
+                    </Text>
+                    <Text style={styles.bubbleText}>{finding.summary}</Text>
+                    {finding.evidence?.map((ev, ei) => (
+                      <Text key={ei} style={styles.evidence}>
+                        “{ev.quote}”{ev.source ? ` — ${ev.source}` : ''}
+                      </Text>
+                    ))}
+                    {!!finding.needs && <Text style={styles.needs}>Needs: {finding.needs}</Text>}
+                  </View>
+                ))
+              )
+            ) : (
+              <Text style={styles.bubbleText}>{message.content}</Text>
+            )}
             {message.sources && message.sources.length > 0 && (
               <Text style={styles.sources}>
                 Drawn from: {message.sources.map((s) => s.title || 'Untitled').join(' · ')}
@@ -239,6 +340,65 @@ function makeStyles(colors: ThemeColors) {
       marginBottom: 6,
     },
     bubbleText: { color: colors.text, fontSize: 14.5, lineHeight: 22 },
+    finding: { marginBottom: 14 },
+    verdict: {
+      fontFamily: FONTS.mono,
+      fontSize: 10,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      marginBottom: 5,
+    },
+    v_problem: { color: '#e0764a' },
+    v_false_alarm: { color: colors.textFaint },
+    v_inconclusive: { color: colors.gold },
+    evidence: {
+      color: colors.textDim,
+      fontFamily: FONTS.literaryItalic,
+      fontSize: 13.5,
+      lineHeight: 20,
+      marginTop: 7,
+      paddingLeft: 10,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.borderDim,
+    },
+    needs: { color: colors.textFaint, fontSize: 12, marginTop: 7 },
+    modelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 16,
+      marginTop: 12,
+      paddingVertical: 9,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borderDim,
+    },
+    modelLabel: {
+      color: colors.textFaint,
+      fontFamily: FONTS.mono,
+      fontSize: 9.5,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
+    modelValue: { color: colors.text, fontSize: 13, flex: 1 },
+    modelChevron: { color: colors.textFaint, fontSize: 11 },
+    picker: { maxHeight: 260, marginHorizontal: 16, marginTop: 8 },
+    pickerInner: { gap: 8, paddingBottom: 8 },
+    modelOption: {
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borderDim,
+      backgroundColor: colors.panel,
+    },
+    modelOptionOn: { borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.12) },
+    modelOptionHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+    modelOptionName: { color: colors.textDim, fontFamily: FONTS.bodySemiBold, fontSize: 13.5 },
+    modelOptionNameOn: { color: colors.text },
+    modelCost: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 11 },
+    modelMeta: { color: colors.textFaint, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+    pickerFoot: { color: colors.textFaint, fontSize: 11, lineHeight: 16, marginTop: 4 },
     sources: { color: colors.textFaint, fontSize: 11, marginTop: 8, lineHeight: 16 },
     error: { color: '#e0764a', fontSize: 12.5, marginTop: 10, lineHeight: 18 },
     composer: {

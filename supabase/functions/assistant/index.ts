@@ -11,11 +11,12 @@
 // Every request runs as the calling user: their Supabase JWT is forwarded to PostgREST, so
 // row-level security decides what they can read. The function never uses the service role
 // key, which means a bug here cannot leak one account's manuscript to another.
-import Anthropic from 'npm:@anthropic-ai/sdk@0.71.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { type Chunk, chunkText, hashChunk } from './chunk.ts';
-import { AGENTS, type AgentName } from './agents.ts';
+import { AGENTS, type AgentName, FINDINGS_SCHEMA } from './agents.ts';
+import { callModel } from './call-model.ts';
+import { findModel } from './models.ts';
 
 const EMBEDDING_MODEL = 'voyage-3.5';
 const EMBEDDING_URL = 'https://api.voyageai.com/v1/embeddings';
@@ -166,11 +167,18 @@ async function embedQuery(text: string): Promise<number[]> {
 // ---------------------------------------------------------------- asking
 
 async function handleAsk(req: Request, supabase: ReturnType<typeof createClient>) {
-  const { projectId, agent, question, history, currentChapter } = await req.json();
+  const { projectId, agent, question, history, currentChapter, model: requestedModel } =
+    await req.json();
   const name: AgentName = agent === 'daedalus' ? 'daedalus' : 'icarus';
   const config = AGENTS[name];
 
   if (!projectId || !question) return json({ error: 'projectId and question are required.' }, 400);
+
+  // The writer's choice wins; the agent's default is only a fallback. Validated against the
+  // catalogue rather than trusted, so a stale app build cannot ask for a model that no
+  // longer exists or route a key to the wrong host.
+  const model = findModel(requestedModel) ?? findModel(config.defaultModel);
+  if (!model) return json({ error: `Unknown model: ${requestedModel}` }, 400);
 
   const queryEmbedding = await embedQuery(question);
   const { data: matches, error: matchError } = await supabase.rpc('match_content_chunks', {
@@ -183,60 +191,71 @@ async function handleAsk(req: Request, supabase: ReturnType<typeof createClient>
   const passages = (matches ?? [])
     .map(
       (m: { source_title: string; source_type: string; content: string }, i: number) =>
-        `[${i + 1}] ${m.source_type === 'chapter' ? 'Chapter' : 'Document'}: ${m.source_title}\n${m.content}`,
+        `[${i + 1}] ${m.source_type === 'chapter' ? 'Chapter' : 'Document'}: ${m.source_title}
+${m.content}`,
     )
-    .join('\n\n---\n\n');
+    .join('
 
-  const digest = config.useDigest ? await buildDigest(supabase, projectId) : '';
+---
 
-  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') });
+');
 
-  // Stable-first ordering, with the cache breakpoint after the parts that do not change
-  // between questions in a session. The passages and the question come after it, because
-  // they change every time and would invalidate everything behind them.
-  const system: Anthropic.TextBlockParam[] = [
-    { type: 'text', text: config.system },
-    ...(digest ? [{ type: 'text' as const, text: `Project overview:\n\n${digest}` }] : []),
-    ...(currentChapter
-      ? [{ type: 'text' as const, text: `The chapter open in the editor:\n\n${currentChapter}` }]
-      : []),
-  ];
-  system[system.length - 1].cache_control = { type: 'ephemeral' };
+  const stableContext: string[] = [];
+  if (config.useDigest) {
+    const digest = await buildDigest(supabase, projectId);
+    if (digest) stableContext.push(`Project overview:
+
+${digest}`);
+  }
+  if (currentChapter) stableContext.push(`The chapter open in the editor:
+
+${currentChapter}`);
+  if (stableContext.length === 0) stableContext.push('No additional project context was supplied.');
 
   const userContent = passages
-    ? `Relevant material from the project:\n\n${passages}\n\n---\n\n${question}`
-    : `${question}\n\n(No indexed material matched this question.)`;
+    ? `Relevant material from the project:
 
-  const stream = anthropic.messages.stream({
-    model: config.model,
-    max_tokens: config.maxTokens,
-    system,
-    ...(config.thinking ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } } : {}),
-    ...(config.effort ? { output_config: { effort: config.effort } } : {}),
-    ...(config.webSearch
-      ? { tools: [{ type: 'web_search_20260209' as const, name: 'web_search', max_uses: 4 }] }
-      : {}),
-    messages: [...(Array.isArray(history) ? history : []), { role: 'user', content: userContent }],
-  });
+${passages}
 
-  const final = await stream.finalMessage();
-  const text = final.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('\n');
+---
 
-  return json({
-    agent: name,
-    text,
-    // Returned so the app can show what the answer was actually based on -- an assistant
-    // that cites its sources is one the writer can check.
-    sources: (matches ?? []).map((m: { source_type: string; source_id: string; source_title: string }) => ({
-      type: m.source_type,
-      id: m.source_id,
-      title: m.source_title,
-    })),
-    usage: final.usage,
-  });
+${question}`
+    : `${question}
+
+(No indexed material matched this question.)`;
+
+  try {
+    const reply = await callModel({
+      model,
+      system: config.system,
+      stableContext,
+      messages: [...(Array.isArray(history) ? history : []), { role: 'user', content: userContent }],
+      maxTokens: config.maxTokens,
+      effort: config.effort,
+      thinking: config.preferThinking,
+      // Web search is a per-agent capability, not a per-model one, and only the Anthropic
+      // dialect exposes it as a server tool here.
+      webSearch: config.tools.includes('web_search') && model.provider === 'anthropic',
+      schema: config.contract === 'findings' ? FINDINGS_SCHEMA : undefined,
+    });
+
+    return json({
+      agent: name,
+      contract: config.contract,
+      model: model.id,
+      text: reply.text,
+      sources: (matches ?? []).map(
+        (m: { source_type: string; source_id: string; source_title: string }) => ({
+          type: m.source_type,
+          id: m.source_id,
+          title: m.source_title,
+        }),
+      ),
+      usage: { input_tokens: reply.inputTokens, output_tokens: reply.outputTokens },
+    });
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : 'The model call failed.' }, 502);
+  }
 }
 
 // Daedalus reasons about the shape of the saga, and top-N passage retrieval cannot show

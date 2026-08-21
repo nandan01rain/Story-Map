@@ -15,8 +15,19 @@ import { supabase } from '../lib/supabase';
 // deliberately gated on the same flag rather than running on every chapter save, because
 // embedding is itself a paid API call -- a toggle that still spends money in the background
 // is not a toggle.
+// Which engine each agent runs on. Per-agent because the two jobs have genuinely different
+// requirements: validation is classification and runs constantly, so cheap is right;
+// judgement is asked a few times a week and is where a stronger model actually shows.
+export type AgentModels = { icarus: string; daedalus: string };
+
+const DEFAULT_MODELS: AgentModels = {
+  icarus: 'claude-haiku-4-5',
+  daedalus: 'claude-opus-5',
+};
+
 type AssistantState = {
   enabled: boolean;
+  models: AgentModels;
   hydrated: boolean;
   indexing: boolean;
   indexProgress: { done: number; total: number } | null;
@@ -24,12 +35,14 @@ type AssistantState = {
 
   hydrate: () => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
+  setAgentModel: (agent: keyof AgentModels, modelId: string) => Promise<void>;
   indexProject: (projectId: string) => Promise<void>;
   indexChapter: (projectId: string, chapterId: string, title: string, content: string) => Promise<void>;
 };
 
 export const useAssistantStore = create<AssistantState>((set, get) => ({
   enabled: false,
+  models: DEFAULT_MODELS,
   hydrated: false,
   indexing: false,
   indexProgress: null,
@@ -37,8 +50,10 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
   hydrate: async () => {
     const { data } = await supabase.auth.getUser();
+    const stored = data?.user?.user_metadata?.assistant_models as Partial<AgentModels> | undefined;
     set({
       enabled: data?.user?.user_metadata?.assistant_enabled === true,
+      models: { ...DEFAULT_MODELS, ...(stored ?? {}) },
       hydrated: true,
     });
   },
@@ -50,6 +65,13 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       // Put it back rather than leaving the UI claiming a state the account does not have.
       set({ enabled: !enabled, lastError: error.message });
     }
+  },
+
+  setAgentModel: async (agent, modelId) => {
+    const next = { ...get().models, [agent]: modelId };
+    set({ models: next, lastError: null });
+    const { error } = await supabase.auth.updateUser({ data: { assistant_models: next } });
+    if (error) set({ lastError: error.message });
   },
 
   // First enable pays to embed the manuscript once. Afterwards only changed chunks cost

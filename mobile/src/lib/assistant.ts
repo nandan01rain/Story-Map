@@ -8,6 +8,9 @@ export type AssistantSource = { type: 'chapter' | 'document'; id: string; title:
 
 export type AssistantReply = {
   agent: AgentName;
+  // 'findings' means text is JSON matching the findings schema; 'prose' is a plain reply.
+  contract?: 'findings' | 'prose';
+  model?: string;
   text: string;
   sources: AssistantSource[];
   usage?: { input_tokens: number; output_tokens: number };
@@ -79,6 +82,7 @@ export async function askAssistant(params: {
   question: string;
   history: ChatTurn[];
   currentChapter?: string;
+  model?: string;
 }): Promise<{ reply: AssistantReply | null; error: string | null }> {
   const { data, error } = await callFunction<AssistantReply>('ask', params);
   return { reply: data, error };
