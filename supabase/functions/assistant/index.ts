@@ -5,8 +5,9 @@
 // from client JS; nothing in the mobile app should repeat it.
 //
 // Two routes:
-//   POST /assistant/index  -- chunk and embed a chapter or document
-//   POST /assistant/ask    -- retrieve, then ask Icarus or Daedalus
+//   POST /assistant/index          -- chunk and embed a chapter or document
+//   POST /assistant/ask            -- retrieve, then ask Icarus or Daedalus
+//   POST /assistant/extract-graph  -- read prose into the character knowledge graph
 //
 // Every request runs as the calling user: their Supabase JWT is forwarded to PostgREST, so
 // row-level security decides what they can read. The function never uses the service role
@@ -17,6 +18,7 @@ import { type Chunk, chunkText, hashChunk } from './chunk.ts';
 import { AGENTS, type AgentName, FINDINGS_SCHEMA } from './agents.ts';
 import { callModel } from './call-model.ts';
 import { findModel } from './models.ts';
+import { handleExtractGraph } from './extract-graph.ts';
 
 const EMBEDDING_MODEL = 'voyage-3.5';
 const EMBEDDING_URL = 'https://api.voyageai.com/v1/embeddings';
@@ -58,6 +60,7 @@ Deno.serve(async (req) => {
   try {
     if (route === 'index') return await handleIndex(req, supabase, userId);
     if (route === 'ask') return await handleAsk(req, supabase);
+    if (route === 'extract-graph') return await handleExtractGraph(req, supabase, userId, json);
     return json({ error: `Unknown route: ${route}` }, 404);
   } catch (e) {
     console.error(e);

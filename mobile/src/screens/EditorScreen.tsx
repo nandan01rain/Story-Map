@@ -147,9 +147,24 @@ export default function EditorScreen({ route, navigation }: Props) {
       saveTimerRef.current = null;
     }
     if (content !== savedContentRef.current || annotations !== savedAnnotationsRef.current) {
-      return persist(content, annotations);
+      return persist(content, annotations).then(runGraphExtraction);
     }
     return Promise.resolve();
+  }
+
+  // Leaving the editor is the first moment a paragraph is plausibly finished, which is why
+  // graph extraction happens here rather than on every autosave. Fire-and-forget: the
+  // writer is already navigating away and should never wait on it.
+  function runGraphExtraction() {
+    if (!chapter) return;
+    useAssistantStore.getState().extractGraph({
+      projectId: chapter.project_id,
+      chapterId,
+      title: chapter.title ?? '',
+      content,
+      book: chapter.book,
+      act: chapter.act,
+    });
   }
 
   useEffect(() => {

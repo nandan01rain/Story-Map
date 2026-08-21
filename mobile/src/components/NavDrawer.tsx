@@ -32,6 +32,7 @@ const DISCOVER: DrawerItem[] = [
   { key: 'mythic', icon: 'compass', label: 'Mythic Threads' },
   { key: 'documents', icon: 'books', label: 'Documents' },
   { key: 'assistant', icon: 'sparkle', label: 'Assistant' },
+  { key: 'character-web', icon: 'link', label: 'Character Web' },
 ];
 
 const MANAGE: DrawerItem[] = [
@@ -69,6 +70,7 @@ export default function NavDrawer({
   onOpenNotes,
   onOpenDocuments,
   onOpenAssistant,
+  onOpenCharacterWeb,
 }: {
   controller: SlidePanelController;
   panelWidth: number;
@@ -81,6 +83,7 @@ export default function NavDrawer({
   onOpenNotes: () => void;
   onOpenDocuments: () => void;
   onOpenAssistant: () => void;
+  onOpenCharacterWeb: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
   const { colors } = useTheme();
@@ -100,6 +103,7 @@ export default function NavDrawer({
     if (item.key === 'search') return { ...item, onPress: onSearch };
     if (item.key === 'documents') return { ...item, onPress: onOpenDocuments };
     if (item.key === 'assistant') return { ...item, onPress: onOpenAssistant };
+    if (item.key === 'character-web') return { ...item, onPress: onOpenCharacterWeb };
     return item;
   });
 

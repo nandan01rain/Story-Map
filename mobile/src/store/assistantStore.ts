@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 
 import { indexSource, indexStatus } from '../lib/assistant';
+import { extractGraphForChapter } from '../lib/characterGraph';
 import { supabase } from '../lib/supabase';
 
 // The assistant's on/off switch, and the indexing it gates.
@@ -38,6 +39,14 @@ type AssistantState = {
   setAgentModel: (agent: keyof AgentModels, modelId: string) => Promise<void>;
   indexProject: (projectId: string) => Promise<void>;
   indexChapter: (projectId: string, chapterId: string, title: string, content: string) => Promise<void>;
+  extractGraph: (params: {
+    projectId: string;
+    chapterId: string;
+    title: string;
+    content: string;
+    book: number;
+    act: number;
+  }) => Promise<void>;
 };
 
 export const useAssistantStore = create<AssistantState>((set, get) => ({
@@ -122,6 +131,18 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       title,
       content,
     });
+    if (error) set({ lastError: error });
+  },
+
+  // DEVIATION (spec §3.1): extraction is NOT hooked to the debounced autosave. Autosave
+  // fires 1.2s after a keystroke, so a paragraph mid-typing changes hash on almost every
+  // save and would be re-extracted continuously -- content hashing prevents wasted
+  // embedding, not wasted model calls. This runs when the writer leaves the editor
+  // instead, which is the first moment a paragraph is plausibly finished. Gated on the
+  // assistant toggle for the same reason indexing is: it is a paid call.
+  extractGraph: async (params) => {
+    if (!get().enabled) return;
+    const { error } = await extractGraphForChapter(params);
     if (error) set({ lastError: error });
   },
 }));

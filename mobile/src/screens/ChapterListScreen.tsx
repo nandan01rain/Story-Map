@@ -111,6 +111,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onOpenNotes={() => navigateFromDrawer(() => navigation.navigate('StickyNotes', { projectId }))}
       onOpenDocuments={() => navigateFromDrawer(() => navigation.navigate('Documents', { projectId }))}
       onOpenAssistant={() => navigateFromDrawer(() => navigation.navigate('Assistant', { projectId }))}
+      onOpenCharacterWeb={() => navigateFromDrawer(() => navigation.navigate('CharacterWeb', { projectId }))}
     />
   );
 

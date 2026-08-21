@@ -11,4 +11,6 @@ export type SignedInStackParamList = {
   Documents: { projectId: string };
   DriveImport: { projectId: string };
   Assistant: { projectId: string; chapterId?: string };
+  CharacterWeb: { projectId: string };
+  GraphReview: { projectId: string };
 };
