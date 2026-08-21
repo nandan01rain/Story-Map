@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { Image, type ImageSourcePropType, StyleSheet, View, useWindowDimensions } from 'react-native';
-import MaskedView from '@react-native-masked-view/masked-view';
 import Animated, {
   Easing,
+  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -10,7 +10,18 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, {
+  Defs,
+  G,
+  Image as SvgImage,
+  LinearGradient,
+  Mask,
+  RadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 import type { TimeOfDay } from '../lib/timeOfDay';
 
@@ -105,25 +116,26 @@ const LANTERNS = [
   { left: 7.2, top: 76.5, delay: 0 },
   { left: 92.0, top: 73.8, delay: 1900 },
 ];
-// Slightly wider than the CSS's 11%: the glow is the only thing carrying the flicker, and
-// a bigger pool of light makes the same swing far easier to actually notice.
-const LANTERN_SIZE_PCT = 13.5;
-// Flame, not a pulse. Every step is a different length AND a different distance, and the
-// two lanterns run the sequence at different speeds, so neither settles into a rhythm the
-// eye can predict -- a smooth symmetrical fade reads as breathing, not burning. The swing
-// is wide (0.22 up to full) because what makes a flicker legible is the gap between dim
-// and bright, not how bright the peak gets.
+// A little wider than the CSS's 11% so the glow reads as a pool of light rather than a
+// dot, but not so wide it stops looking like it comes from the painted lantern.
+const LANTERN_SIZE_PCT = 12.5;
+// A candle, not a strobe. The first attempt at "irregular" swung 0.22-1.0 in steps as
+// short as 70ms, which reads as a fault in the light rather than a flame. A real candle
+// sits at a fairly steady low glow and wanders around it: the band is narrow (0.34-0.58),
+// most steps are long, and only occasionally does a short one nudge it -- that rare quick
+// step is what keeps it from looking mechanical, so it has to be the exception, not the
+// rule. Scale barely moves for the same reason.
 const LANTERN_FLICKER: { opacity: number; scale: number; duration: number }[] = [
-  { opacity: 1.0, scale: 1.06, duration: 90 },
-  { opacity: 0.34, scale: 0.97, duration: 220 },
-  { opacity: 0.82, scale: 1.02, duration: 130 },
-  { opacity: 0.45, scale: 0.99, duration: 70 },
-  { opacity: 0.95, scale: 1.05, duration: 310 },
-  { opacity: 0.22, scale: 0.94, duration: 160 },
-  { opacity: 0.7, scale: 1.01, duration: 95 },
-  { opacity: 0.5, scale: 0.98, duration: 240 },
-  { opacity: 0.9, scale: 1.04, duration: 120 },
-  { opacity: 0.3, scale: 0.96, duration: 180 },
+  { opacity: 0.46, scale: 1.0, duration: 900 },
+  { opacity: 0.54, scale: 1.02, duration: 640 },
+  { opacity: 0.4, scale: 0.99, duration: 1150 },
+  { opacity: 0.5, scale: 1.01, duration: 380 },
+  { opacity: 0.58, scale: 1.03, duration: 820 },
+  { opacity: 0.44, scale: 1.0, duration: 260 },
+  { opacity: 0.52, scale: 1.015, duration: 1030 },
+  { opacity: 0.34, scale: 0.98, duration: 700 },
+  { opacity: 0.48, scale: 1.005, duration: 470 },
+  { opacity: 0.42, scale: 0.995, duration: 1240 },
 ];
 
 // Water. The only layer that actually reads as movement: a broad gradient sliding over the
@@ -266,27 +278,18 @@ function RippleLayer({ ripple, stageW, stageH }: { ripple: (typeof RIPPLES)[numb
     );
   }, [ripple.period, ripple.duration, shift]);
 
-  // The bands only ever need to exist over the bay, so the layer covers that slice of the
-  // artwork rather than the whole stage. That keeps the stop list short (see below), and
-  // it also bounds the damage if MaskedView -- the one piece here still unproven on this
-  // device, and experimental on Android by Expo's own docs -- turns out to pass its
-  // children straight through: the failure would be bands over a rectangle of sea, not
-  // bands over the entire painting.
-  const overhangX = 0.06 * stageW;
+  // The band field overhangs the bay top and bottom so travelling one period never drags a
+  // bare edge into the water.
   const overhangY = 0.03 * stageH;
   const bandsTop = (WATER_TOP_PCT / 100) * stageH - overhangY;
-  const bandsW = stageW + overhangX * 2;
   const bandsH = ((WATER_BOTTOM_PCT - WATER_TOP_PCT) / 100) * stageH + overhangY * 2;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${ripple.tilt}deg` }, { translateY: shift.value }],
-  }));
-
-  // CSS says repeating-linear-gradient; SVG has <Pattern>, which never rendered here, and
-  // react-native-svg has no spreadMethod. So the repeat is written out as stops: one
-  // transparent-peak-transparent triplet per period, down a single gradient. Ordinary
-  // gradient stops are exactly what the lanterns already paint successfully.
+  // The repeat is written out as stops -- one transparent/peak/transparent triplet per
+  // period down a single gradient. CSS would say repeating-linear-gradient; SVG's <Pattern>
+  // never painted on this device and react-native-svg has no spreadMethod, but plain
+  // gradient stops are exactly what the lanterns already paint.
   const gradientId = `band-grad-${ripple.id}`;
+  const maskId = `water-${ripple.id}`;
   const stops = useMemo(() => {
     const out: { offset: number; opacity: number }[] = [];
     const periods = Math.ceil(bandsH / ripple.period);
@@ -300,51 +303,57 @@ function RippleLayer({ ripple, stageW, stageH }: { ripple: (typeof RIPPLES)[numb
     return out;
   }, [bandsH, ripple.period, ripple.peakAt, ripple.peak]);
 
+  const animatedProps = useAnimatedProps(() => ({ y: bandsTop + shift.value }));
+
   return (
     <View style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: stageH }} pointerEvents="none">
-      <MaskedView
-        style={{ width: stageW, height: stageH }}
-        maskElement={
-          <Image source={WATER_MASK} resizeMode="stretch" style={{ width: stageW, height: stageH }} />
-        }
-      >
-        <Animated.View
-          style={[
-            { position: 'absolute', left: -overhangX, top: bandsTop, width: bandsW, height: bandsH },
-            animatedStyle,
-          ]}
-        >
-          <Svg width={bandsW} height={bandsH}>
-            <Defs>
-              <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                {stops.map((stop, i) => (
-                  <Stop
-                    key={i}
-                    offset={stop.offset}
-                    stopColor={ripple.color}
-                    stopOpacity={stop.opacity}
-                  />
-                ))}
-              </LinearGradient>
-            </Defs>
-            <Rect x={0} y={0} width={bandsW} height={bandsH} fill={`url(#${gradientId})`} />
-          </Svg>
-        </Animated.View>
-      </MaskedView>
+      {/* Masked inside the SVG rather than with MaskedView. MaskedView was the last piece
+          here never shown to work on this device (Expo's own docs call its Android support
+          experimental), and it was the remaining suspect once the bands themselves were
+          rebuilt from proven primitives. react-native-svg draws the whole app's icon set,
+          so keeping the mask, the bands and the animation all inside one <Svg> leaves
+          nothing unproven -- and if animating the rect's y turns out not to drive, the
+          bands are at least VISIBLE and static rather than absent, which distinguishes the
+          two failures immediately. */}
+      <Svg width={stageW} height={stageH}>
+        <Defs>
+          <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            {stops.map((stop, i) => (
+              <Stop key={i} offset={stop.offset} stopColor={ripple.color} stopOpacity={stop.opacity} />
+            ))}
+          </LinearGradient>
+          {/* alpha, not luminance: the mask PNG is white throughout and carries the bay
+              shape purely in its alpha channel, which is also how CSS mask-image reads it. */}
+          <Mask id={maskId} maskType="alpha">
+            <SvgImage
+              href={WATER_MASK}
+              x={0}
+              y={0}
+              width={stageW}
+              height={stageH}
+              preserveAspectRatio="none"
+            />
+          </Mask>
+        </Defs>
+        <G mask={`url(#${maskId})`}>
+          <AnimatedRect
+            animatedProps={animatedProps}
+            x={0}
+            width={stageW}
+            height={bandsH}
+            fill={`url(#${gradientId})`}
+          />
+        </G>
+      </Svg>
     </View>
   );
 }
 
-// Warm glows over the painted lantern flames, flickering on uneven timing so they read as
-// flame rather than a smooth pulse. Drawn with SVG (the same primitive the app's whole
-// icon set uses) and composited normally -- see the note at the top about mixBlendMode.
-// Each needs its own gradient id: react-native-svg resolves url(#id) references through a
-// shared registry, so two instances sharing one id collide.
 function Lantern({ lantern, index, stageW, stageH }: { lantern: (typeof LANTERNS)[number]; index: number; stageW: number; stageH: number }) {
   const size = (LANTERN_SIZE_PCT / 100) * stageW;
   const gradientId = `lantern-${index}`;
   // Second lantern burns slower, so the two never line up.
-  const rate = index === 0 ? 1 : 1.37;
+  const rate = index === 0 ? 1 : 1.31;
 
   const flicker = useSharedValue(0.6);
   const scale = useSharedValue(1);
@@ -381,10 +390,10 @@ function Lantern({ lantern, index, stageW, stageH }: { lantern: (typeof LANTERNS
       <Svg width={size} height={size}>
         <Defs>
           <RadialGradient id={gradientId} cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#fff0c4" stopOpacity={1} />
-            <Stop offset="26%" stopColor="#ffcb76" stopOpacity={0.85} />
-            <Stop offset="54%" stopColor="#ffb658" stopOpacity={0.42} />
-            <Stop offset="100%" stopColor="#ff9c3a" stopOpacity={0} />
+            <Stop offset="0%" stopColor="#ffdb9b" stopOpacity={0.9} />
+            <Stop offset="30%" stopColor="#ffbf70" stopOpacity={0.62} />
+            <Stop offset="60%" stopColor="#ffa851" stopOpacity={0.28} />
+            <Stop offset="100%" stopColor="#f0912f" stopOpacity={0} />
           </RadialGradient>
         </Defs>
         <Rect x={0} y={0} width={size} height={size} fill={`url(#${gradientId})`} />

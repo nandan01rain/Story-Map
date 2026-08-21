@@ -4,7 +4,7 @@ import Slider from '@react-native-community/slider';
 import * as Clipboard from 'expo-clipboard';
 import * as NavigationBar from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -57,8 +57,11 @@ const SELECTION_TINT = 'rgba(198,154,58,0.45)';
 // reads as a highlight while text is selected on top of it.
 const HIGHLIGHT_TINT = 'rgba(242,201,76,0.34)';
 const HIGHLIGHT_INK = '#f2c94c';
+const TINT_BLEED = { paddingHorizontal: 5, marginHorizontal: -5, paddingVertical: 2, marginVertical: -2 };
 // Shared empty set for pages outside the current chapter, so they don't each allocate one.
 const EMPTY_TOKENS: Set<number> = new Set();
+// Stable identities so memoized pages aren't re-rendered by a fresh literal each pass.
+const EMPTY_LINE_WORDS: LineWord[][] = [];
 const CAROUSEL_ITEM_RATIO = 0.74;
 const CAROUSEL_GAP = 12;
 // How many pages either side of the current one actually get rendered. Both pagers used
@@ -734,7 +737,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
                     )}
                     <PageProse
                       page={page}
-                      lineWords={windowLineWords.get(`${page.chapterId}-${page.pageInChapter}`) ?? []}
+                      lineWords={windowLineWords.get(`${page.chapterId}-${page.pageInChapter}`) ?? EMPTY_LINE_WORDS}
                       lineHeight={lineHeight}
                       align={prefs.textAlign}
                       proseStyle={proseStyle}
@@ -1083,7 +1086,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
 // drag-selection hit test. Rendering per line is also what makes genuine justification
 // possible -- a justified row distributes its words with space-between, except on the
 // line that ends a paragraph.
-function PageProse({
+const PageProse = memo(function PageProse({
   page,
   lineWords,
   lineHeight,
@@ -1161,7 +1164,7 @@ function PageProse({
       })}
     </View>
   );
-}
+});
 
 function makeStyles(colors: ThemeColors) {
   const chromeBg = withOpacity(colors.bg, 0.94);
@@ -1180,8 +1183,13 @@ function makeStyles(colors: ThemeColors) {
       backgroundColor: colors.bg,
     },
     pageProse: { color: colors.text, fontFamily: FONTS.literary },
-    selected: { backgroundColor: SELECTION_TINT },
-    highlighted: { backgroundColor: HIGHLIGHT_TINT },
+    // Words are laid out individually so drag-selection has a rectangle per word to
+    // hit-test, which means a tinted word paints only as wide as its glyphs and a run of
+    // them comes out striped -- worst under justification, where the gaps are widest.
+    // Padding the tint outward while pulling the same amount back in as margin closes
+    // those gaps without moving a single word.
+    selected: { backgroundColor: SELECTION_TINT, ...TINT_BLEED },
+    highlighted: { backgroundColor: HIGHLIGHT_TINT, ...TINT_BLEED },
     // Always-visible chapter heading, independent of the toggleable chrome. fontFamily is
     // overridden inline to whatever reading font is currently selected so it always
     // matches the prose.

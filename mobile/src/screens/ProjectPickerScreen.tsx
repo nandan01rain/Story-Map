@@ -71,11 +71,6 @@ export default function ProjectPickerScreen({ navigation }: Props) {
     supabase.auth.updateUser({ data: { project_order: items.map((p) => p.id) } });
   }, [items]);
 
-  const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
-    useSortableList({ data: items, itemHeight: ROW_HEIGHT });
-  // This screen mounts before the fetch resolves, so without this every project row draws
-  // on top of the first one -- see useSortablePositions.
-  const listKey = useSortablePositions(items, positions);
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -149,40 +144,17 @@ export default function ProjectPickerScreen({ navigation }: Props) {
         <Text style={styles.empty}>No projects yet — create one below.</Text>
       )}
 
-      <DropProvider key={listKey} ref={dropProviderRef}>
-        <Animated.ScrollView
-          ref={scrollViewRef}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={{ height: contentHeight }}
-          onScrollEndDrag={handleScrollEnd}
-          onMomentumScrollEnd={handleScrollEnd}
-        >
-          {items.map((item, index) => (
-            <SortableItem key={item.id} data={item} {...getItemProps(item, index)} onMove={handleMove} onDrop={handleDrop}>
-              <View style={styles.row}>
-                <SortableItem.Handle style={styles.dragHandle}>
-                  <Text style={styles.dragHandleText}>⠿</Text>
-                </SortableItem.Handle>
-                <Pressable
-                  style={styles.rowMain}
-                  onPress={() => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
-                >
-                  <Text style={styles.rowText}>{item.name}</Text>
-                </Pressable>
-                <View style={styles.rowActions}>
-                  <Pressable onPress={() => openRename(item)} hitSlop={10}>
-                    <Text style={styles.rowActionText}>Rename</Text>
-                  </Pressable>
-                  <Pressable onPress={() => openDelete(item)} hitSlop={10}>
-                    <Text style={[styles.rowActionText, styles.rowActionDanger]}>Delete</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </SortableItem>
-          ))}
-        </Animated.ScrollView>
-      </DropProvider>
+      {items.length > 0 && (
+        <ProjectSortableList
+          items={items}
+          styles={styles}
+          onOpen={(item) => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
+          onRename={openRename}
+          onDelete={openDelete}
+          onMove={handleMove}
+          onDrop={handleDrop}
+        />
+      )}
 
       <View style={styles.newRow}>
         <TextInput
@@ -260,6 +232,75 @@ export default function ProjectPickerScreen({ navigation }: Props) {
         </View>
       </Modal>
     </View>
+  );
+}
+
+
+// The sortable list lives in its own component, mounted only once there are projects to
+// show. That is the whole fix for rows drawing on top of each other on a fresh sign-in:
+// useSortableList seeds its positions map with useSharedValue, which keeps whatever it was
+// given on the FIRST render forever, and each row then reads its offset from that map in a
+// useMemo with empty deps when it mounts. Mounting this while the fetch was still in flight
+// meant the map was {} and every row read 0. Gating the mount on real data means the map is
+// built from that data, the way the library assumes.
+//
+// (ChapterListScreen never hit this: its screen early-returns a spinner while loading, so
+// its own sortable child has always mounted with chapters already in hand.)
+function ProjectSortableList({
+  items,
+  styles,
+  onOpen,
+  onRename,
+  onDelete,
+  onMove,
+  onDrop,
+}: {
+  items: Project[];
+  styles: ReturnType<typeof makeStyles>;
+  onOpen: (project: Project) => void;
+  onRename: (project: Project) => void;
+  onDelete: (project: Project) => void;
+  onMove: (id: string, from: number, to: number) => void;
+  onDrop: () => void;
+}) {
+  const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
+    useSortableList({ data: items, itemHeight: ROW_HEIGHT });
+  // Still needed for the add/remove case: creating or deleting a project changes the set
+  // without remounting this component.
+  const listKey = useSortablePositions(items, positions);
+
+  return (
+    <DropProvider key={listKey} ref={dropProviderRef}>
+      <Animated.ScrollView
+        ref={scrollViewRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ height: contentHeight }}
+        onScrollEndDrag={handleScrollEnd}
+        onMomentumScrollEnd={handleScrollEnd}
+      >
+        {items.map((item, index) => (
+          <SortableItem key={item.id} data={item} {...getItemProps(item, index)} onMove={onMove} onDrop={onDrop}>
+            <View style={styles.row}>
+              <SortableItem.Handle style={styles.dragHandle}>
+                <Text style={styles.dragHandleText}>⠿</Text>
+              </SortableItem.Handle>
+              <Pressable style={styles.rowMain} onPress={() => onOpen(item)}>
+                <Text style={styles.rowText}>{item.name}</Text>
+              </Pressable>
+              <View style={styles.rowActions}>
+                <Pressable onPress={() => onRename(item)} hitSlop={10}>
+                  <Text style={styles.rowActionText}>Rename</Text>
+                </Pressable>
+                <Pressable onPress={() => onDelete(item)} hitSlop={10}>
+                  <Text style={[styles.rowActionText, styles.rowActionDanger]}>Delete</Text>
+                </Pressable>
+              </View>
+            </View>
+          </SortableItem>
+        ))}
+      </Animated.ScrollView>
+    </DropProvider>
   );
 }
 
