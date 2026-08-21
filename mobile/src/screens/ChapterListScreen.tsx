@@ -312,7 +312,7 @@ function BookChapterList({
     useSortableList({ data: items, itemHeight: ITEM_HEIGHT });
   // Same stacked-rows hazard the project list hit: chapters arrive from a fetch after
   // this mounts, and a chapter created later changes the set too.
-  useSortablePositions(items, positions);
+  const listKey = useSortablePositions(items, positions);
 
   // Live act labels: which item starts a new act, given the dragged item's provisional
   // act (previous-neighbor rule, same as handleDrop) while a drag is in progress.
@@ -334,7 +334,7 @@ function BookChapterList({
   }, [items, draggedId]);
 
   return (
-    <DropProvider ref={dropProviderRef}>
+    <DropProvider key={listKey} ref={dropProviderRef}>
       <Animated.ScrollView
         ref={scrollViewRef}
         scrollEnabled={false}

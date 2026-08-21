@@ -75,7 +75,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
     useSortableList({ data: items, itemHeight: ROW_HEIGHT });
   // This screen mounts before the fetch resolves, so without this every project row draws
   // on top of the first one -- see useSortablePositions.
-  useSortablePositions(items, positions);
+  const listKey = useSortablePositions(items, positions);
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -149,7 +149,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
         <Text style={styles.empty}>No projects yet — create one below.</Text>
       )}
 
-      <DropProvider ref={dropProviderRef}>
+      <DropProvider key={listKey} ref={dropProviderRef}>
         <Animated.ScrollView
           ref={scrollViewRef}
           onScroll={handleScroll}
