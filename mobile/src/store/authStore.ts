@@ -13,6 +13,7 @@ type AuthState = {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
 };
 
 export const useAuthStore = create<AuthState>((set) => {
@@ -34,6 +35,12 @@ export const useAuthStore = create<AuthState>((set) => {
     },
     signOut: async () => {
       await supabase.auth.signOut();
+    },
+    // Sends a real Supabase reset email. As in the PWA, there is still no page for that
+    // email's link to land on, so the mail arrives but cannot yet complete the reset.
+    resetPassword: async (email) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      return { error: error?.message ?? null };
     },
   };
 });

@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { Image, type ImageSourcePropType, StyleSheet, View, useWindowDimensions } from 'react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
 import Animated, {
   Easing,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -10,17 +10,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, {
-  Defs,
-  G,
-  Image as SvgImage,
-  LinearGradient,
-  Mask,
-  Pattern,
-  RadialGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
 
 import type { TimeOfDay } from '../lib/timeOfDay';
 
@@ -42,9 +31,11 @@ import type { TimeOfDay } from '../lib/timeOfDay';
 // against the painting. It lives on ViewStyle only, so image layers that need a blend
 // mode are wrapped in a View that carries it.
 //
-// The water ripples are the one layer with no direct RN equivalent -- CSS
-// repeating-linear-gradient plus a mask-image, neither of which RN styles have. They are
-// rebuilt inside react-native-svg instead; see RippleLayer.
+// Nothing here uses react-native-svg. The first cut drew the lantern glows and the water
+// bands with it, and on device both came out invisible while every plain Image/View layer
+// rendered correctly -- an SVG surface inside a mixBlendMode view does not survive
+// compositing on Android. Both are gradients, and RN paints gradients natively now
+// (experimental_backgroundImage), so neither needed SVG in the first place.
 const ART_WIDTH = 853;
 const ART_HEIGHT = 1844;
 
@@ -127,11 +118,9 @@ const LANTERN_SIZE_PCT = 11;
 // visibly bleeds the bands onto the city hillside.
 const WATER_MASK = require('../../assets/env/water-mask.png');
 const RIPPLES = [
-  { id: 'a', color: '#fffceE', peak: 0.3, peakAt: 3, period: 9, duration: 2600, tilt: -1, blend: 'overlay' as const },
-  { id: 'b', color: '#fff6de', peak: 0.34, peakAt: 4, period: 14, duration: 3900, tilt: 1, blend: 'soft-light' as const },
+  { id: 'a', color: '255,252,238', peak: 0.3, peakAt: 3, period: 9, duration: 2600, tilt: -1, blend: 'overlay' as const },
+  { id: 'b', color: '255,246,222', peak: 0.34, peakAt: 4, period: 14, duration: 3900, tilt: 1, blend: 'soft-light' as const },
 ];
-
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 function useAlternatingLoop(duration: number, delay: number) {
   const progress = useSharedValue(0);
@@ -257,62 +246,53 @@ function RippleLayer({ ripple, stageW, stageH }: { ripple: (typeof RIPPLES)[numb
     );
   }, [ripple.period, ripple.duration, shift]);
 
-  // Oversized by the same 4%/108% the PWA uses, so travelling one period never drags an
-  // edge of the band field into frame.
-  const top = -0.04 * stageH;
-  const height = 1.08 * stageH;
-  const animatedProps = useAnimatedProps(() => ({ y: top + shift.value }));
+  // Oversized well past the frame: the layer is rotated a degree off horizontal (below),
+  // and travels one period, so it has to overhang on every side or a bare corner swings
+  // into view.
+  const overhangX = 0.06 * stageW;
+  const overhangY = 0.04 * stageH;
 
-  const maskId = `water-${ripple.id}`;
-  const patternId = `bands-${ripple.id}`;
-  const gradientId = `band-grad-${ripple.id}`;
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${ripple.tilt}deg` }, { translateY: shift.value }],
+  }));
+
+  const bands = {
+    // One tile of the band pattern, repeated -- RN's gradient support parses
+    // linear-gradient but not the repeating- form, and a repeated single tile is exactly
+    // what repeating-linear-gradient means anyway.
+    experimental_backgroundImage:
+      `linear-gradient(180deg, rgba(${ripple.color},0) 0%, ` +
+      `rgba(${ripple.color},${ripple.peak}) ${(ripple.peakAt / ripple.period) * 100}%, ` +
+      `rgba(${ripple.color},0) 100%)`,
+    experimental_backgroundSize: `100% ${ripple.period}px`,
+    experimental_backgroundRepeat: 'repeat',
+  } as const;
 
   return (
     <View
       style={{ position: 'absolute', left: 0, top: 0, width: stageW, height: stageH, mixBlendMode: ripple.blend }}
       pointerEvents="none"
     >
-      <Svg width={stageW} height={stageH}>
-        <Defs>
-          <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2={ripple.period} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={ripple.color} stopOpacity={0} />
-            <Stop offset={ripple.peakAt / ripple.period} stopColor={ripple.color} stopOpacity={ripple.peak} />
-            <Stop offset="1" stopColor={ripple.color} stopOpacity={0} />
-          </LinearGradient>
-          {/* The CSS gradients are at 179deg/181deg rather than a flat 180 -- a 1 degree
-              tilt each way, which is what keeps the two sets from ever running parallel. */}
-          <Pattern
-            id={patternId}
-            x={0}
-            y={0}
-            width={stageW}
-            height={ripple.period}
-            patternUnits="userSpaceOnUse"
-            patternTransform={`rotate(${ripple.tilt})`}
-          >
-            <Rect x={0} y={0} width={stageW} height={ripple.period} fill={`url(#${gradientId})`} />
-          </Pattern>
-          <Mask id={maskId} maskType="alpha">
-            <SvgImage
-              href={WATER_MASK}
-              x={0}
-              y={0}
-              width={stageW}
-              height={stageH}
-              preserveAspectRatio="none"
-            />
-          </Mask>
-        </Defs>
-        <G mask={`url(#${maskId})`}>
-          <AnimatedRect
-            animatedProps={animatedProps}
-            x={0}
-            width={stageW}
-            height={height}
-            fill={`url(#${patternId})`}
-          />
-        </G>
-      </Svg>
+      <MaskedView
+        style={{ width: stageW, height: stageH }}
+        maskElement={
+          <Image source={WATER_MASK} resizeMode="stretch" style={{ width: stageW, height: stageH }} />
+        }
+      >
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              left: -overhangX,
+              top: -overhangY,
+              width: stageW + overhangX * 2,
+              height: stageH + overhangY * 2,
+            },
+            bands,
+            animatedStyle,
+          ]}
+        />
+      </MaskedView>
     </View>
   );
 }
@@ -334,22 +314,15 @@ function Lantern({ lantern, stageW, stageH }: { lantern: (typeof LANTERNS)[numbe
           width: size,
           height: size,
           mixBlendMode: 'screen',
+          borderRadius: size / 2,
+          experimental_backgroundImage:
+            'radial-gradient(circle farthest-side at 50% 50%, ' +
+            'rgba(255,203,118,0.96) 0%, rgba(255,182,88,0.5) 32%, rgba(255,182,88,0) 68%)',
         },
         style,
       ]}
       pointerEvents="none"
-    >
-      <Svg width={size} height={size}>
-        <Defs>
-          <RadialGradient id="lantern" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#ffcb76" stopOpacity={0.96} />
-            <Stop offset="32%" stopColor="#ffb658" stopOpacity={0.5} />
-            <Stop offset="68%" stopColor="#ffb658" stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect x={0} y={0} width={size} height={size} fill="url(#lantern)" />
-      </Svg>
-    </Animated.View>
+    />
   );
 }
 
