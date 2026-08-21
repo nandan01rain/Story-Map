@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import ChapterDrawerScreen from '../screens/ChapterDrawerScreen';
 import ChapterListScreen from '../screens/ChapterListScreen';
 import EditorScreen from '../screens/EditorScreen';
+import AssistantScreen from '../screens/AssistantScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import DriveImportScreen from '../screens/DriveImportScreen';
 import LandingScreen from '../screens/LandingScreen';
@@ -60,6 +61,7 @@ export default function RootNavigator() {
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Documents" component={DocumentsScreen} />
           <Stack.Screen name="DriveImport" component={DriveImportScreen} />
+          <Stack.Screen name="Assistant" component={AssistantScreen} />
           <Stack.Screen name="StickyNotes" component={StickyNotesScreen} options={{ title: '' }} />
           <Stack.Screen name="Search" component={SearchScreen} />
         </Stack.Navigator>

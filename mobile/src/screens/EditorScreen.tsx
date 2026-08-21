@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, BOOKS, chapterNumberInBook, wordCount } from '../lib/storyData';
+import { useAssistantStore } from '../store/assistantStore';
 import { type Annotation, type FlagType, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
 
@@ -116,6 +117,14 @@ export default function EditorScreen({ route, navigation }: Props) {
     savedAnnotationsRef.current = latestAnnotations;
     setStatus(error ? `Not saved: ${error}` : 'Saved.');
     if (!error) setTimeout(() => setStatus((s) => (s === 'Saved.' ? '' : s)), 2000);
+    // Keep the assistant's view of this chapter current. A no-op while the assistant is
+    // off, and even when on it only re-embeds chunks whose text actually changed -- editing
+    // one paragraph costs one embedding, not a whole chapter's worth.
+    if (!error) {
+      useAssistantStore
+        .getState()
+        .indexChapter(chapter.project_id, chapterId, chapter.title ?? '', latestContent);
+    }
   }
 
   function scheduleAutosave(nextContent: string, nextAnnotations: Annotation[]) {

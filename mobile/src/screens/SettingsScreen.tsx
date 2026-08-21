@@ -15,6 +15,7 @@ import {
   useSceneMode,
 } from '../lib/timeOfDay';
 import type { SignedInStackParamList } from '../navigation/types';
+import { useAssistantStore } from '../store/assistantStore';
 import { FONTS, type ThemeColors, type ThemeMode, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Settings'>;
@@ -50,6 +51,14 @@ export default function SettingsScreen({ navigation }: Props) {
   const [brightness, setBrightness] = useState<number | null>(null);
   const scenePreference = useScenePreference();
   const sceneMode = useSceneMode();
+  const assistantEnabled = useAssistantStore((s) => s.enabled);
+  const assistantHydrated = useAssistantStore((s) => s.hydrated);
+  const setAssistantEnabled = useAssistantStore((s) => s.setEnabled);
+  const assistantError = useAssistantStore((s) => s.lastError);
+
+  useEffect(() => {
+    if (!assistantHydrated) useAssistantStore.getState().hydrate();
+  }, [assistantHydrated]);
 
   useEffect(() => {
     navigation.setOptions({ title: 'Settings' });
@@ -112,6 +121,25 @@ export default function SettingsScreen({ navigation }: Props) {
           ? `Following this device's clock — showing ${SCENE_NAMES[sceneMode]} now.`
           : `Pinned to ${SCENE_NAMES[scenePreference]}, whatever the time.`}
       </Text>
+
+      {/* Off by default, and off means nothing is sent and nothing is billed -- including
+          indexing, which is itself a paid call and is gated on this same switch. */}
+      <Text style={styles.sectionLabel}>Writing assistant</Text>
+      <Pressable
+        style={[styles.autoRow, assistantEnabled && styles.autoRowActive]}
+        onPress={() => setAssistantEnabled(!assistantEnabled)}
+      >
+        <Icon name="sparkle" size={18} color={assistantEnabled ? BRIGHTNESS_COLOR : colors.textFaint} />
+        <Text style={[styles.autoLabel, assistantEnabled && styles.autoLabelActive]}>
+          {assistantEnabled ? 'Icarus and Daedalus are on' : 'Icarus and Daedalus are off'}
+        </Text>
+      </Pressable>
+      <Text style={styles.hint}>
+        {assistantEnabled
+          ? 'Your chapters and documents are indexed so the assistants can read them, and questions are answered on demand. Both cost money per use.'
+          : 'While this is off, nothing is sent anywhere, nothing is indexed, and nothing is billed.'}
+      </Text>
+      {!!assistantError && <Text style={styles.assistantError}>{assistantError}</Text>}
 
       <Text style={styles.sectionLabel}>Screen brightness</Text>
       {brightness !== null && (
@@ -251,7 +279,8 @@ function makeStyles(colors: ThemeColors) {
     autoRowActive: { borderColor: BRIGHTNESS_COLOR, backgroundColor: withOpacity(BRIGHTNESS_COLOR, 0.12) },
     autoLabel: { color: colors.textDim, fontFamily: FONTS.bodyMedium, fontSize: 13 },
     autoLabelActive: { color: colors.text },
-    hint: { color: colors.textFaint, fontSize: 11.5, marginTop: 8 },
+    hint: { color: colors.textFaint, fontSize: 11.5, marginTop: 8, lineHeight: 17 },
+    assistantError: { color: '#e0764a', fontSize: 11.5, marginTop: 8 },
     sceneRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     sceneChip: {
       flexDirection: 'row',

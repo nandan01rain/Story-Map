@@ -10,4 +10,5 @@ export type SignedInStackParamList = {
   Search: { projectId: string };
   Documents: { projectId: string };
   DriveImport: { projectId: string };
+  Assistant: { projectId: string; chapterId?: string };
 };
