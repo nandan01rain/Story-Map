@@ -178,6 +178,124 @@ export async function renameCharacter(id: string, label: string): Promise<{ erro
   return { error: error?.message ?? null };
 }
 
+// Manual authoring (spec §4.1). Deliberately independent of the extraction pipeline: the
+// graph must be usable and correctable by hand whether or not anyone is paying for a model,
+// and saga-level relationships that never occur in one identifiable scene have no event to
+// hang off anyway.
+export async function createCharacter(
+  projectId: string,
+  userId: string,
+  label: string,
+  aliases: string[] = [],
+): Promise<{ id: string | null; error: string | null }> {
+  const name = label.trim();
+  if (!name) return { id: null, error: 'A character needs a name.' };
+
+  const { data, error } = await supabase
+    .from('graph_nodes')
+    .insert({
+      user_id: userId,
+      project_id: projectId,
+      node_type: 'character',
+      label: name,
+      properties: { aliases, pov_eligible: false, factions: [] },
+      source: 'manual',
+      needs_review: false,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    // The unique index on (project, lower(label)) is what stops a duplicate; say so plainly
+    // rather than surfacing a constraint name.
+    const duplicate = error.code === '23505';
+    return { id: null, error: duplicate ? `"${name}" already exists in this project.` : error.message };
+  }
+  return { id: data.id, error: null };
+}
+
+export async function createInteraction(params: {
+  projectId: string;
+  userId: string;
+  fromId: string;
+  toId: string;
+  interactionType: string;
+  valence: string;
+  eventId?: string | null;
+}): Promise<{ error: string | null }> {
+  if (params.fromId === params.toId) return { error: 'A character cannot interact with themselves.' };
+
+  const { error } = await supabase.from('graph_edges').insert({
+    user_id: params.userId,
+    project_id: params.projectId,
+    from_node_id: params.fromId,
+    to_node_id: params.toId,
+    edge_type: 'INTERACTS_WITH',
+    event_id: params.eventId ?? null,
+    properties: { interaction_type: params.interactionType, valence: params.valence },
+    source: 'manual',
+    needs_review: false,
+  });
+
+  if (error) {
+    return {
+      error:
+        error.code === '23505'
+          ? 'That relationship is already recorded for this moment.'
+          : error.message,
+    };
+  }
+  return { error: null };
+}
+
+// Soft delete into the existing trash table (spec §4.3) rather than a second mechanism.
+// The whole row goes into the payload, so a restore has everything it needs.
+async function trash(
+  projectId: string,
+  userId: string,
+  type: 'graph_node' | 'graph_edge',
+  payload: unknown,
+): Promise<void> {
+  await supabase.from('trash').insert({
+    user_id: userId,
+    project_id: projectId,
+    type,
+    payload,
+    deleted_at: new Date().toISOString(),
+  });
+}
+
+export async function deleteCharacter(
+  projectId: string,
+  userId: string,
+  id: string,
+): Promise<{ error: string | null }> {
+  const { data: node } = await supabase.from('graph_nodes').select('*').eq('id', id).single();
+  if (!node) return { error: 'That character no longer exists.' };
+
+  // Its edges go too -- the FK cascades them -- so they are trashed alongside, otherwise a
+  // restore would bring back a character with no relationships.
+  const { data: edges } = await supabase
+    .from('graph_edges')
+    .select('*')
+    .or(`from_node_id.eq.${id},to_node_id.eq.${id}`);
+
+  await trash(projectId, userId, 'graph_node', { node, edges: edges ?? [] });
+  const { error } = await supabase.from('graph_nodes').delete().eq('id', id);
+  return { error: error?.message ?? null };
+}
+
+export async function deleteEdge(
+  projectId: string,
+  userId: string,
+  id: string,
+): Promise<{ error: string | null }> {
+  const { data: edge } = await supabase.from('graph_edges').select('*').eq('id', id).single();
+  if (edge) await trash(projectId, userId, 'graph_edge', { edge });
+  const { error } = await supabase.from('graph_edges').delete().eq('id', id);
+  return { error: error?.message ?? null };
+}
+
 // Extraction. Gated on the assistant toggle by the caller, not here -- this module does not
 // know about billing, and the store that owns that flag does.
 export async function extractGraphForChapter(params: {

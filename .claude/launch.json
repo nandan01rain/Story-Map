@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "scratchpad-static",
+      "name": "graph-preview",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8800", "--directory", "C:/Users/NANDAN NAIR/AppData/Local/Temp/claude/E--StoryMap/74899bb0-e041-4c10-99e0-bc408dfbc25e/scratchpad"],
-      "port": 8800
-    },
-    {
-      "name": "storymap",
-      "runtimeExecutable": "C:/Python/python",
-      "runtimeArgs": ["-m", "http.server", "8801", "--directory", "E:/StoryMap"],
-      "port": 8801
+      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "graph"],
+      "port": 4173
     }
   ]
 }
