@@ -36,11 +36,26 @@ export type GraphEvent = {
 /** Character -> event. The progression layer: where someone actually is in the story. */
 export type GraphPresence = { character: string; event: string; isPov: boolean };
 
+/** One interaction, not the aggregate -- what the expanded view reads from. */
+export type GraphInteraction = {
+  id: string;
+  from: string;
+  to: string;
+  type: string | null;
+  valence: string | null;
+  description: string | null;
+  eventId: string | null;
+  eventLabel: string | null;
+  seq: number;
+  needsReview: boolean;
+};
+
 export type GraphData = {
   nodes: GraphNode[];
   links: GraphLink[];
   events: GraphEvent[];
   presence: GraphPresence[];
+  interactions: GraphInteraction[];
 };
 
 export async function fetchCharacterGraph(
@@ -48,7 +63,13 @@ export async function fetchCharacterGraph(
 ): Promise<{ data: GraphData | null; error: string | null }> {
   const { data, error } = await supabase.rpc('character_graph', { p_project_id: projectId });
   if (error) return { data: null, error: error.message };
-  const graph = (data ?? { nodes: [], links: [], events: [], presence: [] }) as GraphData;
+  const graph = (data ?? {
+    nodes: [],
+    links: [],
+    events: [],
+    presence: [],
+    interactions: [],
+  }) as GraphData;
   return { data: graph, error: null };
 }
 

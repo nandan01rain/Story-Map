@@ -16,7 +16,7 @@ export type ImportProgress = { step: string; done: number; total: number };
 export async function importDemoProject(
   userId: string,
   onProgress: (p: ImportProgress) => void,
-): Promise<{ projectId: string | null; projectName: string; error: string | null }> {
+): Promise<{ projectId: string | null; projectName: string; removed?: number; error: string | null }> {
   const fixture = DEMO_FIXTURE;
   const total = fixture.chapters.length + fixture.documents.length + 2;
   let done = 0;
@@ -34,6 +34,15 @@ export async function importDemoProject(
     minute: '2-digit',
   });
   const projectName = `${fixture.projectName} · ${stamp}`;
+
+  // Every reload used to leave another demo project behind. Older ones are removed once the
+  // new one exists, so a failed import never destroys the only working copy -- and only
+  // projects whose name matches the demo's own prefix are touched, never real work.
+  const { data: existingDemos } = await supabase
+    .from('projects')
+    .select('id, name')
+    .eq('user_id', userId)
+    .like('name', `${fixture.projectName}%`);
 
   const { data: project, error: projectError } = await supabase
     .from('projects')
@@ -164,6 +173,11 @@ export async function importDemoProject(
       // Resolved through the alias map, because the prose says "Sunny" where the character
       // record says "Dr. Sunny Joseph".
       pov_character_id: idByKey.get(c.pov.toLowerCase()) ?? null,
+      // What the chapter is for, and what it closes on -- shown when the event is expanded
+      // in Progression.
+      summary: c.summary,
+      ends_on: c.endsOn,
+      pov: c.pov,
     },
     source: 'manual',
     needs_review: false,
@@ -205,7 +219,11 @@ export async function importDemoProject(
         // Null for a relationship that holds across the book; an event for one that happens
         // at an identifiable moment.
         event_id: e.chapter === null ? null : eventByChapter.get(e.chapter) ?? null,
-        properties: { interaction_type: e.interactionType, valence: e.valence },
+        properties: {
+          interaction_type: e.interactionType,
+          valence: e.valence,
+          description: e.description,
+        },
         confidence: e.confidence,
         // The ones the fixture marks uncertain arrive needing review, so the review queue
         // has real work in it rather than being an empty screen.
@@ -268,7 +286,21 @@ export async function importDemoProject(
   }
   tick('Character graph');
 
-  return { projectId: project.id, projectName, error: null };
+  // Deleted last, after everything above has succeeded. Chapters, scenes, documents and
+  // graph rows cascade with the project.
+  const stale = (existingDemos ?? []).filter((row) => row.id !== project.id);
+  let removed = 0;
+  if (stale.length > 0) {
+    const { error: cleanupError } = await supabase
+      .from('projects')
+      .delete()
+      .in('id', stale.map((row) => row.id));
+    // Not fatal: the new demo is already complete, and leaving old copies behind is a
+    // tidiness problem rather than a broken import.
+    if (!cleanupError) removed = stale.length;
+  }
+
+  return { projectId: project.id, projectName, removed, error: null };
 }
 
 export function demoSummary() {

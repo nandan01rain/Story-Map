@@ -98,6 +98,8 @@ const chapters = prose.map((p) => {
       : '',
     // Capped at five: the pack says 3-5 scenes per chapter, and a couple of chapters list
     // more events than that.
+    summary: s ? field(s.body, 'Purpose') : '',
+    endsOn: s ? field(s.body, 'Ends on') : '',
     scenes: events.slice(0, 5).map((summary, i) => ({
       order: i,
       title: summary.length > 60 ? `${summary.slice(0, 57)}…` : summary,
@@ -164,6 +166,34 @@ const characters = graphCharacters.map((raw) => {
   };
 });
 
+
+// The bible states each relationship in a sentence or two under the character who holds
+// it. That is exactly the detail the expanded view needs, so it is read from the source
+// rather than written again here -- if the bible changes, the graph's explanations change
+// with it.
+const relationshipProse = new Map();
+{
+  let owner = null;
+  for (const line of bible.split('\n')) {
+    const head = line.match(/^###? ([A-Z][A-Z .'\u2014-]+?)(?: \u2014 .*)?$/);
+    if (head && !/^HISTORICAL/.test(head[1].trim())) {
+      const label = pretty(head[1].trim());
+      owner = (SHORT_NAMES[label] ?? label).toLowerCase();
+      continue;
+    }
+    const rel = line.match(/^- \*\*(.+?)\*\*\s*\u2014\s*(.+)$/);
+    if (rel && owner) {
+      const target = rel[1].replace(/^The /i, '').trim().toLowerCase();
+      relationshipProse.set(`${owner}|${target}`, rel[2].trim());
+      relationshipProse.set(`${target}|${owner}`, rel[2].trim());
+    }
+  }
+}
+
+function proseFor(a, b) {
+  return relationshipProse.get(`${a}|${b}`) ?? relationshipProse.get(`${b}|${a}`) ?? '';
+}
+
 // Relationships as stated in the bible's own Role/Relationships/Function prose. Curated
 // rather than inferred: the text describes what happens between people but not in a fixed
 // grammar, so classifying it by keyword would invent as much as it read.
@@ -226,14 +256,43 @@ for (const [from, to, , , chapter] of relationships) {
   edgeKeys.add(key);
 }
 
-const graphEdges = relationships.map(([from, to, interactionType, valence, chapter, confidence]) => ({
-  from,
-  to,
-  interactionType,
-  valence,
-  chapter,
-  confidence,
-}));
+// Written only where the bible does not state the relationship itself -- the historical
+// pairs and the moment-specific ones, which the bible describes under Function rather than
+// Relationships.
+const WRITTEN = {
+  'nagavalli|ramanathan': 'Partners for two years before the Karanavar bought her out of the Thanjavur court, and again in secret at Madampalli. Careful, and eventually not careful enough. Ch 0 gives them the book\u2019s only true account of what they were to each other, so every later retelling of the legend reads against it.',
+  'nagavalli|thambi': 'He did not kill her in a rage. Ch 0 is explicit that he arrived having already decided the shape of the evening and simply walked through its stages \u2014 which is what the family legend spends a century and a half softening into something more bearable.',
+  'ramanathan|thambi': 'Killed first, and separately, at the cottage. The order matters: the Karanavar went to him before he went to her, methodically, which is the detail the sanitised family version loses.',
+  'nakulan|thambi': 'No relationship in life \u2014 they are separated by a hundred and fifty years. But Ganga\u2019s alter casts Nakulan as the Karanavar, so he inherits a role he never asked for and cannot argue his way out of.',
+  'mahadevan|ramanathan': 'Mahadevan is the real-world trigger the \u201cRamanathan\u201d projection latches onto. Nothing about him invites it; proximity and the wrong moment are enough.',
+  'ganga|nakulan@13': 'The alter takes over fully and recasts her husband as the man who killed her. The text should read this as tragic rather than symbolic \u2014 she is not really angry at Nakulan, the substrate trauma simply needed a face, and his was the one available.',
+  'ganga|alli@8': 'The \u201cattack\u201d on Alli, which is a dissociative episode misdirected rather than an assault. Alli helped her open the Thekkini in Ch 3 and is repaid by being the nearest body when the episode breaks.',
+  'ganga|mahadevan@6': 'Read by the household as harassment and by Ganga\u2019s alter as recognition. Both readings are wrong, and the family acts on theirs \u2014 which is what puts Mahadevan under suspicion.',
+  'mahadevan|elders@6': 'The elders turn on him quickly and completely, on no evidence, because a culprit is easier to hold than an explanation.',
+  'sunny|namboodiri@12': 'The book\u2019s thesis in one conversation. The Namboodiri never concedes that Sunny is right; he simply builds his ritual around Sunny\u2019s plan and lets both traditions claim the result.',
+  'namboodiri|elders@14': 'His blessing is what lets the family accept the outcome without ever being told the clinical truth. The vessel a truth arrives in matters as much as the truth.',
+  'sunny|sridevi@16': 'He proposes. It should read as earned rather than tacked on \u2014 built across several small scenes of two people doing careful work together while everyone around them reacts.',
+  'sunny|elders': 'They read him as a clown for longer than he minds — informal, irreverent, unbothered by a hierarchy the house runs on. He lets them, because being underestimated makes people drop their guard, and it is the elders whose permission he will eventually need.',
+  'ganga|sunny@10': 'Sunny reaches the correct diagnosis and decides not to say it aloud yet. The hardest part of his arc is not the diagnosis; it is choosing to build the cure inside the family\u2019s belief system rather than against it.',
+};
+
+const graphEdges = relationships.map(([from, to, interactionType, valence, chapter, confidence]) => {
+  const scoped = `${from}|${to}@${chapter}`;
+  const description =
+    WRITTEN[scoped] ?? WRITTEN[`${to}|${from}@${chapter}`] ??
+    WRITTEN[`${from}|${to}`] ?? WRITTEN[`${to}|${from}`] ??
+    proseFor(from, to);
+  return { from, to, interactionType, valence, chapter, confidence, description };
+});
+
+const undescribed = graphEdges.filter((e) => !e.description);
+if (undescribed.length > 0) {
+  // An interaction with nothing behind it expands to an empty panel, which reads as broken
+  // rather than as "not written yet".
+  throw new Error(
+    `Relationships with no explanation: ${undescribed.map((e) => `${e.from}->${e.to}`).join(', ')}`,
+  );
+}
 
 const fixture = {
   projectName: 'The Southern Wing (Demo)',
@@ -260,6 +319,9 @@ export type DemoChapter = {
   pov: string;
   content: string;
   notes: string;
+  /** The chapter's stated purpose, shown when the event is expanded in Progression. */
+  summary: string;
+  endsOn: string;
   scenes: DemoScene[];
 };
 export type DemoDocument = { title: string; type: string; content: string };
@@ -272,6 +334,8 @@ export type DemoGraphEdge = {
   /** Chapter number this happened in, or null for a relationship that holds throughout. */
   chapter: number | null;
   confidence: number | null;
+  /** What actually happens between them, shown when the interaction is expanded. */
+  description: string;
 };
 export type DemoFixture = {
   projectName: string;

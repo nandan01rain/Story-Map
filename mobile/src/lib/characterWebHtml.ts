@@ -14,10 +14,11 @@
 //                  lights their chain of events and every other character standing in
 //                  those same events -- which is the thing a cast list cannot show you.
 //
-// Rendering in 2D by default. The 3D view is genuinely worse on a phone: hit-testing a
-// sphere at portrait width is unreliable (verified -- a click landing two pixels off does
-// nothing at all), and labels have to be billboarded sprites rather than plain canvas text.
-// 3D remains available for the wide-screen case where it reads as depth rather than mush.
+// Rendering in 2D by default, and 2D is the only renderer loaded up front. The 3D view is
+// genuinely worse on a phone -- hit-testing a sphere at portrait width is unreliable
+// (verified: a click landing two pixels off does nothing at all) -- so it is worth neither
+// the default nor the download until someone asks for it. Events are drawn as octahedra
+// there so the diamond reads the same in both dimensions.
 export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 <html>
 <head>
@@ -55,10 +56,20 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   #focus .sub { color: #8d9a97; font-size: 11.5px; margin-bottom: 9px; }
   #focus .legend { display: flex; flex-wrap: wrap; gap: 5px; }
   #focus .legend span { font-size: 10.5px; padding: 2px 7px; border-radius: 9px; background: #1b2321; }
-  #focus ol { margin: 4px 0 0; padding-left: 18px; }
-  #focus li { margin-bottom: 5px; font-size: 12.5px; color: #cfd8d5; }
-  #focus li b { color: #f2c94c; font-weight: 600; }
-  #focus li .with { color: #8d9a97; font-size: 11.5px; display: block; }
+  #focus .item {
+    border-top: 1px solid #1f2725; padding: 9px 0 8px; cursor: pointer;
+  }
+  #focus .item:first-of-type { border-top: none; }
+  #focus .item .head { display: flex; align-items: baseline; gap: 7px; }
+  #focus .item .who { font-size: 13px; color: #e6ecea; font-weight: 600; flex: 1; }
+  #focus .item .who.pov { color: #f2c94c; }
+  #focus .item .kind { font-size: 10px; padding: 2px 7px; border-radius: 9px; background: #1b2321; }
+  #focus .item .caret { color: #6d7774; font-size: 11px; }
+  #focus .item .where { color: #8d9a97; font-size: 11.5px; margin-top: 2px; }
+  #focus .item .detail {
+    display: none; margin-top: 7px; color: #b9c4c1; font-size: 12.5px; line-height: 1.62;
+  }
+  #focus .item.open .detail { display: block; }
 </style>
 </head>
 <body>
@@ -73,12 +84,13 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 </div>
 <div id="focus"></div>
 
+<!-- Only the 2D renderer loads up front. It is the default, needs no three.js, and is a
+     fraction of the weight — which matters on a phone opening this over mobile data.
+     3D and its dependencies are fetched the first time someone asks for them; see load3D. -->
 <script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three-spritetext@1/dist/three-spritetext.min.js"></script>
 <script>
 (function () {
-  var raw = window.__GRAPH__ || { nodes: [], links: [], events: [], presence: [] };
+  var raw = window.__GRAPH__ || { nodes: [], links: [], events: [], presence: [], interactions: [] };
   var mode = 'rel';       // 'rel' | 'prog'
   var dim = '2d';         // '2d' | '3d'
   var graph = null;
@@ -247,19 +259,26 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     var html = '<h3>' + esc(me.label) + '</h3>';
 
     if (mode === 'rel') {
-      var kinds = {};
-      var n = 0;
-      data.links.forEach(function (l) {
-        if (l.layer !== 'rel') return;
-        var e = endpoints(l);
-        if (e[0] !== selectedId && e[1] !== selectedId) return;
-        n++;
-        kinds[l.type || 'other'] = (kinds[l.type || 'other'] || 0) + (l.count || 1);
+      // Every individual interaction, not the aggregate: a pair who fall out in Ch 6 and
+      // reconcile in Ch 12 have two things to say, and one averaged line says neither.
+      var mine = (raw.interactions || []).filter(function (it) {
+        return it.from === selectedId || it.to === selectedId;
       });
-      html += '<div class="sub">' + n + ' relationship' + (n === 1 ? '' : 's') + '</div>';
-      html += '<div class="legend">' + Object.keys(kinds).map(function (k) {
-        return '<span style="color:' + (TYPE_COLOR[k] || TYPE_COLOR.other) + '">' + k + ' ×' + kinds[k] + '</span>';
-      }).join('') + '</div>';
+      html += '<div class="sub">' + mine.length + ' interaction' + (mine.length === 1 ? '' : 's') + '</div>';
+      html += mine.map(function (it, i) {
+        var otherId = it.from === selectedId ? it.to : it.from;
+        var kind = it.type || 'other';
+        return '<div class="item" data-i="' + i + '">' +
+          '<div class="head">' +
+            '<span class="who">' + esc(labelOf(otherId)) + '</span>' +
+            '<span class="kind" style="color:' + (TYPE_COLOR[kind] || TYPE_COLOR.other) + '">' + esc(kind) + '</span>' +
+            '<span class="caret">\u25BE</span>' +
+          '</div>' +
+          (it.eventLabel ? '<div class="where">' + esc(it.eventLabel) + '</div>'
+                         : '<div class="where">Throughout</div>') +
+          '<div class="detail">' + esc(it.description || 'No explanation recorded for this one yet.') + '</div>' +
+        '</div>';
+      }).join('');
     } else {
       // The arc: this character's events in chapter order, each listing who else is there.
       var mine = [];
@@ -274,22 +293,47 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
       mine.sort(function (a, b) { return (a.ev.seq || 0) - (b.ev.seq || 0); });
 
       html += '<div class="sub">' + mine.length + ' event' + (mine.length === 1 ? '' : 's') + ' in their arc</div>';
-      html += '<ol>' + mine.map(function (m) {
+      html += mine.map(function (m, i) {
         var others = [];
         data.links.forEach(function (l) {
           if (l.layer !== 'prog') return;
           var e = endpoints(l);
           if (e[1] === m.ev.id && e[0] !== selectedId) others.push(labelOf(e[0]));
         });
-        return '<li>' + (m.isPov ? '<b>' + esc(m.ev.label) + '</b>' : esc(m.ev.label)) +
-          (m.isPov ? ' <span class="with">their POV</span>' : '') +
-          (others.length ? '<span class="with">with ' + esc(others.join(', ')) + '</span>' : '') +
-          '</li>';
-      }).join('') + '</ol>';
+        var props = eventProps(m.ev.id);
+        var detail = props.summary || '';
+        if (props.ends_on) detail += (detail ? '\n\n' : '') + 'Ends on: ' + props.ends_on;
+        return '<div class="item" data-i="' + i + '">' +
+          '<div class="head">' +
+            '<span class="who' + (m.isPov ? ' pov' : '') + '">' + esc(m.ev.label) + '</span>' +
+            (m.isPov ? '<span class="kind" style="color:#f2c94c">their POV</span>' : '') +
+            '<span class="caret">\u25BE</span>' +
+          '</div>' +
+          (others.length ? '<div class="where">with ' + esc(others.join(', ')) + '</div>' : '') +
+          '<div class="detail">' + esc(detail || 'No summary recorded for this chapter yet.') + '</div>' +
+        '</div>';
+      }).join('');
     }
 
     box.innerHTML = html;
     box.style.display = 'block';
+
+    // One open at a time: these run to a couple of paragraphs, and two of them at once
+    // pushes the graph off the screen entirely.
+    Array.prototype.forEach.call(box.querySelectorAll('.item'), function (el) {
+      el.addEventListener('click', function () {
+        var wasOpen = el.className.indexOf('open') !== -1;
+        Array.prototype.forEach.call(box.querySelectorAll('.item'), function (other) {
+          other.className = 'item';
+        });
+        if (!wasOpen) el.className = 'item open';
+      });
+    });
+  }
+
+  function eventProps(id) {
+    var found = (raw.events || []).filter(function (e) { return e.id === id; })[0];
+    return (found && found.properties) || {};
   }
 
   function post(msg) {
@@ -344,14 +388,32 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
       graph.nodeVal(function (n) { return nodeRadius(n); })
            .linkDirectionalParticleWidth(2.2)
            .linkDirectionalParticleSpeed(0.012);
-      if (window.SpriteText) {
-        graph.nodeThreeObject(function (n) {
+
+      graph.nodeThreeObject(function (n) {
+        var group = window.THREE ? new window.THREE.Group() : null;
+        if (group && n.kind === 'event') {
+          // An octahedron is a diamond in three dimensions, so an event reads as the same
+          // shape whichever view you are in.
+          var mesh = new window.THREE.Mesh(
+            new window.THREE.OctahedronGeometry(nodeRadius(n) * 0.9),
+            new window.THREE.MeshLambertMaterial({
+              color: nodeColor(n), transparent: true, opacity: 0.92
+            })
+          );
+          group.add(mesh);
+        }
+        if (window.SpriteText) {
           var t = new window.SpriteText(n.kind === 'event' ? shorten(n.label, 20) : n.label);
           t.color = nodeColor(n);
           t.textHeight = n.kind === 'event' ? 2.6 : 3.4;
-          return t;
-        }).nodeThreeObjectExtend(true);
-      }
+          t.position.y = -(nodeRadius(n) + 2.5);
+          if (group) group.add(t); else return t;
+        }
+        return group;
+      })
+      // Characters keep the built-in sphere and gain a label; events replace it entirely,
+      // since a diamond inside a sphere is just a sphere.
+      .nodeThreeObjectExtend(function (n) { return n.kind === 'character'; });
     }
     refresh();
   }
@@ -377,10 +439,53 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 
   document.getElementById('mode-rel').addEventListener('click', function () { setMode('rel'); });
   document.getElementById('mode-prog').addEventListener('click', function () { setMode('prog'); });
+  // three.js has shipped ESM-only since r160, so there is no UMD build to drop in a script
+  // tag -- and 3d-force-graph needs a NEWER three than the last UMD release (it calls
+  // THREE.Timer, which r160 does not have), so pinning backwards is not an escape either.
+  // The module is imported dynamically and published as the global the two UMD libraries
+  // below expect, which is the only combination where all three agree.
+  var threeLoading = null;
+  function load3D() {
+    if (threeLoading) return threeLoading;
+    threeLoading = import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js')
+      .then(function (mod) {
+        window.THREE = mod;
+        return script('https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js');
+      })
+      .then(function () {
+        return script('https://cdn.jsdelivr.net/npm/three-spritetext@1/dist/three-spritetext.min.js');
+      });
+    return threeLoading;
+  }
+
+  function script(src) {
+    return new Promise(function (resolve, reject) {
+      var el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = reject;
+      document.head.appendChild(el);
+    });
+  }
+
   document.getElementById('toggle-dim').addEventListener('click', function () {
-    dim = dim === '2d' ? '3d' : '2d';
-    document.getElementById('toggle-dim').textContent = dim === '2d' ? '3D' : '2D';
-    render();
+    var btn = document.getElementById('toggle-dim');
+    if (dim === '2d') {
+      btn.textContent = 'Loading…';
+      load3D().then(function () {
+        dim = '3d';
+        btn.textContent = '2D';
+        render();
+      }).catch(function () {
+        btn.textContent = '3D';
+        // Staying in 2D is a perfectly good outcome; the graph is still fully usable.
+        document.getElementById('count').textContent = '3D unavailable offline';
+      });
+    } else {
+      dim = '2d';
+      btn.textContent = '3D';
+      render();
+    }
   });
 
   function receive(e) {
