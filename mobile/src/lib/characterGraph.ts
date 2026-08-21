@@ -24,16 +24,31 @@ export type GraphLink = {
   needsReview: boolean;
 };
 
-export type GraphEvent = { id: string; label: string; properties: Record<string, unknown> };
+export type GraphEvent = {
+  id: string;
+  label: string;
+  properties: Record<string, unknown>;
+  participants: number;
+  /** Chapter order, so a progression reads as a sequence. */
+  seq: number;
+};
 
-export type GraphData = { nodes: GraphNode[]; links: GraphLink[]; events: GraphEvent[] };
+/** Character -> event. The progression layer: where someone actually is in the story. */
+export type GraphPresence = { character: string; event: string; isPov: boolean };
+
+export type GraphData = {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  events: GraphEvent[];
+  presence: GraphPresence[];
+};
 
 export async function fetchCharacterGraph(
   projectId: string,
 ): Promise<{ data: GraphData | null; error: string | null }> {
   const { data, error } = await supabase.rpc('character_graph', { p_project_id: projectId });
   if (error) return { data: null, error: error.message };
-  const graph = (data ?? { nodes: [], links: [], events: [] }) as GraphData;
+  const graph = (data ?? { nodes: [], links: [], events: [], presence: [] }) as GraphData;
   return { data: graph, error: null };
 }
 

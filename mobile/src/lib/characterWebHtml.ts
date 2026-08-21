@@ -1,15 +1,23 @@
-// The character web itself: one self-contained document, rendered by 3d-force-graph.
+// The character web: one self-contained document, rendered by force-graph.
 //
 // Kept as a string rather than a bundled .html asset because React Native cannot require
 // HTML, and because this is the canonical copy -- the PWA should serve this same markup
 // rather than growing a second implementation (spec §6). Data arrives by postMessage on
 // mobile and can be assigned to window.__GRAPH__ directly when embedded elsewhere.
 //
-// DEVIATION (spec §9.5, WebView performance): the renderer starts in 3D but falls back to
-// 2D automatically when the graph is dense enough that a mid-range phone would struggle,
-// and the reader can switch modes by hand at any time. The spec asks not to pre-optimise,
-// and this does not -- 3D remains the default and the full experience. It only avoids the
-// one outcome the spec names as worse than 2D: a laggy 3D graph.
+// Two layers, switched rather than merged:
+//
+//   RELATIONSHIPS  character <-> character. Who knows whom, coloured by what passes
+//                  between them.
+//   PROGRESSION    character -> event. Where a character actually is in the story, in
+//                  chapter order, and who else is in the room. Selecting a character here
+//                  lights their chain of events and every other character standing in
+//                  those same events -- which is the thing a cast list cannot show you.
+//
+// Rendering in 2D by default. The 3D view is genuinely worse on a phone: hit-testing a
+// sphere at portrait width is unreliable (verified -- a click landing two pixels off does
+// nothing at all), and labels have to be billboarded sprites rather than plain canvas text.
+// 3D remains available for the wide-screen case where it reads as depth rather than mush.
 export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 <html>
 <head>
@@ -25,208 +33,364 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     font: 14px/1.6 -apple-system, system-ui, sans-serif;
   }
   #hud {
-    position: absolute; left: 12px; top: 12px; right: 12px;
-    display: flex; gap: 8px; align-items: flex-start; pointer-events: none;
+    position: absolute; left: 10px; top: 10px; right: 10px;
+    display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none;
   }
   .chip {
     pointer-events: auto;
-    background: rgba(15,20,19,0.82); border: 1px solid #2c3634; color: #d8e0de;
-    border-radius: 14px; padding: 6px 11px;
-    font: 11px/1 -apple-system, system-ui, sans-serif; letter-spacing: .03em;
+    background: rgba(15,20,19,0.88); border: 1px solid #2c3634; color: #cfd8d5;
+    border-radius: 13px; padding: 5px 10px;
+    font: 11px/1 -apple-system, system-ui, sans-serif; letter-spacing: .02em;
   }
-  .chip:active { background: rgba(198,154,58,0.24); }
+  .chip.on { border-color: #c69a3a; color: #f2c94c; background: rgba(198,154,58,0.18); }
+  .chip.mute { color: #7c8784; }
   #focus {
-    position: absolute; left: 12px; right: 12px; bottom: 12px;
-    background: rgba(15,20,19,0.9); border: 1px solid #2c3634; border-radius: 8px;
-    padding: 12px 14px; color: #e6ecea; display: none;
+    position: absolute; left: 10px; right: 10px; bottom: 10px;
+    max-height: 42vh; overflow-y: auto;
+    background: rgba(13,17,16,0.95); border: 1px solid #2c3634; border-radius: 9px;
+    padding: 13px 15px; color: #e6ecea; display: none;
     font: 13px/1.5 -apple-system, system-ui, sans-serif;
   }
-  #focus h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
-  #focus .row { color: #96a3a0; font-size: 12px; }
-  #focus .legend { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
-  #focus .legend span { font-size: 10.5px; padding: 2px 7px; border-radius: 10px; background: #1b2321; }
+  #focus h3 { margin: 0 0 3px; font-size: 16px; font-weight: 600; }
+  #focus .sub { color: #8d9a97; font-size: 11.5px; margin-bottom: 9px; }
+  #focus .legend { display: flex; flex-wrap: wrap; gap: 5px; }
+  #focus .legend span { font-size: 10.5px; padding: 2px 7px; border-radius: 9px; background: #1b2321; }
+  #focus ol { margin: 4px 0 0; padding-left: 18px; }
+  #focus li { margin-bottom: 5px; font-size: 12.5px; color: #cfd8d5; }
+  #focus li b { color: #f2c94c; font-weight: 600; }
+  #focus li .with { color: #8d9a97; font-size: 11.5px; display: block; }
 </style>
 </head>
 <body>
 <div id="graph"></div>
-<div id="empty">No character interactions extracted yet.<br>Write, or run an extraction pass, and they will appear here.</div>
+<div id="empty">No characters yet.<br>Add them by hand, or let extraction read them out of your prose.</div>
 <div id="error">Could not load the graph renderer.<br>This view needs a network connection the first time.</div>
 <div id="hud">
-  <div class="chip" id="toggle-dim">2D</div>
-  <div class="chip" id="reset">Reset</div>
-  <div class="chip" id="count"></div>
+  <div class="chip on" id="mode-rel">Relationships</div>
+  <div class="chip" id="mode-prog">Progression</div>
+  <div class="chip" id="toggle-dim">3D</div>
+  <div class="chip mute" id="count"></div>
 </div>
 <div id="focus"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three-spritetext@1/dist/three-spritetext.min.js"></script>
 <script>
 (function () {
-  var data = window.__GRAPH__ || { nodes: [], links: [] };
-  var mode = '3d';
+  var raw = window.__GRAPH__ || { nodes: [], links: [], events: [], presence: [] };
+  var mode = 'rel';       // 'rel' | 'prog'
+  var dim = '2d';         // '2d' | '3d'
   var graph = null;
-  var selected = null;
+  var selectedId = null;
+  var data = { nodes: [], links: [] };
 
-  // Fixed palette so a colour means the same thing every session (spec §5.2).
   var TYPE_COLOR = {
-    confrontation: '#e0764a',
-    alliance:      '#6fae74',
-    betrayal:      '#c0504d',
-    mentorship:    '#5b9bd5',
-    romantic:      '#c47ab5',
-    other:         '#8d9a97'
+    confrontation: '#e0764a', alliance: '#6fae74', betrayal: '#c0504d',
+    mentorship: '#5b9bd5', romantic: '#c47ab5', other: '#8d9a97'
   };
-  var DIM = 'rgba(120,132,129,0.10)';
+  var EVENT_COLOR = '#7f8fa0';
+  var PROG_COLOR = '#c69a3a';
+  var GHOST = 'rgba(120,132,129,0.07)';
+  var GHOST_NODE = 'rgba(120,132,129,0.16)';
 
-  function neighbours(id) {
-    var set = { nodes: {}, links: {} };
-    set.nodes[id] = true;
-    data.links.forEach(function (l, i) {
-      var s = typeof l.source === 'object' ? l.source.id : l.source;
-      var t = typeof l.target === 'object' ? l.target.id : l.target;
-      if (s === id || t === id) { set.links[i] = true; set.nodes[s] = true; set.nodes[t] = true; }
+  function build() {
+    // One node set covering both layers, so switching modes never rebuilds the simulation
+    // and the layout stays put under the reader.
+    var nodes = raw.nodes.map(function (n) {
+      return { id: n.id, label: n.label, kind: 'character', degree: n.degree || 0, needsReview: n.needsReview };
     });
-    return set;
+    (raw.events || []).forEach(function (ev) {
+      nodes.push({
+        id: ev.id, label: ev.label, kind: 'event',
+        seq: ev.seq, participants: ev.participants || 0
+      });
+    });
+
+    var links = (raw.links || []).map(function (l) {
+      return { source: l.source, target: l.target, layer: 'rel', type: l.type || 'other', count: l.count || 1 };
+    });
+    (raw.presence || []).forEach(function (p) {
+      links.push({ source: p.character, target: p.event, layer: 'prog', isPov: p.isPov });
+    });
+
+    data = { nodes: nodes, links: links };
   }
+
+  function endpoints(l) {
+    return [
+      typeof l.source === 'object' ? l.source.id : l.source,
+      typeof l.target === 'object' ? l.target.id : l.target
+    ];
+  }
+
+  // What the current selection lights up. In relationships that is the character's direct
+  // partners; in progression it is their events plus everyone else standing in them, which
+  // is what makes a shared event legible as shared.
+  function activeSet() {
+    if (!selectedId) return null;
+    var nodes = {}, links = {};
+    nodes[selectedId] = true;
+    data.links.forEach(function (l, i) {
+      if (l.layer !== mode) return;
+      var e = endpoints(l);
+      if (e[0] === selectedId || e[1] === selectedId) {
+        links[i] = true; nodes[e[0]] = true; nodes[e[1]] = true;
+      }
+    });
+    if (mode === 'prog') {
+      // Second hop, deliberately and only here: the point of a progression is who ELSE is
+      // in these events. Relationships stays strictly one-hop.
+      data.links.forEach(function (l, i) {
+        if (l.layer !== 'prog') return;
+        var e = endpoints(l);
+        if (nodes[e[1]] && !nodes[e[0]]) { links[i] = true; nodes[e[0]] = true; }
+      });
+    }
+    return { nodes: nodes, links: links };
+  }
+
+  var active = null;
+
+  function visibleLink(l) { return l.layer === mode; }
 
   function nodeColor(n) {
-    if (!selected) return n.needsReview ? '#c69a3a' : '#cfd8d5';
-    return selected.nodes[n.id] ? (n.id === selected.id ? '#f2c94c' : '#cfd8d5') : DIM;
+    var base = n.kind === 'event' ? EVENT_COLOR : (n.needsReview ? '#c69a3a' : '#cfd8d5');
+    if (!active) return base;
+    if (n.id === selectedId) return '#f2c94c';
+    return active.nodes[n.id] ? base : GHOST_NODE;
   }
 
-  function linkColor(l, i) {
-    var base = TYPE_COLOR[l.type] || TYPE_COLOR.other;
-    if (!selected) return base;
-    return selected.links[i] ? base : DIM;
+  function linkColor(l) {
+    if (!visibleLink(l)) return 'rgba(0,0,0,0)';
+    var base = l.layer === 'prog' ? PROG_COLOR : (TYPE_COLOR[l.type] || TYPE_COLOR.other);
+    if (!active) return l.layer === 'prog' ? 'rgba(198,154,58,0.35)' : base;
+    var i = data.links.indexOf(l);
+    return active.links[i] ? base : GHOST;
   }
 
-  function showFocus(n) {
-    var box = document.getElementById('focus');
-    if (!n) { box.style.display = 'none'; return; }
-    var partners = data.links.filter(function (l) {
-      var s = typeof l.source === 'object' ? l.source.id : l.source;
-      var t = typeof l.target === 'object' ? l.target.id : l.target;
-      return s === n.id || t === n.id;
+  function linkWidth(l) {
+    if (!visibleLink(l)) return 0;
+    var i = data.links.indexOf(l);
+    if (active) return active.links[i] ? 2.6 : 0.3;
+    return l.layer === 'prog' ? 0.7 : Math.min(4, 0.7 + (l.count || 1) * 0.45);
+  }
+
+  function nodeRadius(n) {
+    return n.kind === 'event' ? 3.2 + Math.min(3, (n.participants || 0) * 0.5) : 4 + Math.min(7, (n.degree || 0) * 0.7);
+  }
+
+  // Labels are drawn, not hovered. A graph of unlabelled dots cannot be navigated -- you
+  // cannot decide what to tap. Event labels appear only when the graph is small enough or
+  // the event is in the current selection, because seventeen chapter titles at once is
+  // noise.
+  function drawNode(n, ctx, scale) {
+    var r = nodeRadius(n);
+    ctx.beginPath();
+    if (n.kind === 'event') {
+      ctx.save();
+      ctx.translate(n.x, n.y);
+      ctx.rotate(Math.PI / 4);
+      ctx.rect(-r, -r, r * 2, r * 2);
+      ctx.restore();
+    } else {
+      ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+    }
+    ctx.fillStyle = nodeColor(n);
+    ctx.fill();
+    if (n.id === selectedId) {
+      ctx.lineWidth = 1.6 / scale;
+      ctx.strokeStyle = '#f2c94c';
+      ctx.stroke();
+    }
+
+    var showLabel =
+      n.kind === 'character' ||
+      (active && active.nodes[n.id]) ||
+      data.nodes.filter(function (x) { return x.kind === 'event'; }).length <= 8;
+    if (!showLabel) return;
+
+    var size = Math.max(3.5, 11 / scale);
+    ctx.font = size + 'px -apple-system, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    var faded = active && !active.nodes[n.id];
+    ctx.fillStyle = faded ? 'rgba(160,172,169,0.25)'
+      : (n.kind === 'event' ? '#9fb0bd' : '#e6ecea');
+    var text = n.kind === 'event' ? shorten(n.label, 22) : n.label;
+    ctx.fillText(text, n.x, n.y + r + 1.5);
+  }
+
+  function shorten(s, n) {
+    s = String(s || '');
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[<>&]/g, function (c) {
+      return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c];
     });
-    var kinds = {};
-    partners.forEach(function (l) { kinds[l.type || 'other'] = (kinds[l.type || 'other'] || 0) + (l.count || 1); });
-    box.innerHTML =
-      '<h3>' + esc(n.label) + '</h3>' +
-      '<div class="row">' + partners.length + ' connection' + (partners.length === 1 ? '' : 's') +
-      ' · ' + (n.degree || 0) + ' edges total</div>' +
-      '<div class="legend">' + Object.keys(kinds).map(function (k) {
+  }
+
+  function labelOf(id) {
+    for (var i = 0; i < data.nodes.length; i++) if (data.nodes[i].id === id) return data.nodes[i].label;
+    return '?';
+  }
+
+  function showFocus() {
+    var box = document.getElementById('focus');
+    if (!selectedId) { box.style.display = 'none'; return; }
+    var me = null;
+    data.nodes.forEach(function (n) { if (n.id === selectedId) me = n; });
+    if (!me) { box.style.display = 'none'; return; }
+
+    var html = '<h3>' + esc(me.label) + '</h3>';
+
+    if (mode === 'rel') {
+      var kinds = {};
+      var n = 0;
+      data.links.forEach(function (l) {
+        if (l.layer !== 'rel') return;
+        var e = endpoints(l);
+        if (e[0] !== selectedId && e[1] !== selectedId) return;
+        n++;
+        kinds[l.type || 'other'] = (kinds[l.type || 'other'] || 0) + (l.count || 1);
+      });
+      html += '<div class="sub">' + n + ' relationship' + (n === 1 ? '' : 's') + '</div>';
+      html += '<div class="legend">' + Object.keys(kinds).map(function (k) {
         return '<span style="color:' + (TYPE_COLOR[k] || TYPE_COLOR.other) + '">' + k + ' ×' + kinds[k] + '</span>';
       }).join('') + '</div>';
-    box.style.display = 'block';
-    post({ type: 'select', id: n.id, label: n.label });
-  }
+    } else {
+      // The arc: this character's events in chapter order, each listing who else is there.
+      var mine = [];
+      data.links.forEach(function (l) {
+        if (l.layer !== 'prog') return;
+        var e = endpoints(l);
+        if (e[0] !== selectedId) return;
+        var ev = null;
+        data.nodes.forEach(function (x) { if (x.id === e[1]) ev = x; });
+        if (ev) mine.push({ ev: ev, isPov: l.isPov });
+      });
+      mine.sort(function (a, b) { return (a.ev.seq || 0) - (b.ev.seq || 0); });
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[<>&]/g, function (c) {
-    return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c];
-  }); }
+      html += '<div class="sub">' + mine.length + ' event' + (mine.length === 1 ? '' : 's') + ' in their arc</div>';
+      html += '<ol>' + mine.map(function (m) {
+        var others = [];
+        data.links.forEach(function (l) {
+          if (l.layer !== 'prog') return;
+          var e = endpoints(l);
+          if (e[1] === m.ev.id && e[0] !== selectedId) others.push(labelOf(e[0]));
+        });
+        return '<li>' + (m.isPov ? '<b>' + esc(m.ev.label) + '</b>' : esc(m.ev.label)) +
+          (m.isPov ? ' <span class="with">their POV</span>' : '') +
+          (others.length ? '<span class="with">with ' + esc(others.join(', ')) + '</span>' : '') +
+          '</li>';
+      }).join('') + '</ol>';
+    }
+
+    box.innerHTML = html;
+    box.style.display = 'block';
+  }
 
   function post(msg) {
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(msg));
   }
 
-  function build() {
+  function select(id) {
+    selectedId = id;
+    active = activeSet();
+    refresh();
+    showFocus();
+    post({ type: 'select', id: id, label: id ? labelOf(id) : null });
+  }
+
+  function refresh() {
+    if (!graph) return;
+    graph.nodeColor(nodeColor).linkColor(linkColor).linkWidth(linkWidth);
+    if (dim === '3d' && graph.linkDirectionalParticles) {
+      graph.linkDirectionalParticles(function (l) {
+        if (!active || !visibleLink(l)) return 0;
+        return active.links[data.links.indexOf(l)] ? 3 : 0;
+      });
+    }
+  }
+
+  function render() {
     var el = document.getElementById('graph');
     el.innerHTML = '';
-    var factory = mode === '3d' ? window.ForceGraph3D : window.ForceGraph;
+    var factory = dim === '3d' ? window.ForceGraph3D : window.ForceGraph;
     if (!factory) { document.getElementById('error').style.display = 'flex'; return; }
 
     graph = factory()(el)
       .graphData(data)
       .backgroundColor('#0d1110')
       .nodeLabel('label')
-      .nodeVal(function (n) { return 1 + (n.degree || 0); })
       .nodeColor(nodeColor)
       .linkColor(linkColor)
-      .linkWidth(function (l) { return selected ? (isSel(l) ? 2.4 : 0.4) : Math.min(4, 0.6 + (l.count || 1) * 0.4); })
-      .onNodeClick(function (n) {
-        selected = neighbours(n.id);
-        selected.id = n.id;
-        refresh();
-        showFocus(n);
-        if (mode === '3d' && graph.cameraPosition) {
-          var d = 120;
-          var r = Math.hypot(n.x || 0, n.y || 0, n.z || 0) || 1;
-          graph.cameraPosition(
-            { x: (n.x || 0) * (1 + d / r), y: (n.y || 0) * (1 + d / r), z: (n.z || 0) * (1 + d / r) },
-            n, 900
-          );
-        }
-      })
-      .onBackgroundClick(reset);
+      .linkWidth(linkWidth)
+      .onNodeClick(function (n) { select(n.id === selectedId ? null : n.id); })
+      .onBackgroundClick(function () { select(null); });
 
-    if (mode === '3d') {
-      // Directional particles carry the "firing" read the spec asks for, and only on the
-      // highlighted edges so an unfiltered graph stays calm.
-      graph.linkDirectionalParticles(function (l) { return selected && isSel(l) ? 3 : 0; })
+    if (dim === '2d') {
+      graph.nodeCanvasObject(drawNode)
+           .nodePointerAreaPaint(function (n, color, ctx) {
+             // A generous hit area: the drawn dot is small, and a finger is not.
+             ctx.fillStyle = color;
+             ctx.beginPath();
+             ctx.arc(n.x, n.y, nodeRadius(n) + 5, 0, 2 * Math.PI);
+             ctx.fill();
+           });
+    } else {
+      graph.nodeVal(function (n) { return nodeRadius(n); })
            .linkDirectionalParticleWidth(2.2)
            .linkDirectionalParticleSpeed(0.012);
+      if (window.SpriteText) {
+        graph.nodeThreeObject(function (n) {
+          var t = new window.SpriteText(n.kind === 'event' ? shorten(n.label, 20) : n.label);
+          t.color = nodeColor(n);
+          t.textHeight = n.kind === 'event' ? 2.6 : 3.4;
+          return t;
+        }).nodeThreeObjectExtend(true);
+      }
     }
-
-    document.getElementById('toggle-dim').textContent = mode === '3d' ? '2D' : '3D';
-  }
-
-  function isSel(l) {
-    if (!selected) return false;
-    var i = data.links.indexOf(l);
-    return selected.links[i];
-  }
-
-  function refresh() {
-    if (!graph) return;
-    graph.nodeColor(nodeColor).linkColor(linkColor)
-         .linkWidth(function (l) { return selected ? (isSel(l) ? 2.4 : 0.4) : Math.min(4, 0.6 + (l.count || 1) * 0.4); });
-    if (mode === '3d' && graph.linkDirectionalParticles) {
-      graph.linkDirectionalParticles(function (l) { return selected && isSel(l) ? 3 : 0; });
-    }
-  }
-
-  function reset() {
-    selected = null;
     refresh();
-    showFocus(null);
-    post({ type: 'select', id: null });
   }
 
   function start() {
-    document.getElementById('count').textContent =
-      data.nodes.length + ' characters · ' + data.links.length + ' links';
-
-    if (data.nodes.length === 0) {
-      document.getElementById('empty').style.display = 'flex';
-      return;
-    }
-    // Density check, not a device check: past this size a phone GPU spends more time on
-    // the 3D scene than the reader gains from it.
-    if (data.nodes.length > 90 || data.links.length > 260) mode = '2d';
     build();
+    var characters = data.nodes.filter(function (n) { return n.kind === 'character'; }).length;
+    var events = data.nodes.filter(function (n) { return n.kind === 'event'; }).length;
+    document.getElementById('count').textContent = characters + ' cast · ' + events + ' events';
+    document.getElementById('empty').style.display = characters === 0 ? 'flex' : 'none';
+    if (characters === 0) return;
+    render();
   }
 
-  document.getElementById('toggle-dim').addEventListener('click', function () {
-    mode = mode === '3d' ? '2d' : '3d';
-    selected = null;
-    showFocus(null);
-    build();
-  });
-  document.getElementById('reset').addEventListener('click', reset);
+  function setMode(next) {
+    mode = next;
+    document.getElementById('mode-rel').className = 'chip' + (mode === 'rel' ? ' on' : '');
+    document.getElementById('mode-prog').className = 'chip' + (mode === 'prog' ? ' on' : '');
+    active = activeSet();
+    refresh();
+    showFocus();
+  }
 
-  // Data can arrive after load (mobile posts it in).
-  window.addEventListener('message', function (e) {
+  document.getElementById('mode-rel').addEventListener('click', function () { setMode('rel'); });
+  document.getElementById('mode-prog').addEventListener('click', function () { setMode('prog'); });
+  document.getElementById('toggle-dim').addEventListener('click', function () {
+    dim = dim === '2d' ? '3d' : '2d';
+    document.getElementById('toggle-dim').textContent = dim === '2d' ? '3D' : '2D';
+    render();
+  });
+
+  function receive(e) {
     try {
       var msg = JSON.parse(e.data);
-      if (msg.type === 'data') { data = msg.payload; selected = null; showFocus(null); start(); }
+      if (msg.type === 'data') { raw = msg.payload; selectedId = null; active = null; showFocus(); start(); }
     } catch (err) {}
-  });
-  document.addEventListener('message', function (e) {
-    try {
-      var msg = JSON.parse(e.data);
-      if (msg.type === 'data') { data = msg.payload; selected = null; showFocus(null); start(); }
-    } catch (err) {}
-  });
+  }
+  window.addEventListener('message', receive);
+  document.addEventListener('message', receive);
 
   if (window.__GRAPH__) start(); else post({ type: 'ready' });
 })();

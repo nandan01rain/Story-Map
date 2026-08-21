@@ -158,7 +158,12 @@ export async function importDemoProject(
       scene_id: null,
       book: 0,
       act: c.act,
-      pov_character_id: null,
+      // Chapter number, so a character's progression sorts into story order rather than
+      // whatever order the rows came back in.
+      order: c.number,
+      // Resolved through the alias map, because the prose says "Sunny" where the character
+      // record says "Dr. Sunny Joseph".
+      pov_character_id: idByKey.get(c.pov.toLowerCase()) ?? null,
     },
     source: 'manual',
     needs_review: false,
@@ -214,6 +219,51 @@ export async function importDemoProject(
     const { error: edgeError } = await supabase.from('graph_edges').insert(edgeRows);
     if (edgeError) {
       return { projectId: project.id, projectName, error: `Relationships: ${edgeError.message}` };
+    }
+  }
+
+  // PRESENT_AT: who appears in which chapter. This is the progression layer — without it a
+  // character has relationships but no arc, and the web can only answer "who knows whom".
+  //
+  // Derived rather than authored: a character is present in a chapter if they hold its POV,
+  // or if one of their relationships is scoped to it. That understates the truth (people
+  // appear in scenes they neither narrate nor interact in) but never invents a presence,
+  // which is the right way to be wrong here.
+  const presence = new Map<string, Set<string>>();
+  const addPresence = (chapter: number, characterId: string | undefined) => {
+    if (!characterId) return;
+    const eventId = eventByChapter.get(chapter);
+    if (!eventId) return;
+    if (!presence.has(eventId)) presence.set(eventId, new Set());
+    presence.get(eventId)!.add(characterId);
+  };
+
+  for (const c of fixture.chapters) addPresence(c.number, idByKey.get(c.pov.toLowerCase()));
+  for (const e of fixture.graphEdges) {
+    if (e.chapter === null) continue;
+    addPresence(e.chapter, idByKey.get(e.from));
+    addPresence(e.chapter, idByKey.get(e.to));
+  }
+
+  const presenceRows = [...presence.entries()].flatMap(([eventId, characterIds]) =>
+    [...characterIds].map((characterId) => ({
+      user_id: userId,
+      project_id: project.id,
+      from_node_id: characterId,
+      to_node_id: eventId,
+      edge_type: 'PRESENT_AT',
+      event_id: eventId,
+      properties: {},
+      confidence: null,
+      needs_review: false,
+      source: 'manual',
+    })),
+  );
+
+  if (presenceRows.length > 0) {
+    const { error: presenceError } = await supabase.from('graph_edges').insert(presenceRows);
+    if (presenceError) {
+      return { projectId: project.id, projectName, error: `Presence: ${presenceError.message}` };
     }
   }
   tick('Character graph');
