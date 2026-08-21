@@ -63,9 +63,16 @@ const WORDMARK_GOLD = require('../../assets/env/wordmark-gold.webp');
 
 // left/top/width/height as percentages of the artwork, measured off it in the PWA.
 const SHIPS = [
-  { src: require('../../assets/env/ship-a.png'), left: 70.0, top: 48.7, width: 14.8, height: 9.1, bobY: 1.5, bobDeg: 0.31, duration: 4300, delay: 0 },
-  { src: require('../../assets/env/ship-b.png'), left: 63.2, top: 55.3, width: 13.6, height: 8.4, bobY: 1.4, bobDeg: 0.34, duration: 5600, delay: 1700 },
-  { src: require('../../assets/env/ship-c.png'), left: 35.8, top: 49.4, width: 8.4, height: 5.4, bobY: 1.8, bobDeg: 0.4, duration: 3700, delay: 900 },
+  // bobY is a percentage of the patch's own height, bobDeg the roll either side of level.
+  // Nudged up roughly a third from the CSS values. Worth knowing why they were low: each
+  // ship is a rectangular patch cut from the painting, feathered to nothing at its edge, so
+  // it sits invisible at rest -- but the further it travels, the more of that
+  // semi-transparent fringe becomes visible as a faint halo moving with it. The PWA halved
+  // these for exactly that reason. If a halo shows up around the big foreground ship, this
+  // is the knob that caused it.
+  { src: require('../../assets/env/ship-a.png'), left: 70.0, top: 48.7, width: 14.8, height: 9.1, bobY: 2.0, bobDeg: 0.41, duration: 4300, delay: 0 },
+  { src: require('../../assets/env/ship-b.png'), left: 63.2, top: 55.3, width: 13.6, height: 8.4, bobY: 1.9, bobDeg: 0.45, duration: 5600, delay: 1700 },
+  { src: require('../../assets/env/ship-c.png'), left: 35.8, top: 49.4, width: 8.4, height: 5.4, bobY: 2.4, bobDeg: 0.53, duration: 3700, delay: 900 },
 ];
 
 // Each bird has a matching "cover" patch that sits under it, painting out the bird baked
@@ -161,8 +168,8 @@ const RIPPLES = [
   // looking like water. The peak also sits closer to the start of each period now, so a
   // thin bright line falls away into a long soft trough instead of the two halves reading
   // as equal stripes.
-  { id: 'a', color: '#fffcee', peak: 0.15, peakAt: 2.5, period: 9, duration: 2600, tilt: -1 },
-  { id: 'b', color: '#fff6de', peak: 0.13, peakAt: 3.5, period: 14, duration: 3900, tilt: 1 },
+  { id: 'a', color: '#fffcee', peak: 0.12, peakAt: 2.5, period: 9, duration: 2600, tilt: -1 },
+  { id: 'b', color: '#fff6de', peak: 0.105, peakAt: 3.5, period: 14, duration: 3900, tilt: 1 },
 ];
 
 function useAlternatingLoop(duration: number, delay: number) {
