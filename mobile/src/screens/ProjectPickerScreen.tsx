@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
+import { type ImportProgress, demoSummary, importDemoProject } from '../lib/demoImport';
 import { supabase } from '../lib/supabase';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import { useAuthStore } from '../store/authStore';
@@ -42,6 +43,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
+  const demo = useMemo(() => demoSummary(), []);
   const projectOrder = (user?.user_metadata?.project_order as string[] | undefined) ?? [];
   const orderedProjects = useMemo(() => applyProjectOrder(projects, projectOrder), [projects, projectOrder]);
 
@@ -79,6 +81,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [actionError, setActionError] = useState('');
+  const [demoProgress, setDemoProgress] = useState<ImportProgress | null>(null);
 
   useEffect(() => {
     if (user) fetchProjects(user.id);
@@ -121,6 +124,25 @@ export default function ProjectPickerScreen({ navigation }: Props) {
     setDeleteConfirmText('');
   }
 
+  // Loads the bundled demo pack into a fresh project. Deliberately additive: each run makes
+  // a new project, so it can be loaded, broken while testing, and loaded again with nothing
+  // to clean up first.
+  async function handleLoadDemo() {
+    if (!user || demoProgress) return;
+    setActionError('');
+    setDemoProgress({ step: 'Starting', done: 0, total: 1 });
+    const { projectId, projectName, error: err } = await importDemoProject(user.id, setDemoProgress);
+    setDemoProgress(null);
+    if (err) {
+      setActionError(err);
+      // A partial import still leaves a project worth looking at, so refresh either way.
+      if (projectId) fetchProjects(user.id);
+      return;
+    }
+    await fetchProjects(user.id);
+    if (projectId) navigation.navigate('ChapterList', { projectId, projectName });
+  }
+
   async function confirmDelete() {
     if (!deleteTarget || deleteConfirmText !== deleteTarget.name) return;
     const { error: err } = await deleteProject(deleteTarget.id);
@@ -155,6 +177,25 @@ export default function ProjectPickerScreen({ navigation }: Props) {
           onDrop={handleDrop}
         />
       )}
+
+      <Pressable style={styles.demoRow} onPress={handleLoadDemo} disabled={!!demoProgress}>
+        {demoProgress ? (
+          <>
+            <ActivityIndicator color={colors.gold} size="small" />
+            <Text style={styles.demoText}>
+              {demoProgress.step} — {demoProgress.done} of {demoProgress.total}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.demoTitle}>Load the demo project</Text>
+            <Text style={styles.demoText}>
+              {demo.chapters} chapters · {demo.scenes} scenes · {demo.documents} documents ·{' '}
+              {demo.words.toLocaleString()} words
+            </Text>
+          </>
+        )}
+      </Pressable>
 
       <View style={styles.newRow}>
         <TextInput
@@ -333,6 +374,22 @@ function makeStyles(colors: ThemeColors) {
     rowActions: { flexDirection: 'row', gap: 16 },
     rowActionText: { color: colors.textDim, fontSize: 12 },
     rowActionDanger: { color: colors.error },
+    demoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginHorizontal: 16,
+      marginBottom: 10,
+      paddingVertical: 11,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.borderDim,
+    },
+    demoTitle: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 13.5 },
+    demoText: { color: colors.textFaint, fontSize: 11.5, flexShrink: 1 },
     newRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
     newInput: {
       flex: 1,
