@@ -166,41 +166,74 @@ const characters = graphCharacters.map((raw) => {
 
 // Relationships as stated in the bible's own Role/Relationships/Function prose. Curated
 // rather than inferred: the text describes what happens between people but not in a fixed
-// grammar, so classifying it by keyword would invent as much as it read. Confidence is set
-// low on the genuinely ambiguous ones so the review queue has something real to show.
+// grammar, so classifying it by keyword would invent as much as it read.
+//
+// The fifth column is a chapter number, or null for a relationship that holds across the
+// whole book rather than happening at one identifiable moment. This is not decoration:
+// Ganga loves Nakulan throughout AND the alter attacks him in Ch 13, and those are two
+// different edges that can only coexist if the second is scoped to an event. A first pass
+// left both saga-level, which collides on the unscoped unique key and rejected the entire
+// batch -- the graph came out with every character and not one relationship.
+//
+// Sixth column is confidence; a number marks the edge for review, null means settled.
 const relationships = [
-  ['ganga', 'nakulan', 'romantic', 'positive', null],
-  ['ganga', 'nakulan', 'confrontation', 'negative', 0.55],
-  ['ganga', 'sunny', 'alliance', 'positive', null],
-  ['ganga', 'sridevi', 'alliance', 'positive', null],
-  ['ganga', 'alli', 'other', 'ambiguous', 0.5],
-  ['ganga', 'mahadevan', 'confrontation', 'ambiguous', 0.45],
-  ['nakulan', 'sunny', 'alliance', 'positive', null],
-  ['nakulan', 'elders', 'confrontation', 'ambiguous', 0.58],
-  ['sunny', 'sridevi', 'romantic', 'positive', null],
-  ['sunny', 'namboodiri', 'alliance', 'ambiguous', null],
-  ['sunny', 'elders', 'confrontation', 'ambiguous', 0.52],
-  ['sridevi', 'elders', 'confrontation', 'negative', null],
-  ['alli', 'mahadevan', 'romantic', 'positive', null],
-  ['mahadevan', 'elders', 'confrontation', 'negative', 0.4],
-  ['namboodiri', 'elders', 'alliance', 'positive', null],
-  ['nagavalli', 'ramanathan', 'romantic', 'positive', null],
-  ['nagavalli', 'thambi', 'betrayal', 'negative', null],
-  ['ramanathan', 'thambi', 'betrayal', 'negative', null],
-  ['nakulan', 'thambi', 'other', 'ambiguous', 0.35],
-  ['mahadevan', 'ramanathan', 'other', 'ambiguous', 0.35],
+  ['ganga', 'nakulan', 'romantic', 'positive', null, null],
+  ['ganga', 'nakulan', 'confrontation', 'negative', 13, 0.55],
+  ['ganga', 'sunny', 'alliance', 'positive', null, null],
+  ['ganga', 'sunny', 'alliance', 'positive', 7, null],
+  ['ganga', 'sunny', 'mentorship', 'ambiguous', 10, 0.5],
+  ['ganga', 'sridevi', 'alliance', 'positive', null, null],
+  ['ganga', 'alli', 'other', 'ambiguous', 3, 0.5],
+  ['ganga', 'alli', 'confrontation', 'negative', 8, null],
+  ['ganga', 'mahadevan', 'confrontation', 'ambiguous', 6, 0.45],
+  ['nakulan', 'sunny', 'alliance', 'positive', null, null],
+  ['nakulan', 'sunny', 'alliance', 'positive', 2, null],
+  ['nakulan', 'elders', 'confrontation', 'ambiguous', null, 0.58],
+  ['sunny', 'sridevi', 'romantic', 'positive', 16, null],
+  ['sunny', 'sridevi', 'alliance', 'positive', 11, null],
+  ['sunny', 'sridevi', 'alliance', 'positive', null, null],
+  ['sunny', 'namboodiri', 'alliance', 'ambiguous', 12, null],
+  ['sunny', 'elders', 'confrontation', 'ambiguous', null, 0.52],
+  ['sridevi', 'elders', 'confrontation', 'negative', null, null],
+  ['alli', 'mahadevan', 'romantic', 'positive', null, null],
+  ['mahadevan', 'elders', 'confrontation', 'negative', 6, 0.4],
+  ['namboodiri', 'elders', 'alliance', 'positive', 14, null],
+  ['nagavalli', 'ramanathan', 'romantic', 'positive', 0, null],
+  ['nagavalli', 'thambi', 'betrayal', 'negative', 0, null],
+  ['ramanathan', 'thambi', 'betrayal', 'negative', 0, null],
+  ['nakulan', 'thambi', 'other', 'ambiguous', null, 0.35],
+  ['mahadevan', 'ramanathan', 'other', 'ambiguous', null, 0.35],
 ];
 
 const knownKeys = new Set(characters.map((c) => c.key));
-const graphEdges = relationships
-  .filter(([a, b]) => knownKeys.has(a) && knownKeys.has(b))
-  .map(([from, to, interactionType, valence, confidence]) => ({
-    from,
-    to,
-    interactionType,
-    valence,
-    confidence,
-  }));
+const dropped = relationships.filter(([a, b]) => !knownKeys.has(a) || !knownKeys.has(b));
+if (dropped.length > 0) {
+  // Silently dropping these is how the "Dr. Sunny Joseph" short-name bug hid: five edges
+  // vanished and the only symptom was a slightly emptier graph.
+  throw new Error(
+    `Relationships reference unknown characters: ${dropped.map(([a, b]) => `${a}->${b}`).join(', ')}`,
+  );
+}
+
+// The database enforces this too, but a unique-violation there rejects the whole insert and
+// surfaces as an empty graph. Failing here names the offending pair instead.
+const edgeKeys = new Set();
+for (const [from, to, , , chapter] of relationships) {
+  const key = [from, to].sort().join('|') + '@' + (chapter === null ? 'saga' : chapter);
+  if (edgeKeys.has(key)) {
+    throw new Error(`Duplicate relationship: ${key}. Scope one of them to a chapter.`);
+  }
+  edgeKeys.add(key);
+}
+
+const graphEdges = relationships.map(([from, to, interactionType, valence, chapter, confidence]) => ({
+  from,
+  to,
+  interactionType,
+  valence,
+  chapter,
+  confidence,
+}));
 
 const fixture = {
   projectName: 'The Southern Wing (Demo)',
@@ -236,6 +269,8 @@ export type DemoGraphEdge = {
   to: string;
   interactionType: string;
   valence: string;
+  /** Chapter number this happened in, or null for a relationship that holds throughout. */
+  chapter: number | null;
   confidence: number | null;
 };
 export type DemoFixture = {
@@ -260,6 +295,6 @@ console.log(`prose words   ${words.toLocaleString()}`);
 console.log(`missing prose ${chapters.filter((c) => c.content.length < 50).map((c) => c.number).join(', ') || 'none'}`);
 console.log(`missing POV   ${chapters.filter((c) => !c.pov).map((c) => c.number).join(', ') || 'none'}`);
 console.log(`characters    ${characters.length} (${characters.map((c) => c.label).join(', ')})`);
-console.log(`graph edges   ${graphEdges.length} of ${relationships.length} (rest reference unknown names)`);
+console.log(`graph edges   ${graphEdges.length} (${graphEdges.filter((e) => e.chapter !== null).length} scoped to a chapter)`);
 console.log(`for review    ${graphEdges.filter((e) => e.confidence !== null).length}`);
 console.log(`wrote         ${path.relative(process.cwd(), OUT)}`);

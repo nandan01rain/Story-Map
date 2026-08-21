@@ -24,6 +24,8 @@ export type DemoGraphEdge = {
   to: string;
   interactionType: string;
   valence: string;
+  /** Chapter number this happened in, or null for a relationship that holds throughout. */
+  chapter: number | null;
   confidence: number | null;
 };
 export type DemoFixture = {
@@ -770,6 +772,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "nakulan",
       "interactionType": "romantic",
       "valence": "positive",
+      "chapter": null,
       "confidence": null
     },
     {
@@ -777,6 +780,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "nakulan",
       "interactionType": "confrontation",
       "valence": "negative",
+      "chapter": 13,
       "confidence": 0.55
     },
     {
@@ -784,13 +788,31 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "sunny",
       "interactionType": "alliance",
       "valence": "positive",
+      "chapter": null,
       "confidence": null
+    },
+    {
+      "from": "ganga",
+      "to": "sunny",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "chapter": 7,
+      "confidence": null
+    },
+    {
+      "from": "ganga",
+      "to": "sunny",
+      "interactionType": "mentorship",
+      "valence": "ambiguous",
+      "chapter": 10,
+      "confidence": 0.5
     },
     {
       "from": "ganga",
       "to": "sridevi",
       "interactionType": "alliance",
       "valence": "positive",
+      "chapter": null,
       "confidence": null
     },
     {
@@ -798,13 +820,23 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "alli",
       "interactionType": "other",
       "valence": "ambiguous",
+      "chapter": 3,
       "confidence": 0.5
+    },
+    {
+      "from": "ganga",
+      "to": "alli",
+      "interactionType": "confrontation",
+      "valence": "negative",
+      "chapter": 8,
+      "confidence": null
     },
     {
       "from": "ganga",
       "to": "mahadevan",
       "interactionType": "confrontation",
       "valence": "ambiguous",
+      "chapter": 6,
       "confidence": 0.45
     },
     {
@@ -812,6 +844,15 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "sunny",
       "interactionType": "alliance",
       "valence": "positive",
+      "chapter": null,
+      "confidence": null
+    },
+    {
+      "from": "nakulan",
+      "to": "sunny",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "chapter": 2,
       "confidence": null
     },
     {
@@ -819,6 +860,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "elders",
       "interactionType": "confrontation",
       "valence": "ambiguous",
+      "chapter": null,
       "confidence": 0.58
     },
     {
@@ -826,6 +868,23 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "sridevi",
       "interactionType": "romantic",
       "valence": "positive",
+      "chapter": 16,
+      "confidence": null
+    },
+    {
+      "from": "sunny",
+      "to": "sridevi",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "chapter": 11,
+      "confidence": null
+    },
+    {
+      "from": "sunny",
+      "to": "sridevi",
+      "interactionType": "alliance",
+      "valence": "positive",
+      "chapter": null,
       "confidence": null
     },
     {
@@ -833,6 +892,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "namboodiri",
       "interactionType": "alliance",
       "valence": "ambiguous",
+      "chapter": 12,
       "confidence": null
     },
     {
@@ -840,6 +900,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "elders",
       "interactionType": "confrontation",
       "valence": "ambiguous",
+      "chapter": null,
       "confidence": 0.52
     },
     {
@@ -847,6 +908,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "elders",
       "interactionType": "confrontation",
       "valence": "negative",
+      "chapter": null,
       "confidence": null
     },
     {
@@ -854,6 +916,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "mahadevan",
       "interactionType": "romantic",
       "valence": "positive",
+      "chapter": null,
       "confidence": null
     },
     {
@@ -861,6 +924,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "elders",
       "interactionType": "confrontation",
       "valence": "negative",
+      "chapter": 6,
       "confidence": 0.4
     },
     {
@@ -868,6 +932,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "elders",
       "interactionType": "alliance",
       "valence": "positive",
+      "chapter": 14,
       "confidence": null
     },
     {
@@ -875,6 +940,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "ramanathan",
       "interactionType": "romantic",
       "valence": "positive",
+      "chapter": 0,
       "confidence": null
     },
     {
@@ -882,6 +948,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "thambi",
       "interactionType": "betrayal",
       "valence": "negative",
+      "chapter": 0,
       "confidence": null
     },
     {
@@ -889,6 +956,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "thambi",
       "interactionType": "betrayal",
       "valence": "negative",
+      "chapter": 0,
       "confidence": null
     },
     {
@@ -896,6 +964,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "thambi",
       "interactionType": "other",
       "valence": "ambiguous",
+      "chapter": null,
       "confidence": 0.35
     },
     {
@@ -903,6 +972,7 @@ export const DEMO_FIXTURE: DemoFixture = {
       "to": "ramanathan",
       "interactionType": "other",
       "valence": "ambiguous",
+      "chapter": null,
       "confidence": 0.35
     }
   ]

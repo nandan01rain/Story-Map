@@ -144,6 +144,48 @@ export async function importDemoProject(
     if (id) idByKey.set(c.key, id);
   }
 
+  // Event nodes, one per chapter. Relationships that happen at a specific moment hang off
+  // these; without them, two different interactions between the same pair collide on the
+  // unscoped unique key and the whole insert is rejected -- which is exactly what happened
+  // the first time, leaving a graph with every character and no relationships at all.
+  const eventRows = fixture.chapters.map((c) => ({
+    user_id: userId,
+    project_id: project.id,
+    node_type: 'event',
+    label: c.title,
+    properties: {
+      chapter_id: byOrder.get(c.number) ?? null,
+      scene_id: null,
+      book: 0,
+      act: c.act,
+      pov_character_id: null,
+    },
+    source: 'manual',
+    needs_review: false,
+  }));
+
+  const { data: insertedEvents, error: eventError } = await supabase
+    .from('graph_nodes')
+    .insert(eventRows)
+    .select('id, properties');
+  if (eventError) {
+    return { projectId: project.id, projectName, error: `Events: ${eventError.message}` };
+  }
+
+  // Mapped back by chapter id rather than by title -- two chapters are allowed to share a
+  // title, and matching on one would silently attach edges to the wrong moment.
+  const eventByChapterId = new Map<string, string>();
+  for (const row of insertedEvents ?? []) {
+    const chapterId = (row.properties as { chapter_id?: string } | null)?.chapter_id;
+    if (chapterId) eventByChapterId.set(chapterId, row.id as string);
+  }
+  const eventByChapter = new Map<number, string>();
+  for (const c of fixture.chapters) {
+    const chapterId = byOrder.get(c.number);
+    const eventId = chapterId ? eventByChapterId.get(chapterId) : undefined;
+    if (eventId) eventByChapter.set(c.number, eventId);
+  }
+
   const edgeRows = fixture.graphEdges
     .map((e) => {
       const from = idByKey.get(e.from);
@@ -155,9 +197,9 @@ export async function importDemoProject(
         from_node_id: from,
         to_node_id: to,
         edge_type: 'INTERACTS_WITH',
-        // Saga-level relationships, not scoped to one scene -- which is exactly the case
-        // the unscoped unique index exists for.
-        event_id: null,
+        // Null for a relationship that holds across the book; an event for one that happens
+        // at an identifiable moment.
+        event_id: e.chapter === null ? null : eventByChapter.get(e.chapter) ?? null,
         properties: { interaction_type: e.interactionType, valence: e.valence },
         confidence: e.confidence,
         // The ones the fixture marks uncertain arrive needing review, so the review queue
