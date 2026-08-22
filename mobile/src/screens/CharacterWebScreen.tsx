@@ -25,7 +25,7 @@ const KIND_OPTIONS = ['confrontation', 'alliance', 'betrayal', 'mentorship', 'ro
 // second native implementation (spec §6) -- it runs here inside a WebView and talks back
 // over postMessage.
 export default function CharacterWebScreen({ route, navigation }: Props) {
-  const { projectId } = route.params;
+  const { projectId, focusChapterId } = route.params;
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const webRef = useRef<WebView>(null);
@@ -73,7 +73,19 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!webReady || !graph) return;
     webRef.current?.postMessage(JSON.stringify({ type: 'data', payload: graph }));
-  }, [webReady, graph]);
+
+    // Reached from the Reader or the Editor, which know a chapter rather than a node. The
+    // event for a chapter carries its id in properties, which is the only link between the
+    // two halves of the app -- an event has no column pointing at a chapter.
+    if (!focusChapterId) return;
+    const event = graph.events.find(
+      (e) => (e.properties as { chapter_id?: string } | null)?.chapter_id === focusChapterId,
+    );
+    // No event means nobody has been placed in that chapter yet. Opening the web at large is
+    // a better answer than a message about why it could not do the thing that was implied
+    // rather than asked for.
+    if (event) webRef.current?.postMessage(JSON.stringify({ type: 'focus', id: event.id }));
+  }, [webReady, graph, focusChapterId]);
 
   function handleMessage(raw: string) {
     try {

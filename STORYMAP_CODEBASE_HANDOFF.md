@@ -1271,6 +1271,27 @@ code — several items below (swipe gestures, drag-to-close) are exactly the
 kind of touch interaction that has repeatedly needed real-device correction
 elsewhere in this app's history.)*
 
+### 12.0 Reader — read-only where the story is concerned (2026-08-22)
+
+The Reader no longer creates or edits story flags. The Flag button and its Plant/Reveal/Note
+sheet are gone; `beginFlag` is gone with them. What it does instead is **show** the flags
+that exist: a plant's text is tinted green and a reveal's red, using the character web's own
+two colours so a line flagged green there is green here. Selecting a tinted passage prints
+what it is and what pair it belongs to, read-only, under the action bar — otherwise the
+colour is a mystery. A legend in the footer names the two colours and counts them, and is
+hidden entirely in a chapter with no flags.
+
+**Highlighting stays.** It writes to `annotations` like a flag does, but it is a reading
+mark, not a story flag — no label, no place in the Flags list, and the data model has drawn
+that distinction since `chapterStore.ts` was written. Copy, Pin, Share and Editor stay too;
+Pin is a local bookmark and changes no chapter.
+
+One resolver now locates every annotation type rather than one per type — they differ in
+what they mean and how they are drawn, not in how they are found — and the page renderer
+takes a `MarkedTokens` record of three token sets instead of a single highlight set. Sets,
+because that lookup runs per word per frame. `note` annotations are skipped: they have no
+inline appearance of their own.
+
 ### 12.1 Reader — full redesign, Kindle-style (`1eeddd7` through `d0c4599`, `658cd2f`, `f273922`, `7be2f7b`)
 
 The paginated in-app Reader was substantially rebuilt from the version
@@ -2494,6 +2515,14 @@ down), closes outright, and caps at 38vh; `focusCamera` offsets a selection upwa
 the sheet's height so selecting from the index never parks the node behind the panel
 describing it. The canvas above the sheet was always interactive; there was simply hardly
 any of it.
+
+**Reachable from the Reader and the Editor**, not only the nav drawer — the Reader's header
+carries the same `link` icon the drawer uses, the Editor a "Web" button beside "Reader".
+Both pass `focusChapterId`, and the screen resolves that to the event node whose
+`properties.chapter_id` matches, then posts a `focus` message so the web opens on the moment
+you were reading or writing rather than on the whole saga. A chapter nobody has been placed
+in has no event; the web then just opens at large, which is a better answer than an error
+about something that was implied rather than asked for.
 
 **The index** (the hamburger chip) is a full-screen searchable list with five tabs —
 Characters, Events, Plants, Reveals, Pairs — because past a couple of dozen nodes, finding

@@ -38,7 +38,7 @@ import {
 } from '../lib/readerPrefs';
 import { BOOKS, tokenizeWords } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
-import { type Annotation, type Chapter, type FlagType, useChapterStore } from '../store/chapterStore';
+import { type Annotation, type Chapter, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Reader'>;
@@ -57,9 +57,21 @@ const SELECTION_TINT = 'rgba(198,154,58,0.45)';
 // reads as a highlight while text is selected on top of it.
 const HIGHLIGHT_TINT = 'rgba(242,201,76,0.34)';
 const HIGHLIGHT_INK = '#f2c94c';
+// The character web's own plant and reveal colours, so a line flagged green there is the
+// same green here. Lighter than the web's, because there it tints a shape on a dark canvas
+// and here it sits behind body text that still has to be read comfortably.
+const PLANT_TINT = 'rgba(90,164,105,0.30)';
+const REVEAL_TINT = 'rgba(192,80,77,0.28)';
+const PLANT_INK = '#5aa469';
+const REVEAL_INK = '#c0504d';
 const TINT_BLEED = { paddingHorizontal: 5, marginHorizontal: -5, paddingVertical: 2, marginVertical: -2 };
 // Shared empty set for pages outside the current chapter, so they don't each allocate one.
 const EMPTY_TOKENS: Set<number> = new Set();
+/** The three kinds of mark drawn under the prose, each as a set of token indices. */
+type MarkedTokens = { highlight: Set<number>; plant: Set<number>; reveal: Set<number> };
+// Shared, so a page from a chapter other than the current one does not allocate three sets
+// per render just to say "nothing marked here".
+const EMPTY_MARKS: MarkedTokens = { highlight: EMPTY_TOKENS, plant: EMPTY_TOKENS, reveal: EMPTY_TOKENS };
 // Stable identities so memoized pages aren't re-rendered by a fresh literal each pass.
 const EMPTY_LINE_WORDS: LineWord[][] = [];
 const CAROUSEL_ITEM_RATIO = 0.74;
@@ -76,7 +88,17 @@ const SELECT_LONG_PRESS_MS = 320;
 // re-triggering the pagination-reset effect over and over, which is what made the
 // screen get stuck permanently "loading" after returning from EditorScreen.
 const DIMENSION_CHANGE_THRESHOLD = 10;
-const FLAG_LABELS: Record<FlagType, string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
+/** One annotation located in the current chapter's tokens. */
+type ReaderSpan = {
+  id: string;
+  type: 'highlight' | 'plant' | 'reveal';
+  label: string;
+  /** Present on flags that belong to a plant/reveal pair; the pair's own title. */
+  pairLabel: string;
+  text: string;
+  start: number;
+  end: number;
+};
 
 const FONT_FAMILY_OPTIONS: { key: ReaderFontFamily; label: string; family: string }[] = [
   { key: 'serif', label: 'Serif', family: FONTS.literary },
@@ -171,7 +193,6 @@ export default function ReaderScreen({ route, navigation }: Props) {
   const [chromeVisible, setChromeVisible] = useState(false);
   const [tocView, setTocView] = useState<'books' | 'chapters'>('books');
   const [fontSheetOpen, setFontSheetOpen] = useState(false);
-  const [flagPickerOpen, setFlagPickerOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pagesByChapter, setPagesByChapter] = useState<Map<string, ChapterPage[]>>(new Map());
   // Interactive selection: one word, or a range dragged out between two words.
@@ -615,15 +636,19 @@ export default function ReaderScreen({ route, navigation }: Props) {
     setBookmarkedFlatIndex(pageIndex);
   }
 
-  // Every highlight in the current chapter, resolved to token indices. Highlights are
-  // stored the way every annotation is -- by the exact substring, not an offset (handoff
-  // doc §3.5) -- so they are located by searching the prose, and every occurrence of that
-  // substring is marked, not just the first.
-  const highlightSpans = useMemo(() => {
-    if (!currentChapter) return [] as { id: string; start: number; end: number }[];
-    const spans: { id: string; start: number; end: number }[] = [];
+  // Every annotation in the current chapter, resolved to token indices. Annotations are
+  // stored by the exact substring, not an offset (handoff doc §3.5), so they are located by
+  // searching the prose, and every occurrence of that substring is marked, not just the
+  // first.
+  //
+  // One resolver for all of them rather than one per type: highlights, plants and reveals
+  // differ in what they mean and how they are drawn, not in how they are found.
+  const annotationSpans = useMemo(() => {
+    if (!currentChapter) return [] as ReaderSpan[];
+    const spans: ReaderSpan[] = [];
     for (const annotation of currentChapter.annotations) {
-      if (annotation.type !== 'highlight' || !annotation.text) continue;
+      if (!annotation.text) continue;
+      if (annotation.type === 'note') continue; // no inline appearance of its own
       let from = 0;
       for (;;) {
         const charStart = currentChapter.content.indexOf(annotation.text, from);
@@ -638,20 +663,69 @@ export default function ReaderScreen({ route, navigation }: Props) {
           if (start === -1) start = i;
           end = i;
         }
-        if (start !== -1) spans.push({ id: annotation.id, start, end });
+        if (start !== -1) {
+          spans.push({
+            id: annotation.id,
+            type: annotation.type as ReaderSpan['type'],
+            label: annotation.label ?? '',
+            pairLabel: (annotation as { pairLabel?: string }).pairLabel ?? '',
+            text: annotation.text,
+            start,
+            end,
+          });
+        }
         from = charEnd;
       }
     }
     return spans;
   }, [currentChapter, currentChapterTokens]);
 
-  const highlightedTokens = useMemo(() => {
-    const marked = new Set<number>();
-    for (const span of highlightSpans) {
-      for (let i = span.start; i <= span.end; i += 1) marked.add(i);
-    }
-    return marked;
-  }, [highlightSpans]);
+  const highlightSpans = useMemo(
+    () => annotationSpans.filter((span) => span.type === 'highlight'),
+    [annotationSpans],
+  );
+
+  // A token set per kind, because the page renderer works token by token and a Set lookup
+  // is the only thing cheap enough to run per word per frame.
+  const markedTokens = useMemo(() => {
+    const of = (type: ReaderSpan['type']) => {
+      const marked = new Set<number>();
+      for (const span of annotationSpans) {
+        if (span.type !== type) continue;
+        for (let i = span.start; i <= span.end; i += 1) marked.add(i);
+      }
+      return marked;
+    };
+    return { highlight: of('highlight'), plant: of('plant'), reveal: of('reveal') };
+  }, [annotationSpans]);
+
+  // Bundled once rather than rebuilt inline per page: this is passed to every rendered page
+  // and a fresh object each time defeats the memoisation on them.
+  const markStyles = useMemo(
+    () => ({ highlight: styles.highlighted, plant: styles.plantMark, reveal: styles.revealMark }),
+    [styles],
+  );
+
+  const flagCounts = useMemo(
+    () => ({
+      plants: annotationSpans.filter((s) => s.type === 'plant').length,
+      reveals: annotationSpans.filter((s) => s.type === 'reveal').length,
+    }),
+    [annotationSpans],
+  );
+
+  // What the selection is sitting on. Read-only here: the Reader shows flags, it does not
+  // make them, so this drives an explanation rather than an edit.
+  const selectedFlags = useMemo(
+    () =>
+      selStart === null || selEnd === null
+        ? []
+        : annotationSpans.filter(
+            (span) =>
+              span.type !== 'highlight' && span.start <= selEnd && span.end >= selStart,
+          ),
+    [annotationSpans, selStart, selEnd],
+  );
 
   // Which highlights the current selection touches -- drives both the icon's state and
   // what removing does.
@@ -684,20 +758,6 @@ export default function ReaderScreen({ route, navigation }: Props) {
       updateChapter(currentChapter.id, { annotations: [...currentChapter.annotations, annotation] });
     }
     clearSelection();
-  }
-
-  function beginFlag(type: FlagType) {
-    if (!selectedText || !currentChapter) return;
-    setFlagPickerOpen(false);
-    const annotation: Annotation = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      type,
-      text: selectedText,
-      label: '',
-    };
-    updateChapter(currentChapter.id, { annotations: [...currentChapter.annotations, annotation] });
-    clearSelection();
-    Alert.alert(`Flagged as ${FLAG_LABELS[type]}`, 'Add a label for it later from the chapter editor.');
   }
 
   const showChoosingBook = bookIndex === null;
@@ -789,10 +849,10 @@ export default function ReaderScreen({ route, navigation }: Props) {
                       highlightRange={isCurrent ? highlightRange : null}
                       // Saved highlights are drawn on every rendered page, not just the
                       // current one -- they belong to the text, not to the selection.
-                      highlightedTokens={page.chapterId === current?.chapterId ? highlightedTokens : EMPTY_TOKENS}
+                      markedTokens={page.chapterId === current?.chapterId ? markedTokens : EMPTY_MARKS}
                       onRegisterWord={isCurrent ? registerWordRect : null}
                       selectedStyle={styles.selected}
-                      highlightStyle={styles.highlighted}
+                      markStyles={markStyles}
                     />
                     <Text style={styles.pageNumber}>{page.bookPageNumber}</Text>
                     {isCurrent && (
@@ -886,6 +946,18 @@ export default function ReaderScreen({ route, navigation }: Props) {
           >
             <Icon name="search" size={17} color={colors.gold} />
           </Pressable>
+          <Pressable
+            style={[styles.iconBtn, styles.iconBtnBordered]}
+            onPress={() =>
+              navigation.navigate('CharacterWeb', {
+                projectId,
+                // Opens on this chapter's own moment instead of the whole saga at once.
+                focusChapterId: current?.chapterId,
+              })
+            }
+          >
+            <Icon name="link" size={17} color={colors.gold} />
+          </Pressable>
           <Pressable style={[styles.iconBtn, styles.iconBtnBordered]} onPress={() => setFontSheetOpen(true)}>
             <Text style={styles.iconBtnAa}>Aa</Text>
           </Pressable>
@@ -894,6 +966,37 @@ export default function ReaderScreen({ route, navigation }: Props) {
           {projectName || (bookIndex !== null ? BOOKS[bookIndex] : '')}
         </Text>
       </Animated.View>
+
+      {/* Read-only, and deliberately not a control: the Reader shows flags, the Editor
+          makes them. Sits under the action bar so selecting a tinted passage explains the
+          tint instead of leaving the reader to guess what green meant. */}
+      {popupPos && selectedText && selectedFlags.length > 0 && (
+        <View
+          style={[
+            styles.flagCaption,
+            {
+              top: Math.max(60, popupPos.y - 56) + 46,
+              left: Math.min(Math.max(8, popupPos.x - 110), width - 228),
+            },
+          ]}
+        >
+          {selectedFlags.map((flag) => (
+            <View key={flag.id} style={styles.flagCaptionRow}>
+              <Text
+                style={[
+                  styles.flagCaptionKind,
+                  { color: flag.type === 'plant' ? PLANT_INK : REVEAL_INK },
+                ]}
+              >
+                {flag.type === 'plant' ? '🌱 Plant' : '⚡ Reveal'}
+              </Text>
+              <Text style={styles.flagCaptionText} numberOfLines={3}>
+                {flag.pairLabel || flag.label || 'No description recorded for this one yet.'}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {popupPos && selectedText && (
         <View
@@ -913,10 +1016,6 @@ export default function ReaderScreen({ route, navigation }: Props) {
               size={19}
               color={selectionHighlighted ? HIGHLIGHT_INK : colors.gold}
             />
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => setFlagPickerOpen(true)}>
-            <Icon name="flag" size={17} color={colors.gold} />
-            <Text style={styles.actionBtnLabel}>Flag</Text>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={copySelection}>
             <Icon name="copy" size={17} color={colors.gold} />
@@ -955,6 +1054,16 @@ export default function ReaderScreen({ route, navigation }: Props) {
         <Text style={styles.footerMeta}>
           {current ? `Page ${pageIndex + 1} of ${flatPages.length} · ${overallProgress}%` : ''}
         </Text>
+        {/* Shown only when this chapter actually has flags in it, because otherwise it is a
+            legend for two colours that are not on screen. */}
+        {flagCounts.plants + flagCounts.reveals > 0 && (
+          <View style={styles.legendRow}>
+            <View style={[styles.legendSwatch, { backgroundColor: PLANT_TINT }]} />
+            <Text style={styles.legendText}>{flagCounts.plants} plant{flagCounts.plants === 1 ? '' : 's'}</Text>
+            <View style={[styles.legendSwatch, { backgroundColor: REVEAL_TINT }]} />
+            <Text style={styles.legendText}>{flagCounts.reveals} reveal{flagCounts.reveals === 1 ? '' : 's'}</Text>
+          </View>
+        )}
         <View style={styles.scrubberRow}>
           <Pressable style={styles.iconBtn} onPress={openContents}>
             <Text style={styles.iconBtnText}>▦</Text>
@@ -1028,26 +1137,6 @@ export default function ReaderScreen({ route, navigation }: Props) {
         </View>
       </SlidePanel>
 
-      <Modal visible={flagPickerOpen} transparent animationType="fade" onRequestClose={() => setFlagPickerOpen(false)}>
-        <View style={styles.pickerOverlay}>
-          <View style={styles.pickerPanel}>
-            <Text style={styles.pickerTitle}>Flag this text</Text>
-            <Text style={styles.flagQuote} numberOfLines={3}>"{selectedText}"</Text>
-            <Pressable style={styles.flagOption} onPress={() => beginFlag('plant')}>
-              <Text style={styles.flagOptionText}>🌱 Plant</Text>
-            </Pressable>
-            <Pressable style={styles.flagOption} onPress={() => beginFlag('reveal')}>
-              <Text style={styles.flagOptionText}>⚡ Reveal</Text>
-            </Pressable>
-            <Pressable style={styles.flagOption} onPress={() => beginFlag('note')}>
-              <Text style={styles.flagOptionText}>📜 Note</Text>
-            </Pressable>
-            <Pressable onPress={() => setFlagPickerOpen(false)} style={{ marginTop: 10, alignSelf: 'flex-end' }}>
-              <Text style={styles.pickerRowMeta}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
 
       {/* Font/Layout -- size, line spacing, alignment, a curated font-family choice (kept
           to the app's own already-loaded families -- see FONT_FAMILY_OPTIONS above, not a
@@ -1138,10 +1227,10 @@ const PageProse = memo(function PageProse({
   selStart,
   selEnd,
   highlightRange,
-  highlightedTokens,
+  markedTokens,
   onRegisterWord,
   selectedStyle,
-  highlightStyle,
+  markStyles,
 }: {
   page: ChapterPage;
   lineWords: LineWord[][];
@@ -1151,10 +1240,10 @@ const PageProse = memo(function PageProse({
   selStart: number | null;
   selEnd: number | null;
   highlightRange: { start: number; end: number } | null;
-  highlightedTokens: Set<number>;
+  markedTokens: MarkedTokens;
   onRegisterWord: ((tokenIndex: number, rect: WordRect) => void) | null;
   selectedStyle: object;
-  highlightStyle: object;
+  markStyles: Record<keyof MarkedTokens, object>;
 }) {
   return (
     <View style={{ flex: 1 }}>
@@ -1180,13 +1269,20 @@ const PageProse = memo(function PageProse({
               const selected =
                 (selStart !== null && selEnd !== null && w.tokenIndex >= selStart && w.tokenIndex <= selEnd) ||
                 (highlightRange !== null && w.tokenIndex >= highlightRange.start && w.tokenIndex <= highlightRange.end);
-              // A saved highlight sits under the live selection: both can apply, and the
-              // selection tint is listed last so it wins where they overlap.
-              const highlighted = highlightedTokens.has(w.tokenIndex);
+              // Marks sit under the live selection: several can apply to one word, and the
+              // selection tint is listed last so it wins where they overlap. A plant and a
+              // reveal cannot overlap in practice -- the build guards against it -- but if
+              // they ever did, the later tint simply wins rather than anything breaking.
               return (
                 <Text
                   key={w.tokenIndex}
-                  style={[proseStyle, highlighted && highlightStyle, selected && selectedStyle]}
+                  style={[
+                    proseStyle,
+                    markedTokens.plant.has(w.tokenIndex) && markStyles.plant,
+                    markedTokens.reveal.has(w.tokenIndex) && markStyles.reveal,
+                    markedTokens.highlight.has(w.tokenIndex) && markStyles.highlight,
+                    selected && selectedStyle,
+                  ]}
                   onLayout={
                     onRegisterWord
                       ? (e) =>
@@ -1233,6 +1329,28 @@ function makeStyles(colors: ThemeColors) {
     // those gaps without moving a single word.
     selected: { backgroundColor: SELECTION_TINT, ...TINT_BLEED },
     highlighted: { backgroundColor: HIGHLIGHT_TINT, ...TINT_BLEED },
+    // Read-only marks. Tinted rather than underlined because an underline at reading size
+    // fights the descenders, and because these are the same two colours the character web
+    // uses for the same two things.
+    plantMark: { backgroundColor: PLANT_TINT, ...TINT_BLEED },
+    revealMark: { backgroundColor: REVEAL_TINT, ...TINT_BLEED },
+    flagCaption: {
+      position: 'absolute',
+      maxWidth: 260,
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 11,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borderDim,
+      backgroundColor: colors.panel,
+    },
+    flagCaptionRow: { gap: 2 },
+    flagCaptionKind: { fontFamily: FONTS.bodySemiBold, fontSize: 11 },
+    flagCaptionText: { color: colors.textDim, fontSize: 12, lineHeight: 16 },
+    legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
+    legendSwatch: { width: 11, height: 11, borderRadius: 3 },
+    legendText: { color: colors.textFaint, fontSize: 10.5, marginRight: 6 },
     // Always-visible chapter heading, independent of the toggleable chrome. fontFamily is
     // overridden inline to whatever reading font is currently selected so it always
     // matches the prose.

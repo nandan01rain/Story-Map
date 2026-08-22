@@ -319,6 +319,17 @@ export default function EditorScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.navigate('Reader', { projectId: chapter.project_id, chapterId })}>
           <Text style={styles.toolbarBtn}>Reader</Text>
         </Pressable>
+        <Pressable
+          onPress={() =>
+            navigation.navigate('CharacterWeb', {
+              projectId: chapter.project_id,
+              // The chapter being written, so the web opens on its moment rather than cold.
+              focusChapterId: chapterId,
+            })
+          }
+        >
+          <Text style={styles.toolbarBtn}>Web</Text>
+        </Pressable>
         <Text style={styles.status}>{status}</Text>
         <Pressable onPress={() => setFlagsVisible(true)}>
           <Text style={styles.toolbarBtn}>Flags{flagAnnotations.length > 0 ? ` (${flagAnnotations.length})` : ''}</Text>

@@ -1221,6 +1221,15 @@
       }
       if (msg.type === 'mode') setMode(msg.mode);
       if (msg.type === 'index') openIndex();
+      // Arriving from the Reader or the Editor: open on the moment they were looking at
+      // rather than on the whole saga. Deferred a beat because the node has no position
+      // until the layout has ticked, and focusCamera needs one to aim at.
+      if (msg.type === 'focus' && byId[msg.id]) {
+        var node = byId[msg.id];
+        if (node.kind === 'event' && mode === 'rel') setMode('prog');
+        select(msg.id);
+        setTimeout(function () { focusCamera(msg.id); }, 900);
+      }
     } catch (err) {}
   }
   window.addEventListener('message', receive);

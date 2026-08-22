@@ -11,6 +11,8 @@ export type SignedInStackParamList = {
   Documents: { projectId: string };
   DriveImport: { projectId: string };
   Assistant: { projectId: string; chapterId?: string };
-  CharacterWeb: { projectId: string };
+  /** `focusChapterId` opens the web on that chapter's event, when it is reached from the
+   *  Reader or the Editor rather than from the menu. */
+  CharacterWeb: { projectId: string; focusChapterId?: string };
   GraphReview: { projectId: string };
 };
