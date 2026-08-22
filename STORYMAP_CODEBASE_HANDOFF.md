@@ -8,6 +8,14 @@ now **stale in several places** — where it conflicts with this document or wit
 the actual code, this document and the code win. Do not re-derive decisions this
 document already settles; do not blindly trust `CLAUDE.md`'s roadmap either.
 
+**Before anything else, as of 2026-08-22:** two database migrations are written and
+committed but **not run** against the live Supabase project —
+`supabase/migrations/20260822_graph_flags.sql` and `20260822b_graph_structure.sql`. The
+second supersedes the first, so pasting only `20260822b` into the SQL Editor is enough.
+Until that happens the character web's Plants & Reveals and Structure layers return nothing,
+and the app says so rather than pretending the project has no flags. Nothing else is
+affected. See §17.1.
+
 Source-confidence tagging used throughout:
 - **[VERIFIED]** — confirmed directly by reading the current repo during this handoff.
 - **[SESSION]** — established via direct implementation/testing earlier in the
@@ -1271,34 +1279,6 @@ code — several items below (swipe gestures, drag-to-close) are exactly the
 kind of touch interaction that has repeatedly needed real-device correction
 elsewhere in this app's history.)*
 
-### 12.0 Reader — read-only where the story is concerned (2026-08-22)
-
-The Reader no longer creates or edits story flags. The Flag button and its Plant/Reveal/Note
-sheet are gone; `beginFlag` is gone with them. What it does instead is **show** the flags
-that exist, and only when asked: a flag toggle in the header tints plants green, reveals red
-and notes amber, using the character web's own colours so a line flagged green there is
-green here. **Off by default** — the marks are for the moments you go looking for them, and a
-chapter permanently striped in three colours is a chapter you cannot read. The preference
-persists (`showFlags` in `readerPrefs`, which spreads over the defaults, so prefs saved
-before it existed come back with it off rather than undefined).
-
-Selecting a tinted passage prints what it is and what pair it belongs to, read-only, under
-the action bar — otherwise the colour is a mystery — and **tapping that caption opens the
-character web on that exact flag**, which is the finest granularity there is. A legend in the
-footer names the colours and counts them, shown only while the toggle is on and the chapter
-actually has flags.
-
-**Highlighting stays.** It writes to `annotations` like a flag does, but it is a reading
-mark, not a story flag — no label, no place in the Flags list, and the data model has drawn
-that distinction since `chapterStore.ts` was written. Copy, Pin, Share and Editor stay too;
-Pin is a local bookmark and changes no chapter.
-
-One resolver now locates every annotation type rather than one per type — they differ in
-what they mean and how they are drawn, not in how they are found — and the page renderer
-takes a `MarkedTokens` record of three token sets instead of a single highlight set. Sets,
-because that lookup runs per word per frame. `note` annotations are skipped: they have no
-inline appearance of their own.
-
 ### 12.1 Reader — full redesign, Kindle-style (`1eeddd7` through `d0c4599`, `658cd2f`, `f273922`, `7be2f7b`)
 
 The paginated in-app Reader was substantially rebuilt from the version
@@ -1931,7 +1911,7 @@ non-obvious platform issues every single round:
    screens; if a third screen ever needs a dynamic header title, use
    `useLayoutEffect` and don't give the fallback a placeholder string.
 
-### 14.6 Not yet built (as of the 2026-08-16 session; superseded by §14.7-§14.9)
+### 14.6 Not yet built (as of the 2026-08-16 session; superseded by §14.7-§14.10)
 
 In rough intended order (no firm commitment to this exact sequence):
 Map view (interactive drag-and-drop Book→Act→Chapter trail — the PWA's
@@ -2159,7 +2139,7 @@ menu and the Reader's TOC share the same `useSlideInPanel` hook
   hot reload landing mid-edit rather than a real bug — flagged here in
   case it recurs, but not chased further since it didn't reproduce.
 
-### 14.9 Not yet built (current, supersedes §14.6)
+### 14.9 Not yet built (as of the 2026-08-19 session; see §14.10 and §17.7 for later work)
 
 Map view, continuity checker/Plant Ledger/Mythic Threads/POV tracker,
 documents library, full-text search, real trash (chapter/scene delete is
@@ -2186,6 +2166,60 @@ Also **not verified**: whether the general "jerky" feel reported once in
 an earlier session is a real performance problem or just Expo Go's
 dev-mode overhead — still not chased further; worth a real perf pass
 against a production build (`eas build`) before concluding anything.
+
+---
+
+### 14.10 Session 2026-08-22 — the Reader stops making flags, and starts showing them
+
+The graph work from this same session is in §17; this is the mobile app's half of it.
+
+The Reader no longer creates or edits story flags. The Flag button and its Plant/Reveal/Note
+sheet are gone; `beginFlag` is gone with them. What it does instead is **show** the flags
+that exist, and only when asked: a flag toggle in the header tints plants green, reveals red
+and notes amber, using the character web's own colours so a line flagged green there is
+green here. **Off by default** — the marks are for the moments you go looking for them, and a
+chapter permanently striped in three colours is a chapter you cannot read. The preference
+persists (`showFlags` in `readerPrefs`, which spreads over the defaults, so prefs saved
+before it existed come back with it off rather than undefined).
+
+Selecting a tinted passage prints what it is and what pair it belongs to, read-only, under
+the action bar — otherwise the colour is a mystery — and **tapping that caption opens the
+character web on that exact flag**, which is the finest granularity there is. A legend in the
+footer names the colours and counts them, shown only while the toggle is on and the chapter
+actually has flags.
+
+**Highlighting stays.** It writes to `annotations` like a flag does, but it is a reading
+mark, not a story flag — no label, no place in the Flags list, and the data model has drawn
+that distinction since `chapterStore.ts` was written. Copy, Pin, Share and Editor stay too;
+Pin is a local bookmark and changes no chapter.
+
+One resolver now locates every annotation type rather than one per type — they differ in
+what they mean and how they are drawn, not in how they are found — and the page renderer
+takes a `MarkedTokens` record of three token sets instead of a single highlight set. Sets,
+because that lookup runs per word per frame. `note` annotations are skipped: they have no
+inline appearance of their own.
+
+**Reachable from both screens, at any granularity.** The Reader's header gained the same
+`link` icon the nav drawer uses and the Editor a "Web" button beside "Reader", both opening
+the character web on the chapter in hand. Finer than that: a tap on a flag caption in the
+Reader, or the "web" link beside any row of the Editor's Flags list, opens the web on that
+one flagged line.
+
+The route carries a single `focusNodeId` and needs no translation at either end, because a
+chapter, a scene and an annotation are all graph nodes under their own database ids. An
+earlier version of this passed `focusChapterId` and made the screen hunt for the event whose
+`properties.chapter_id` matched; that is gone, and so is the case it could not serve — a
+chapter with no event, which is any chapter nobody has been placed in.
+
+**Traps:**
+
+- `readerPrefs.loadReaderPrefs()` spreads over `DEFAULT_READER_PREFS`, which is why adding
+  `showFlags` did not strand everyone who had saved prefs before it existed. Any new pref
+  must keep that property.
+- The page renderer takes a `MarkedTokens` record of **Sets**, one per mark kind. That
+  lookup runs per word per frame; an array would not do.
+- `EMPTY_MARKS` is shared rather than constructed per render — a page from a chapter other
+  than the current one should not allocate three sets to say "nothing here".
 
 ---
 
@@ -2412,14 +2446,23 @@ SVG trail.
 
 ### 17.1 Schema
 
-`supabase/migrations/20260821_character_graph.sql`, plus `..._graph_progression.sql`,
-`..._graph_detail.sql` and `20260822_graph_flags.sql`, which replace the read function
-four times over. **The first three are run against the live project;
-`20260822_graph_flags.sql` and `20260822b_graph_structure.sql` are NOT yet** — the second
-supersedes the first, so running only `20260822b` is enough - it needs pasting into the SQL Editor before the
-Plants & Reveals layer returns anything. Nothing breaks in the meantime: the client
-defaults each key of the payload independently, so an app talking to a database without
-that migration loses one layer rather than the view.
+Five migrations, each replacing `character_graph()` in place:
+
+| File | Adds | Run against live? |
+|---|---|---|
+| `20260821b_character_graph.sql` | the two tables, the pair view, the function | **yes** |
+| `20260821c_graph_progression.sql` | events and presence | **yes** |
+| `20260821d_graph_detail.sql` | individual interactions | **yes** |
+| `20260822_graph_flags.sql` | plants and reveals | **no** |
+| `20260822b_graph_structure.sql` | chapters, scenes, notes | **no** |
+
+The last two are **not yet run**. `20260822b` supersedes `20260822` entirely, so pasting
+only the newer one into the SQL Editor is enough. Until then the Plants & Reveals and
+Structure layers return nothing and **nothing else breaks** — `fetchCharacterGraph` defaults
+each key of the payload independently rather than assuming the whole shape, so an app
+talking to an older database loses a layer rather than the view. The client also records
+whether the `flags` key came back at all, which is what lets the screen say "run the
+migration" instead of the misleading "nothing has been flagged yet".
 
 A property graph over two tables rather than a second database technology — at saga scale
 (dozens of characters, hundreds of events, low thousands of edges) recursive CTEs are
@@ -2434,18 +2477,20 @@ more than adequate.
 - **`character_pair_edges`** view — collapses a character pair into one visual edge with
   a count, event list and dominant type.
 - **`character_graph(project_id)`** — everything the renderer needs in one call: nodes,
-  events, aggregated links, individual interactions, presence, and flags.
-- **Plants and reveals are not in these tables at all.** They are read out of
+  events, aggregated links, individual interactions, presence, flags, chapters and scenes.
+- **Flags, chapters and scenes are not in `graph_nodes` at all.** Flags are read out of
   `chapters.annotations` — the same jsonb the editor writes when a writer flags a line —
-  and joined to the event node for their chapter. Copying them into `graph_nodes` would
-  make a second source of truth that drifts the moment a flag is edited, and would need a
-  sync path nobody would remember to run. Reading them live means flagging a line in the
-  editor puts it on the web immediately and unflagging takes it off. The annotation fields
-  the graph reads beyond the existing ones are `pairId` and `pairLabel`; both are optional,
-  and a flag without them is simply unpaired.
-- **`character_footprint(character_id)`** — every event a character touched, with a POV
-  flag. This is also the POV filter (spec §7.2), not a separate feature.
-
+  and chapters and scenes straight out of their own tables. Copying any of it into
+  `graph_nodes` would make a second source of truth that drifts the moment something is
+  edited, and would need a sync path nobody would remember to run. Reading live means
+  flagging a line in the editor puts it on the web immediately and unflagging takes it off.
+  The annotation fields the graph reads beyond the existing ones are `pairId`, `pairLabel`
+  and `sceneId`; all optional, and a flag without them belongs to its chapter and no pair.
+- **A flag anchors to its chapter, or to its scene where it names one — not to an event.**
+  It used to anchor to the event, which meant a flag in a chapter nobody had been placed in
+  had nothing to attach to and floated. An annotation belongs to a chapter, and a chapter
+  always exists.
+- **`character_footprint(character_id)`** is unchanged and still the POV filter.
 ### 17.2 Extraction
 
 `supabase/functions/assistant/extract-graph.ts`, on the Icarus tier (Haiku 4.5),
@@ -2589,6 +2634,9 @@ Three attempts, and the constraint is not obvious:
 
 ### 17.5 Deviations from the supplied spec
 
+*(Section numbers below refer to **that spec**, not to this document — which also has a §9,
+about something else entirely.)*
+
 1. **§9.1 aliases** live in the character node's `properties`, not a separate table, with
    a unique index on `(project_id, lower(label))` making one canonical character per name.
    A first-seen name is **always** queued for review regardless of confidence — a wrong
@@ -2621,7 +2669,7 @@ Three attempts, and the constraint is not obvious:
 - An event nobody is present at is **not drawn**. It is a chapter no one has been placed
   in, and drawing it scatters unreachable dots.
 - **A backtick in a comment inside the renderer breaks the module** and nothing about the
-  generated demo page will tell you. See 17.3; `build-graph-demo.mjs` now checks for it,
+  generated demo page will tell you. See §17.3; `build-graph-demo.mjs` now checks for it,
   and `tsc --noEmit` catches it too.
 - The renderer's chip row **wraps to two lines on a narrow phone, three with the flag
   filters showing**. Native chrome pinned to a fixed offset near the top lands on it — the
@@ -2629,19 +2677,37 @@ Three attempts, and the constraint is not obvious:
   anything added there later should go the same way.
 - The link index is stored on the link object (`l.i`) at build time. `indexOf` over the
   link array, per link, per frame was fine at a few dozen links and is not at several
-  hundred; the same applies to any per-node scan added to the draw call.
+  hundred; the same applies to any per-node scan added to the draw call. `labelEverything`
+  is computed once per view rebuild for the same reason — it was a `filter` over every node,
+  inside the draw call, per node, per frame.
+- **`byId` is built before the links**, not after, because a flag link has to ask whether
+  the scene it names actually exists before anchoring to it. Moving that back breaks
+  scene-scoped flags silently — they fall back to the chapter and nothing complains.
+- **`focusCamera` clears `refitPending`.** A layer switch queues a `zoomToFit` 800ms out; a
+  camera aimed deliberately in between would otherwise be thrown away by it.
 
 ### 17.7 Not built
 
-Multi-hop cascade beyond the progression's deliberate second hop, the time-scrubber
+Multi-hop cascade beyond the deliberate second hops (Progression's "who else was there",
+Plants' "where does the far end land", Structure's chapter→scene→flag), the time-scrubber
 ("as of Book N" — flagged in the spec as the highest-value deferred feature), automatic
 faction/location extraction, and the PWA's own embedding of the renderer.
 
-For plants and reveals specifically: there is **no way to create or pair a flag from this
-view**. Flags are authored in the chapter editor, and `pairId`/`pairLabel` are currently
-written only by the demo fixture's build — the editor's own Plant/Reveal buttons still
-write an unpaired flag. Pairing from the app, and reading the PWA's own `linkedPlant`
-shape, are the obvious next pieces.
+**Nothing can be created or edited from this view.** It is a reading surface: it shows the
+graph, isolates parts of it, and navigates to them. Specifically —
+
+- **Pairing.** `pairId`/`pairLabel` are written only by the demo pack's build
+  (`scripts/demo-plants-reveals.mjs`); the editor's Plant/Reveal buttons still write an
+  unpaired flag. So every pair the app can *show* is one the app cannot *make*. This is the
+  largest gap in the feature.
+- **The PWA's `linkedPlant` shape** — `{chapterId, annotationId}` on the reveal — is a
+  different model of the same relationship and is not read here. Whichever survives, the two
+  halves of the app should not keep both.
+- **Scene-scoped flags.** `sceneId` is read end to end and written only by the demo build.
+  No UI offers the choice.
+- **Books and acts are not nodes.** Structure draws chapter→scene; the two levels above that
+  are carried as properties on the chapter (`book`, `act`) and shown in its panel, not drawn.
+  For seventeen chapters that is right; for five books it may not be.
 
 ---
 

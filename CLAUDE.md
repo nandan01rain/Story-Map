@@ -79,14 +79,31 @@ global animation on/off preference — see "Full feature list" and the
 handoff doc §12.2). Read/write via `supabase.auth.getUser()`/
 `supabase.auth.updateUser({data:{...}})`.
 
-`chapters.annotations[]` items: `{id, type: plant|reveal|note, text, label,
-linkedPlant?: {chapterId, annotationId}, thread?: string}`. `text` is the
-exact flagged substring from the chapter's prose — annotations re-locate
-themselves by searching for that substring on render, they do **not** track
-a fixed character offset. If the surrounding prose is edited enough that the
-substring no longer matches, the annotation silently stops rendering inline
-(though it isn't deleted — it just can't be positioned). This is a known
-limitation; see "Still deferred" below.
+`chapters.annotations[]` items: `{id, type: plant|reveal|note|highlight, text,
+label, pairId?, pairLabel?, sceneId?, linkedPlant?: {chapterId, annotationId},
+thread?: string}`. `text` is the exact flagged substring from the chapter's
+prose — annotations re-locate themselves by searching for that substring on
+render, they do **not** track a fixed character offset. If the surrounding
+prose is edited enough that the substring no longer matches, the annotation
+silently stops rendering inline (though it isn't deleted — it just can't be
+positioned). This is a known limitation; see "Still deferred" below.
+
+The four types are not four flavours of one thing:
+
+- `plant` / `reveal` are two ends of a setup and its payoff. `pairId` is what
+  ties them together and `pairLabel` carries the pair's title on both ends, so
+  the character web can group them without a second query. A pair with no
+  reveal is an **unpaid plant** — a real state, not a fault.
+- `note` is a remark on a line of prose. It has no far end and never carries a
+  `pairId`. `sceneId` optionally narrows it from the whole chapter to one scene.
+- `highlight` is a **reading mark, not a story flag** — no label, no place in
+  the Flags list or its count, and it exists only to tint the text in the
+  Reader. The distinction matters: the Reader can make highlights and cannot
+  make flags.
+
+`pairId`/`pairLabel` are currently written only by the demo pack's build script
+(`scripts/demo-plants-reveals.mjs`); the editor's own Plant/Reveal buttons still
+write an unpaired flag. See "Still deferred".
 
 ## Hierarchy
 
@@ -177,7 +194,11 @@ chapter boundaries for pacing).
   either the Reader or the Editor to highlight it or jump to/select that
   exact text in the other. See the handoff doc §12.1 for the full detail
   and the architectural note on why the header/footer are overlays rather
-  than real layout-affecting elements.
+  than real layout-affecting elements. (This bullet describes the **PWA's**
+  Reader. The mobile app's is a separate from-scratch build and has since
+  diverged — it shows plants/reveals/notes behind a toggle and cannot create
+  flags at all. See the Native mobile app section under Roadmap, and handoff
+  §14.10.)
 - **🕸 Character web (mobile)**: a force-directed graph of the cast, with four
   switchable layers — **Relationships** between characters; **Progression**, a
   character's arc through the events they appear in, in chapter order, with
@@ -282,10 +303,22 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   faction/location extraction, or the PWA's own embedding of the renderer (the
   document is written to be shared; the PWA just doesn't serve it yet).
 - **Pairing a plant to a reveal from inside the app.** The character web can show
-  pairs, browse them and flag unpaid plants, but the editor's Plant/Reveal buttons
-  still write an *unpaired* flag — `pairId`/`pairLabel` are currently only written
-  by the demo pack's build script. The PWA's own `linkedPlant` shape isn't read by
-  the mobile web yet either.
+  pairs, browse them, jump to either end and flag unpaid plants, but the editor's
+  Plant/Reveal buttons still write an *unpaired* flag — `pairId`/`pairLabel` are
+  currently only written by the demo pack's build script
+  (`scripts/demo-plants-reveals.mjs`). The PWA's own `linkedPlant` shape isn't read
+  by the mobile web yet either, so the two halves of the app model the same
+  relationship differently. This is the single biggest gap in the plant/reveal
+  feature: everything downstream of a pair exists, nothing upstream of one does.
+- **Two graph migrations are unrun.** `20260822_graph_flags.sql` and
+  `20260822b_graph_structure.sql` — the second supersedes the first, so running
+  only the newer one against the live project is enough. Until then the
+  Plants & Reveals and Structure layers return nothing. Nothing else breaks,
+  because the client defaults each key of the RPC payload independently rather
+  than assuming the whole shape.
+- **Attaching a note to a scene from the app.** `sceneId` on a note annotation is
+  read everywhere it matters and written only by the demo pack's build. Nothing in
+  the UI offers the choice.
 - **The in-app assistants are built but switched off.** Icarus and
   Daedalus have their database objects (migration already run against the
   live project), Edge Function, agent configurations, account-level toggle,
@@ -445,16 +478,43 @@ Projects tab in one tap, so every feature can be exercised against real material
 without writing any (handoff §18); and **selectable engines** for the two
 assistants.
 
-Added 2026-08-22: the character web's **Plants & Reveals layer**, event **serial
-numbers** and per-character **progression paths**, and a searchable **index** of
-characters/events/plants/reveals/pairs. Plants and reveals are read live out of
-`chapters.annotations` rather than copied into the graph tables, so flagging a
-line in the editor puts it on the web with no sync step. **One migration —
-`supabase/migrations/20260822_graph_flags.sql` — has not been run against the
-live project yet**; until it is, that layer returns nothing (and nothing else
-breaks). `graph/character-web-demo.html` is now generated from the renderer plus
-the demo pack by `scripts/build-graph-demo.mjs` instead of being a hand-kept
-duplicate.
+Added 2026-08-22, in three passes:
+
+**The character web's Plants & Reveals layer**, event **serial numbers**
+(chronological by default, renumbered from a character's own first event when
+they are selected in Progression) and per-character **progression paths** — a
+gold ribbon through their events in order, drawn as a frame overlay rather than
+as links, because links would join the simulation and pull the arc into a ring.
+Tapping an event turns it and its lines blue; a character keeps the gold. Plus a
+searchable **index**, because past a couple of dozen nodes a graph you have to
+pan through is a graph you stop opening.
+
+**A fourth layer, Structure** — the map's own Book→Act→Chapter→Scene hierarchy,
+with every chapter carrying its scenes, its flags and its moment. Chapters and
+events are both in the graph and are **not the same thing**: an event is
+somewhere characters are present and a chapter nobody has been placed in has
+none, while a chapter exists regardless, owns the prose, and is what an
+annotation actually hangs off. Notes joined plants and reveals as a third flag
+kind. Six distinct node shapes.
+
+**The Reader stopped making flags and started showing them.** Its
+Plant/Reveal/Note button is gone; instead a header toggle (off by default,
+persisted) tints plants green, reveals red and notes amber. Highlighting stays,
+because a highlight is a reading mark rather than a story flag. The character
+web is now reachable from the Reader and the Editor at **any granularity** — a
+chapter, a scene, or one flagged line — through a single `focusNodeId`, which
+needs no translation because all three are nodes under their own database ids.
+
+Plants, reveals and notes are read live out of `chapters.annotations` rather
+than copied into the graph tables, so flagging a line in the editor puts it on
+the web with no sync step. **Two migrations have not been run against the live
+project yet** — `supabase/migrations/20260822_graph_flags.sql` and
+`20260822b_graph_structure.sql`; the second supersedes the first, so running
+only `20260822b` is enough. Until then those layers return nothing and nothing
+else breaks: the client defaults each key of the payload independently.
+`graph/character-web-demo.html` is now generated from the renderer plus the demo
+pack by `scripts/build-graph-demo.mjs` instead of being a hand-kept duplicate
+with an invented cast.
 
 Still not built: Map view (**not planned for mobile** — the character web
 replaces it there), the remaining secondary features (continuity checker, POV
