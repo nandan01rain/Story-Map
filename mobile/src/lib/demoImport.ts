@@ -8,10 +8,77 @@ import { supabase } from './supabase';
 // readable only by them. A script holding the anon key has no session, so its inserts are
 // rejected — correctly. The app already has the session.
 //
-// Not idempotent by design: each run creates a separate project, so the demo can be loaded,
-// wrecked while testing, and loaded again without any cleanup step.
+// Each run creates a separate project rather than updating one in place, so the demo can be
+// loaded, wrecked while testing, and loaded again. Exactly one demo project survives a run:
+// removeStaleDemoProjects() deletes the rest on success, and a failed run deletes its own
+// half-built project instead.
 
 export type ImportProgress = { step: string; done: number; total: number };
+
+/** Every project whose name this demo owns. Nothing else is ever a candidate for removal. */
+export function isDemoProject(name: string): boolean {
+  return typeof name === 'string' && name.startsWith(DEMO_FIXTURE.projectName);
+}
+
+/**
+ * Deletes every demo project except `keepId`.
+ *
+ * Split out of the import and rewritten because the old version could fail without saying
+ * so, in three separate places, and repeated loads left a pile of timestamped copies behind
+ * with nothing anywhere reporting why:
+ *
+ *  - the read that found them discarded its error, so a failed read looked like "no old
+ *    copies exist";
+ *  - the delete reported success as `stale.length` rather than as what the database actually
+ *    removed -- and a delete refused by row-level security returns no error and no rows, so
+ *    a blocked delete was indistinguishable from a completed one;
+ *  - it ran only on the success path, so any import that failed part-way left its project
+ *    behind permanently.
+ *
+ * Matching is done here in JS rather than with a `like` filter. The filter itself is fine --
+ * the name has parentheses in it, and those survive the round trip -- but a client-side
+ * `startsWith` cannot be wrong about escaping, and a writer has few enough projects that
+ * reading them all costs nothing.
+ */
+export async function removeStaleDemoProjects(
+  userId: string,
+  keepId: string | null,
+): Promise<{ removed: number; error: string | null }> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name')
+    .eq('user_id', userId);
+  if (error) return { removed: 0, error: `Could not check for older demo copies: ${error.message}` };
+
+  const stale = (data ?? []).filter((row) => isDemoProject(row.name as string) && row.id !== keepId);
+  if (stale.length === 0) return { removed: 0, error: null };
+
+  const ids = stale.map((row) => row.id as string);
+  const { data: deleted, error: deleteError } = await supabase
+    .from('projects')
+    .delete()
+    .in('id', ids)
+    // Returns the rows that were actually deleted, which is the only honest source for the
+    // count. Without it a delete that removed nothing still reported a number.
+    .select('id');
+  if (deleteError) {
+    return { removed: 0, error: `Could not delete older demo copies: ${deleteError.message}` };
+  }
+
+  const removed = deleted?.length ?? 0;
+  if (removed < ids.length) {
+    // The shape a permissions problem takes: no error, no rows. Said plainly rather than
+    // reported as a success that leaves the copies on screen.
+    return {
+      removed,
+      error:
+        `${ids.length - removed} older demo project${ids.length - removed === 1 ? '' : 's'} ` +
+        'could not be deleted. The database refused the delete without giving a reason, which ' +
+        'usually means the projects table has no delete policy for your account.',
+    };
+  }
+  return { removed, error: null };
+}
 
 export async function importDemoProject(
   userId: string,
@@ -35,15 +102,6 @@ export async function importDemoProject(
   });
   const projectName = `${fixture.projectName} · ${stamp}`;
 
-  // Every reload used to leave another demo project behind. Older ones are removed once the
-  // new one exists, so a failed import never destroys the only working copy -- and only
-  // projects whose name matches the demo's own prefix are touched, never real work.
-  const { data: existingDemos } = await supabase
-    .from('projects')
-    .select('id, name')
-    .eq('user_id', userId)
-    .like('name', `${fixture.projectName}%`);
-
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .insert({ user_id: userId, name: projectName, project_type: 'writing' })
@@ -53,6 +111,31 @@ export async function importDemoProject(
     return { projectId: null, projectName, error: projectError?.message ?? 'Could not create the project.' };
   }
   tick('Project created');
+
+  // Every exit from here on goes through finish(), so no path can leave a project behind
+  // by forgetting to tidy up. There were seven such paths and only the last one cleaned up.
+  //
+  // This reverses an earlier deliberate choice to keep a half-imported project around for
+  // inspection. That was defensible once; it is not defensible after it has produced a pile
+  // of timestamped copies, and the error message says what failed either way, which was the
+  // actual point of keeping it.
+  const finish = async (
+    result: { projectId: string | null; projectName: string; error: string | null },
+  ) => {
+    if (result.error !== null) {
+      // Only the half-built project goes. Whatever demo was there before is left exactly as
+      // it was -- discarding a working copy in favour of a broken one would be the wrong way
+      // round, and a failed load should leave the writer no worse off than before they
+      // tapped it.
+      await supabase.from('projects').delete().eq('id', project.id);
+      return { ...result, projectId: null, removed: 0 };
+    }
+    const { removed, error: cleanupError } = await removeStaleDemoProjects(userId, project.id);
+    // A cleanup problem is not an import problem -- the new demo is complete and usable --
+    // but it is still surfaced, because copies quietly piling up is precisely what went
+    // unnoticed before.
+    return { ...result, removed, error: cleanupError };
+  };
 
   // Chapters in one insert rather than seventeen round trips. `order` is the chapter number,
   // so Chapter 0 (the prologue) keeps its place ahead of Chapter 1 instead of being renumbered.
@@ -66,7 +149,11 @@ export async function importDemoProject(
     status: 'drafted',
     content: c.content,
     notes: c.notes,
-    annotations: [],
+    // The plant/reveal pairs, flagged into the prose itself. They are what the character
+    // web's Plants & Reveals layer reads -- it derives them from the chapters rather than
+    // storing a second copy in the graph, so flagging a line in the editor puts it on the
+    // web with no sync step.
+    annotations: c.annotations,
     versions: [],
   }));
 
@@ -75,9 +162,7 @@ export async function importDemoProject(
     .insert(chapterRows)
     .select('id, "order"');
   if (chapterError) {
-    // Leave the project behind rather than deleting it: a half-imported project the writer
-    // can inspect and delete is more useful than a silent rollback that hides what failed.
-    return { projectId: project.id, projectName, error: `Chapters: ${chapterError.message}` };
+    return finish({ projectId: project.id, projectName, error: `Chapters: ${chapterError.message}` });
   }
   fixture.chapters.forEach(() => tick('Chapters'));
 
@@ -105,7 +190,7 @@ export async function importDemoProject(
     // A scene failure is not fatal: the chapters and their prose are the substance, and the
     // import is more useful landing partial than not at all.
     if (sceneError) {
-      return { projectId: project.id, projectName, error: `Scenes: ${sceneError.message}` };
+      return finish({ projectId: project.id, projectName, error: `Scenes: ${sceneError.message}` });
     }
   }
 
@@ -119,7 +204,7 @@ export async function importDemoProject(
 
   const { error: documentError } = await supabase.from('documents').insert(documentRows);
   if (documentError) {
-    return { projectId: project.id, projectName, error: `Documents: ${documentError.message}` };
+    return finish({ projectId: project.id, projectName, error: `Documents: ${documentError.message}` });
   }
   fixture.documents.forEach(() => tick('Documents'));
 
@@ -142,7 +227,7 @@ export async function importDemoProject(
     .insert(characterRows)
     .select('id, label');
   if (characterError) {
-    return { projectId: project.id, projectName, error: `Characters: ${characterError.message}` };
+    return finish({ projectId: project.id, projectName, error: `Characters: ${characterError.message}` });
   }
 
   const idByLabel = new Map<string, string>();
@@ -188,7 +273,7 @@ export async function importDemoProject(
     .insert(eventRows)
     .select('id, properties');
   if (eventError) {
-    return { projectId: project.id, projectName, error: `Events: ${eventError.message}` };
+    return finish({ projectId: project.id, projectName, error: `Events: ${eventError.message}` });
   }
 
   // Mapped back by chapter id rather than by title -- two chapters are allowed to share a
@@ -236,7 +321,7 @@ export async function importDemoProject(
   if (edgeRows.length > 0) {
     const { error: edgeError } = await supabase.from('graph_edges').insert(edgeRows);
     if (edgeError) {
-      return { projectId: project.id, projectName, error: `Relationships: ${edgeError.message}` };
+      return finish({ projectId: project.id, projectName, error: `Relationships: ${edgeError.message}` });
     }
   }
 
@@ -281,26 +366,12 @@ export async function importDemoProject(
   if (presenceRows.length > 0) {
     const { error: presenceError } = await supabase.from('graph_edges').insert(presenceRows);
     if (presenceError) {
-      return { projectId: project.id, projectName, error: `Presence: ${presenceError.message}` };
+      return finish({ projectId: project.id, projectName, error: `Presence: ${presenceError.message}` });
     }
   }
   tick('Character graph');
 
-  // Deleted last, after everything above has succeeded. Chapters, scenes, documents and
-  // graph rows cascade with the project.
-  const stale = (existingDemos ?? []).filter((row) => row.id !== project.id);
-  let removed = 0;
-  if (stale.length > 0) {
-    const { error: cleanupError } = await supabase
-      .from('projects')
-      .delete()
-      .in('id', stale.map((row) => row.id));
-    // Not fatal: the new demo is already complete, and leaving old copies behind is a
-    // tidiness problem rather than a broken import.
-    if (!cleanupError) removed = stale.length;
-  }
-
-  return { projectId: project.id, projectName, removed, error: null };
+  return finish({ projectId: project.id, projectName, error: null });
 }
 
 export function demoSummary() {
@@ -308,6 +379,14 @@ export function demoSummary() {
   const scenes = f.chapters.reduce((n, c) => n + c.scenes.length, 0);
   const words = f.chapters.reduce((n, c) => n + c.content.split(/\s+/).length, 0);
   const povs = [...new Set(f.chapters.map((c) => c.pov).filter(Boolean))];
+  const plants = f.chapters.reduce(
+    (n, c) => n + c.annotations.filter((a) => a.type === 'plant').length,
+    0,
+  );
+  const reveals = f.chapters.reduce(
+    (n, c) => n + c.annotations.filter((a) => a.type === 'reveal').length,
+    0,
+  );
   return {
     chapters: f.chapters.length,
     scenes,
@@ -316,5 +395,9 @@ export function demoSummary() {
     povs,
     characters: f.characters.length,
     relationships: f.graphEdges.length,
+    plants,
+    reveals,
+    pairs: f.plantRevealPairs.length,
+    unpaidPlants: f.plantRevealPairs.filter((p) => p.reveals === 0).length,
   };
 }

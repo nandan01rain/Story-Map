@@ -5,7 +5,13 @@ import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { type ImportProgress, demoSummary, importDemoProject } from '../lib/demoImport';
+import {
+  type ImportProgress,
+  demoSummary,
+  importDemoProject,
+  isDemoProject,
+  removeStaleDemoProjects,
+} from '../lib/demoImport';
 import { supabase } from '../lib/supabase';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import { useAuthStore } from '../store/authStore';
@@ -82,6 +88,8 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [actionError, setActionError] = useState('');
   const [demoProgress, setDemoProgress] = useState<ImportProgress | null>(null);
+  const [demoNote, setDemoNote] = useState('');
+  const [tidying, setTidying] = useState(false);
 
   useEffect(() => {
     if (user) fetchProjects(user.id);
@@ -130,17 +138,46 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   async function handleLoadDemo() {
     if (!user || demoProgress) return;
     setActionError('');
+    setDemoNote('');
     setDemoProgress({ step: 'Starting', done: 0, total: 1 });
-    const { projectId, projectName, error: err } = await importDemoProject(user.id, setDemoProgress);
+    const { projectId, projectName, removed, error: err } = await importDemoProject(
+      user.id,
+      setDemoProgress,
+    );
     setDemoProgress(null);
+    // The list changes either way: a successful load replaces the older copies, a failed one
+    // removes its own half-built project.
+    await fetchProjects(user.id);
     if (err) {
       setActionError(err);
-      // A partial import still leaves a project worth looking at, so refresh either way.
-      if (projectId) fetchProjects(user.id);
       return;
     }
-    await fetchProjects(user.id);
+    // Said out loud rather than assumed. The old code reported a number it had not checked,
+    // so copies could pile up with the app insisting it had cleaned them.
+    if (removed) setDemoNote(`Replaced ${removed} older cop${removed === 1 ? 'y' : 'ies'}.`);
     if (projectId) navigation.navigate('ChapterList', { projectId, projectName });
+  }
+
+  // Every demo project, newest first. The demo is meant to leave exactly one behind; this is
+  // how the writer clears a pile that accumulated before it did, without re-importing.
+  const demoProjects = useMemo(
+    () =>
+      projects
+        .filter((p) => isDemoProject(p.name))
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+    [projects],
+  );
+
+  async function handleTidyDemos() {
+    if (!user || tidying || demoProjects.length < 2) return;
+    setActionError('');
+    setDemoNote('');
+    setTidying(true);
+    const { removed, error: err } = await removeStaleDemoProjects(user.id, demoProjects[0].id);
+    setTidying(false);
+    await fetchProjects(user.id);
+    if (err) setActionError(err);
+    else setDemoNote(`Removed ${removed} older cop${removed === 1 ? 'y' : 'ies'}.`);
   }
 
   async function confirmDelete() {
@@ -193,9 +230,28 @@ export default function ProjectPickerScreen({ navigation }: Props) {
               {demo.chapters} chapters · {demo.scenes} scenes · {demo.documents} documents ·{' '}
               {demo.words.toLocaleString()} words
             </Text>
+            <Text style={styles.demoText}>
+              {demo.characters} cast · {demo.relationships} relationships · {demo.pairs}{' '}
+              plant/reveal pairs
+            </Text>
+            {!!demoNote && <Text style={styles.demoNote}>{demoNote}</Text>}
           </>
         )}
       </Pressable>
+
+      {/* Only shown when there is actually a pile. Loading the demo already leaves one copy
+          behind; this exists for the ones that accumulated before it did. */}
+      {demoProjects.length > 1 && !demoProgress && (
+        <Pressable style={styles.tidyRow} onPress={handleTidyDemos} disabled={tidying}>
+          <Text style={styles.tidyText}>
+            {tidying
+              ? 'Removing…'
+              : `Keep only the newest demo — delete ${demoProjects.length - 1} older cop${
+                  demoProjects.length - 1 === 1 ? 'y' : 'ies'
+                }`}
+          </Text>
+        </Pressable>
+      )}
 
       <View style={styles.newRow}>
         <TextInput
@@ -390,6 +446,16 @@ function makeStyles(colors: ThemeColors) {
     },
     demoTitle: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 13.5 },
     demoText: { color: colors.textFaint, fontSize: 11.5, flexShrink: 1 },
+    demoNote: { color: colors.gold, fontSize: 11.5, marginTop: 4 },
+    tidyRow: {
+      marginTop: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.borderDim,
+    },
+    tidyText: { color: colors.textDim, fontSize: 12.5 },
     newRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
     newInput: {
       flex: 1,

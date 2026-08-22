@@ -8,6 +8,18 @@
 // writer's own session, which only the signed-in app has.
 
 export type DemoScene = { order: number; title: string; summary: string; pov: string };
+/** One end of a plant/reveal pair, written into the chapter's prose as an annotation. */
+export type DemoAnnotation = {
+  id: string;
+  type: 'plant' | 'reveal';
+  /** The exact flagged substring. Annotations relocate by searching for this. */
+  text: string;
+  /** What this end of the pair does. */
+  label: string;
+  /** Shared by both ends. A pair with no reveal is an unpaid plant, which is a real state. */
+  pairId: string;
+  pairLabel: string;
+};
 export type DemoChapter = {
   number: number;
   title: string;
@@ -19,6 +31,7 @@ export type DemoChapter = {
   summary: string;
   endsOn: string;
   scenes: DemoScene[];
+  annotations: DemoAnnotation[];
 };
 export type DemoDocument = { title: string; type: string; content: string };
 export type DemoCharacter = { key: string; label: string; aliases: string[] };
@@ -33,12 +46,20 @@ export type DemoGraphEdge = {
   /** What actually happens between them, shown when the interaction is expanded. */
   description: string;
 };
+/** Summary only -- the pairs themselves live in the chapters' annotations. */
+export type DemoPlantRevealPair = {
+  id: string;
+  title: string;
+  plants: number;
+  reveals: number;
+};
 export type DemoFixture = {
   projectName: string;
   chapters: DemoChapter[];
   documents: DemoDocument[];
   characters: DemoCharacter[];
   graphEdges: DemoGraphEdge[];
+  plantRevealPairs: DemoPlantRevealPair[];
 };
 
 export const DEMO_FIXTURE: DemoFixture = {
@@ -53,6 +74,40 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Plant the true history in the reader's hands before the family's sanitized legend is ever told, so every later retelling of the legend reads with dramatic irony.\n\nSetup/payoff: Sets up the true-history/legend gap (paid off Ch 9); the anklets (paid off Ch 3 and Ch 13); the damaged portrait (paid off Ch 4).\n\nEnds on: The anklets, still.",
       "summary": "Plant the true history in the reader's hands before the family's sanitized legend is ever told, so every later retelling of the legend reads with dramatic irony.",
       "endsOn": "The anklets, still.",
+      "annotations": [
+        {
+          "id": "pr-24-p0",
+          "type": "plant",
+          "text": "She kept, in a box she told no one about, a single dried jasmine flower from the first night he had told her, plainly, without performance, that he loved her",
+          "label": "Never returned to, anywhere in the manuscript.",
+          "pairId": "pr-24",
+          "pairLabel": "The dried jasmine flower"
+        },
+        {
+          "id": "pr-01-p0",
+          "type": "plant",
+          "text": "There was no negotiation in the way stories would later tell it. There was a price, and a party who received it, and Nagavalli was not that party.",
+          "label": "The transaction stated plainly, in the only chapter with no family legend layered over it.",
+          "pairId": "pr-01",
+          "pairLabel": "Nagavalli was purchased, not courted"
+        },
+        {
+          "id": "pr-02-p0",
+          "type": "plant",
+          "text": "that he had gone to Ramanathan with the particular unhurried calm of a man who has already decided the shape of the evening and is merely walking through its stages, that there had been no shouting, no crime of passion in the way the word suggested a loss of control, only a decision, executed.",
+          "label": "The cottage first, and the calm of a man walking through stages he has already decided.",
+          "pairId": "pr-02",
+          "pairLabel": "Sequential, methodical murders — not one crime of passion"
+        },
+        {
+          "id": "pr-25-p0",
+          "type": "plant",
+          "text": "The anklets were still on the floor of the Thekkini three days later",
+          "label": "Set down where they fell, and left there for a century and a half.",
+          "pairId": "pr-25",
+          "pairLabel": "The anklets, the mirror, the lamp"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -95,6 +150,24 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Establish the present-day family, the legend as the family tells it, and Nakulan's reasons for insisting on the visit despite warnings.\n\nSetup/payoff: The legend (payoff Ch 9); \"far-away moods\" (payoff Ch 10).\n\nEnds on: The locked door of the Thekkini, seen from outside for the first time.",
       "summary": "Establish the present-day family, the legend as the family tells it, and Nakulan's reasons for insisting on the visit despite warnings.",
       "endsOn": "The locked door of the Thekkini, seen from outside for the first time.",
+      "annotations": [
+        {
+          "id": "pr-22-p0",
+          "type": "plant",
+          "text": "\"You will not go near that door,\" Valyammai said",
+          "label": "The prohibition, delivered to the room and aimed at one person in it.",
+          "pairId": "pr-22",
+          "pairLabel": "The locked door, and Valyammai's warning"
+        },
+        {
+          "id": "pr-03-p0",
+          "type": "plant",
+          "text": "he knew this only because Ganga's slippers, left neatly by the door the night before, were faintly, inexplicably, dusty.",
+          "label": "She has already walked the gallery, before anyone thinks the keys are missing.",
+          "pairId": "pr-03",
+          "pairLabel": "Ganga's dusty slippers, night one"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -137,6 +210,32 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Deepen Nakulan and Ganga's marriage; establish his friendship with Sunny early so his later summons doesn't feel mechanical; plant Ganga's undisclosed grief.\n\nSetup/payoff: Sunny's eventual summons; the melancholy red herring (paid off/debunked Ch 10); the undisclosed grief.\n\nEnds on: Ganga's hand, briefly, resting on her own stomach without seeming to notice she's done it.",
       "summary": "Deepen Nakulan and Ganga's marriage; establish his friendship with Sunny early so his later summons doesn't feel mechanical; plant Ganga's undisclosed grief.",
       "endsOn": "Ganga's hand, briefly, resting on her own stomach without seeming to notice she's done it.",
+      "annotations": [
+        {
+          "id": "pr-04-p0",
+          "type": "plant",
+          "text": "that half-second delay, the eyes catching up to the face a beat after the face had already begun to smile.",
+          "label": "The first visible trace of the alter, dressed as tiredness.",
+          "pairId": "pr-04",
+          "pairLabel": "Ganga's far-away lapses"
+        },
+        {
+          "id": "pr-05-p0",
+          "type": "plant",
+          "text": "Ganga's hand moved, without her seeming to notice it moving, to rest flat against her stomach",
+          "label": "The undisclosed grief, gestured at and never named.",
+          "pairId": "pr-05",
+          "pairLabel": "The hand on the stomach"
+        },
+        {
+          "id": "pr-06-p0",
+          "type": "plant",
+          "text": "You know I did my residency partly on a dissociative disorders ward. Nothing scares me anymore.",
+          "label": "The diagnosis is in his mouth in Chapter 2, as a joke, eight chapters before he means it.",
+          "pairId": "pr-06",
+          "pairLabel": "Sunny's dissociative-ward joke"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -173,6 +272,40 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Ganga's transgression; introduce Sridevi properly and establish her as a careful observer from her very first POV chapter.\n\nSetup/payoff: The anklets and mirror (payoff Ch 7, Ch 13); Sridevi's habit of quiet observation (payoff Ch 8, Ch 11).\n\nEnds on: Ganga, alone a moment, whispering a phrase in Tamil she has no memory of having learned.",
       "summary": "Ganga's transgression; introduce Sridevi properly and establish her as a careful observer from her very first POV chapter.",
       "endsOn": "Ganga, alone a moment, whispering a phrase in Tamil she has no memory of having learned.",
+      "annotations": [
+        {
+          "id": "pr-09-p0",
+          "type": "plant",
+          "text": "Sridevi noticed things. It was not a virtue she had cultivated so much as a habit she had backed into, the way a person backs into a corner of a crowded room without deciding to — she had grown up slightly to the side of this family's attention, close enough to be included, never quite close enough to be the center of anything, and a person in that position learns, without meaning to, to watch.",
+          "label": "Established as temperament long before it becomes useful.",
+          "pairId": "pr-09",
+          "pairLabel": "Sridevi's habit of quiet observation"
+        },
+        {
+          "id": "pr-25-p1",
+          "type": "plant",
+          "text": "a cracked mirror that had lost most of its silvering, and, near the foot of the bed, a pair of anklets, tarnished black",
+          "label": "Seen again, close up — and then not used.",
+          "pairId": "pr-25",
+          "pairLabel": "The anklets, the mirror, the lamp"
+        },
+        {
+          "id": "pr-07-p0",
+          "type": "plant",
+          "text": "heard her say something under her breath. A few words, low, in a cadence that was almost but not quite the Tamil the household used, the accent slightly wrong",
+          "label": "A language learned by ear rather than lived in — the tell that it was performed at her, not inherited.",
+          "pairId": "pr-07",
+          "pairLabel": "The unfamiliar Tamil phrase"
+        },
+        {
+          "id": "pr-08-p0",
+          "type": "plant",
+          "text": "G. said something in the Thekkini. Not sure what. Didn't sound like her.",
+          "label": "The record begins the day of the key theft, before anyone knows there is anything to record.",
+          "pairId": "pr-08",
+          "pairLabel": "Sridevi's first notebook entry"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -209,6 +342,24 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: First ambiguous incident; introduce the damaged portrait; escalate household unease without yet confirming anything supernatural.\n\nSetup/payoff: The damaged portrait (payoff Ch 9); shattering objects as an established \"symptom\" pattern (payoff Ch 10).\n\nEnds on: Valyammai discovering the disturbed lock, saying nothing to anyone yet.",
       "summary": "First ambiguous incident; introduce the damaged portrait; escalate household unease without yet confirming anything supernatural.",
       "endsOn": "Valyammai discovering the disturbed lock, saying nothing to anyone yet.",
+      "annotations": [
+        {
+          "id": "pr-26-p0",
+          "type": "plant",
+          "text": "a long diagonal slash through the painted hands, crudely repaired with backing cloth that had itself gone dark with age.",
+          "label": "The slash goes through the hands specifically. Ch 9's true history never reconnects to the image.",
+          "pairId": "pr-26",
+          "pairLabel": "The damaged ancestor portrait"
+        },
+        {
+          "id": "pr-10-p0",
+          "type": "plant",
+          "text": "A tumbler on the dining table, standing undisturbed, no one within arm's reach, simply — cracked, cleanly",
+          "label": "The first breakage, with a perfectly reasonable explanation already attached to it.",
+          "pairId": "pr-10",
+          "pairLabel": "Objects shattering with no clear cause"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -245,6 +396,32 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: First real violence; crystallize the family's fear into open supernatural belief; end Act One on the decision to summon outside help.\n\nSetup/payoff: The saree fire as the pattern's most dangerous escalation so far; Sridevi's wrongful suspicion begins here, properly, for Act Two to develop.\n\nEnds on: Nakulan on the phone, asking Sunny to come immediately. **End of Act One.**",
       "summary": "First real violence; crystallize the family's fear into open supernatural belief; end Act One on the decision to summon outside help.",
       "endsOn": "Nakulan on the phone, asking Sunny to come immediately. **End of Act One.**",
+      "annotations": [
+        {
+          "id": "pr-23-p0",
+          "type": "plant",
+          "text": "The rite ended without incident, which should have been a relief and instead only deepened the unease in the room — a ritual that produces no visible effect is, to a frightened household, not evidence of nothing happening but evidence that whatever is happening is stronger than the tools they have to address it.",
+          "label": "Tradition alone, and it does nothing.",
+          "pairId": "pr-23",
+          "pairLabel": "The failed puja against the designed rite"
+        },
+        {
+          "id": "pr-12-p0",
+          "type": "plant",
+          "text": "Ganga, standing near the shrine room's lamps, her saree already alight along one edge, moving — not screaming, not panicking, moving with a strange deliberate slowness",
+          "label": "Deliberate slowness where panic belongs — the detail that makes it a state, not an attack.",
+          "pairId": "pr-12",
+          "pairLabel": "The saree fire"
+        },
+        {
+          "id": "pr-11-p0",
+          "type": "plant",
+          "text": "watched it land first, uncertainly, on his own wife, a dozen frightened eyes finding her and flinching away again as though the accusation were too large to actually hold in place — and then, in the scramble to find somewhere safer to put it, watched it swing instead toward Sridevi",
+          "label": "The accusation looking for somewhere safer to land.",
+          "pairId": "pr-11",
+          "pairLabel": "\"Possessed\" — spoken, then redirected to Sridevi"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -287,6 +464,24 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Introduce Sunny at full voice; establish his method; the Alli assault incident and Mahadevan's wrongful suspicion.\n\nSetup/payoff: Mahadevan's wrongful suspicion (payoff Ch 10, when reframed as the \"Ramanathan\" projection); Sunny's noticed detail (payoff Ch 10).\n\nEnds on: Sunny asking, mildly, whether anyone actually saw what happened, and getting no clear answer.",
       "summary": "Introduce Sunny at full voice; establish his method; the Alli assault incident and Mahadevan's wrongful suspicion.",
       "endsOn": "Sunny asking, mildly, whether anyone actually saw what happened, and getting no clear answer.",
+      "annotations": [
+        {
+          "id": "pr-09-r1",
+          "type": "reveal",
+          "text": "You have the look of someone who writes things down.",
+          "label": "Sunny reads it off her in one line, which is how he ends up with a corroborating witness.",
+          "pairId": "pr-09",
+          "pairLabel": "Sridevi's habit of quiet observation"
+        },
+        {
+          "id": "pr-13-p0",
+          "type": "plant",
+          "text": "He noted that Mahadevan, kneeling several feet away, had both hands empty and neither sleeve so much as creased.",
+          "label": "The physical evidence nobody else in that corridor is looking at.",
+          "pairId": "pr-13",
+          "pairLabel": "Mahadevan's clean hands"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -323,6 +518,24 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: The book's most overtly \"haunted\" set piece, staged so it can be reread as clinical once the reader knows the truth; the Durgashtami threat is issued.\n\nSetup/payoff: The Durgashtami deadline (payoff Act Three); the vocal-persona trick (paid off again, deliberately, in Ch 12's ritual).\n\nEnds on: Sunny alone in the corridor afterward, no longer treating this as a straightforward case.",
       "summary": "The book's most overtly \"haunted\" set piece, staged so it can be reread as clinical once the reader knows the truth; the Durgashtami threat is issued.",
       "endsOn": "Sunny alone in the corridor afterward, no longer treating this as a straightforward case.",
+      "annotations": [
+        {
+          "id": "pr-14-p0",
+          "type": "plant",
+          "text": "details that made Sunny's clinical instincts sharpen even through the genuine unease crawling up his spine: precise turns of phrase, an intimacy with the geography of a court two hundred miles from here",
+          "label": "Accuracy no family retelling could carry.",
+          "pairId": "pr-14",
+          "pairLabel": "The voice's unusually accurate history"
+        },
+        {
+          "id": "pr-15-p0",
+          "type": "plant",
+          "text": "\"On Durgashtami,\" the voice said, when the account was finished, \"you will answer for it. I will finish what his hands began, and this time nothing will stop the blade.\"",
+          "label": "The deadline that structures the whole of Act Three.",
+          "pairId": "pr-15",
+          "pairLabel": "The Durgashtami deadline"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -359,6 +572,24 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: The poisoning subplot; Sridevi wrongly confined; establish this incident as mundane and separate from the dissociative pattern (per Story Bible §3).\n\nSetup/payoff: Sridevi's written record (payoff Ch 10, when she hands it to Sunny); the accountant thread (deliberately left as texture, not resolved — [OPEN] whether to pay this off in a later patch).\n\nEnds on: Sridevi, alone, starting her notes with the sentence: \"I did not do this.\"",
       "summary": "The poisoning subplot; Sridevi wrongly confined; establish this incident as mundane and separate from the dissociative pattern (per Story Bible §3).",
       "endsOn": "Sridevi, alone, starting her notes with the sentence: \"I did not do this.\"",
+      "annotations": [
+        {
+          "id": "pr-16-p0",
+          "type": "plant",
+          "text": "I did not do this,* she wrote, first, because she needed the sentence in her own handwriting where she could look at it.",
+          "label": "Written for herself, with no expectation that anyone will ever read it.",
+          "pairId": "pr-16",
+          "pairLabel": "Sridevi's notebook opening line"
+        },
+        {
+          "id": "pr-27-p0",
+          "type": "plant",
+          "text": "the argument she'd overheard three days earlier between Achuthan Pillai and Nakulan's uncle over the quarterly accounts — a detail she had noted at the time only out of habit",
+          "label": "Story Bible §3 and the Continuity Timeline both specify this thread stays unresolved.",
+          "pairId": "pr-27",
+          "pairLabel": "The accountant thread — contradicts the planning docs"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -395,6 +626,32 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Fracture the legend; deliver the true 150-year-old history to both Sunny and the reader; deepen the thematic spine.\n\nSetup/payoff: The true-history/legend gap (paid off from Ch 0); the phrase-matching clue (payoff Ch 10's diagnosis scene).\n\nEnds on: Sunny, on the road back, asking himself who in the household could possibly know these specific, unrecorded details.",
       "summary": "Fracture the legend; deliver the true 150-year-old history to both Sunny and the reader; deepen the thematic spine.",
       "endsOn": "Sunny, on the road back, asking himself who in the household could possibly know these specific, unrecorded details.",
+      "annotations": [
+        {
+          "id": "pr-01-r1",
+          "type": "reveal",
+          "text": "It's not wrong, exactly. It's just missing the part where nobody asked her anything.",
+          "label": "Bhargavi Amma names what the family's version leaves out.",
+          "pairId": "pr-01",
+          "pairLabel": "Nagavalli was purchased, not courted"
+        },
+        {
+          "id": "pr-02-r1",
+          "type": "reveal",
+          "text": "the murders themselves, described not as a single unified act of a man undone by passion but as two separate, sequential acts, the cottage first, methodical, and only afterward, drunk and unravelling, the Thekkini.",
+          "label": "The outside record confirms the order, which is the detail the legend sands off.",
+          "pairId": "pr-02",
+          "pairLabel": "Sequential, methodical murders — not one crime of passion"
+        },
+        {
+          "id": "pr-14-r1",
+          "type": "reveal",
+          "text": "Whoever, or whatever, was speaking from behind that locked door knew a version of the story the family itself did not know.",
+          "label": "Matched against the Evoor record — and it narrows the field of explanation rather than widening it.",
+          "pairId": "pr-14",
+          "pairLabel": "The voice's unusually accurate history"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -431,6 +688,96 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Sunny reaches the correct diagnosis privately; confides in Sridevi; the melancholy red herring is debunked; the true nature of Ganga's condition is laid out fully for the reader.\n\nSetup/payoff: Every Act One/Two \"clue\" pays off here at once; sets up the need for a socially acceptable delivery mechanism (Ch 12).\n\nEnds on: Sunny's realization that a clinical diagnosis alone will save no one — the family will never accept it on its own terms.",
       "summary": "Sunny reaches the correct diagnosis privately; confides in Sridevi; the melancholy red herring is debunked; the true nature of Ganga's condition is laid out fully for the reader.",
       "endsOn": "Sunny's realization that a clinical diagnosis alone will save no one — the family will never accept it on its own terms.",
+      "annotations": [
+        {
+          "id": "pr-10-r1",
+          "type": "reveal",
+          "text": "laying every fact he had out on the small writing desk in his room the way he'd once been trained to lay out a differential diagnosis — not in order of drama, but in order of evidence.",
+          "label": "Folded into the evidence list. Note: that paragraph never names the shattering objects — this payoff is structural, not stated.",
+          "pairId": "pr-10",
+          "pairLabel": "Objects shattering with no clear cause"
+        },
+        {
+          "id": "pr-04-r1",
+          "type": "reveal",
+          "text": "Ganga's far-away moods, first noted by Nakulan before either of them had reason to think anything of it.",
+          "label": "Recognised as an early dissociative symptom rather than travel fatigue.",
+          "pairId": "pr-04",
+          "pairLabel": "Ganga's far-away lapses"
+        },
+        {
+          "id": "pr-03-r1",
+          "type": "reveal",
+          "text": "The dust on her slippers, the very first morning, before the keys were even officially missing.",
+          "label": "Read back as evidence, in Sunny's differential.",
+          "pairId": "pr-03",
+          "pairLabel": "Ganga's dusty slippers, night one"
+        },
+        {
+          "id": "pr-12-r1",
+          "type": "reveal",
+          "text": "The saree fire, which Ganga genuinely did not seem to remember, staged close enough to open flame that it read, on close honest examination, far more plausibly as an accident involving a person not fully present in her own body than as an attack by anything external.",
+          "label": "Confirmed as a dissociative-state accident.",
+          "pairId": "pr-12",
+          "pairLabel": "The saree fire"
+        },
+        {
+          "id": "pr-13-r1",
+          "type": "reveal",
+          "text": "The Alli incident, where the physical evidence — Mahadevan's empty, uncreased hands — had never actually supported the accusation",
+          "label": "Stated outright: the household convicted him by proximity.",
+          "pairId": "pr-13",
+          "pairLabel": "Mahadevan's clean hands"
+        },
+        {
+          "id": "pr-14-r2",
+          "type": "reveal",
+          "text": "a version, Sunny was now near certain, that could only have reached Ganga through an unusually thorough, unusually immersive childhood exposure",
+          "label": "The clinical conclusion drawn from it. (The supplied table lists this line under Ch 9; it is in Ch 10.)",
+          "pairId": "pr-14",
+          "pairLabel": "The voice's unusually accurate history"
+        },
+        {
+          "id": "pr-07-r1",
+          "type": "reveal",
+          "text": "a grand-aunt on Ganga's side, now deceased, who had spent years steeped in Tamil court-dance history, who had — the cousin remembered this vividly, laughing slightly at the memory — used to perform the whole Nagavalli story for a young, rapt Ganga, in full costume",
+          "label": "Traced to the grand-aunt, in costume, again and again.",
+          "pairId": "pr-07",
+          "pairLabel": "The unfamiliar Tamil phrase"
+        },
+        {
+          "id": "pr-06-r1",
+          "type": "reveal",
+          "text": "He wrote out the clinical picture in full, for his own clarity as much as anything: a Dissociative Identity Disorder",
+          "label": "The joke, made seriously.",
+          "pairId": "pr-06",
+          "pairLabel": "Sunny's dissociative-ward joke"
+        },
+        {
+          "id": "pr-08-r1",
+          "type": "reveal",
+          "text": "she reached for her notebook and turned it around to face him. \"I've been keeping my own record,\"",
+          "label": "Two independent lines of evidence converging — hers built with no knowledge of his.",
+          "pairId": "pr-08",
+          "pairLabel": "Sridevi's first notebook entry"
+        },
+        {
+          "id": "pr-16-r1",
+          "type": "reveal",
+          "text": "her account, built with no knowledge of his diagnosis, mapped almost exactly onto the timeline he'd assembled from the other direction.",
+          "label": "The record that corroborates Sunny from the opposite direction.",
+          "pairId": "pr-16",
+          "pairLabel": "Sridevi's notebook opening line"
+        },
+        {
+          "id": "pr-21-p0",
+          "type": "plant",
+          "text": "\"This is extraordinary,\" he said, and meant it entirely as a compliment. \"You'd have made a decent clinician.\"",
+          "label": "Small, collaborative, and not yet romantic.",
+          "pairId": "pr-21",
+          "pairLabel": "Sunny and Sridevi, working together"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -473,6 +820,32 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Public vindication; the elders summon the Namboodiri, setting up Act Three.\n\nSetup/payoff: The Namboodiri's arrival (Act Three); Sunny and the Namboodiri's prior history (**[OPEN]** — needs fixing before drafting).\n\nEnds on: The Namboodiri's palanquin/car arriving at the gate. **End of Act Two.**",
       "summary": "Public vindication; the elders summon the Namboodiri, setting up Act Three.",
       "endsOn": "The Namboodiri's palanquin/car arriving at the gate. **End of Act Two.**",
+      "annotations": [
+        {
+          "id": "pr-27-r1",
+          "type": "reveal",
+          "text": "a conversation, quietly reconstructed, that placed Achuthan Pillai's movements near the kitchen at precisely the relevant window, and a financial motive nobody had bothered examining",
+          "label": "The prose resolves it anyway. This reveal contradicts the plan — it needs a decision, not a fix.",
+          "pairId": "pr-27",
+          "pairLabel": "The accountant thread — contradicts the planning docs"
+        },
+        {
+          "id": "pr-11-r1",
+          "type": "reveal",
+          "text": "\"She had nothing to do with it,\" Sunny said. \"I said what I said to buy time for an investigation that had nothing to do with tea at all, and that was unfair to her, and I'd like the record corrected properly.\"",
+          "label": "Retracted in public, at the cost of admitting what the accusation was for.",
+          "pairId": "pr-11",
+          "pairLabel": "\"Possessed\" — spoken, then redirected to Sridevi"
+        },
+        {
+          "id": "pr-17-p0",
+          "type": "plant",
+          "text": "Old associate. We crossed paths years ago, on a case that needed exactly this kind of cooperation and neither of us expected to find it in the other.",
+          "label": "One line, so Act Three can skip a slow-build introduction. The backstory itself stays deliberately unwritten.",
+          "pairId": "pr-17",
+          "pairLabel": "Sunny and the Namboodiri's prior association"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -509,6 +882,32 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: The book's thematic centerpiece — Sunny and the Namboodiri's collaboration, worked out in full.\n\nSetup/payoff: Every physical element of the Ch 15 climax is planted here (the dummy, the lever, the ash/smoke).\n\nEnds on: The Namboodiri's blessing of the plan, in ritual language that means something different to him than it does to Sunny — and both of them fine with that.",
       "summary": "The book's thematic centerpiece — Sunny and the Namboodiri's collaboration, worked out in full.",
       "endsOn": "The Namboodiri's blessing of the plan, in ritual language that means something different to him than it does to Sunny — and both of them fine with that.",
+      "annotations": [
+        {
+          "id": "pr-17-r1",
+          "type": "reveal",
+          "text": "I have sat with a great many griefs in my life that called themselves spirits, doctor. I do not think you and I are describing different events.",
+          "label": "The collaboration is the payoff. The shared history is never elaborated.",
+          "pairId": "pr-17",
+          "pairLabel": "Sunny and the Namboodiri's prior association"
+        },
+        {
+          "id": "pr-23-r1",
+          "type": "reveal",
+          "text": "I will perform a correct and complete rite. Whether that satisfies your clinical requirements as well is, I suspect, a question of design rather than contradiction.",
+          "label": "The same rite, designed rather than merely performed. (Structural payoff — the supplied table quotes no line for this end.)",
+          "pairId": "pr-23",
+          "pairLabel": "The failed puja against the designed rite"
+        },
+        {
+          "id": "pr-18-p0",
+          "type": "plant",
+          "text": "a lifelike straw dummy, dressed and weighted to convince a blade under poor light and worse composure; a hidden lever, silent, that would allow the real man to be withdrawn and the substitute swung into place in the same motion; the timing of the ash and smoke coordinated exactly against that swap",
+          "label": "Designed on the page, in full, three chapters before it runs.",
+          "pairId": "pr-18",
+          "pairLabel": "The ritual mechanism — dummy, lever, ash and smoke"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -545,6 +944,24 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: Rising dread; Nakulan learns he is to be the \"target\"; a last quiet scene between Nakulan and Ganga before the crisis.\n\nSetup/payoff: The emotional stakes of Ch 15's swap; Valyammai's history (ties back to Story Bible §1's [OPEN] item).\n\nEnds on: Nakulan and Ganga's hands, briefly touching, neither of them saying what they mean.",
       "summary": "Rising dread; Nakulan learns he is to be the \"target\"; a last quiet scene between Nakulan and Ganga before the crisis.",
       "endsOn": "Nakulan and Ganga's hands, briefly touching, neither of them saying what they mean.",
+      "annotations": [
+        {
+          "id": "pr-19-p0",
+          "type": "plant",
+          "text": "Hold still. Trust the ground under your feet more than what your eyes are telling you. That's all I'm asking.",
+          "label": "The one thing this book ever actually asks of him.",
+          "pairId": "pr-19",
+          "pairLabel": "Nakulan asked to trust and hold still"
+        },
+        {
+          "id": "pr-20-p0",
+          "type": "plant",
+          "text": "I'm frightened, Nakulan. Not of the ghost. Of not knowing what I've been doing while I wasn't there for it.",
+          "label": "The real fear, stated the night before, and it is not the ghost.",
+          "pairId": "pr-20",
+          "pairLabel": "Ganga fears not knowing what she has done"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -581,6 +998,16 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: The alter fully takes over; the family witnesses the ritual begin; the last beat before the swap.\n\nSetup/payoff: Everything from Ch 12 converges.\n\nEnds on: The sword raised.",
       "summary": "The alter fully takes over; the family witnesses the ritual begin; the last beat before the swap.",
       "endsOn": "The sword raised.",
+      "annotations": [
+        {
+          "id": "pr-13-r2",
+          "type": "reveal",
+          "text": "Sunny watched Ganga's — Nagavalli's — gaze find him and soften, entirely, into something that had nothing to do with the flat fury of a moment before",
+          "label": "Dramatised: the alter was never attacking him. It was recognising him as Ramanathan.",
+          "pairId": "pr-13",
+          "pairLabel": "Mahadevan's clean hands"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -617,6 +1044,40 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: The physical climax; the alter's exit; the immediate aftermath.\n\nSetup/payoff: Every planted mechanism from Ch 12 pays off in sequence.\n\nEnds on: Ganga, on the ground, breathing, herself.",
       "summary": "The physical climax; the alter's exit; the immediate aftermath.",
       "endsOn": "Ganga, on the ground, breathing, herself.",
+      "annotations": [
+        {
+          "id": "pr-18-r1",
+          "type": "reveal",
+          "text": "casting a great handful of sacred ash and thick ceremonial smoke directly into the path of the descending blade",
+          "label": "The blinding: ritually correct and operationally necessary at the same instant.",
+          "pairId": "pr-18",
+          "pairLabel": "The ritual mechanism — dummy, lever, ash and smoke"
+        },
+        {
+          "id": "pr-18-r2",
+          "type": "reveal",
+          "text": "The lever gave way smoothly, silently",
+          "label": "The swap, executed under pressure.",
+          "pairId": "pr-18",
+          "pairLabel": "The ritual mechanism — dummy, lever, ash and smoke"
+        },
+        {
+          "id": "pr-19-r1",
+          "type": "reveal",
+          "text": "Nakulan — who had, to his eternal credit, not flinched, not moved, held the trust he'd been asked to hold with a stillness Sunny would remember for the rest of his life",
+          "label": "He holds. It is the whole of his arc, paid in one sentence.",
+          "pairId": "pr-19",
+          "pairLabel": "Nakulan asked to trust and hold still"
+        },
+        {
+          "id": "pr-15-r1",
+          "type": "reveal",
+          "text": "It fell with the full, blind, absolute fury of a hundred and fifty years",
+          "label": "The blade falls, on the night it was promised for.",
+          "pairId": "pr-15",
+          "pairLabel": "The Durgashtami deadline"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -659,6 +1120,48 @@ export const DEMO_FIXTURE: DemoFixture = {
       "notes": "Purpose: The one chapter inside Ganga's head; her recovery under Sunny's ongoing clinical care; the family's reconciliation; the ending beats (Sridevi/Sunny).\n\nSetup/payoff: Every earlier \"far-away mood,\" hand-on-stomach, and performative-wit beat resolves here.\n\nEnds on: Ganga and Nakulan leaving the estate; the Thekkini's door, standing open now, empty, ordinary. **End of Act Three. End of book.**",
       "summary": "The one chapter inside Ganga's head; her recovery under Sunny's ongoing clinical care; the family's reconciliation; the ending beats (Sridevi/Sunny).",
       "endsOn": "Ganga and Nakulan leaving the estate; the Thekkini's door, standing open now, empty, ordinary. **End of Act Three. End of book.**",
+      "annotations": [
+        {
+          "id": "pr-20-r1",
+          "type": "reveal",
+          "text": "\"You don't have her memories,\" Sunny said, gently, \"because they were never yours to have.",
+          "label": "Answered honestly rather than kindly.",
+          "pairId": "pr-20",
+          "pairLabel": "Ganga fears not knowing what she has done"
+        },
+        {
+          "id": "pr-05-r1",
+          "type": "reveal",
+          "text": "\"There's something else,\" he said, on the third day, when she was steady enough to hear it. \"Nakulan told me. About the pregnancy.\"",
+          "label": "Named at last, and deliberately kept separate from the dissociation.",
+          "pairId": "pr-05",
+          "pairLabel": "The hand on the stomach"
+        },
+        {
+          "id": "pr-22-r1",
+          "type": "reveal",
+          "text": "\"The room's staying open,\" Valyammai said. \"I decided. No more locking things away and hoping.\"",
+          "label": "The prohibition withdrawn, by the person who issued it.",
+          "pairId": "pr-22",
+          "pairLabel": "The locked door, and Valyammai's warning"
+        },
+        {
+          "id": "pr-21-r1",
+          "type": "reveal",
+          "text": "I was thinking you might consider coming with me",
+          "label": "The proposal — earned across several such moments rather than declared.",
+          "pairId": "pr-21",
+          "pairLabel": "Sunny and Sridevi, working together"
+        },
+        {
+          "id": "pr-21-r2",
+          "type": "reveal",
+          "text": "and said yes",
+          "label": "Two words, after a paragraph of him not managing to ask cleanly.",
+          "pairId": "pr-21",
+          "pairLabel": "Sunny and Sridevi, working together"
+        }
+      ],
       "scenes": [
         {
           "order": 0,
@@ -1039,6 +1542,170 @@ export const DEMO_FIXTURE: DemoFixture = {
       "chapter": null,
       "confidence": 0.35,
       "description": "Mahadevan is the real-world trigger the “Ramanathan” projection latches onto. Nothing about him invites it; proximity and the wrong moment are enough."
+    }
+  ],
+  "plantRevealPairs": [
+    {
+      "id": "pr-01",
+      "title": "Nagavalli was purchased, not courted",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-02",
+      "title": "Sequential, methodical murders — not one crime of passion",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-03",
+      "title": "Ganga's dusty slippers, night one",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-04",
+      "title": "Ganga's far-away lapses",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-05",
+      "title": "The hand on the stomach",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-06",
+      "title": "Sunny's dissociative-ward joke",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-07",
+      "title": "The unfamiliar Tamil phrase",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-08",
+      "title": "Sridevi's first notebook entry",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-09",
+      "title": "Sridevi's habit of quiet observation",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-10",
+      "title": "Objects shattering with no clear cause",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-11",
+      "title": "\"Possessed\" — spoken, then redirected to Sridevi",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-12",
+      "title": "The saree fire",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-13",
+      "title": "Mahadevan's clean hands",
+      "plants": 1,
+      "reveals": 2
+    },
+    {
+      "id": "pr-14",
+      "title": "The voice's unusually accurate history",
+      "plants": 1,
+      "reveals": 2
+    },
+    {
+      "id": "pr-15",
+      "title": "The Durgashtami deadline",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-16",
+      "title": "Sridevi's notebook opening line",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-17",
+      "title": "Sunny and the Namboodiri's prior association",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-18",
+      "title": "The ritual mechanism — dummy, lever, ash and smoke",
+      "plants": 1,
+      "reveals": 2
+    },
+    {
+      "id": "pr-19",
+      "title": "Nakulan asked to trust and hold still",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-20",
+      "title": "Ganga fears not knowing what she has done",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-21",
+      "title": "Sunny and Sridevi, working together",
+      "plants": 1,
+      "reveals": 2
+    },
+    {
+      "id": "pr-22",
+      "title": "The locked door, and Valyammai's warning",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-23",
+      "title": "The failed puja against the designed rite",
+      "plants": 1,
+      "reveals": 1
+    },
+    {
+      "id": "pr-24",
+      "title": "The dried jasmine flower",
+      "plants": 1,
+      "reveals": 0
+    },
+    {
+      "id": "pr-25",
+      "title": "The anklets, the mirror, the lamp",
+      "plants": 2,
+      "reveals": 0
+    },
+    {
+      "id": "pr-26",
+      "title": "The damaged ancestor portrait",
+      "plants": 1,
+      "reveals": 0
+    },
+    {
+      "id": "pr-27",
+      "title": "The accountant thread — contradicts the planning docs",
+      "plants": 1,
+      "reveals": 1
     }
   ]
 };

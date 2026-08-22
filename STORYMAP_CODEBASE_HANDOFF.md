@@ -2384,9 +2384,13 @@ SVG trail.
 
 ### 17.1 Schema
 
-`supabase/migrations/20260821_character_graph.sql`, plus `..._graph_progression.sql` and
-`..._graph_detail.sql` which replace the read function twice. **All three are run against
-the live project.**
+`supabase/migrations/20260821_character_graph.sql`, plus `..._graph_progression.sql`,
+`..._graph_detail.sql` and `20260822_graph_flags.sql`, which replace the read function
+three times over. **The first three are run against the live project;
+`20260822_graph_flags.sql` is NOT yet** - it needs pasting into the SQL Editor before the
+Plants & Reveals layer returns anything. Nothing breaks in the meantime: the client
+defaults each key of the payload independently, so an app talking to a database without
+that migration loses one layer rather than the view.
 
 A property graph over two tables rather than a second database technology — at saga scale
 (dozens of characters, hundreds of events, low thousands of edges) recursive CTEs are
@@ -2401,7 +2405,15 @@ more than adequate.
 - **`character_pair_edges`** view — collapses a character pair into one visual edge with
   a count, event list and dominant type.
 - **`character_graph(project_id)`** — everything the renderer needs in one call: nodes,
-  events, aggregated links, individual interactions, and presence.
+  events, aggregated links, individual interactions, presence, and flags.
+- **Plants and reveals are not in these tables at all.** They are read out of
+  `chapters.annotations` — the same jsonb the editor writes when a writer flags a line —
+  and joined to the event node for their chapter. Copying them into `graph_nodes` would
+  make a second source of truth that drifts the moment a flag is edited, and would need a
+  sync path nobody would remember to run. Reading them live means flagging a line in the
+  editor puts it on the web immediately and unflagging takes it off. The annotation fields
+  the graph reads beyond the existing ones are `pairId` and `pairLabel`; both are optional,
+  and a flag without them is simply unpaired.
 - **`character_footprint(character_id)`** — every event a character touched, with a POV
   flag. This is also the POV filter (spec §7.2), not a separate feature.
 
@@ -2419,10 +2431,20 @@ Writes PRESENT_AT, INTERACTS_WITH and KNOWS_ABOUT edges plus fact nodes. A
 
 One HTML document — `mobile/src/lib/characterWebHtml.ts` — used by the WebView on mobile
 and intended for the PWA to serve verbatim rather than growing a second implementation.
-`graph/character-web-demo.html` is a generated copy with sample data, served by the
-`graph-preview` launch config for looking at it in a browser.
 
-**Two layers, switched rather than merged:**
+`graph/character-web-demo.html` is **generated** by `scripts/build-graph-demo.mjs`: the
+markup comes straight out of `CHARACTER_WEB_HTML` and the data is the real demo pack,
+shaped exactly as `character_graph()` shapes it. It used to be a hand-maintained duplicate
+with an invented cast pasted in, and had already begun to drift — two copies of a file
+that must behave identically is a promise nobody keeps. Served by the `graph-preview`
+launch config for looking at it in a browser.
+
+That generator also **fails loudly if the extracted markup contains a backtick**, because a
+backtick inside a `String.raw` template ends the template — the TypeScript module is broken
+while the extraction, which reads to the *last* occurrence, still produces a page that
+looks perfectly fine. This happened, in a comment quoting an identifier.
+
+**Three layers, switched rather than merged:**
 
 - **Relationships** — character to character, coloured by interaction type on a fixed
   palette. Strictly one hop.
@@ -2430,13 +2452,62 @@ and intended for the PWA to serve verbatim rather than growing a second implemen
   their chain of events *and every other character standing in those events* — a
   deliberate second hop, only in this mode, because the point of a progression is who
   else is in the room.
+- **Plants & Reveals** — plant to reveal, with a sub-row of filters: All / Plants /
+  Reveals / Pairs / Unpaid. Selecting either end lights the whole pair and the moments
+  both ends land in. An unpaid plant says so in words rather than expanding to an empty
+  list; so does a reveal with no plant.
 
 The panel changes with the mode: relationships lists individual interactions, progression
-lists the arc with POV chapters marked. Both are headings that expand to a paragraph or
-two, one open at a time.
+lists the arc with POV chapters marked, a flag shows its pair's title, the flagged line
+itself, and the far end. All are headings that expand to a paragraph or two, one open at
+a time.
 
-Characters are circles, events are diamonds — octahedra in 3D so the shape reads the same
-either way. Labels are drawn, not hovered: a graph of unlabelled dots cannot be navigated.
+**Serial numbers on events.** Chronological by default — 1..N over every event in the
+project, in chapter order, drawn inside the diamond. In Progression *with a character
+selected*, that character's own events renumber from 1 at the start of THEIR arc, and
+every other event drops its number entirely rather than showing a chronological one
+beside a progression one. Two numbering schemes on screen at once, meaning different
+things, is worse than fewer numbers.
+
+**The progression path.** Selecting a character in Progression also strokes a gold ribbon
+through their events in order, with an arrowhead per segment so the direction reads. It is
+drawn in `onRenderFramePre`, not as extra links: a link would join the simulation and pull
+the events into a ring, whereas the overlay reads the positions the layout already chose
+and never influences them. The gold spokes fanning out of the character stay as they were —
+the ribbon is the other half of the answer, the *order* those events happen in.
+
+**Tapping an event turns it blue.** The node takes a bright blue and a canvas glow (an
+emissive material in 3D); the lines running out of it take a darker blue, so the node still
+reads as the thing that was tapped rather than dissolving into its own edges. Gold stays
+the colour of a selected *character*.
+
+Characters are circles, events are diamonds, a plant is a triangle pointing up and a reveal
+one pointing down — so a pair reads as two halves of one shape before anyone notices the
+green and the red, which matters for anyone who cannot tell those apart. In 3D the
+correspondence holds: octahedra for events, tetrahedra for flags. Labels are drawn, not
+hovered: a graph of unlabelled dots cannot be navigated.
+
+**The detail panel is a sheet, not a modal.** It was a fixed 42vh slab with no way to
+dismiss it, which on a phone is most of the graph -- and the node just tapped was as often
+as not underneath it. It now collapses to its own title bar (tap the caret or drag the bar
+down), closes outright, and caps at 38vh; `focusCamera` offsets a selection upward by half
+the sheet's height so selecting from the index never parks the node behind the panel
+describing it. The canvas above the sheet was always interactive; there was simply hardly
+any of it.
+
+**The index** (the hamburger chip) is a full-screen searchable list with five tabs —
+Characters, Events, Plants, Reveals, Pairs — because past a couple of dozen nodes, finding
+a specific one by panning the web stops being viable. Tapping a row selects the node,
+centres the camera on it, and switches to a layer that can actually show it: a flag tapped
+from the index switches to Plants & Reveals and clears any sub-filter hiding it, rather
+than selecting something invisible.
+
+**Layer switching rebuilds `graphData`** from the same node objects rather than hiding
+nodes in place. A hidden node still exerts charge, and fifty-odd flag nodes silently
+shoving the cast apart in Relationships was worse than the reheat that reusing the objects
+costs — positions survive, because d3 keeps x/y on the objects themselves. Under a flag
+filter, events with no surviving flag are dropped too: sixteen empty diamonds around four
+unpaid plants is the filter failing to filter.
 
 **2D is the default and the only renderer loaded up front.** 3D and its dependencies are
 fetched on first use; if that fails the graph stays in 2D and says so.
@@ -2486,12 +2557,28 @@ Three attempts, and the constraint is not obvious:
   relationship.
 - An event nobody is present at is **not drawn**. It is a chapter no one has been placed
   in, and drawing it scatters unreachable dots.
+- **A backtick in a comment inside the renderer breaks the module** and nothing about the
+  generated demo page will tell you. See 17.3; `build-graph-demo.mjs` now checks for it,
+  and `tsc --noEmit` catches it too.
+- The renderer's chip row **wraps to two lines on a narrow phone, three with the flag
+  filters showing**. Native chrome pinned to a fixed offset near the top lands on it — the
+  screen's add buttons moved into the navigation header for exactly this reason, and
+  anything added there later should go the same way.
+- The link index is stored on the link object (`l.i`) at build time. `indexOf` over the
+  link array, per link, per frame was fine at a few dozen links and is not at several
+  hundred; the same applies to any per-node scan added to the draw call.
 
 ### 17.7 Not built
 
 Multi-hop cascade beyond the progression's deliberate second hop, the time-scrubber
 ("as of Book N" — flagged in the spec as the highest-value deferred feature), automatic
 faction/location extraction, and the PWA's own embedding of the renderer.
+
+For plants and reveals specifically: there is **no way to create or pair a flag from this
+view**. Flags are authored in the chapter editor, and `pairId`/`pairLabel` are currently
+written only by the demo fixture's build — the editor's own Plant/Reveal buttons still
+write an unpaired flag. Pairing from the app, and reading the PWA's own `linkedPlant`
+shape, are the obvious next pieces.
 
 ---
 
@@ -2506,8 +2593,38 @@ behind row-level security — rows are written with the signed-in user's id, so 
 holding only the anon key has no session and its inserts are correctly rejected.
 
 **Contents:** 17 chapters across 3 acts, 74 scenes carrying POV, 9 documents, ~15,000
-words of prose, 11 characters with aliases, and 26 relationships of which 15 are scoped
-to a chapter. Nine arrive flagged for review so the queue has real work in it.
+words of prose, 11 characters with aliases, 26 relationships of which 15 are scoped to a
+chapter, and 27 plant/reveal pairs flagged into the prose as 28 plants and 28 reveals.
+Nine relationships arrive flagged for review so the queue has real work in it.
+
+**The plant/reveal pairs** live in `scripts/demo-plants-reveals.mjs`, kept apart from the
+build script because they are content rather than machinery — a writer editing the table
+should not have to find it inside a build script. Each end is anchored by a **verbatim
+quote** rather than a character offset, which is how annotations relocate themselves
+everywhere else in this app. The resolver:
+
+- Matches against a **normalised copy** of the prose with curly quotes and dashes folded
+  to ASCII, so a quote pasted out of a plain-text document still matches typographic prose.
+  The fold is strictly one character for one, so the offset found in the folded copy
+  addresses the same span in the original and the text actually stored keeps the prose's
+  own punctuation. An ellipsis character is deliberately *not* folded — three dots for one
+  would break that alignment.
+- Treats `...` inside an anchor as an **elision**: the fragments either side are located in
+  order and the whole span between them becomes the flagged text. This is what lets a
+  quote skip a subordinate clause without anyone transcribing the clause perfectly.
+- **Throws** if an anchor does not match, matches more than once, or if two flags in one
+  chapter overlap. All three matter: a flag whose anchor silently fails is simply not in
+  the book and nothing in the app would say so, and overlapping flags are dropped at
+  render time in array order, which would make one end of a pair invisible for reasons
+  nothing explains. Two anchors failed on the first run — both cases of a closing quote
+  falling after a comma rather than before it.
+
+Three pairs are **deliberately unpaid** (the jasmine flower, the anklets/mirror/lamp, the
+damaged portrait) and one — the accountant thread — is paired in the prose in a way that
+**contradicts the planning documents**, which say it should stay unresolved. Both states
+are carried rather than tidied away; the contradiction is stated on both ends of that pair.
+Where the supplied table quoted a line that is structural rather than literal, or cited the
+wrong chapter, the label says so instead of the discrepancy being smoothed over.
 
 **Behaviours worth knowing:**
 
@@ -2524,5 +2641,36 @@ to a chapter. Nine arrive flagged for review so the queue has real work in it.
 - Presence is derived from a chapter's POV plus any relationship scoped to it. That
   understates the truth — people appear in scenes they neither narrate nor interact in —
   but never invents a presence, which is the right direction to be wrong in.
-- Each load supersedes the last: older demo projects are deleted **after** the new import
-  completes, and only projects matching the demo's own name prefix are touched.
+- **Exactly one demo project survives a load.** `removeStaleDemoProjects()` deletes the
+  rest on success; a load that fails part-way deletes its own half-built project and leaves
+  the previous demo alone, so neither a run of successes nor a run of failures can
+  accumulate copies. Only projects whose name starts with the demo's own prefix are ever
+  candidates — real work is never touched, and neither is a project called "The Southern
+  Wing" without the suffix.
+- This did not hold before 2026-08-22, and copies piled up. The old version could fail in
+  **three silent ways** and every one of them looked like success:
+  1. the read that found the old copies **discarded its error**, so a failed read was
+     indistinguishable from "there are no old copies";
+  2. the delete reported `stale.length` as the number removed rather than what the database
+     actually deleted — and **a delete refused by row-level security returns no error and no
+     rows**, so a blocked delete reported a clean sweep;
+  3. cleanup ran **only on the success path**, and there were seven earlier `return`
+     statements that skipped it.
+  All three are fixed: the read surfaces its error, the delete uses `.select('id')` and
+  counts the rows that actually came back — saying so plainly when fewer come back than were
+  asked for — and every exit routes through one `finish()` helper so no path can forget.
+  The count is now reported on the demo card instead of being discarded by the caller, which
+  is why nobody noticed.
+- Matching is done in JS with `startsWith` rather than a PostgREST `like` filter. The filter
+  was **not** the bug — the project name has parentheses in it and those survive the round
+  trip, confirmed against the live API — but a client-side check cannot be wrong about
+  escaping, and a writer has few enough projects that reading them all costs nothing.
+- The Projects tab shows a **"Keep only the newest demo"** action whenever more than one
+  exists. Loading the demo already leaves one behind; that action is for a pile that
+  accumulated before this was fixed, so clearing it does not require a re-import.
+- Flags land in `chapters.annotations`, which means they render as marks in the editor and
+  the Reader as well as feeding the character web's Plants & Reveals layer. There is one
+  source of truth, not two.
+
+**Build order:** `node scripts/build-demo-fixture.mjs` first, then
+`node scripts/build-graph-demo.mjs` — the second reads the fixture the first writes.
