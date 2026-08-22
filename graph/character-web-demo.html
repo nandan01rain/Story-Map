@@ -205,6 +205,7 @@
   var progOrder = {};   // event id -> position in the selected character's arc
   var progChain = [];   // the selected character's events, in chapter order
   var labelEverything = false;
+  var refitPending = false;
 
   var TYPE_COLOR = {
     confrontation: '#e0764a', alliance: '#6fae74', betrayal: '#c0504d',
@@ -515,7 +516,14 @@
       ctx.fillText(String(serial), n.x, n.y + r * 0.04);
     }
 
-    var showLabel = n.kind === 'character' || labelEverything || (active && active.nodes[n.id]);
+    // Flags are the one kind that stays anonymous by default: fifty-six sentences of prose
+    // at once is not a graph, it is a wall. They earn a label by being selected, or by the
+    // reader zooming in far enough to be looking at a few of them rather than all of them.
+    var showLabel =
+      n.kind === 'character' ||
+      labelEverything ||
+      (active && active.nodes[n.id]) ||
+      ((n.kind === 'plant' || n.kind === 'reveal') && scale > 1.6);
     if (!showLabel) return;
 
     var size = Math.max(3.5, 11 / scale);
@@ -527,7 +535,14 @@
     else if (n.kind === 'plant') ctx.fillStyle = '#8fc99a';
     else if (n.kind === 'reveal') ctx.fillStyle = '#dd9895';
     else ctx.fillStyle = '#e6ecea';
-    ctx.fillText(n.kind === 'character' ? n.label : shorten(n.label, 22), n.x, n.y + r + 1.5);
+
+    var text;
+    if (n.kind === 'character') text = n.label;
+    // The pair's title, not the flagged sentence. The sentence is what the panel is for;
+    // on the graph it is thirty words where six will do.
+    else if (n.kind === 'plant' || n.kind === 'reveal') text = shorten(n.pairLabel || n.label, 24);
+    else text = shorten(n.label, 22);
+    ctx.fillText(text, n.x, n.y + r + 1.5);
   }
 
   // The path a character takes through their own story, drawn under everything else as one
@@ -876,6 +891,28 @@
     document.getElementById('index').style.display = 'none';
   }
 
+  // Switching layer replaces every node in the graph. Leaving the camera where it was means
+  // aiming it at a region the new layer has nothing in -- and since selecting anything zooms
+  // to 2.4x and centres on it, the usual sequence (tap a character, switch to Plants &
+  // Reveals) landed on empty space with fifty-six nodes just off screen. The layer looked
+  // broken while its own counter said "28 plants · 28 reveals".
+  //
+  // Deferred rather than immediate because the nodes that are new to this layer have no
+  // position yet: d3 assigns those on the next tick, and fitting before that frames the
+  // handful of nodes that carried over from the previous layer instead of the whole thing.
+  function requestRefit() {
+    refitPending = true;
+    // onEngineStop is the accurate moment, but a layout that is already cool never fires it
+    // again -- so this is the backstop, not the mechanism.
+    setTimeout(applyRefit, 800);
+  }
+
+  function applyRefit() {
+    if (!refitPending || !graph || !graph.zoomToFit) return;
+    refitPending = false;
+    graph.zoomToFit(500, 55);
+  }
+
   // How much of the bottom of the screen the sheet is covering, in pixels.
   function panelHeight() {
     var box = document.getElementById('focus');
@@ -886,6 +923,9 @@
   function focusCamera(id) {
     var n = byId[id];
     if (!graph || !n || typeof n.x !== 'number') return;
+    // A refit queued by the layer switch that got us here would otherwise fire a moment
+    // later and throw away the framing we are about to choose.
+    refitPending = false;
     if (dim === '2d') {
       var k = Math.max(graph.zoom(), 2.4);
       // Centre the node in the space ABOVE the sheet rather than in the canvas, so selecting
@@ -941,7 +981,8 @@
       .linkColor(linkColor)
       .linkWidth(linkWidth)
       .onNodeClick(function (n) { select(n.id === selectedId ? null : n.id); })
-      .onBackgroundClick(function () { select(null); });
+      .onBackgroundClick(function () { select(null); })
+      .onEngineStop(applyRefit);
 
     if (dim === '2d') {
       graph.nodeCanvasObject(drawNode)
@@ -1021,6 +1062,9 @@
     if (characters === 0) return;
     render();
     updateCount();
+    // The first layout gets framed too. It used to open at whatever zoom 1 around the origin
+    // happened to show.
+    requestRefit();
   }
 
   function setMode(next) {
@@ -1029,7 +1073,10 @@
     document.getElementById('mode-prog').className = 'chip' + (mode === 'prog' ? ' on' : '');
     document.getElementById('mode-flags').className = 'chip' + (mode === 'flags' ? ' on' : '');
     document.getElementById('subhud').className = 'row' + (mode === 'flags' ? ' on' : '');
-    if (graph) graph.graphData(rebuildView());
+    if (graph) {
+      graph.graphData(rebuildView());
+      requestRefit();
+    }
     recomputeProgression();
     active = activeSet();
     updateCount();
@@ -1045,7 +1092,12 @@
       var base = p[0] === 'plants' ? 'chip plant' : (p[0] === 'reveals' ? 'chip reveal' : 'chip');
       el.className = base + (flagFilter === p[0] ? ' on' : '');
     });
-    if (graph) graph.graphData(rebuildView());
+    if (graph) {
+      graph.graphData(rebuildView());
+      // The filters change the node count by an order of magnitude -- 56 down to 4 for
+      // unpaid plants -- so the framing is as wrong after a filter as after a layer switch.
+      requestRefit();
+    }
     active = activeSet();
     updateCount();
     refresh();
