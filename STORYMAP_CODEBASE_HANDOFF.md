@@ -2633,8 +2633,33 @@ wrong chapter, the label says so instead of the discrepancy being smoothed over.
 - Presence is derived from a chapter's POV plus any relationship scoped to it. That
   understates the truth — people appear in scenes they neither narrate nor interact in —
   but never invents a presence, which is the right direction to be wrong in.
-- Each load supersedes the last: older demo projects are deleted **after** the new import
-  completes, and only projects matching the demo's own name prefix are touched.
+- **Exactly one demo project survives a load.** `removeStaleDemoProjects()` deletes the
+  rest on success; a load that fails part-way deletes its own half-built project and leaves
+  the previous demo alone, so neither a run of successes nor a run of failures can
+  accumulate copies. Only projects whose name starts with the demo's own prefix are ever
+  candidates — real work is never touched, and neither is a project called "The Southern
+  Wing" without the suffix.
+- This did not hold before 2026-08-22, and copies piled up. The old version could fail in
+  **three silent ways** and every one of them looked like success:
+  1. the read that found the old copies **discarded its error**, so a failed read was
+     indistinguishable from "there are no old copies";
+  2. the delete reported `stale.length` as the number removed rather than what the database
+     actually deleted — and **a delete refused by row-level security returns no error and no
+     rows**, so a blocked delete reported a clean sweep;
+  3. cleanup ran **only on the success path**, and there were seven earlier `return`
+     statements that skipped it.
+  All three are fixed: the read surfaces its error, the delete uses `.select('id')` and
+  counts the rows that actually came back — saying so plainly when fewer come back than were
+  asked for — and every exit routes through one `finish()` helper so no path can forget.
+  The count is now reported on the demo card instead of being discarded by the caller, which
+  is why nobody noticed.
+- Matching is done in JS with `startsWith` rather than a PostgREST `like` filter. The filter
+  was **not** the bug — the project name has parentheses in it and those survive the round
+  trip, confirmed against the live API — but a client-side check cannot be wrong about
+  escaping, and a writer has few enough projects that reading them all costs nothing.
+- The Projects tab shows a **"Keep only the newest demo"** action whenever more than one
+  exists. Loading the demo already leaves one behind; that action is for a pile that
+  accumulated before this was fixed, so clearing it does not require a re-import.
 - Flags land in `chapters.annotations`, which means they render as marks in the editor and
   the Reader as well as feeding the character web's Plants & Reveals layer. There is one
   source of truth, not two.
