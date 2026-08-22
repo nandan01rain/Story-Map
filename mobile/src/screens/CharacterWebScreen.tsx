@@ -32,7 +32,6 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
 
   const [graph, setGraph] = useState<GraphData | null>(null);
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState<{ id: string; label: string } | null>(null);
   const [webReady, setWebReady] = useState(false);
   const enabled = useAssistantStore((s) => s.enabled);
   const user = useAuthStore((st) => st.user);
@@ -42,9 +41,23 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
   const [kind, setKind] = useState('alliance');
   const [saving, setSaving] = useState(false);
 
+  // The add controls live in the header rather than floating over the graph. The renderer's
+  // own chip row wraps to two lines on a narrow phone -- three when the Plants & Reveals
+  // filters are showing -- and anything native pinned near the top lands on top of it.
   useEffect(() => {
-    navigation.setOptions({ title: 'Character Web' });
-  }, [navigation]);
+    navigation.setOptions({
+      title: 'Character Web',
+      headerRight: () => (
+        <Pressable
+          onPress={() => setAdding('character')}
+          hitSlop={10}
+          style={{ paddingHorizontal: 6 }}
+        >
+          <Text style={{ color: colors.gold, fontSize: 24, lineHeight: 26 }}>+</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, colors.gold]);
 
   const load = useCallback(async () => {
     const { data, error: err } = await fetchCharacterGraph(projectId);
@@ -66,7 +79,6 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
     try {
       const msg = JSON.parse(raw);
       if (msg.type === 'ready') setWebReady(true);
-      if (msg.type === 'select') setSelected(msg.id ? { id: msg.id, label: msg.label } : null);
     } catch {
       // A malformed message from the page is not worth surfacing.
     }
@@ -176,26 +188,20 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
               </Text>
             </View>
           )}
+
+          {/* Same reasoning as the note above: an empty layer should say why it is empty.
+              Plants & Reveals reads the chapters' own flags, so the answer is always the
+              same one -- nothing has been flagged yet. */}
+          {graph.nodes.length > 0 && graph.events.length > 0 && graph.flags.length === 0 && (
+            <View style={styles.hintNote}>
+              <Text style={styles.hintText}>
+                Nothing is flagged yet, so Plants &amp; Reveals is empty. Select a line in the
+                chapter editor and flag it as a plant or a reveal, and it appears here.
+              </Text>
+            </View>
+          )}
         </>
       )}
-
-      {/* Manual authoring, so the graph is usable with no API key at all. Extraction is the
-          normal way in, but a graph that can only be filled by paying is a graph nobody can
-          try. */}
-      <View style={styles.addBar}>
-        <Pressable style={styles.addBtn} onPress={() => setAdding('character')}>
-          <Text style={styles.addBtnText}>+ Character</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.addBtn, characters.length < 2 && styles.addBtnOff]}
-          disabled={characters.length < 2}
-          onPress={() => setAdding('interaction')}
-        >
-          <Text style={[styles.addBtnText, characters.length < 2 && styles.addBtnTextOff]}>
-            + Relationship
-          </Text>
-        </Pressable>
-      </View>
 
       <Modal visible={adding !== null} transparent animationType="slide" onRequestClose={() => setAdding(null)}>
         <View style={styles.sheetBackdrop}>
@@ -203,6 +209,15 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
             <Text style={styles.sheetTitle}>
               {adding === 'character' ? 'Add a character' : 'Add a relationship'}
             </Text>
+
+            {/* Manual authoring, so the graph is usable with no API key at all. Extraction is
+                the normal way in, but a graph that can only be filled by paying is a graph
+                nobody can try. */}
+            {adding === 'character' && characters.length >= 2 && (
+              <Pressable onPress={() => setAdding('interaction')} hitSlop={6}>
+                <Text style={styles.sheetSwitch}>Add a relationship instead →</Text>
+              </Pressable>
+            )}
 
             {adding === 'character' ? (
               <TextInput
@@ -282,12 +297,6 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
-
-      {selected && (
-        <Pressable style={styles.clearSel} onPress={() => setSelected(null)}>
-          <Text style={styles.clearSelText}>Showing {selected.label}</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -331,30 +340,6 @@ function makeStyles(colors: ThemeColors) {
       backgroundColor: 'rgba(13,17,16,0.94)',
     },
     hintText: { color: '#cfd8d5', fontSize: 12.5, lineHeight: 18 },
-    clearSel: {
-      position: 'absolute',
-      right: 12,
-      top: 56,
-      backgroundColor: 'rgba(15,20,19,0.86)',
-      borderColor: '#2c3634',
-      borderWidth: 1,
-      borderRadius: 14,
-      paddingVertical: 5,
-      paddingHorizontal: 11,
-    },
-    clearSelText: { color: '#d8e0de', fontSize: 11 },
-    addBar: { position: 'absolute', left: 12, top: 56, flexDirection: 'row', gap: 8 },
-    addBtn: {
-      backgroundColor: 'rgba(15,20,19,0.86)',
-      borderColor: withOpacity(colors.gold, 0.55),
-      borderWidth: 1,
-      borderRadius: 14,
-      paddingVertical: 5,
-      paddingHorizontal: 11,
-    },
-    addBtnOff: { borderColor: '#2c3634' },
-    addBtnText: { color: colors.gold, fontSize: 11 },
-    addBtnTextOff: { color: '#5f6b68' },
     sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     sheet: {
       backgroundColor: colors.panel,
@@ -396,5 +381,6 @@ function makeStyles(colors: ThemeColors) {
     sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 22, marginTop: 6 },
     sheetCancel: { color: colors.textDim, fontSize: 14 },
     sheetSave: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+    sheetSwitch: { color: colors.textDim, fontSize: 12.5 },
   });
 }

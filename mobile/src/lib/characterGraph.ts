@@ -50,12 +50,36 @@ export type GraphInteraction = {
   needsReview: boolean;
 };
 
+/**
+ * One end of a plant/reveal pair, read out of `chapters.annotations` rather than out of the
+ * graph tables -- the prose is the source of truth for these, and the graph only joins them
+ * to the event node for their chapter. `pairId` is what ties the two ends together; a plant
+ * whose pair has no reveal is an unpaid plant, which is a real state rather than a fault.
+ */
+export type GraphFlag = {
+  id: string;
+  type: 'plant' | 'reveal';
+  /** The exact flagged substring from the chapter's prose. */
+  text: string;
+  /** What this end of the pair does. */
+  label: string;
+  pairId: string | null;
+  pairLabel: string | null;
+  chapterId: string;
+  chapterTitle: string;
+  /** The event node for this flag's chapter, when one exists. */
+  eventId: string | null;
+  /** Chapter order, so a pair reads plant-then-reveal. */
+  seq: number;
+};
+
 export type GraphData = {
   nodes: GraphNode[];
   links: GraphLink[];
   events: GraphEvent[];
   presence: GraphPresence[];
   interactions: GraphInteraction[];
+  flags: GraphFlag[];
 };
 
 export async function fetchCharacterGraph(
@@ -63,14 +87,21 @@ export async function fetchCharacterGraph(
 ): Promise<{ data: GraphData | null; error: string | null }> {
   const { data, error } = await supabase.rpc('character_graph', { p_project_id: projectId });
   if (error) return { data: null, error: error.message };
-  const graph = (data ?? {
-    nodes: [],
-    links: [],
-    events: [],
-    presence: [],
-    interactions: [],
-  }) as GraphData;
-  return { data: graph, error: null };
+  const graph = (data ?? {}) as Partial<GraphData>;
+  // Defaulted field by field rather than only when the whole payload is missing: an app
+  // running against a project whose database has not had the latest migration applied gets
+  // an older shape back, and one absent key should disable one layer, not crash the view.
+  return {
+    data: {
+      nodes: graph.nodes ?? [],
+      links: graph.links ?? [],
+      events: graph.events ?? [],
+      presence: graph.presence ?? [],
+      interactions: graph.interactions ?? [],
+      flags: graph.flags ?? [],
+    },
+    error: null,
+  };
 }
 
 export function reviewCounts(graph: GraphData): { nodes: number; links: number } {

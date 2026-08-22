@@ -193,6 +193,10 @@ export default function ProjectPickerScreen({ navigation }: Props) {
               {demo.chapters} chapters · {demo.scenes} scenes · {demo.documents} documents ·{' '}
               {demo.words.toLocaleString()} words
             </Text>
+            <Text style={styles.demoText}>
+              {demo.characters} cast · {demo.relationships} relationships · {demo.pairs}{' '}
+              plant/reveal pairs
+            </Text>
           </>
         )}
       </Pressable>

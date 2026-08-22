@@ -178,12 +178,21 @@ chapter boundaries for pacing).
   exact text in the other. See the handoff doc §12.1 for the full detail
   and the architectural note on why the header/footer are overlays rather
   than real layout-affecting elements.
-- **🕸 Character web (mobile)**: a force-directed graph of the cast, with two
-  switchable layers — **Relationships** between characters, and **Progression**,
-  a character's arc through the events they appear in, in chapter order, with
-  everyone else in those events lit alongside. Tapping any interaction or event
-  expands it to an explanation. Fills by hand, from the demo pack, or by
-  extraction from the prose. Replaces Map view on mobile rather than porting it.
+- **🕸 Character web (mobile)**: a force-directed graph of the cast, with three
+  switchable layers — **Relationships** between characters; **Progression**, a
+  character's arc through the events they appear in, in chapter order, with
+  everyone else in those events lit alongside; and **Plants & Reveals**, every
+  flagged line in the prose with each plant tied to the reveal that pays it.
+  Events carry serial numbers — chronological by default, renumbered from a
+  character's own first event when they are selected in Progression, where a gold
+  ribbon also traces the path they take through them. Tapping an event turns it
+  and its lines blue; tapping a character keeps the gold. Plants are green
+  triangles pointing up, reveals red ones pointing down, filterable to
+  all/plants/reveals/pairs/unpaid. A searchable **index** lists characters,
+  events, plants, reveals and pairs separately, so nothing has to be found by
+  panning. Tapping any interaction, event or flag expands it to an explanation.
+  Fills by hand, from the demo pack, or by extraction from the prose. Replaces
+  Map view on mobile rather than porting it.
 - **Account settings**: name/nickname, birthday, a free-form list of
   special occasions, plus email/password — all stored in Supabase Auth's
   `user_metadata` (no new table). Also where the global "moving
@@ -266,6 +275,11 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   these relationships change across five books. Not built. Nor is automatic
   faction/location extraction, or the PWA's own embedding of the renderer (the
   document is written to be shared; the PWA just doesn't serve it yet).
+- **Pairing a plant to a reveal from inside the app.** The character web can show
+  pairs, browse them and flag unpaid plants, but the editor's Plant/Reveal buttons
+  still write an *unpaired* flag — `pairId`/`pairLabel` are currently only written
+  by the demo pack's build script. The PWA's own `linkedPlant` shape isn't read by
+  the mobile web yet either.
 - **The in-app assistants are built but switched off.** Icarus and
   Daedalus have their database objects (migration already run against the
   live project), Edge Function, agent configurations, account-level toggle,
@@ -332,11 +346,14 @@ work's animated layers, but no surface reads it yet.
 
 The **character knowledge graph** is built and running, and needs no API key to
 use. It is the mobile answer to Map view, which a portrait phone cannot usefully
-show. Characters and events are nodes in one graph with two switchable layers:
-**Relationships** (who knows whom, coloured by what passes between them) and
-**Progression** (a character's arc through events in chapter order, lighting
-every other character standing in those same events). Both list their contents as
-headings that expand to an explanation. Populated three ways — by hand, by the
+show. Characters, events and flagged lines are nodes in one graph with three
+switchable layers: **Relationships** (who knows whom, coloured by what passes
+between them), **Progression** (a character's arc through events in chapter
+order, numbered from their own first event and traced as a path, lighting every
+other character standing in those same events) and **Plants & Reveals** (each
+plant tied to the reveal that pays it, with unpaid plants visible as unpaid). All
+three list their contents as headings that expand to an explanation, and a
+searchable index lists each kind separately so a growing web stays navigable. Populated three ways — by hand, by the
 demo pack, or by extraction from the prose, which is the only one that costs
 money. See handoff doc §17 for the schema, the deviations from the supplied spec,
 and the traps.
@@ -416,10 +433,22 @@ groundwork described under Stage 4 above.
 
 Added 2026-08-21: the **character web** described under Stage 4 above, which
 is the mobile replacement for Map view; a **demo pack** (`demo/`) that loads a
-complete 17-chapter test project — prose, scenes, POV, documents, cast and
-relationships — from the Projects tab in one tap, so every feature can be
-exercised against real material without writing any (handoff §18); and
-**selectable engines** for the two assistants.
+complete 17-chapter test project — prose, scenes, POV, documents, cast,
+relationships and 27 plant/reveal pairs flagged into the prose itself — from the
+Projects tab in one tap, so every feature can be exercised against real material
+without writing any (handoff §18); and **selectable engines** for the two
+assistants.
+
+Added 2026-08-22: the character web's **Plants & Reveals layer**, event **serial
+numbers** and per-character **progression paths**, and a searchable **index** of
+characters/events/plants/reveals/pairs. Plants and reveals are read live out of
+`chapters.annotations` rather than copied into the graph tables, so flagging a
+line in the editor puts it on the web with no sync step. **One migration —
+`supabase/migrations/20260822_graph_flags.sql` — has not been run against the
+live project yet**; until it is, that layer returns nothing (and nothing else
+breaks). `graph/character-web-demo.html` is now generated from the renderer plus
+the demo pack by `scripts/build-graph-demo.mjs` instead of being a hand-kept
+duplicate.
 
 Still not built: Map view (**not planned for mobile** — the character web
 replaces it there), the remaining secondary features (continuity checker, POV

@@ -7,6 +7,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { PLANT_REVEAL_PAIRS } from './demo-plants-reveals.mjs';
+
 const DEMO = path.join(process.cwd(), 'demo');
 const OUT = path.join(process.cwd(), 'mobile', 'src', 'lib', 'demoFixture.ts');
 
@@ -100,6 +102,8 @@ const chapters = prose.map((p) => {
     // more events than that.
     summary: s ? field(s.body, 'Purpose') : '',
     endsOn: s ? field(s.body, 'Ends on') : '',
+    // Filled by the plant/reveal pass below.
+    annotations: [],
     scenes: events.slice(0, 5).map((summary, i) => ({
       order: i,
       title: summary.length > 60 ? `${summary.slice(0, 57)}…` : summary,
@@ -108,6 +112,116 @@ const chapters = prose.map((p) => {
     })),
   };
 });
+
+// --- plants & reveals -----------------------------------------------------
+// The writer's plant/reveal pairs, flagged into the prose itself as `plant` and `reveal`
+// annotations, so the book carries them rather than only a reference document describing
+// them. The table lives in scripts/demo-plants-reveals.mjs; this is only the resolver.
+
+// Curly punctuation folded one character to one, so an offset found in the folded copy
+// addresses the same span in the untouched original and the text finally stored keeps the
+// prose's own punctuation. Anything that changes length -- an ellipsis character becoming
+// three dots -- would break that alignment and is deliberately not folded.
+function fold(s) {
+  return s
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, '-');
+}
+
+const chapterByNumber = new Map(chapters.map((c) => [c.number, c]));
+
+// `...` in an anchor is an elision: each fragment is located in turn, and the whole span
+// from the start of the first to the end of the last becomes the flagged text.
+function locateAnchor(chapterNumber, anchor) {
+  const chapter = chapterByNumber.get(chapterNumber);
+  if (!chapter) return { error: `chapter ${chapterNumber} does not exist` };
+
+  const hay = fold(chapter.content);
+  const parts = anchor.split('...').map(fold);
+
+  let start = -1;
+  let cursor = 0;
+  let end = -1;
+  for (const part of parts) {
+    const at = hay.indexOf(part, cursor);
+    if (at === -1) return { error: `ch ${chapterNumber}: no match for "${part.slice(0, 44)}"` };
+    if (start === -1) {
+      // Ambiguity only matters for the opening fragment; the rest are anchored by the
+      // position of the one before them.
+      if (hay.indexOf(part, at + 1) !== -1) {
+        return { error: `ch ${chapterNumber}: "${part.slice(0, 44)}" appears more than once` };
+      }
+      start = at;
+    }
+    cursor = at + part.length;
+    end = cursor;
+  }
+
+  return { text: chapter.content.slice(start, end), at: start };
+}
+
+const anchorFailures = [];
+
+for (const pair of PLANT_REVEAL_PAIRS) {
+  const ends = [
+    ...pair.plants.map((p) => ['plant', p]),
+    ...pair.reveals.map((r) => ['reveal', r]),
+  ];
+  ends.forEach(([type, [chapterNumber, anchor, label]], i) => {
+    const found = locateAnchor(chapterNumber, anchor);
+    if (found.error) {
+      anchorFailures.push(`${pair.id} ${type} - ${found.error}`);
+      return;
+    }
+    chapterByNumber.get(chapterNumber).annotations.push({
+      id: `${pair.id}-${type[0]}${i}`,
+      type,
+      text: found.text,
+      label,
+      // What makes this an end of a pair rather than a loose flag. The pair's own title
+      // travels with each end so the character web can group them without a second query --
+      // annotations are jsonb, and denormalising three fields into them costs nothing.
+      pairId: pair.id,
+      pairLabel: pair.title,
+      // Sorted on below, then dropped: an annotation does not carry a position, by design.
+      at: found.at,
+    });
+  });
+}
+
+if (anchorFailures.length > 0) {
+  // An anchor that silently fails to match is the worst outcome available here: the pair is
+  // simply not in the book, and nothing in the app would say so.
+  throw new Error(`Plant/reveal anchors that did not match:\n  ${anchorFailures.join('\n  ')}`);
+}
+
+for (const chapter of chapters) {
+  chapter.annotations.sort((a, b) => a.at - b.at);
+  for (const a of chapter.annotations) delete a.at;
+}
+
+// Overlapping flags are dropped at render time in annotation-array order (storyData.ts),
+// which would make one end of a pair invisible for reasons nothing explains. Caught here
+// instead, where the fix is to move an anchor.
+for (const chapter of chapters) {
+  for (let i = 1; i < chapter.annotations.length; i += 1) {
+    const previous = chapter.annotations[i - 1];
+    const current = chapter.annotations[i];
+    if (chapter.content.indexOf(previous.text) + previous.text.length > chapter.content.indexOf(current.text)) {
+      throw new Error(
+        `Overlapping flags in ch ${chapter.number}: ${previous.id} and ${current.id}. Move one anchor.`,
+      );
+    }
+  }
+}
+
+const plantRevealPairs = PLANT_REVEAL_PAIRS.map((p) => ({
+  id: p.id,
+  title: p.title,
+  plants: p.plants.length,
+  reveals: p.reveals.length,
+}));
 
 // --- documents ------------------------------------------------------------
 const documents = [
@@ -300,6 +414,7 @@ const fixture = {
   documents,
   characters,
   graphEdges,
+  plantRevealPairs,
 };
 
 const banner = `// GENERATED FILE -- do not edit by hand.
@@ -312,6 +427,18 @@ const banner = `// GENERATED FILE -- do not edit by hand.
 // writer's own session, which only the signed-in app has.
 
 export type DemoScene = { order: number; title: string; summary: string; pov: string };
+/** One end of a plant/reveal pair, written into the chapter's prose as an annotation. */
+export type DemoAnnotation = {
+  id: string;
+  type: 'plant' | 'reveal';
+  /** The exact flagged substring. Annotations relocate by searching for this. */
+  text: string;
+  /** What this end of the pair does. */
+  label: string;
+  /** Shared by both ends. A pair with no reveal is an unpaid plant, which is a real state. */
+  pairId: string;
+  pairLabel: string;
+};
 export type DemoChapter = {
   number: number;
   title: string;
@@ -323,6 +450,7 @@ export type DemoChapter = {
   summary: string;
   endsOn: string;
   scenes: DemoScene[];
+  annotations: DemoAnnotation[];
 };
 export type DemoDocument = { title: string; type: string; content: string };
 export type DemoCharacter = { key: string; label: string; aliases: string[] };
@@ -337,12 +465,20 @@ export type DemoGraphEdge = {
   /** What actually happens between them, shown when the interaction is expanded. */
   description: string;
 };
+/** Summary only -- the pairs themselves live in the chapters' annotations. */
+export type DemoPlantRevealPair = {
+  id: string;
+  title: string;
+  plants: number;
+  reveals: number;
+};
 export type DemoFixture = {
   projectName: string;
   chapters: DemoChapter[];
   documents: DemoDocument[];
   characters: DemoCharacter[];
   graphEdges: DemoGraphEdge[];
+  plantRevealPairs: DemoPlantRevealPair[];
 };
 
 export const DEMO_FIXTURE: DemoFixture = `;
@@ -361,4 +497,8 @@ console.log(`missing POV   ${chapters.filter((c) => !c.pov).map((c) => c.number)
 console.log(`characters    ${characters.length} (${characters.map((c) => c.label).join(', ')})`);
 console.log(`graph edges   ${graphEdges.length} (${graphEdges.filter((e) => e.chapter !== null).length} scoped to a chapter)`);
 console.log(`for review    ${graphEdges.filter((e) => e.confidence !== null).length}`);
+const flagCount = (type) => chapters.reduce((n, c) => n + c.annotations.filter((a) => a.type === type).length, 0);
+console.log(`plants        ${flagCount('plant')}`);
+console.log(`reveals       ${flagCount('reveal')}`);
+console.log(`pairs         ${plantRevealPairs.length} (${plantRevealPairs.filter((p) => p.reveals === 0).length} unpaid)`);
 console.log(`wrote         ${path.relative(process.cwd(), OUT)}`);

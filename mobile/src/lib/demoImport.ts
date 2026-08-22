@@ -66,7 +66,11 @@ export async function importDemoProject(
     status: 'drafted',
     content: c.content,
     notes: c.notes,
-    annotations: [],
+    // The plant/reveal pairs, flagged into the prose itself. They are what the character
+    // web's Plants & Reveals layer reads -- it derives them from the chapters rather than
+    // storing a second copy in the graph, so flagging a line in the editor puts it on the
+    // web with no sync step.
+    annotations: c.annotations,
     versions: [],
   }));
 
@@ -308,6 +312,14 @@ export function demoSummary() {
   const scenes = f.chapters.reduce((n, c) => n + c.scenes.length, 0);
   const words = f.chapters.reduce((n, c) => n + c.content.split(/\s+/).length, 0);
   const povs = [...new Set(f.chapters.map((c) => c.pov).filter(Boolean))];
+  const plants = f.chapters.reduce(
+    (n, c) => n + c.annotations.filter((a) => a.type === 'plant').length,
+    0,
+  );
+  const reveals = f.chapters.reduce(
+    (n, c) => n + c.annotations.filter((a) => a.type === 'reveal').length,
+    0,
+  );
   return {
     chapters: f.chapters.length,
     scenes,
@@ -316,5 +328,9 @@ export function demoSummary() {
     povs,
     characters: f.characters.length,
     relationships: f.graphEdges.length,
+    plants,
+    reveals,
+    pairs: f.plantRevealPairs.length,
+    unpaidPlants: f.plantRevealPairs.filter((p) => p.reveals === 0).length,
   };
 }

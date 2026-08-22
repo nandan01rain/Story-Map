@@ -4,21 +4,33 @@
 // HTML, and because this is the canonical copy -- the PWA should serve this same markup
 // rather than growing a second implementation (spec §6). Data arrives by postMessage on
 // mobile and can be assigned to window.__GRAPH__ directly when embedded elsewhere.
+// scripts/build-graph-demo.mjs writes graph/character-web-demo.html out of this constant,
+// so the browser-runnable copy can never drift from what the app actually ships.
 //
-// Two layers, switched rather than merged:
+// Three layers, switched rather than merged:
 //
 //   RELATIONSHIPS  character <-> character. Who knows whom, coloured by what passes
 //                  between them.
 //   PROGRESSION    character -> event. Where a character actually is in the story, in
 //                  chapter order, and who else is in the room. Selecting a character here
-//                  lights their chain of events and every other character standing in
-//                  those same events -- which is the thing a cast list cannot show you.
+//                  lights their chain of events, draws the path they take through them,
+//                  and renumbers those events from the start of THAT character's arc --
+//                  which is the thing a cast list cannot show you.
+//   PLANTS         plant -> reveal. Every flagged line in the prose, each plant tied to the
+//                  reveal that pays it. Read out of the chapters' annotations, so the book
+//                  and this view can never disagree.
+//
+// Switching layers rebuilds graphData from the same node objects rather than hiding nodes in
+// place. A hidden node still exerts charge, and fifty-odd flag nodes silently shoving the
+// cast apart in Relationships was worse than the reheat that reusing the objects costs --
+// positions survive, because d3 keeps x/y on the objects themselves.
 //
 // Rendering in 2D by default, and 2D is the only renderer loaded up front. The 3D view is
 // genuinely worse on a phone -- hit-testing a sphere at portrait width is unreliable
 // (verified: a click landing two pixels off does nothing at all) -- so it is worth neither
-// the default nor the download until someone asks for it. Events are drawn as octahedra
-// there so the diamond reads the same in both dimensions.
+// the default nor the download until someone asks for it. Shapes are held in correspondence
+// across both: an event is a diamond in 2D and an octahedron in 3D, a plant or reveal is a
+// triangle and a tetrahedron.
 export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 <html>
 <head>
@@ -33,10 +45,16 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     padding: 32px; color: #8d9a97;
     font: 14px/1.6 -apple-system, system-ui, sans-serif;
   }
+  /* One stack, not two absolutely-positioned rows. The mode chips wrap to two lines on a
+     narrow phone, so a sub-row pinned to a fixed offset lands on top of them; letting the
+     container lay both out means the filters always sit under whatever the modes needed. */
   #hud {
     position: absolute; left: 10px; top: 10px; right: 10px;
-    display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none;
+    display: flex; flex-direction: column; gap: 6px; pointer-events: none;
   }
+  #hud .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  #subhud { display: none; }
+  #subhud.on { display: flex; }
   .chip {
     pointer-events: auto;
     background: rgba(15,20,19,0.88); border: 1px solid #2c3634; color: #cfd8d5;
@@ -45,6 +63,8 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
   .chip.on { border-color: #c69a3a; color: #f2c94c; background: rgba(198,154,58,0.18); }
   .chip.mute { color: #7c8784; }
+  .chip.plant.on { border-color: #5aa469; color: #7fce8c; background: rgba(90,164,105,0.18); }
+  .chip.reveal.on { border-color: #c0504d; color: #e28a86; background: rgba(192,80,77,0.18); }
   #focus {
     position: absolute; left: 10px; right: 10px; bottom: 10px;
     max-height: 42vh; overflow-y: auto;
@@ -54,8 +74,12 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
   #focus h3 { margin: 0 0 3px; font-size: 16px; font-weight: 600; }
   #focus .sub { color: #8d9a97; font-size: 11.5px; margin-bottom: 9px; }
-  #focus .legend { display: flex; flex-wrap: wrap; gap: 5px; }
-  #focus .legend span { font-size: 10.5px; padding: 2px 7px; border-radius: 9px; background: #1b2321; }
+  #focus .quote {
+    border-left: 2px solid #2c3634; padding: 2px 0 2px 9px; margin: 0 0 9px;
+    color: #cfd8d5; font-size: 12.5px; font-style: italic; line-height: 1.55;
+  }
+  #focus .quote.plant { border-left-color: #5aa469; }
+  #focus .quote.reveal { border-left-color: #c0504d; }
   #focus .item {
     border-top: 1px solid #1f2725; padding: 9px 0 8px; cursor: pointer;
   }
@@ -66,10 +90,49 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   #focus .item .kind { font-size: 10px; padding: 2px 7px; border-radius: 9px; background: #1b2321; }
   #focus .item .caret { color: #6d7774; font-size: 11px; }
   #focus .item .where { color: #8d9a97; font-size: 11.5px; margin-top: 2px; }
+  #focus .item .seq {
+    font: 10px/1 ui-monospace, Menlo, monospace; color: #8d9a97;
+    border: 1px solid #2c3634; border-radius: 4px; padding: 3px 4px; min-width: 12px;
+    text-align: center;
+  }
   #focus .item .detail {
     display: none; margin-top: 7px; color: #b9c4c1; font-size: 12.5px; line-height: 1.62;
   }
   #focus .item.open .detail { display: block; }
+
+  /* The index. A graph you have to hunt through is a graph you stop opening, and this is
+     the answer to that -- every character, event and flag as a searchable list that selects
+     and centres the thing you tap. */
+  #index {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    background: rgba(9,12,11,0.97);
+    font: 13px/1.5 -apple-system, system-ui, sans-serif; color: #e6ecea;
+  }
+  #index .head { display: flex; gap: 8px; align-items: center; padding: 10px 12px 8px; }
+  #index input {
+    flex: 1; background: #131917; border: 1px solid #2c3634; border-radius: 8px;
+    padding: 9px 11px; color: #e6ecea; font-size: 14px; outline: none;
+  }
+  #index input::placeholder { color: #6d7774; }
+  #index .x {
+    color: #8d9a97; font-size: 22px; line-height: 1; padding: 4px 8px; cursor: pointer;
+  }
+  #index .tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 12px 9px; }
+  #index .rows { flex: 1; overflow-y: auto; padding: 0 12px 16px; }
+  #index .row {
+    display: flex; gap: 9px; align-items: baseline;
+    border-top: 1px solid #1a211f; padding: 10px 2px; cursor: pointer;
+  }
+  #index .row .no {
+    font: 10px/1 ui-monospace, Menlo, monospace; color: #8d9a97;
+    border: 1px solid #2c3634; border-radius: 4px; padding: 3px 4px;
+    min-width: 13px; text-align: center;
+  }
+  #index .row .name { flex: 1; }
+  #index .row .name b { font-weight: 600; }
+  #index .row .meta { display: block; color: #8d9a97; font-size: 11.5px; margin-top: 2px; }
+  #index .row .tag { font-size: 10px; padding: 2px 7px; border-radius: 9px; background: #1b2321; }
+  #index .none { color: #6d7774; padding: 22px 2px; text-align: center; }
 </style>
 </head>
 <body>
@@ -77,12 +140,37 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 <div id="empty">No characters yet.<br>Add them by hand, or let extraction read them out of your prose.</div>
 <div id="error">Could not load the graph renderer.<br>This view needs a network connection the first time.</div>
 <div id="hud">
-  <div class="chip on" id="mode-rel">Relationships</div>
-  <div class="chip" id="mode-prog">Progression</div>
-  <div class="chip" id="toggle-dim">3D</div>
-  <div class="chip mute" id="count"></div>
+  <div class="row">
+    <div class="chip on" id="mode-rel">Relationships</div>
+    <div class="chip" id="mode-prog">Progression</div>
+    <div class="chip" id="mode-flags">Plants &amp; Reveals</div>
+    <div class="chip" id="open-index">&#9776; Index</div>
+    <div class="chip" id="toggle-dim">3D</div>
+    <div class="chip mute" id="count"></div>
+  </div>
+  <div class="row" id="subhud">
+    <div class="chip on" id="flag-all">All</div>
+    <div class="chip plant" id="flag-plants">Plants</div>
+    <div class="chip reveal" id="flag-reveals">Reveals</div>
+    <div class="chip" id="flag-pairs">Pairs</div>
+    <div class="chip" id="flag-open">Unpaid</div>
+  </div>
 </div>
 <div id="focus"></div>
+<div id="index">
+  <div class="head">
+    <input id="idx-search" placeholder="Search" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="x" id="idx-close">&times;</div>
+  </div>
+  <div class="tabs">
+    <div class="chip on" data-tab="characters">Characters</div>
+    <div class="chip" data-tab="events">Events</div>
+    <div class="chip plant" data-tab="plants">Plants</div>
+    <div class="chip reveal" data-tab="reveals">Reveals</div>
+    <div class="chip" data-tab="pairs">Pairs</div>
+  </div>
+  <div class="rows" id="idx-rows"></div>
+</div>
 
 <!-- Only the 2D renderer loads up front. It is the default, needs no three.js, and is a
      fraction of the weight — which matters on a phone opening this over mobile data.
@@ -90,12 +178,23 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 <script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
 <script>
 (function () {
-  var raw = window.__GRAPH__ || { nodes: [], links: [], events: [], presence: [], interactions: [] };
-  var mode = 'rel';       // 'rel' | 'prog'
+  var EMPTY = { nodes: [], links: [], events: [], presence: [], interactions: [], flags: [] };
+  var raw = window.__GRAPH__ || EMPTY;
+  var mode = 'rel';       // 'rel' | 'prog' | 'flags'
+  var flagFilter = 'all'; // 'all' | 'plants' | 'reveals' | 'pairs' | 'open'
   var dim = '2d';         // '2d' | '3d'
   var graph = null;
   var selectedId = null;
-  var data = { nodes: [], links: [] };
+
+  // The whole graph, every layer at once. The view is the slice currently handed to the
+  // renderer; both hold the same node objects, which is what preserves the layout.
+  var all = { nodes: [], links: [] };
+  var view = { nodes: [], links: [] };
+  var byId = {};
+  var pairs = {};       // pairId -> { id, label, plants: [], reveals: [] }
+  var progOrder = {};   // event id -> position in the selected character's arc
+  var progChain = [];   // the selected character's events, in chapter order
+  var labelEverything = false;
 
   var TYPE_COLOR = {
     confrontation: '#e0764a', alliance: '#6fae74', betrayal: '#c0504d',
@@ -103,19 +202,44 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   };
   var EVENT_COLOR = '#7f8fa0';
   var PROG_COLOR = '#c69a3a';
+  // Two blues, and the difference between them is the point: the tapped event itself glows
+  // bright, the lines running out of it take the darker shade so the node still reads as the
+  // thing that was tapped.
+  var EVENT_SELECTED = '#4da3ff';
+  var EVENT_SELECTED_LINK = '#1c5fae';
+  var PLANT_COLOR = '#5aa469';
+  var REVEAL_COLOR = '#c0504d';
+  var PAIR_COLOR = '#c69a3a';
   var GHOST = 'rgba(120,132,129,0.07)';
   var GHOST_NODE = 'rgba(120,132,129,0.16)';
 
   function build() {
-    // One node set covering both layers, so switching modes never rebuilds the simulation
-    // and the layout stays put under the reader.
     var nodes = raw.nodes.map(function (n) {
       return { id: n.id, label: n.label, kind: 'character', degree: n.degree || 0, needsReview: n.needsReview };
     });
-    (raw.events || []).forEach(function (ev) {
+
+    // Chronological serial numbers, assigned once over the whole cast of events. This is the
+    // default numbering everywhere except a character's own progression.
+    var events = (raw.events || []).slice().sort(function (a, b) {
+      return (a.seq || 0) - (b.seq || 0);
+    });
+    events.forEach(function (ev, i) {
       nodes.push({
         id: ev.id, label: ev.label, kind: 'event',
-        seq: ev.seq, participants: ev.participants || 0
+        seq: ev.seq, chronoNo: i + 1, participants: ev.participants || 0,
+        properties: ev.properties || {}
+      });
+    });
+
+    pairs = {};
+    (raw.flags || []).forEach(function (f) {
+      var key = f.pairId || ('solo:' + f.id);
+      if (!pairs[key]) pairs[key] = { id: key, label: f.pairLabel || f.label || 'Unpaired', plants: [], reveals: [] };
+      pairs[key][f.type === 'plant' ? 'plants' : 'reveals'].push(f);
+      nodes.push({
+        id: f.id, label: f.text, kind: f.type,
+        pairId: key, pairLabel: pairs[key].label, flagLabel: f.label,
+        chapterTitle: f.chapterTitle, eventId: f.eventId, seq: f.seq
       });
     });
 
@@ -125,8 +249,85 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     (raw.presence || []).forEach(function (p) {
       links.push({ source: p.character, target: p.event, layer: 'prog', isPov: p.isPov });
     });
+    // A flag hangs off the event for its chapter, so a plant sits where it was sown rather
+    // than drifting loose. A chapter with no event node yet simply has no such link, and its
+    // flags float -- still listed, still selectable, just unanchored.
+    (raw.flags || []).forEach(function (f) {
+      if (f.eventId) links.push({ source: f.id, target: f.eventId, layer: 'flag', flagType: f.type });
+    });
+    Object.keys(pairs).forEach(function (key) {
+      var pair = pairs[key];
+      pair.plants.forEach(function (p) {
+        pair.reveals.forEach(function (r) {
+          links.push({ source: p.id, target: r.id, layer: 'pair', pairId: key });
+        });
+      });
+    });
 
-    data = { nodes: nodes, links: links };
+    // The index is read off the link objects on every frame; walking the array to find one
+    // was fine at a few dozen links and is not at several hundred.
+    links.forEach(function (l, i) { l.i = i; });
+
+    all = { nodes: nodes, links: links };
+    byId = {};
+    nodes.forEach(function (n) { byId[n.id] = n; });
+  }
+
+  function layersFor(m) {
+    if (m === 'rel') return { rel: true };
+    if (m === 'prog') return { prog: true };
+    return { flag: true, pair: true };
+  }
+
+  // Which flag nodes the sub-filter admits. Events and characters are decided separately:
+  // events stay as context in every flag view, characters are dropped entirely because a
+  // plant has nothing to do with who was standing near it.
+  function flagVisible(n) {
+    if (flagFilter === 'all') return true;
+    if (flagFilter === 'plants') return n.kind === 'plant';
+    if (flagFilter === 'reveals') return n.kind === 'reveal';
+    var pair = pairs[n.pairId];
+    if (!pair) return false;
+    if (flagFilter === 'pairs') return pair.plants.length > 0 && pair.reveals.length > 0;
+    return pair.reveals.length === 0; // 'open' -- a plant nobody has paid yet
+  }
+
+  function rebuildView() {
+    var layers = layersFor(mode);
+    var keep = {};
+
+    // Flags first, so the event pass below can ask which events any of them still land in.
+    // Under a filter, an event with no surviving flag is a diamond with nothing to say --
+    // sixteen of those around four unpaid plants is the filter failing to filter.
+    var anchored = {};
+    if (mode === 'flags') {
+      all.nodes.forEach(function (n) {
+        if ((n.kind === 'plant' || n.kind === 'reveal') && flagVisible(n)) {
+          keep[n.id] = true;
+          if (n.eventId) anchored[n.eventId] = true;
+        }
+      });
+    }
+
+    var nodes = all.nodes.filter(function (n) {
+      var ok;
+      if (n.kind === 'character') ok = mode !== 'flags';
+      else if (n.kind === 'event') ok = mode === 'prog' || (mode === 'flags' && !!anchored[n.id]);
+      else ok = !!keep[n.id];
+      if (ok) keep[n.id] = true;
+      return ok;
+    });
+    var links = all.links.filter(function (l) {
+      if (!layers[l.layer]) return false;
+      var e = endpoints(l);
+      return keep[e[0]] && keep[e[1]];
+    });
+    view = { nodes: nodes, links: links };
+    // Whether there are few enough non-character nodes to label them all unconditionally.
+    // Counted here rather than inside the draw call, which runs per node per frame.
+    labelEverything = nodes.filter(function (n) { return n.kind !== 'character'; }).length <= 8;
+    if (selectedId && !keep[selectedId]) selectedId = null;
+    return view;
   }
 
   function endpoints(l) {
@@ -136,101 +337,234 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     ];
   }
 
-  // What the current selection lights up. In relationships that is the character's direct
-  // partners; in progression it is their events plus everyone else standing in them, which
-  // is what makes a shared event legible as shared.
+  // What the current selection lights up. One hop in every layer, plus one deliberate second
+  // hop per layer where the second hop is the whole point: in Progression, who ELSE is
+  // standing in these events; in Plants, the far end of the pair and the moment it lands in.
   function activeSet() {
     if (!selectedId) return null;
     var nodes = {}, links = {};
     nodes[selectedId] = true;
-    data.links.forEach(function (l, i) {
-      if (l.layer !== mode) return;
-      var e = endpoints(l);
-      if (e[0] === selectedId || e[1] === selectedId) {
-        links[i] = true; nodes[e[0]] = true; nodes[e[1]] = true;
-      }
-    });
-    if (mode === 'prog') {
-      // Second hop, deliberately and only here: the point of a progression is who ELSE is
-      // in these events. Relationships stays strictly one-hop.
-      data.links.forEach(function (l, i) {
-        if (l.layer !== 'prog') return;
+
+    function hop(test) {
+      view.links.forEach(function (l) {
         var e = endpoints(l);
-        if (nodes[e[1]] && !nodes[e[0]]) { links[i] = true; nodes[e[0]] = true; }
+        if (test(l, e)) { links[l.i] = true; nodes[e[0]] = true; nodes[e[1]] = true; }
       });
     }
+
+    hop(function (l, e) { return e[0] === selectedId || e[1] === selectedId; });
+
+    if (mode === 'prog') {
+      hop(function (l, e) { return l.layer === 'prog' && nodes[e[1]] && !nodes[e[0]]; });
+    } else if (mode === 'flags') {
+      // The pair link is reached first, so this second pass picks up each counterpart's own
+      // event -- without it a reveal lights up with no indication of where it lands.
+      hop(function (l, e) { return l.layer === 'flag' && nodes[e[0]] && !nodes[e[1]]; });
+    }
+
     return { nodes: nodes, links: links };
   }
 
   var active = null;
 
-  function visibleLink(l) { return l.layer === mode; }
+  // In Progression, a character's own events are renumbered from the start of THEIR arc --
+  // 1 is their first appearance, not the book's first chapter. Everyone else's events lose
+  // their number entirely rather than showing a chronological one beside a progression one,
+  // which would be two numbering schemes on screen at once meaning different things.
+  function recomputeProgression() {
+    progOrder = {};
+    progChain = [];
+    var me = byId[selectedId];
+    if (mode !== 'prog' || !me || me.kind !== 'character') return;
+
+    var mine = [];
+    all.links.forEach(function (l) {
+      if (l.layer !== 'prog') return;
+      var e = endpoints(l);
+      if (e[0] !== selectedId) return;
+      var ev = byId[e[1]];
+      if (ev) mine.push(ev);
+    });
+    mine.sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+    mine.forEach(function (ev, i) { progOrder[ev.id] = i + 1; });
+    progChain = mine;
+  }
+
+  function serialOf(n) {
+    if (n.kind !== 'event') return null;
+    if (mode === 'prog' && progChain.length > 0) return progOrder[n.id] || null;
+    return n.chronoNo || null;
+  }
 
   function nodeColor(n) {
-    var base = n.kind === 'event' ? EVENT_COLOR : (n.needsReview ? '#c69a3a' : '#cfd8d5');
+    var base;
+    if (n.kind === 'event') base = EVENT_COLOR;
+    else if (n.kind === 'plant') base = PLANT_COLOR;
+    else if (n.kind === 'reveal') base = REVEAL_COLOR;
+    else base = n.needsReview ? '#c69a3a' : '#cfd8d5';
+
+    if (n.id === selectedId) {
+      // An event answers in blue wherever it is tapped; everything else keeps the gold that
+      // means "this is the one you picked" elsewhere in the app.
+      return n.kind === 'event' ? EVENT_SELECTED : (n.kind === 'character' ? '#f2c94c' : base);
+    }
     if (!active) return base;
-    if (n.id === selectedId) return '#f2c94c';
     return active.nodes[n.id] ? base : GHOST_NODE;
   }
 
   function linkColor(l) {
-    if (!visibleLink(l)) return 'rgba(0,0,0,0)';
-    var base = l.layer === 'prog' ? PROG_COLOR : (TYPE_COLOR[l.type] || TYPE_COLOR.other);
-    if (!active) return l.layer === 'prog' ? 'rgba(198,154,58,0.35)' : base;
-    var i = data.links.indexOf(l);
-    return active.links[i] ? base : GHOST;
+    var base;
+    if (l.layer === 'prog') base = PROG_COLOR;
+    else if (l.layer === 'pair') base = PAIR_COLOR;
+    else if (l.layer === 'flag') base = l.flagType === 'plant' ? PLANT_COLOR : REVEAL_COLOR;
+    else base = TYPE_COLOR[l.type] || TYPE_COLOR.other;
+
+    if (!active) {
+      if (l.layer === 'prog') return 'rgba(198,154,58,0.35)';
+      if (l.layer === 'pair') return 'rgba(198,154,58,0.28)';
+      if (l.layer === 'flag') return l.flagType === 'plant' ? 'rgba(90,164,105,0.4)' : 'rgba(192,80,77,0.4)';
+      return base;
+    }
+    if (!active.links[l.i]) return GHOST;
+    // A tapped event takes its lines with it: the same darker blue, so the reach of one
+    // moment reads at a glance. A tapped character keeps the gold running outward.
+    var selected = byId[selectedId];
+    if (selected && selected.kind === 'event' && l.layer === 'prog') return EVENT_SELECTED_LINK;
+    return base;
   }
 
   function linkWidth(l) {
-    if (!visibleLink(l)) return 0;
-    var i = data.links.indexOf(l);
-    if (active) return active.links[i] ? 2.6 : 0.3;
-    return l.layer === 'prog' ? 0.7 : Math.min(4, 0.7 + (l.count || 1) * 0.45);
+    if (active) return active.links[l.i] ? 2.6 : 0.3;
+    if (l.layer === 'prog') return 0.7;
+    if (l.layer === 'flag') return 0.8;
+    if (l.layer === 'pair') return 1.2;
+    return Math.min(4, 0.7 + (l.count || 1) * 0.45);
   }
 
   function nodeRadius(n) {
-    return n.kind === 'event' ? 3.2 + Math.min(3, (n.participants || 0) * 0.5) : 4 + Math.min(7, (n.degree || 0) * 0.7);
+    // Events are drawn larger than they used to be because they now carry a number inside
+    // them, and a serial you cannot read is worse than no serial at all.
+    if (n.kind === 'event') return 5 + Math.min(3.5, (n.participants || 0) * 0.5);
+    if (n.kind === 'plant' || n.kind === 'reveal') return 4.2;
+    return 4 + Math.min(7, (n.degree || 0) * 0.7);
+  }
+
+  function traceShape(n, ctx, r) {
+    ctx.beginPath();
+    if (n.kind === 'event') {
+      ctx.moveTo(n.x, n.y - r); ctx.lineTo(n.x + r, n.y);
+      ctx.lineTo(n.x, n.y + r); ctx.lineTo(n.x - r, n.y);
+      ctx.closePath();
+    } else if (n.kind === 'plant' || n.kind === 'reveal') {
+      // A plant points up and a reveal points down, so a pair reads as two halves of one
+      // shape even before you notice the colour -- which matters for anyone who cannot tell
+      // the green from the red.
+      var up = n.kind === 'plant' ? -1 : 1;
+      ctx.moveTo(n.x, n.y + up * r * 1.15);
+      ctx.lineTo(n.x + r, n.y - up * r * 0.85);
+      ctx.lineTo(n.x - r, n.y - up * r * 0.85);
+      ctx.closePath();
+    } else {
+      ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+    }
   }
 
   // Labels are drawn, not hovered. A graph of unlabelled dots cannot be navigated -- you
   // cannot decide what to tap. Event labels appear only when the graph is small enough or
   // the event is in the current selection, because seventeen chapter titles at once is
-  // noise.
+  // noise; flag labels follow the same rule for the same reason, at fifty-odd.
   function drawNode(n, ctx, scale) {
     var r = nodeRadius(n);
-    ctx.beginPath();
-    if (n.kind === 'event') {
+    var color = nodeColor(n);
+    var faded = active && !active.nodes[n.id] && n.id !== selectedId;
+
+    if (n.id === selectedId) {
       ctx.save();
-      ctx.translate(n.x, n.y);
-      ctx.rotate(Math.PI / 4);
-      ctx.rect(-r, -r, r * 2, r * 2);
-      ctx.restore();
-    } else {
-      ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+      ctx.shadowColor = n.kind === 'event' ? EVENT_SELECTED : color;
+      ctx.shadowBlur = 18 / scale;
     }
-    ctx.fillStyle = nodeColor(n);
+    traceShape(n, ctx, r);
+    ctx.fillStyle = color;
     ctx.fill();
     if (n.id === selectedId) {
+      ctx.restore();
+      traceShape(n, ctx, r);
       ctx.lineWidth = 1.6 / scale;
-      ctx.strokeStyle = '#f2c94c';
+      ctx.strokeStyle = n.kind === 'event' ? EVENT_SELECTED : '#f2c94c';
       ctx.stroke();
     }
 
-    var showLabel =
-      n.kind === 'character' ||
-      (active && active.nodes[n.id]) ||
-      data.nodes.filter(function (x) { return x.kind === 'event'; }).length <= 8;
+    // The serial, inside the diamond. Sized against the node rather than against the zoom,
+    // so it stays put in the shape it belongs to instead of swelling out of it.
+    var serial = serialOf(n);
+    if (serial && !faded) {
+      ctx.font = '600 ' + (r * 1.05) + 'px -apple-system, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(9,13,12,0.88)';
+      ctx.fillText(String(serial), n.x, n.y + r * 0.04);
+    }
+
+    var showLabel = n.kind === 'character' || labelEverything || (active && active.nodes[n.id]);
     if (!showLabel) return;
 
     var size = Math.max(3.5, 11 / scale);
     ctx.font = size + 'px -apple-system, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    var faded = active && !active.nodes[n.id];
-    ctx.fillStyle = faded ? 'rgba(160,172,169,0.25)'
-      : (n.kind === 'event' ? '#9fb0bd' : '#e6ecea');
-    var text = n.kind === 'event' ? shorten(n.label, 22) : n.label;
-    ctx.fillText(text, n.x, n.y + r + 1.5);
+    if (faded) ctx.fillStyle = 'rgba(160,172,169,0.25)';
+    else if (n.kind === 'event') ctx.fillStyle = '#9fb0bd';
+    else if (n.kind === 'plant') ctx.fillStyle = '#8fc99a';
+    else if (n.kind === 'reveal') ctx.fillStyle = '#dd9895';
+    else ctx.fillStyle = '#e6ecea';
+    ctx.fillText(n.kind === 'character' ? n.label : shorten(n.label, 22), n.x, n.y + r + 1.5);
+  }
+
+  // The path a character takes through their own story, drawn under everything else as one
+  // continuous line rather than as a fan of separate edges. The gold spokes still run out of
+  // the character -- this is the other half of the answer, the order those events happen in.
+  //
+  // Drawn as a frame overlay instead of as extra links because a link would join the
+  // simulation and pull the events into a ring; this reads the positions the layout already
+  // chose and never influences them.
+  function drawProgressionPath(ctx, scale) {
+    if (mode !== 'prog' || progChain.length < 2) return;
+    var points = progChain.filter(function (n) { return typeof n.x === 'number'; });
+    if (points.length < 2) return;
+
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(198,154,58,0.20)';
+    ctx.lineWidth = 5 / scale;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(242,201,76,0.75)';
+    ctx.lineWidth = 1.4 / scale;
+    ctx.stroke();
+
+    // One arrowhead per segment, at its midpoint: without direction the path says which
+    // events are connected but not which way the character moves through them.
+    ctx.fillStyle = 'rgba(242,201,76,0.85)';
+    for (var j = 1; j < points.length; j++) {
+      var a = points[j - 1], b = points[j];
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 1) continue;
+      var mx = a.x + dx / 2, my = a.y + dy / 2;
+      var ux = dx / len, uy = dy / len;
+      var h = 4 / scale;
+      ctx.beginPath();
+      ctx.moveTo(mx + ux * h, my + uy * h);
+      ctx.lineTo(mx - ux * h * 0.6 - uy * h * 0.6, my - uy * h * 0.6 + ux * h * 0.6);
+      ctx.lineTo(mx - ux * h * 0.6 + uy * h * 0.6, my - uy * h * 0.6 - ux * h * 0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   function shorten(s, n) {
@@ -245,75 +579,38 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
 
   function labelOf(id) {
-    for (var i = 0; i < data.nodes.length; i++) if (data.nodes[i].id === id) return data.nodes[i].label;
-    return '?';
+    var n = byId[id];
+    return n ? n.label : '?';
+  }
+
+  function eventProps(id) {
+    var n = byId[id];
+    return (n && n.properties) || {};
+  }
+
+  function item(head, kind, kindColor, where, detail, seq) {
+    return '<div class="item">' +
+      '<div class="head">' +
+        (seq ? '<span class="seq">' + esc(seq) + '</span>' : '') +
+        '<span class="who">' + head + '</span>' +
+        (kind ? '<span class="kind" style="color:' + kindColor + '">' + esc(kind) + '</span>' : '') +
+        '<span class="caret">▾</span>' +
+      '</div>' +
+      (where ? '<div class="where">' + esc(where) + '</div>' : '') +
+      '<div class="detail">' + esc(detail) + '</div>' +
+    '</div>';
   }
 
   function showFocus() {
     var box = document.getElementById('focus');
-    if (!selectedId) { box.style.display = 'none'; return; }
-    var me = null;
-    data.nodes.forEach(function (n) { if (n.id === selectedId) me = n; });
+    var me = byId[selectedId];
     if (!me) { box.style.display = 'none'; return; }
 
-    var html = '<h3>' + esc(me.label) + '</h3>';
-
-    if (mode === 'rel') {
-      // Every individual interaction, not the aggregate: a pair who fall out in Ch 6 and
-      // reconcile in Ch 12 have two things to say, and one averaged line says neither.
-      var mine = (raw.interactions || []).filter(function (it) {
-        return it.from === selectedId || it.to === selectedId;
-      });
-      html += '<div class="sub">' + mine.length + ' interaction' + (mine.length === 1 ? '' : 's') + '</div>';
-      html += mine.map(function (it, i) {
-        var otherId = it.from === selectedId ? it.to : it.from;
-        var kind = it.type || 'other';
-        return '<div class="item" data-i="' + i + '">' +
-          '<div class="head">' +
-            '<span class="who">' + esc(labelOf(otherId)) + '</span>' +
-            '<span class="kind" style="color:' + (TYPE_COLOR[kind] || TYPE_COLOR.other) + '">' + esc(kind) + '</span>' +
-            '<span class="caret">\u25BE</span>' +
-          '</div>' +
-          (it.eventLabel ? '<div class="where">' + esc(it.eventLabel) + '</div>'
-                         : '<div class="where">Throughout</div>') +
-          '<div class="detail">' + esc(it.description || 'No explanation recorded for this one yet.') + '</div>' +
-        '</div>';
-      }).join('');
-    } else {
-      // The arc: this character's events in chapter order, each listing who else is there.
-      var mine = [];
-      data.links.forEach(function (l) {
-        if (l.layer !== 'prog') return;
-        var e = endpoints(l);
-        if (e[0] !== selectedId) return;
-        var ev = null;
-        data.nodes.forEach(function (x) { if (x.id === e[1]) ev = x; });
-        if (ev) mine.push({ ev: ev, isPov: l.isPov });
-      });
-      mine.sort(function (a, b) { return (a.ev.seq || 0) - (b.ev.seq || 0); });
-
-      html += '<div class="sub">' + mine.length + ' event' + (mine.length === 1 ? '' : 's') + ' in their arc</div>';
-      html += mine.map(function (m, i) {
-        var others = [];
-        data.links.forEach(function (l) {
-          if (l.layer !== 'prog') return;
-          var e = endpoints(l);
-          if (e[1] === m.ev.id && e[0] !== selectedId) others.push(labelOf(e[0]));
-        });
-        var props = eventProps(m.ev.id);
-        var detail = props.summary || '';
-        if (props.ends_on) detail += (detail ? '\n\n' : '') + 'Ends on: ' + props.ends_on;
-        return '<div class="item" data-i="' + i + '">' +
-          '<div class="head">' +
-            '<span class="who' + (m.isPov ? ' pov' : '') + '">' + esc(m.ev.label) + '</span>' +
-            (m.isPov ? '<span class="kind" style="color:#f2c94c">their POV</span>' : '') +
-            '<span class="caret">\u25BE</span>' +
-          '</div>' +
-          (others.length ? '<div class="where">with ' + esc(others.join(', ')) + '</div>' : '') +
-          '<div class="detail">' + esc(detail || 'No summary recorded for this chapter yet.') + '</div>' +
-        '</div>';
-      }).join('');
-    }
+    var html = '';
+    if (me.kind === 'plant' || me.kind === 'reveal') html += focusFlag(me);
+    else if (me.kind === 'event') html += focusEvent(me);
+    else if (mode === 'rel') html += focusRelationships(me);
+    else html += focusProgression(me);
 
     box.innerHTML = html;
     box.style.display = 'block';
@@ -331,21 +628,256 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     });
   }
 
-  function eventProps(id) {
-    var found = (raw.events || []).filter(function (e) { return e.id === id; })[0];
-    return (found && found.properties) || {};
+  function focusRelationships(me) {
+    // Every individual interaction, not the aggregate: a pair who fall out in Ch 6 and
+    // reconcile in Ch 12 have two things to say, and one averaged line says neither.
+    var mine = (raw.interactions || []).filter(function (it) {
+      return it.from === me.id || it.to === me.id;
+    });
+    var html = '<h3>' + esc(me.label) + '</h3>' +
+      '<div class="sub">' + mine.length + ' interaction' + (mine.length === 1 ? '' : 's') + '</div>';
+    return html + mine.map(function (it) {
+      var otherId = it.from === me.id ? it.to : it.from;
+      var kind = it.type || 'other';
+      return item(
+        esc(labelOf(otherId)), kind, TYPE_COLOR[kind] || TYPE_COLOR.other,
+        it.eventLabel || 'Throughout',
+        it.description || 'No explanation recorded for this one yet.',
+        null
+      );
+    }).join('');
   }
 
+  function focusProgression(me) {
+    var html = '<h3>' + esc(me.label) + '</h3>' +
+      '<div class="sub">' + progChain.length + ' event' + (progChain.length === 1 ? '' : 's') +
+      ' in their arc, numbered from their first</div>';
+    return html + progChain.map(function (ev) {
+      var others = [];
+      var isPov = false;
+      all.links.forEach(function (l) {
+        if (l.layer !== 'prog') return;
+        var e = endpoints(l);
+        if (e[1] !== ev.id) return;
+        if (e[0] === me.id) isPov = !!l.isPov;
+        else others.push(labelOf(e[0]));
+      });
+      var props = eventProps(ev.id);
+      var detail = props.summary || '';
+      if (props.ends_on) detail += (detail ? '\n\n' : '') + 'Ends on: ' + props.ends_on;
+      return item(
+        (isPov ? '<span style="color:#f2c94c">' : '<span>') + esc(ev.label) + '</span>',
+        isPov ? 'their POV' : '', '#f2c94c',
+        others.length ? 'with ' + others.join(', ') : '',
+        detail || 'No summary recorded for this chapter yet.',
+        progOrder[ev.id]
+      );
+    }).join('');
+  }
+
+  function focusEvent(me) {
+    var who = [];
+    all.links.forEach(function (l) {
+      if (l.layer !== 'prog') return;
+      var e = endpoints(l);
+      if (e[1] === me.id) who.push(byId[e[0]]);
+    });
+    var here = (raw.flags || []).filter(function (f) { return f.eventId === me.id; });
+    var props = me.properties || {};
+    var serial = serialOf(me);
+
+    var html = '<h3>' + (serial ? serial + '. ' : '') + esc(me.label) + '</h3>' +
+      '<div class="sub">' + who.length + ' present · ' + here.length + ' flag' +
+      (here.length === 1 ? '' : 's') + '</div>';
+    if (props.summary) html += '<div class="quote">' + esc(props.summary) + '</div>';
+
+    html += who.map(function (c) {
+      return item(esc(c ? c.label : '?'), 'present', '#9fb0bd', '',
+        'Tap them in Progression to see this event inside their own arc.', null);
+    }).join('');
+    html += here.map(function (f) {
+      return item(esc(shorten(f.text, 46)), f.type, f.type === 'plant' ? PLANT_COLOR : REVEAL_COLOR,
+        f.pairLabel || '', f.text + (f.label ? '\n\n' + f.label : ''), null);
+    }).join('');
+    return html;
+  }
+
+  function focusFlag(me) {
+    var pair = pairs[me.pairId] || { plants: [], reveals: [], label: me.pairLabel };
+    var counterparts = me.kind === 'plant' ? pair.reveals : pair.plants;
+    var unpaid = pair.reveals.length === 0;
+
+    var html = '<h3>' + esc(pair.label) + '</h3>' +
+      '<div class="sub">' + esc(me.chapterTitle || '') + ' · ' +
+      pair.plants.length + ' plant' + (pair.plants.length === 1 ? '' : 's') + ' · ' +
+      pair.reveals.length + ' reveal' + (pair.reveals.length === 1 ? '' : 's') +
+      (unpaid ? ' · unpaid' : '') + '</div>' +
+      '<div class="quote ' + me.kind + '">' + esc(me.label) + '</div>';
+    if (me.flagLabel) html += '<div class="sub">' + esc(me.flagLabel) + '</div>';
+
+    if (counterparts.length === 0) {
+      html += item(
+        me.kind === 'plant' ? 'Nothing pays this off yet' : 'No plant recorded for this reveal',
+        'open', '#c69a3a', '',
+        me.kind === 'plant'
+          ? 'Sown and never claimed. That can be deliberate — an open plant is a real state, not a fault — but nothing downstream currently answers it.'
+          : 'This reveal has no plant on the other end of its pair. Either the setup is missing, or it was flagged without one.',
+        null
+      );
+      return html;
+    }
+
+    return html + counterparts.map(function (f) {
+      return item(
+        esc(shorten(f.text, 46)),
+        f.type, f.type === 'plant' ? PLANT_COLOR : REVEAL_COLOR,
+        f.chapterTitle || '',
+        f.text + (f.label ? '\n\n' + f.label : ''),
+        null
+      );
+    }).join('');
+  }
+
+  // ---- the index ----------------------------------------------------------
+  var indexTab = 'characters';
+
+  function indexRows() {
+    var q = (document.getElementById('idx-search').value || '').trim().toLowerCase();
+    function hit(s) { return !q || String(s || '').toLowerCase().indexOf(q) !== -1; }
+
+    if (indexTab === 'characters') {
+      return all.nodes.filter(function (n) { return n.kind === 'character' && hit(n.label); })
+        .sort(function (a, b) { return (b.degree || 0) - (a.degree || 0); })
+        .map(function (n) {
+          return { id: n.id, no: '', name: n.label, meta: (n.degree || 0) + ' connections', tag: '' };
+        });
+    }
+    if (indexTab === 'events') {
+      return all.nodes.filter(function (n) { return n.kind === 'event' && hit(n.label); })
+        .sort(function (a, b) { return (a.chronoNo || 0) - (b.chronoNo || 0); })
+        .map(function (n) {
+          return {
+            id: n.id, no: n.chronoNo, name: n.label,
+            meta: (n.participants || 0) + ' present', tag: ''
+          };
+        });
+    }
+    if (indexTab === 'plants' || indexTab === 'reveals') {
+      var kind = indexTab === 'plants' ? 'plant' : 'reveal';
+      return all.nodes
+        .filter(function (n) {
+          return n.kind === kind && (hit(n.label) || hit(n.pairLabel) || hit(n.chapterTitle));
+        })
+        .sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); })
+        .map(function (n) {
+          var pair = pairs[n.pairId] || { plants: [], reveals: [] };
+          var counterparts = kind === 'plant' ? pair.reveals.length : pair.plants.length;
+          return {
+            id: n.id, no: '', name: shorten(n.label, 90),
+            meta: (n.chapterTitle || '') + ' · ' + n.pairLabel,
+            tag: counterparts === 0 ? (kind === 'plant' ? 'unpaid' : 'no plant') : ''
+          };
+        });
+    }
+
+    // Pairs. Ordered by where the plant is sown, so the list reads in the order a reader
+    // meets the setups rather than in whatever order the flags were written.
+    return Object.keys(pairs)
+      .map(function (k) { return pairs[k]; })
+      .filter(function (p) {
+        return hit(p.label) ||
+          p.plants.concat(p.reveals).some(function (f) { return hit(f.text); });
+      })
+      .sort(function (a, b) {
+        var as = a.plants.length ? a.plants[0].seq : 999;
+        var bs = b.plants.length ? b.plants[0].seq : 999;
+        return as - bs;
+      })
+      .map(function (p) {
+        var anchor = (p.plants[0] || p.reveals[0] || {}).id;
+        var where = p.plants.length && p.reveals.length
+          ? p.plants[0].chapterTitle + ' → ' + p.reveals[p.reveals.length - 1].chapterTitle
+          : (p.plants[0] || p.reveals[0] || {}).chapterTitle || '';
+        return {
+          id: anchor, no: '', name: p.label, meta: where,
+          tag: p.reveals.length === 0 ? 'unpaid' : (p.plants.length === 0 ? 'no plant' : '')
+        };
+      });
+  }
+
+  function renderIndex() {
+    var rows = indexRows();
+    var host = document.getElementById('idx-rows');
+    if (rows.length === 0) {
+      host.innerHTML = '<div class="none">Nothing here matches that.</div>';
+      return;
+    }
+    host.innerHTML = rows.map(function (r) {
+      return '<div class="row" data-id="' + esc(r.id) + '">' +
+        (r.no ? '<span class="no">' + esc(r.no) + '</span>' : '') +
+        '<span class="name"><b>' + esc(r.name) + '</b>' +
+          (r.meta ? '<span class="meta">' + esc(r.meta) + '</span>' : '') +
+        '</span>' +
+        (r.tag ? '<span class="tag">' + esc(r.tag) + '</span>' : '') +
+      '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(host.querySelectorAll('.row'), function (el) {
+      el.addEventListener('click', function () {
+        var id = el.getAttribute('data-id');
+        closeIndex();
+        // A flag is only selectable in its own layer, and an event is not drawn at all in
+        // Relationships -- so the index switches to a layer that can actually show what was
+        // tapped rather than selecting something invisible.
+        var n = byId[id];
+        if (n && (n.kind === 'plant' || n.kind === 'reveal')) {
+          if (mode !== 'flags') setMode('flags');
+          if (!flagVisible(n)) setFlagFilter('all');
+        } else if (n && n.kind === 'event' && mode === 'rel') {
+          setMode('prog');
+        }
+        select(id);
+        focusCamera(id);
+      });
+    });
+  }
+
+  function openIndex() {
+    document.getElementById('index').style.display = 'flex';
+    renderIndex();
+  }
+  function closeIndex() {
+    document.getElementById('index').style.display = 'none';
+  }
+
+  function focusCamera(id) {
+    var n = byId[id];
+    if (!graph || !n || typeof n.x !== 'number') return;
+    if (dim === '2d') {
+      graph.centerAt(n.x, n.y, 600);
+      graph.zoom(Math.max(graph.zoom(), 2.4), 600);
+    } else if (graph.cameraPosition) {
+      var d = 90;
+      var r = Math.hypot(n.x, n.y, n.z || 0) || 1;
+      graph.cameraPosition(
+        { x: n.x * (1 + d / r), y: n.y * (1 + d / r), z: (n.z || 0) * (1 + d / r) },
+        n, 900
+      );
+    }
+  }
+
+  // ---- wiring -------------------------------------------------------------
   function post(msg) {
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(msg));
   }
 
   function select(id) {
     selectedId = id;
+    recomputeProgression();
     active = activeSet();
     refresh();
     showFocus();
-    post({ type: 'select', id: id, label: id ? labelOf(id) : null });
+    post({ type: 'select', id: id, label: id ? labelOf(id) : null, kind: id && byId[id] ? byId[id].kind : null });
   }
 
   function refresh() {
@@ -353,8 +885,8 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     graph.nodeColor(nodeColor).linkColor(linkColor).linkWidth(linkWidth);
     if (dim === '3d' && graph.linkDirectionalParticles) {
       graph.linkDirectionalParticles(function (l) {
-        if (!active || !visibleLink(l)) return 0;
-        return active.links[data.links.indexOf(l)] ? 3 : 0;
+        if (!active) return 0;
+        return active.links[l.i] ? 3 : 0;
       });
     }
   }
@@ -366,7 +898,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     if (!factory) { document.getElementById('error').style.display = 'flex'; return; }
 
     graph = factory()(el)
-      .graphData(data)
+      .graphData(rebuildView())
       .backgroundColor('#0d1110')
       .nodeLabel('label')
       .nodeColor(nodeColor)
@@ -377,8 +909,10 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 
     if (dim === '2d') {
       graph.nodeCanvasObject(drawNode)
+           .onRenderFramePre(drawProgressionPath)
+           .linkLineDash(function (l) { return l.layer === 'pair' ? [4, 3] : null; })
            .nodePointerAreaPaint(function (n, color, ctx) {
-             // A generous hit area: the drawn dot is small, and a finger is not.
+             // A generous hit area: the drawn shape is small, and a finger is not.
              ctx.fillStyle = color;
              ctx.beginPath();
              ctx.arc(n.x, n.y, nodeRadius(n) + 5, 0, 2 * Math.PI);
@@ -391,54 +925,121 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 
       graph.nodeThreeObject(function (n) {
         var group = window.THREE ? new window.THREE.Group() : null;
-        if (group && n.kind === 'event') {
-          // An octahedron is a diamond in three dimensions, so an event reads as the same
-          // shape whichever view you are in.
+        if (group && n.kind !== 'character') {
+          // The same correspondence as in 2D: a diamond becomes an octahedron, a triangle
+          // becomes a tetrahedron, so nothing changes identity between the two views.
+          var geometry = n.kind === 'event'
+            ? new window.THREE.OctahedronGeometry(nodeRadius(n) * 0.9)
+            : new window.THREE.TetrahedronGeometry(nodeRadius(n) * 1.15);
+          var color = nodeColor(n);
           var mesh = new window.THREE.Mesh(
-            new window.THREE.OctahedronGeometry(nodeRadius(n) * 0.9),
+            geometry,
             new window.THREE.MeshLambertMaterial({
-              color: nodeColor(n), transparent: true, opacity: 0.92
+              color: color,
+              // The glow, in three dimensions: the selected shape emits its own colour
+              // rather than only reflecting the scene light, which is what makes it read as
+              // lit rather than merely repainted.
+              emissive: n.id === selectedId ? color : '#000000',
+              emissiveIntensity: n.id === selectedId ? 0.9 : 0,
+              transparent: true, opacity: 0.92
             })
           );
+          if (n.kind === 'reveal') mesh.rotation.z = Math.PI;
           group.add(mesh);
         }
         if (window.SpriteText) {
-          var t = new window.SpriteText(n.kind === 'event' ? shorten(n.label, 20) : n.label);
+          var t = new window.SpriteText(
+            n.kind === 'character' ? n.label
+              : (serialOf(n) ? serialOf(n) + '. ' : '') + shorten(n.label, 20)
+          );
           t.color = nodeColor(n);
-          t.textHeight = n.kind === 'event' ? 2.6 : 3.4;
+          t.textHeight = n.kind === 'character' ? 3.4 : 2.6;
           t.position.y = -(nodeRadius(n) + 2.5);
           if (group) group.add(t); else return t;
         }
         return group;
       })
-      // Characters keep the built-in sphere and gain a label; events replace it entirely,
-      // since a diamond inside a sphere is just a sphere.
+      // Characters keep the built-in sphere and gain a label; everything else replaces it
+      // entirely, since a diamond inside a sphere is just a sphere.
       .nodeThreeObjectExtend(function (n) { return n.kind === 'character'; });
     }
     refresh();
   }
 
+  // Counts what is on screen, not what exists: a filter whose readout never moves is a
+  // filter you cannot tell is working.
+  function updateCount() {
+    var source = mode === 'flags' ? view.nodes : all.nodes;
+    var of = function (kind) {
+      return source.filter(function (n) { return n.kind === kind; }).length;
+    };
+    var el = document.getElementById('count');
+    if (mode === 'flags') el.textContent = of('plant') + ' plants · ' + of('reveal') + ' reveals';
+    else el.textContent = of('character') + ' cast · ' + of('event') + ' events';
+  }
+
   function start() {
     build();
-    var characters = data.nodes.filter(function (n) { return n.kind === 'character'; }).length;
-    var events = data.nodes.filter(function (n) { return n.kind === 'event'; }).length;
-    document.getElementById('count').textContent = characters + ' cast · ' + events + ' events';
+    var characters = all.nodes.filter(function (n) { return n.kind === 'character'; }).length;
     document.getElementById('empty').style.display = characters === 0 ? 'flex' : 'none';
     if (characters === 0) return;
     render();
+    updateCount();
   }
 
   function setMode(next) {
     mode = next;
     document.getElementById('mode-rel').className = 'chip' + (mode === 'rel' ? ' on' : '');
     document.getElementById('mode-prog').className = 'chip' + (mode === 'prog' ? ' on' : '');
+    document.getElementById('mode-flags').className = 'chip' + (mode === 'flags' ? ' on' : '');
+    document.getElementById('subhud').className = 'row' + (mode === 'flags' ? ' on' : '');
+    if (graph) graph.graphData(rebuildView());
+    recomputeProgression();
     active = activeSet();
+    updateCount();
+    refresh();
+    showFocus();
+  }
+
+  function setFlagFilter(next) {
+    flagFilter = next;
+    [['all', 'flag-all'], ['plants', 'flag-plants'], ['reveals', 'flag-reveals'],
+     ['pairs', 'flag-pairs'], ['open', 'flag-open']].forEach(function (p) {
+      var el = document.getElementById(p[1]);
+      var base = p[0] === 'plants' ? 'chip plant' : (p[0] === 'reveals' ? 'chip reveal' : 'chip');
+      el.className = base + (flagFilter === p[0] ? ' on' : '');
+    });
+    if (graph) graph.graphData(rebuildView());
+    active = activeSet();
+    updateCount();
     refresh();
     showFocus();
   }
 
   document.getElementById('mode-rel').addEventListener('click', function () { setMode('rel'); });
   document.getElementById('mode-prog').addEventListener('click', function () { setMode('prog'); });
+  document.getElementById('mode-flags').addEventListener('click', function () { setMode('flags'); });
+  document.getElementById('flag-all').addEventListener('click', function () { setFlagFilter('all'); });
+  document.getElementById('flag-plants').addEventListener('click', function () { setFlagFilter('plants'); });
+  document.getElementById('flag-reveals').addEventListener('click', function () { setFlagFilter('reveals'); });
+  document.getElementById('flag-pairs').addEventListener('click', function () { setFlagFilter('pairs'); });
+  document.getElementById('flag-open').addEventListener('click', function () { setFlagFilter('open'); });
+
+  document.getElementById('open-index').addEventListener('click', openIndex);
+  document.getElementById('idx-close').addEventListener('click', closeIndex);
+  document.getElementById('idx-search').addEventListener('input', renderIndex);
+  Array.prototype.forEach.call(document.querySelectorAll('#index .tabs .chip'), function (el) {
+    el.addEventListener('click', function () {
+      indexTab = el.getAttribute('data-tab');
+      Array.prototype.forEach.call(document.querySelectorAll('#index .tabs .chip'), function (other) {
+        var tab = other.getAttribute('data-tab');
+        var base = tab === 'plants' ? 'chip plant' : (tab === 'reveals' ? 'chip reveal' : 'chip');
+        other.className = base + (tab === indexTab ? ' on' : '');
+      });
+      renderIndex();
+    });
+  });
+
   // three.js has shipped ESM-only since r160, so there is no UMD build to drop in a script
   // tag -- and 3d-force-graph needs a NEWER three than the last UMD release (it calls
   // THREE.Timer, which r160 does not have), so pinning backwards is not an escape either.
@@ -491,7 +1092,16 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   function receive(e) {
     try {
       var msg = JSON.parse(e.data);
-      if (msg.type === 'data') { raw = msg.payload; selectedId = null; active = null; showFocus(); start(); }
+      if (msg.type === 'data') {
+        raw = msg.payload;
+        selectedId = null;
+        active = null;
+        progChain = [];
+        showFocus();
+        start();
+      }
+      if (msg.type === 'mode') setMode(msg.mode);
+      if (msg.type === 'index') openIndex();
     } catch (err) {}
   }
   window.addEventListener('message', receive);
