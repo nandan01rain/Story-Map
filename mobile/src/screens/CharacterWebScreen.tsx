@@ -190,13 +190,18 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
           )}
 
           {/* Same reasoning as the note above: an empty layer should say why it is empty.
-              Plants & Reveals reads the chapters' own flags, so the answer is always the
-              same one -- nothing has been flagged yet. */}
+              There are two quite different reasons here and they look identical on screen,
+              so they are told apart rather than collapsed into one vague message. */}
           {graph.nodes.length > 0 && graph.events.length > 0 && graph.flags.length === 0 && (
             <View style={styles.hintNote}>
               <Text style={styles.hintText}>
-                Nothing is flagged yet, so Plants &amp; Reveals is empty. Select a line in the
-                chapter editor and flag it as a plant or a reveal, and it appears here.
+                {graph.flagsSupported
+                  ? 'Nothing is flagged yet, so Plants & Reveals is empty. Flag a line as a ' +
+                    'plant or a reveal in the chapter editor and it appears here — or load ' +
+                    'the demo project again, which arrives with 27 pairs already flagged.'
+                  : 'Plants & Reveals needs a database update that has not been run yet. ' +
+                    'Paste supabase/migrations/20260822_graph_flags.sql into the Supabase ' +
+                    'SQL Editor and run it, then reopen this view.'}
               </Text>
             </View>
           )}

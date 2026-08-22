@@ -2487,6 +2487,14 @@ green and the red, which matters for anyone who cannot tell those apart. In 3D t
 correspondence holds: octahedra for events, tetrahedra for flags. Labels are drawn, not
 hovered: a graph of unlabelled dots cannot be navigated.
 
+**The detail panel is a sheet, not a modal.** It was a fixed 42vh slab with no way to
+dismiss it, which on a phone is most of the graph -- and the node just tapped was as often
+as not underneath it. It now collapses to its own title bar (tap the caret or drag the bar
+down), closes outright, and caps at 38vh; `focusCamera` offsets a selection upward by half
+the sheet's height so selecting from the index never parks the node behind the panel
+describing it. The canvas above the sheet was always interactive; there was simply hardly
+any of it.
+
 **The index** (the hamburger chip) is a full-screen searchable list with five tabs —
 Characters, Events, Plants, Reveals, Pairs — because past a couple of dozen nodes, finding
 a specific one by panning the web stops being viable. Tapping a row selects the node,

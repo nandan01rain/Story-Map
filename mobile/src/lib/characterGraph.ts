@@ -80,6 +80,16 @@ export type GraphData = {
   presence: GraphPresence[];
   interactions: GraphInteraction[];
   flags: GraphFlag[];
+  /**
+   * Whether the database's character_graph() knows about flags at all -- i.e. whether the
+   * 20260822 migration has been run against this project.
+   *
+   * An empty `flags` array has two completely different causes with the same appearance:
+   * nothing has been flagged, or the function predates the layer and never returns the key.
+   * The distinction is the difference between "flag a line" and "run a migration", so it is
+   * carried rather than left for the writer to guess.
+   */
+  flagsSupported: boolean;
 };
 
 export async function fetchCharacterGraph(
@@ -99,6 +109,9 @@ export async function fetchCharacterGraph(
       presence: graph.presence ?? [],
       interactions: graph.interactions ?? [],
       flags: graph.flags ?? [],
+      // Presence of the key, not its length -- the function returns '[]' for a project with
+      // no flags, and nothing at all if it has never heard of them.
+      flagsSupported: data !== null && typeof data === 'object' && 'flags' in data,
     },
     error: null,
   };
