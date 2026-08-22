@@ -58,7 +58,9 @@ export type GraphInteraction = {
  */
 export type GraphFlag = {
   id: string;
-  type: 'plant' | 'reveal';
+  /** A note is not one end of a pair and never carries a pairId, but it is a flag on a line
+   *  of prose in exactly the same way. */
+  type: 'plant' | 'reveal' | 'note';
   /** The exact flagged substring from the chapter's prose. */
   text: string;
   /** What this end of the pair does. */
@@ -67,10 +69,43 @@ export type GraphFlag = {
   pairLabel: string | null;
   chapterId: string;
   chapterTitle: string;
+  /** Set when the flag is about one scene rather than the whole chapter. Optional -- nothing
+   *  writes it yet, and a flag without it belongs to its chapter. */
+  sceneId: string | null;
   /** The event node for this flag's chapter, when one exists. */
   eventId: string | null;
   /** Chapter order, so a pair reads plant-then-reveal. */
   seq: number;
+};
+
+/**
+ * A chapter, as structure rather than as a moment.
+ *
+ * Not the same thing as an event, and returned alongside them rather than instead: an event
+ * is somewhere characters are present, and a chapter nobody has been placed in has none. A
+ * chapter exists regardless, owns the prose, and is what an annotation actually hangs off --
+ * which is why a flag in an unpopulated chapter used to have nothing to attach to.
+ */
+export type GraphChapter = {
+  id: string;
+  title: string;
+  book: number;
+  act: number;
+  seq: number;
+  status: string;
+  /** Character count of the prose, for sizing rather than for display. */
+  words: number;
+  eventId: string | null;
+};
+
+export type GraphScene = {
+  id: string;
+  chapterId: string;
+  seq: number;
+  title: string;
+  summary: string | null;
+  pov: string | null;
+  status: string;
 };
 
 export type GraphData = {
@@ -80,6 +115,8 @@ export type GraphData = {
   presence: GraphPresence[];
   interactions: GraphInteraction[];
   flags: GraphFlag[];
+  chapters: GraphChapter[];
+  scenes: GraphScene[];
   /**
    * Whether the database's character_graph() knows about flags at all -- i.e. whether the
    * 20260822 migration has been run against this project.
@@ -109,6 +146,8 @@ export async function fetchCharacterGraph(
       presence: graph.presence ?? [],
       interactions: graph.interactions ?? [],
       flags: graph.flags ?? [],
+      chapters: graph.chapters ?? [],
+      scenes: graph.scenes ?? [],
       // Presence of the key, not its length -- the function returns '[]' for a project with
       // no flags, and nothing at all if it has never heard of them.
       flagsSupported: data !== null && typeof data === 'object' && 'flags' in data,

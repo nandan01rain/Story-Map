@@ -149,11 +149,14 @@ export async function importDemoProject(
     status: 'drafted',
     content: c.content,
     notes: c.notes,
-    // The plant/reveal pairs, flagged into the prose itself. They are what the character
-    // web's Plants & Reveals layer reads -- it derives them from the chapters rather than
-    // storing a second copy in the graph, so flagging a line in the editor puts it on the
-    // web with no sync step.
-    annotations: c.annotations,
+    // The plant/reveal pairs and the notes, flagged into the prose itself. They are what
+    // the character web's Plants & Reveals layer reads -- it derives them from the chapters
+    // rather than storing a second copy in the graph, so flagging a line in the editor puts
+    // it on the web with no sync step.
+    //
+    // `sceneOrder` is stripped here and the real scene id written back further down, once
+    // the scenes exist to have ids.
+    annotations: c.annotations.map(({ sceneOrder, ...rest }) => rest),
     versions: [],
   }));
 
@@ -186,12 +189,42 @@ export async function importDemoProject(
   });
 
   if (sceneRows.length > 0) {
-    const { error: sceneError } = await supabase.from('scenes').insert(sceneRows);
+    const { data: insertedScenes, error: sceneError } = await supabase
+      .from('scenes')
+      .insert(sceneRows)
+      .select('id, chapter_id, "order"');
     // A scene failure is not fatal: the chapters and their prose are the substance, and the
     // import is more useful landing partial than not at all.
     if (sceneError) {
       return finish({ projectId: project.id, projectName, error: `Scenes: ${sceneError.message}` });
     }
+
+    // Notes that name a scene get its real id now. This is a second pass rather than part of
+    // the chapter insert because a scene has no id until it exists, and inventing one
+    // client-side to avoid the round trip would mean generating uuids by hand.
+    const sceneByChapterOrder = new Map<string, string>();
+    for (const row of insertedScenes ?? []) {
+      sceneByChapterOrder.set(`${row.chapter_id}:${row.order}`, row.id as string);
+    }
+
+    const withSceneNotes = fixture.chapters.filter((c) =>
+      c.annotations.some((a) => a.sceneOrder != null),
+    );
+
+    await Promise.all(
+      withSceneNotes.map((c) => {
+        const chapterRowId = byOrder.get(c.number);
+        if (!chapterRowId) return Promise.resolve();
+        const annotations = c.annotations.map(({ sceneOrder, ...rest }) => {
+          if (sceneOrder == null) return rest;
+          const resolved = sceneByChapterOrder.get(`${chapterRowId}:${sceneOrder}`);
+          // A note whose scene did not survive stays a chapter-level note rather than
+          // carrying a dangling id.
+          return resolved ? { ...rest, sceneId: resolved } : rest;
+        });
+        return supabase.from('chapters').update({ annotations }).eq('id', chapterRowId);
+      }),
+    );
   }
 
   const documentRows = fixture.documents.map((d) => ({

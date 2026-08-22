@@ -16,9 +16,13 @@
 //                  lights their chain of events, draws the path they take through them,
 //                  and renumbers those events from the start of THAT character's arc --
 //                  which is the thing a cast list cannot show you.
-//   PLANTS         plant -> reveal. Every flagged line in the prose, each plant tied to the
-//                  reveal that pays it. Read out of the chapters' annotations, so the book
-//                  and this view can never disagree.
+//   PLANTS         plant -> reveal, and notes alongside them. Every flagged line in the
+//                  prose, each plant tied to the reveal that pays it. Read out of the
+//                  chapters' annotations, so the book and this view can never disagree.
+//   STRUCTURE      book -> act -> chapter -> scene, the same hierarchy the map uses, with
+//                  each chapter carrying the event, flags and scenes that hang off it. This
+//                  is the layer that makes the web reachable at every granularity rather
+//                  than only at "character" and "moment".
 //
 // Switching layers rebuilds graphData from the same node objects rather than hiding nodes in
 // place. A hidden node still exerts charge, and fifty-odd flag nodes silently shoving the
@@ -65,6 +69,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   .chip.mute { color: #7c8784; }
   .chip.plant.on { border-color: #5aa469; color: #7fce8c; background: rgba(90,164,105,0.18); }
   .chip.reveal.on { border-color: #c0504d; color: #e28a86; background: rgba(192,80,77,0.18); }
+  .chip.note.on { border-color: #b08a5a; color: #d8b184; background: rgba(176,138,90,0.18); }
   /* A sheet, not a modal. It used to be a fixed 42vh slab with no way to get rid of it,
      which on a phone is most of the graph -- and the node you had just tapped was as often
      as not underneath it. Now it collapses to its own title bar, closes outright, and can be
@@ -110,6 +115,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
   #focus .quote.plant { border-left-color: #5aa469; }
   #focus .quote.reveal { border-left-color: #c0504d; }
+  #focus .quote.note { border-left-color: #b08a5a; }
   #focus .item {
     border-top: 1px solid #1f2725; padding: 9px 0 8px; cursor: pointer;
   }
@@ -174,6 +180,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     <div class="chip on" id="mode-rel">Relationships</div>
     <div class="chip" id="mode-prog">Progression</div>
     <div class="chip" id="mode-flags">Plants &amp; Reveals</div>
+    <div class="chip" id="mode-structure">Structure</div>
     <div class="chip" id="open-index">&#9776; Index</div>
     <div class="chip" id="toggle-dim">3D</div>
     <div class="chip mute" id="count"></div>
@@ -182,6 +189,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     <div class="chip on" id="flag-all">All</div>
     <div class="chip plant" id="flag-plants">Plants</div>
     <div class="chip reveal" id="flag-reveals">Reveals</div>
+    <div class="chip note" id="flag-notes">Notes</div>
     <div class="chip" id="flag-pairs">Pairs</div>
     <div class="chip" id="flag-open">Unpaid</div>
   </div>
@@ -203,8 +211,11 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   <div class="tabs">
     <div class="chip on" data-tab="characters">Characters</div>
     <div class="chip" data-tab="events">Events</div>
+    <div class="chip" data-tab="chapters">Chapters</div>
+    <div class="chip" data-tab="scenes">Scenes</div>
     <div class="chip plant" data-tab="plants">Plants</div>
     <div class="chip reveal" data-tab="reveals">Reveals</div>
+    <div class="chip note" data-tab="notes">Notes</div>
     <div class="chip" data-tab="pairs">Pairs</div>
   </div>
   <div class="rows" id="idx-rows"></div>
@@ -219,7 +230,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   var EMPTY = { nodes: [], links: [], events: [], presence: [], interactions: [], flags: [] };
   var raw = window.__GRAPH__ || EMPTY;
   var mode = 'rel';       // 'rel' | 'prog' | 'flags'
-  var flagFilter = 'all'; // 'all' | 'plants' | 'reveals' | 'pairs' | 'open'
+  var flagFilter = 'all'; // 'all' | 'plants' | 'reveals' | 'notes' | 'pairs' | 'open'
   var dim = '2d';         // '2d' | '3d'
   var graph = null;
   var selectedId = null;
@@ -248,7 +259,11 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   var EVENT_SELECTED_LINK = '#1c5fae';
   var PLANT_COLOR = '#5aa469';
   var REVEAL_COLOR = '#c0504d';
+  var NOTE_COLOR = '#b08a5a';
+  var CHAPTER_COLOR = '#8e7cc3';
+  var SCENE_COLOR = '#6d7f96';
   var PAIR_COLOR = '#c69a3a';
+  var STRUCTURE_COLOR = '#6b5f8a';
   var GHOST = 'rgba(120,132,129,0.07)';
   var GHOST_NODE = 'rgba(120,132,129,0.16)';
 
@@ -270,17 +285,40 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
       });
     });
 
+    (raw.chapters || []).forEach(function (c) {
+      nodes.push({
+        id: c.id, label: c.title, kind: 'chapter',
+        book: c.book, act: c.act, seq: c.seq, status: c.status,
+        words: c.words || 0, eventId: c.eventId
+      });
+    });
+    (raw.scenes || []).forEach(function (sc) {
+      nodes.push({
+        id: sc.id, label: sc.title || 'Untitled scene', kind: 'scene',
+        chapterId: sc.chapterId, seq: sc.seq, summary: sc.summary, pov: sc.pov, status: sc.status
+      });
+    });
+
     pairs = {};
     (raw.flags || []).forEach(function (f) {
+      // A note belongs to no pair. Giving it a solo bucket keeps one code path for the panel
+      // and the index instead of a second one that exists only to say "this has no partner".
       var key = f.pairId || ('solo:' + f.id);
-      if (!pairs[key]) pairs[key] = { id: key, label: f.pairLabel || f.label || 'Unpaired', plants: [], reveals: [] };
-      pairs[key][f.type === 'plant' ? 'plants' : 'reveals'].push(f);
+      if (!pairs[key]) pairs[key] = { id: key, label: f.pairLabel || f.label || (f.type === 'note' ? 'Note' : 'Unpaired'), plants: [], reveals: [] };
+      if (f.type === 'plant') pairs[key].plants.push(f);
+      else if (f.type === 'reveal') pairs[key].reveals.push(f);
       nodes.push({
         id: f.id, label: f.text, kind: f.type,
         pairId: key, pairLabel: pairs[key].label, flagLabel: f.label,
+        chapterId: f.chapterId, sceneId: f.sceneId,
         chapterTitle: f.chapterTitle, eventId: f.eventId, seq: f.seq
       });
     });
+
+    // Built before the links, because a flag link has to ask whether the scene it names
+    // actually exists before anchoring to it.
+    byId = {};
+    nodes.forEach(function (n) { byId[n.id] = n; });
 
     var links = (raw.links || []).map(function (l) {
       return { source: l.source, target: l.target, layer: 'rel', type: l.type || 'other', count: l.count || 1 };
@@ -288,11 +326,22 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     (raw.presence || []).forEach(function (p) {
       links.push({ source: p.character, target: p.event, layer: 'prog', isPov: p.isPov });
     });
-    // A flag hangs off the event for its chapter, so a plant sits where it was sown rather
-    // than drifting loose. A chapter with no event node yet simply has no such link, and its
-    // flags float -- still listed, still selectable, just unanchored.
+    // A flag hangs off its chapter -- or its scene, where it names one. It used to hang off
+    // the chapter's EVENT, which meant a flag in a chapter nobody had been placed in had
+    // nothing to attach to and floated. An annotation belongs to a chapter; a chapter always
+    // exists; so that is the right anchor.
     (raw.flags || []).forEach(function (f) {
-      if (f.eventId) links.push({ source: f.id, target: f.eventId, layer: 'flag', flagType: f.type });
+      var anchor = (f.sceneId && byId[f.sceneId]) ? f.sceneId : f.chapterId;
+      if (anchor) links.push({ source: f.id, target: anchor, layer: 'flag', flagType: f.type });
+    });
+
+    // The hierarchy itself: chapter to its scenes, and chapter to the moment extraction
+    // found in it.
+    (raw.scenes || []).forEach(function (sc) {
+      if (sc.chapterId) links.push({ source: sc.chapterId, target: sc.id, layer: 'structure', rel: 'scene' });
+    });
+    (raw.chapters || []).forEach(function (c) {
+      if (c.eventId) links.push({ source: c.id, target: c.eventId, layer: 'structure', rel: 'event' });
     });
     Object.keys(pairs).forEach(function (key) {
       var pair = pairs[key];
@@ -308,13 +357,12 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     links.forEach(function (l, i) { l.i = i; });
 
     all = { nodes: nodes, links: links };
-    byId = {};
-    nodes.forEach(function (n) { byId[n.id] = n; });
   }
 
   function layersFor(m) {
     if (m === 'rel') return { rel: true };
     if (m === 'prog') return { prog: true };
+    if (m === 'structure') return { structure: true, flag: true };
     return { flag: true, pair: true };
   }
 
@@ -325,6 +373,9 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     if (flagFilter === 'all') return true;
     if (flagFilter === 'plants') return n.kind === 'plant';
     if (flagFilter === 'reveals') return n.kind === 'reveal';
+    if (flagFilter === 'notes') return n.kind === 'note';
+    // Pairs and unpaid are about plant/reveal pairs; a note is in neither by definition.
+    if (n.kind === 'note') return false;
     var pair = pairs[n.pairId];
     if (!pair) return false;
     if (flagFilter === 'pairs') return pair.plants.length > 0 && pair.reveals.length > 0;
@@ -338,21 +389,32 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     // Flags first, so the event pass below can ask which events any of them still land in.
     // Under a filter, an event with no surviving flag is a diamond with nothing to say --
     // sixteen of those around four unpaid plants is the filter failing to filter.
+    var isFlag = function (n) { return n.kind === 'plant' || n.kind === 'reveal' || n.kind === 'note'; };
+
+    // Flags first, so the passes below can ask which chapters and scenes any of them still
+    // land in. Under a filter, an anchor with no surviving flag is a node with nothing to
+    // say -- seventeen of those around four unpaid plants is the filter failing to filter.
     var anchored = {};
     if (mode === 'flags') {
       all.nodes.forEach(function (n) {
-        if ((n.kind === 'plant' || n.kind === 'reveal') && flagVisible(n)) {
+        if (isFlag(n) && flagVisible(n)) {
           keep[n.id] = true;
-          if (n.eventId) anchored[n.eventId] = true;
+          if (n.sceneId) anchored[n.sceneId] = true;
+          else if (n.chapterId) anchored[n.chapterId] = true;
         }
       });
     }
 
     var nodes = all.nodes.filter(function (n) {
       var ok;
-      if (n.kind === 'character') ok = mode !== 'flags';
-      else if (n.kind === 'event') ok = mode === 'prog' || (mode === 'flags' && !!anchored[n.id]);
-      else ok = !!keep[n.id];
+      if (n.kind === 'character') ok = mode === 'rel' || mode === 'prog';
+      else if (n.kind === 'event') ok = mode === 'prog' || mode === 'structure';
+      else if (n.kind === 'chapter') ok = mode === 'structure' || (mode === 'flags' && !!anchored[n.id]);
+      else if (n.kind === 'scene') ok = mode === 'structure' || (mode === 'flags' && !!anchored[n.id]);
+      // Every flag shows in Structure too: the point of that layer is a chapter with
+      // everything hanging off it, and its flags are most of what hangs off it.
+      else if (isFlag(n)) ok = mode === 'structure' || (mode === 'flags' && !!keep[n.id]);
+      else ok = false;
       if (ok) keep[n.id] = true;
       return ok;
     });
@@ -397,8 +459,12 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
       hop(function (l, e) { return l.layer === 'prog' && nodes[e[1]] && !nodes[e[0]]; });
     } else if (mode === 'flags') {
       // The pair link is reached first, so this second pass picks up each counterpart's own
-      // event -- without it a reveal lights up with no indication of where it lands.
+      // chapter -- without it a reveal lights up with no indication of where it lands.
       hop(function (l, e) { return l.layer === 'flag' && nodes[e[0]] && !nodes[e[1]]; });
+    } else if (mode === 'structure') {
+      // Selecting a chapter should light what is inside it, which is two hops away for a
+      // flag that names a scene: chapter -> scene -> flag.
+      hop(function (l, e) { return l.layer === 'flag' && nodes[e[1]] && !nodes[e[0]]; });
     }
 
     return { nodes: nodes, links: links };
@@ -430,6 +496,9 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
 
   function serialOf(n) {
+    // A chapter's serial is its own number in the book -- it needs no renumbering scheme,
+    // because unlike an event it always has one.
+    if (n.kind === 'chapter') return n.seq;
     if (n.kind !== 'event') return null;
     if (mode === 'prog' && progChain.length > 0) return progOrder[n.id] || null;
     return n.chronoNo || null;
@@ -440,6 +509,9 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     if (n.kind === 'event') base = EVENT_COLOR;
     else if (n.kind === 'plant') base = PLANT_COLOR;
     else if (n.kind === 'reveal') base = REVEAL_COLOR;
+    else if (n.kind === 'note') base = NOTE_COLOR;
+    else if (n.kind === 'chapter') base = CHAPTER_COLOR;
+    else if (n.kind === 'scene') base = SCENE_COLOR;
     else base = n.needsReview ? '#c69a3a' : '#cfd8d5';
 
     if (n.id === selectedId) {
@@ -452,16 +524,23 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
 
   function linkColor(l) {
+    var FLAG_LINK = {
+      plant: [PLANT_COLOR, 'rgba(90,164,105,0.4)'],
+      reveal: [REVEAL_COLOR, 'rgba(192,80,77,0.4)'],
+      note: [NOTE_COLOR, 'rgba(176,138,90,0.4)']
+    };
     var base;
     if (l.layer === 'prog') base = PROG_COLOR;
     else if (l.layer === 'pair') base = PAIR_COLOR;
-    else if (l.layer === 'flag') base = l.flagType === 'plant' ? PLANT_COLOR : REVEAL_COLOR;
+    else if (l.layer === 'structure') base = STRUCTURE_COLOR;
+    else if (l.layer === 'flag') base = (FLAG_LINK[l.flagType] || FLAG_LINK.note)[0];
     else base = TYPE_COLOR[l.type] || TYPE_COLOR.other;
 
     if (!active) {
       if (l.layer === 'prog') return 'rgba(198,154,58,0.35)';
       if (l.layer === 'pair') return 'rgba(198,154,58,0.28)';
-      if (l.layer === 'flag') return l.flagType === 'plant' ? 'rgba(90,164,105,0.4)' : 'rgba(192,80,77,0.4)';
+      if (l.layer === 'structure') return 'rgba(107,95,138,0.5)';
+      if (l.layer === 'flag') return (FLAG_LINK[l.flagType] || FLAG_LINK.note)[1];
       return base;
     }
     if (!active.links[l.i]) return GHOST;
@@ -477,6 +556,9 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     if (l.layer === 'prog') return 0.7;
     if (l.layer === 'flag') return 0.8;
     if (l.layer === 'pair') return 1.2;
+    // The spine of the structure layer, so the hierarchy reads at a glance rather than
+    // looking like one more kind of association.
+    if (l.layer === 'structure') return l.rel === 'scene' ? 1.6 : 1.1;
     return Math.min(4, 0.7 + (l.count || 1) * 0.45);
   }
 
@@ -484,7 +566,10 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     // Events are drawn larger than they used to be because they now carry a number inside
     // them, and a serial you cannot read is worse than no serial at all.
     if (n.kind === 'event') return 5 + Math.min(3.5, (n.participants || 0) * 0.5);
-    if (n.kind === 'plant' || n.kind === 'reveal') return 4.2;
+    // A chapter carries a number too, and is the parent of everything around it.
+    if (n.kind === 'chapter') return 6;
+    if (n.kind === 'scene') return 3.6;
+    if (n.kind === 'plant' || n.kind === 'reveal' || n.kind === 'note') return 4.2;
     return 4 + Math.min(7, (n.degree || 0) * 0.7);
   }
 
@@ -493,6 +578,28 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     if (n.kind === 'event') {
       ctx.moveTo(n.x, n.y - r); ctx.lineTo(n.x + r, n.y);
       ctx.lineTo(n.x, n.y + r); ctx.lineTo(n.x - r, n.y);
+      ctx.closePath();
+    } else if (n.kind === 'chapter') {
+      // A hexagon: the largest and busiest shape here, and the only one that reads as a
+      // container rather than a point.
+      for (var h = 0; h < 6; h++) {
+        var a = (Math.PI / 3) * h - Math.PI / 2;
+        var px = n.x + r * Math.cos(a);
+        var py = n.y + r * Math.sin(a);
+        if (h === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    } else if (n.kind === 'scene') {
+      ctx.rect(n.x - r, n.y - r, r * 2, r * 2);
+    } else if (n.kind === 'note') {
+      // A page with its corner turned down. Distinct from the scene's square at a glance,
+      // which matters because they sit next to each other constantly.
+      var c = r * 0.62;
+      ctx.moveTo(n.x - r, n.y - r);
+      ctx.lineTo(n.x + r - c, n.y - r);
+      ctx.lineTo(n.x + r, n.y - r + c);
+      ctx.lineTo(n.x + r, n.y + r);
+      ctx.lineTo(n.x - r, n.y + r);
       ctx.closePath();
     } else if (n.kind === 'plant' || n.kind === 'reveal') {
       // A plant points up and a reveal points down, so a pair reads as two halves of one
@@ -549,26 +656,29 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     // reader zooming in far enough to be looking at a few of them rather than all of them.
     var showLabel =
       n.kind === 'character' ||
+      n.kind === 'chapter' ||
       labelEverything ||
       (active && active.nodes[n.id]) ||
-      ((n.kind === 'plant' || n.kind === 'reveal') && scale > 1.6);
+      ((n.kind === 'plant' || n.kind === 'reveal' || n.kind === 'note' || n.kind === 'scene') && scale > 1.6);
     if (!showLabel) return;
 
     var size = Math.max(3.5, 11 / scale);
     ctx.font = size + 'px -apple-system, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    if (faded) ctx.fillStyle = 'rgba(160,172,169,0.25)';
-    else if (n.kind === 'event') ctx.fillStyle = '#9fb0bd';
-    else if (n.kind === 'plant') ctx.fillStyle = '#8fc99a';
-    else if (n.kind === 'reveal') ctx.fillStyle = '#dd9895';
-    else ctx.fillStyle = '#e6ecea';
+    var INK = {
+      event: '#9fb0bd', plant: '#8fc99a', reveal: '#dd9895',
+      note: '#d8b184', chapter: '#bfb2dd', scene: '#a3b2c4'
+    };
+    ctx.fillStyle = faded ? 'rgba(160,172,169,0.25)' : (INK[n.kind] || '#e6ecea');
 
     var text;
     if (n.kind === 'character') text = n.label;
     // The pair's title, not the flagged sentence. The sentence is what the panel is for;
-    // on the graph it is thirty words where six will do.
+    // on the graph it is thirty words where six will do. A note has no pair, so it falls
+    // back to its own label and then to the line it marks.
     else if (n.kind === 'plant' || n.kind === 'reveal') text = shorten(n.pairLabel || n.label, 24);
+    else if (n.kind === 'note') text = shorten(n.flagLabel || n.label, 24);
     else text = shorten(n.label, 22);
     ctx.fillText(text, n.x, n.y + r + 1.5);
   }
@@ -655,6 +765,8 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
 
   function focusTitleFor(me) {
+    if (me.kind === 'note') return me.flagLabel || shorten(me.label, 40);
+    if (me.kind === 'chapter') return (me.seq != null ? me.seq + '. ' : '') + me.label;
     if (me.kind === 'plant' || me.kind === 'reveal') {
       var pair = pairs[me.pairId];
       return (pair && pair.label) || me.pairLabel || shorten(me.label, 40);
@@ -672,7 +784,9 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     if (!me) { box.className = ''; return; }
 
     var html = '';
-    if (me.kind === 'plant' || me.kind === 'reveal') html += focusFlag(me);
+    if (me.kind === 'plant' || me.kind === 'reveal' || me.kind === 'note') html += focusFlag(me);
+    else if (me.kind === 'chapter') html += focusChapter(me);
+    else if (me.kind === 'scene') html += focusScene(me);
     else if (me.kind === 'event') html += focusEvent(me);
     else if (mode === 'rel') html += focusRelationships(me);
     else html += focusProgression(me);
@@ -772,6 +886,17 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   }
 
   function focusFlag(me) {
+    // A note is a flag with no far end. It gets the quote and the label and stops there,
+    // rather than being told it is an unpaid something.
+    if (me.kind === 'note') {
+      var scene = me.sceneId ? byId[me.sceneId] : null;
+      return '<h3>Note</h3>' +
+        '<div class="sub">' + esc(me.chapterTitle || '') +
+        (scene ? ' · ' + esc(scene.label) : '') + '</div>' +
+        '<div class="quote note">' + esc(me.label) + '</div>' +
+        (me.flagLabel ? '<div class="sub">' + esc(me.flagLabel) + '</div>' : '');
+    }
+
     var pair = pairs[me.pairId] || { plants: [], reveals: [], label: me.pairLabel };
     var counterparts = me.kind === 'plant' ? pair.reveals : pair.plants;
     var unpaid = pair.reveals.length === 0;
@@ -807,6 +932,70 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     }).join('');
   }
 
+  function flagsIn(predicate) {
+    return all.nodes.filter(function (n) {
+      return (n.kind === 'plant' || n.kind === 'reveal' || n.kind === 'note') && predicate(n);
+    });
+  }
+
+  var FLAG_WORD = { plant: 'plant', reveal: 'reveal', note: 'note' };
+  var FLAG_COLOR = { plant: PLANT_COLOR, reveal: REVEAL_COLOR, note: NOTE_COLOR };
+
+  function focusChapter(me) {
+    var scenes = all.nodes.filter(function (n) { return n.kind === 'scene' && n.chapterId === me.id; })
+      .sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+    var flags = flagsIn(function (n) { return n.chapterId === me.id; });
+    var event = me.eventId ? byId[me.eventId] : null;
+
+    var html = '<h3>' + (me.seq != null ? me.seq + '. ' : '') + esc(me.label) + '</h3>' +
+      '<div class="sub">Book ' + ((me.book || 0) + 1) + ' · Act ' + (me.act || 1) + ' · ' +
+      esc(me.status || 'idea') + ' · ' + scenes.length + ' scene' + (scenes.length === 1 ? '' : 's') +
+      ' · ' + flags.length + ' flag' + (flags.length === 1 ? '' : 's') + '</div>';
+
+    if (event) {
+      var props = event.properties || {};
+      html += item(esc(event.label), 'moment', EVENT_COLOR, props.pov ? 'POV: ' + props.pov : '',
+        props.summary || 'No summary recorded for this chapter yet.', serialOf(event));
+    } else {
+      // Said rather than left as an absence, because "no event" reads as a bug and is not.
+      html += item('No moment recorded here', 'moment', '#7c8784', '',
+        'Nobody has been placed in this chapter yet, so it has no event in the graph. That is what Progression draws from.', null);
+    }
+
+    html += scenes.map(function (sc) {
+      return item(esc(sc.label), 'scene', SCENE_COLOR, sc.pov ? 'POV: ' + sc.pov : '',
+        sc.summary || 'No summary written for this scene yet.', sc.seq != null ? sc.seq + 1 : null);
+    }).join('');
+
+    html += flags.map(function (f) {
+      return item(esc(shorten(f.label, 46)), FLAG_WORD[f.kind], FLAG_COLOR[f.kind],
+        f.pairLabel && f.kind !== 'note' ? f.pairLabel : '',
+        f.label + (f.flagLabel ? '\n\n' + f.flagLabel : ''), null);
+    }).join('');
+
+    return html;
+  }
+
+  function focusScene(me) {
+    var chapter = me.chapterId ? byId[me.chapterId] : null;
+    var flags = flagsIn(function (n) { return n.sceneId === me.id; });
+
+    var html = '<h3>' + esc(me.label) + '</h3>' +
+      '<div class="sub">' + (chapter ? esc(chapter.label) + ' · ' : '') +
+      'Scene ' + ((me.seq || 0) + 1) + (me.pov ? ' · POV: ' + esc(me.pov) : '') + '</div>';
+    if (me.summary) html += '<div class="quote">' + esc(me.summary) + '</div>';
+
+    if (flags.length === 0) {
+      html += item('Nothing flagged in this scene', 'scene', SCENE_COLOR, '',
+        'Flags recorded against the whole chapter rather than this scene appear on the chapter instead.', null);
+    }
+    html += flags.map(function (f) {
+      return item(esc(shorten(f.label, 46)), FLAG_WORD[f.kind], FLAG_COLOR[f.kind], '',
+        f.label + (f.flagLabel ? '\n\n' + f.flagLabel : ''), null);
+    }).join('');
+    return html;
+  }
+
   // ---- the index ----------------------------------------------------------
   var indexTab = 'characters';
 
@@ -831,14 +1020,52 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
           };
         });
     }
-    if (indexTab === 'plants' || indexTab === 'reveals') {
-      var kind = indexTab === 'plants' ? 'plant' : 'reveal';
+    if (indexTab === 'chapters') {
+      return all.nodes.filter(function (n) { return n.kind === 'chapter' && hit(n.label); })
+        .sort(function (a, b) { return (a.book - b.book) || (a.seq - b.seq); })
+        .map(function (n) {
+          var scenes = all.nodes.filter(function (x) { return x.kind === 'scene' && x.chapterId === n.id; }).length;
+          var flags = all.nodes.filter(function (x) {
+            return (x.kind === 'plant' || x.kind === 'reveal' || x.kind === 'note') && x.chapterId === n.id;
+          }).length;
+          return {
+            id: n.id, no: n.seq, name: n.label,
+            meta: 'Act ' + (n.act || 1) + ' · ' + scenes + ' scenes · ' + flags + ' flags',
+            tag: n.eventId ? '' : 'no moment'
+          };
+        });
+    }
+    if (indexTab === 'scenes') {
+      return all.nodes.filter(function (n) {
+        return n.kind === 'scene' && (hit(n.label) || hit(n.summary) || hit(n.pov));
+      })
+        .sort(function (a, b) {
+          var ca = byId[a.chapterId], cb = byId[b.chapterId];
+          return ((ca ? ca.seq : 0) - (cb ? cb.seq : 0)) || (a.seq - b.seq);
+        })
+        .map(function (n) {
+          var chapter = byId[n.chapterId];
+          return {
+            id: n.id, no: (n.seq || 0) + 1, name: shorten(n.label, 80),
+            meta: (chapter ? chapter.label : '') + (n.pov ? ' · ' + n.pov : ''),
+            tag: ''
+          };
+        });
+    }
+    if (indexTab === 'plants' || indexTab === 'reveals' || indexTab === 'notes') {
+      var kind = indexTab === 'notes' ? 'note' : (indexTab === 'plants' ? 'plant' : 'reveal');
       return all.nodes
         .filter(function (n) {
-          return n.kind === kind && (hit(n.label) || hit(n.pairLabel) || hit(n.chapterTitle));
+          return n.kind === kind && (hit(n.label) || hit(n.pairLabel) || hit(n.chapterTitle) || hit(n.flagLabel));
         })
         .sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); })
         .map(function (n) {
+          if (kind === 'note') {
+            return {
+              id: n.id, no: '', name: shorten(n.flagLabel || n.label, 90),
+              meta: n.chapterTitle || '', tag: ''
+            };
+          }
           var pair = pairs[n.pairId] || { plants: [], reveals: [] };
           var counterparts = kind === 'plant' ? pair.reveals.length : pair.plants.length;
           return {
@@ -854,6 +1081,8 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     return Object.keys(pairs)
       .map(function (k) { return pairs[k]; })
       .filter(function (p) {
+        // A note's bucket has neither a plant nor a reveal in it; it is not a pair.
+        if (p.plants.length === 0 && p.reveals.length === 0) return false;
         return hit(p.label) ||
           p.plants.concat(p.reveals).some(function (f) { return hit(f.text); });
       })
@@ -899,9 +1128,11 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
         // Relationships -- so the index switches to a layer that can actually show what was
         // tapped rather than selecting something invisible.
         var n = byId[id];
-        if (n && (n.kind === 'plant' || n.kind === 'reveal')) {
-          if (mode !== 'flags') setMode('flags');
-          if (!flagVisible(n)) setFlagFilter('all');
+        if (n && (n.kind === 'plant' || n.kind === 'reveal' || n.kind === 'note')) {
+          if (mode !== 'flags' && mode !== 'structure') setMode('flags');
+          if (mode === 'flags' && !flagVisible(n)) setFlagFilter('all');
+        } else if (n && (n.kind === 'chapter' || n.kind === 'scene')) {
+          if (mode !== 'structure' && mode !== 'flags') setMode('structure');
         } else if (n && n.kind === 'event' && mode === 'rel') {
           setMode('prog');
         }
@@ -1033,9 +1264,12 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
         if (group && n.kind !== 'character') {
           // The same correspondence as in 2D: a diamond becomes an octahedron, a triangle
           // becomes a tetrahedron, so nothing changes identity between the two views.
-          var geometry = n.kind === 'event'
-            ? new window.THREE.OctahedronGeometry(nodeRadius(n) * 0.9)
-            : new window.THREE.TetrahedronGeometry(nodeRadius(n) * 1.15);
+          var geometry;
+          if (n.kind === 'event') geometry = new window.THREE.OctahedronGeometry(nodeRadius(n) * 0.9);
+          else if (n.kind === 'chapter') geometry = new window.THREE.DodecahedronGeometry(nodeRadius(n) * 0.85);
+          else if (n.kind === 'scene') geometry = new window.THREE.BoxGeometry(nodeRadius(n) * 1.5, nodeRadius(n) * 1.5, nodeRadius(n) * 1.5);
+          else if (n.kind === 'note') geometry = new window.THREE.BoxGeometry(nodeRadius(n) * 1.6, nodeRadius(n) * 1.6, nodeRadius(n) * 0.3);
+          else geometry = new window.THREE.TetrahedronGeometry(nodeRadius(n) * 1.15);
           var color = nodeColor(n);
           var mesh = new window.THREE.Mesh(
             geometry,
@@ -1074,13 +1308,18 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   // Counts what is on screen, not what exists: a filter whose readout never moves is a
   // filter you cannot tell is working.
   function updateCount() {
-    var source = mode === 'flags' ? view.nodes : all.nodes;
+    var source = (mode === 'flags' || mode === 'structure') ? view.nodes : all.nodes;
     var of = function (kind) {
       return source.filter(function (n) { return n.kind === kind; }).length;
     };
     var el = document.getElementById('count');
-    if (mode === 'flags') el.textContent = of('plant') + ' plants · ' + of('reveal') + ' reveals';
-    else el.textContent = of('character') + ' cast · ' + of('event') + ' events';
+    if (mode === 'flags') {
+      el.textContent = of('plant') + ' plants · ' + of('reveal') + ' reveals · ' + of('note') + ' notes';
+    } else if (mode === 'structure') {
+      el.textContent = of('chapter') + ' chapters · ' + of('scene') + ' scenes';
+    } else {
+      el.textContent = of('character') + ' cast · ' + of('event') + ' events';
+    }
   }
 
   function start() {
@@ -1100,6 +1339,7 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
     document.getElementById('mode-rel').className = 'chip' + (mode === 'rel' ? ' on' : '');
     document.getElementById('mode-prog').className = 'chip' + (mode === 'prog' ? ' on' : '');
     document.getElementById('mode-flags').className = 'chip' + (mode === 'flags' ? ' on' : '');
+    document.getElementById('mode-structure').className = 'chip' + (mode === 'structure' ? ' on' : '');
     document.getElementById('subhud').className = 'row' + (mode === 'flags' ? ' on' : '');
     if (graph) {
       graph.graphData(rebuildView());
@@ -1115,9 +1355,12 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   function setFlagFilter(next) {
     flagFilter = next;
     [['all', 'flag-all'], ['plants', 'flag-plants'], ['reveals', 'flag-reveals'],
-     ['pairs', 'flag-pairs'], ['open', 'flag-open']].forEach(function (p) {
+     ['notes', 'flag-notes'], ['pairs', 'flag-pairs'], ['open', 'flag-open']].forEach(function (p) {
       var el = document.getElementById(p[1]);
-      var base = p[0] === 'plants' ? 'chip plant' : (p[0] === 'reveals' ? 'chip reveal' : 'chip');
+      var base = 'chip';
+      if (p[0] === 'plants') base = 'chip plant';
+      else if (p[0] === 'reveals') base = 'chip reveal';
+      else if (p[0] === 'notes') base = 'chip note';
       el.className = base + (flagFilter === p[0] ? ' on' : '');
     });
     if (graph) {
@@ -1135,9 +1378,11 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
   document.getElementById('mode-rel').addEventListener('click', function () { setMode('rel'); });
   document.getElementById('mode-prog').addEventListener('click', function () { setMode('prog'); });
   document.getElementById('mode-flags').addEventListener('click', function () { setMode('flags'); });
+  document.getElementById('mode-structure').addEventListener('click', function () { setMode('structure'); });
   document.getElementById('flag-all').addEventListener('click', function () { setFlagFilter('all'); });
   document.getElementById('flag-plants').addEventListener('click', function () { setFlagFilter('plants'); });
   document.getElementById('flag-reveals').addEventListener('click', function () { setFlagFilter('reveals'); });
+  document.getElementById('flag-notes').addEventListener('click', function () { setFlagFilter('notes'); });
   document.getElementById('flag-pairs').addEventListener('click', function () { setFlagFilter('pairs'); });
   document.getElementById('flag-open').addEventListener('click', function () { setFlagFilter('open'); });
 
@@ -1254,7 +1499,10 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
       // until the layout has ticked, and focusCamera needs one to aim at.
       if (msg.type === 'focus' && byId[msg.id]) {
         var node = byId[msg.id];
-        if (node.kind === 'event' && mode === 'rel') setMode('prog');
+        // Land in a layer that actually draws the thing being focused, whatever kind it is.
+        if (node.kind === 'plant' || node.kind === 'reveal' || node.kind === 'note') setMode('flags');
+        else if (node.kind === 'chapter' || node.kind === 'scene') setMode('structure');
+        else if (node.kind === 'event' && mode === 'rel') setMode('prog');
         select(msg.id);
         setTimeout(function () { focusCamera(msg.id); }, 900);
       }

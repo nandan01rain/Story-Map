@@ -178,21 +178,27 @@ chapter boundaries for pacing).
   exact text in the other. See the handoff doc §12.1 for the full detail
   and the architectural note on why the header/footer are overlays rather
   than real layout-affecting elements.
-- **🕸 Character web (mobile)**: a force-directed graph of the cast, with three
+- **🕸 Character web (mobile)**: a force-directed graph of the cast, with four
   switchable layers — **Relationships** between characters; **Progression**, a
   character's arc through the events they appear in, in chapter order, with
-  everyone else in those events lit alongside; and **Plants & Reveals**, every
-  flagged line in the prose with each plant tied to the reveal that pays it.
-  Events carry serial numbers — chronological by default, renumbered from a
-  character's own first event when they are selected in Progression, where a gold
-  ribbon also traces the path they take through them. Tapping an event turns it
-  and its lines blue; tapping a character keeps the gold. Plants are green
-  triangles pointing up, reveals red ones pointing down, filterable to
-  all/plants/reveals/pairs/unpaid. A searchable **index** lists characters,
-  events, plants, reveals and pairs separately, so nothing has to be found by
-  panning. Tapping any interaction, event or flag expands it to an explanation.
-  Fills by hand, from the demo pack, or by extraction from the prose. Replaces
-  Map view on mobile rather than porting it.
+  everyone else in those events lit alongside; **Plants & Reveals**, every
+  flagged line in the prose — plants, reveals and notes — with each plant tied to
+  the reveal that pays it; and **Structure**, the map's own
+  Book→Act→Chapter→Scene hierarchy, each chapter carrying its scenes, its flags
+  and its moment. Events carry serial numbers — chronological by default,
+  renumbered from a character's own first event when they are selected in
+  Progression, where a gold ribbon also traces the path they take through them.
+  Tapping an event turns it and its lines blue; tapping a character keeps the
+  gold. Six distinct node shapes: characters circles, events diamonds, chapters
+  hexagons, scenes squares, notes turned-corner pages, plants green triangles
+  pointing up and reveals red ones pointing down — filterable to
+  all/plants/reveals/notes/pairs/unpaid. A searchable **index** lists characters,
+  events, chapters, scenes, plants, reveals, notes and pairs separately, so
+  nothing has to be found by panning. Tapping any interaction, event or flag
+  expands it to an explanation. Reachable from the Reader and the Editor at any
+  granularity — a chapter, a scene, or one flagged line. Fills by hand, from the
+  demo pack, or by extraction from the prose. Replaces Map view on mobile rather
+  than porting it.
 - **Account settings**: name/nickname, birthday, a free-form list of
   special occasions, plus email/password — all stored in Supabase Auth's
   `user_metadata` (no new table). Also where the global "moving
