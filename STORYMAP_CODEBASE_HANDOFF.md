@@ -2502,6 +2502,16 @@ centres the camera on it, and switches to a layer that can actually show it: a f
 from the index switches to Plants & Reveals and clears any sub-filter hiding it, rather
 than selecting something invisible.
 
+**A layer switch reframes the camera** (`zoomToFit`), and so does a flag filter. This is not
+cosmetic: switching layer replaces every node in the graph, and leaving the camera where it
+was aims it at a region the new layer has nothing in. Since selecting anything zooms to 2.4x
+and centres on it, the ordinary sequence -- tap a character, switch to Plants & Reveals --
+landed on empty space with fifty-six nodes just off screen, while the layer's own counter
+read "28 plants · 28 reveals". The refit is deferred rather than immediate because nodes new
+to a layer have no position until d3's next tick; fitting before that frames only the
+handful that carried over. `focusCamera` cancels a pending refit, or the framing it just
+chose would be thrown away a moment later.
+
 **Layer switching rebuilds `graphData`** from the same node objects rather than hiding
 nodes in place. A hidden node still exerts charge, and fifty-odd flag nodes silently
 shoving the cast apart in Relationships was worse than the reheat that reusing the objects
