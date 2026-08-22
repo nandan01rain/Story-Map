@@ -11,8 +11,13 @@ export type SignedInStackParamList = {
   Documents: { projectId: string };
   DriveImport: { projectId: string };
   Assistant: { projectId: string; chapterId?: string };
-  /** `focusChapterId` opens the web on that chapter's event, when it is reached from the
-   *  Reader or the Editor rather than from the menu. */
-  CharacterWeb: { projectId: string; focusChapterId?: string };
+  /**
+   * `focusNodeId` opens the web on one thing rather than on the saga.
+   *
+   * It is a plain node id, and no translation is needed at either end: a chapter, a scene
+   * and an annotation are all nodes in the graph under their own database ids, so the Reader
+   * can hand over the flag the writer just selected and the web will land on it.
+   */
+  CharacterWeb: { projectId: string; focusNodeId?: string };
   GraphReview: { projectId: string };
 };

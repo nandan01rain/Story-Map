@@ -80,7 +80,13 @@ const chapters = prose.map((p) => {
   const pov = s ? povOf(s.body) : '';
   // The prose carries its own POV italic line; it is metadata, not text, so it comes out of
   // the content and into the scene records where the POV tracker can see it.
-  const content = p.body.replace(/^\*POV:[^\n]*\*\n+/, '').trim();
+  const content = p.body
+    .replace(/^\*POV:[^\n]*\*\n+/, '')
+    // The manuscript separates chapters with a horizontal rule, and the splitter reads every
+    // line up to the next header -- so the rule belonged to the chapter before it. It is a
+    // document separator, not prose, and it was ending up in the Reader.
+    .replace(/\n+-{3,}\s*$/, '')
+    .trim();
   const events = s ? eventsOf(s.body) : [];
 
   return {
@@ -201,9 +207,67 @@ for (const chapter of chapters) {
   for (const a of chapter.annotations) delete a.at;
 }
 
+// --- notes ----------------------------------------------------------------
+// Notes are the third kind of annotation, and the pack had none -- which left the character
+// web's Notes filter with nothing to draw and no way to tell whether it worked.
+//
+// Derived rather than written: the Act Breakdown already states what each chapter closes on,
+// so that line becomes a note anchored to the chapter's actual closing sentence. Real pack
+// content, mechanically placed, and nothing invented on the writer's behalf.
+//
+// Attached to the chapter's LAST scene rather than to the chapter at large, because a note
+// about how a chapter ends is a note about its final scene -- and because scene-level
+// association is otherwise a field nothing exercises.
+for (const chapter of chapters) {
+  if (!chapter.endsOn) continue;
+
+  const trimmed = chapter.content.trimEnd();
+  const lastParagraph = trimmed.slice(trimmed.lastIndexOf('\n') + 1).trim();
+  if (!lastParagraph) continue;
+
+  // The closing sentence, not the closing paragraph: these paragraphs run to two hundred
+  // words and a note that highlights all of them highlights nothing.
+  const sentences = lastParagraph.match(/[^.!?]+[.!?]+["\u201d]?\s*$|[^.!?]+[.!?]+["\u201d]?/g);
+  const anchor = (sentences ? sentences[sentences.length - 1] : lastParagraph).trim();
+  if (anchor.length < 25) continue;
+
+  const at = chapter.content.indexOf(anchor);
+  if (at === -1) continue;
+
+  // A note that lands on top of a plant or a reveal is dropped rather than allowed to
+  // collide: overlapping spans are resolved by array order at render time, which would make
+  // one of the two silently invisible.
+  const clashes = chapter.annotations.some((a) => {
+    const start = chapter.content.indexOf(a.text);
+    return start !== -1 && start < at + anchor.length && at < start + a.text.length;
+  });
+  if (clashes) continue;
+
+  const lastScene = chapter.scenes[chapter.scenes.length - 1];
+  chapter.annotations.push({
+    id: `note-ch${chapter.number}`,
+    type: 'note',
+    text: anchor,
+    label: `Ends on: ${chapter.endsOn}`,
+    pairId: null,
+    pairLabel: null,
+    // Resolved to a real scene id at import time; the fixture cannot know one.
+    sceneOrder: lastScene ? lastScene.order : null,
+    at,
+  });
+}
+
+for (const chapter of chapters) {
+  chapter.annotations.sort(
+    (a, b) => chapter.content.indexOf(a.text) - chapter.content.indexOf(b.text),
+  );
+  for (const a of chapter.annotations) delete a.at;
+}
+
 // Overlapping flags are dropped at render time in annotation-array order (storyData.ts),
-// which would make one end of a pair invisible for reasons nothing explains. Caught here
-// instead, where the fix is to move an anchor.
+// which would make one of the two invisible for reasons nothing explains. Caught here
+// instead, where the fix is to move an anchor. Runs after the notes are in, so it covers
+// them too.
 for (const chapter of chapters) {
   for (let i = 1; i < chapter.annotations.length; i += 1) {
     const previous = chapter.annotations[i - 1];
@@ -430,14 +494,17 @@ export type DemoScene = { order: number; title: string; summary: string; pov: st
 /** One end of a plant/reveal pair, written into the chapter's prose as an annotation. */
 export type DemoAnnotation = {
   id: string;
-  type: 'plant' | 'reveal';
+  type: 'plant' | 'reveal' | 'note';
   /** The exact flagged substring. Annotations relocate by searching for this. */
   text: string;
   /** What this end of the pair does. */
   label: string;
-  /** Shared by both ends. A pair with no reveal is an unpaid plant, which is a real state. */
-  pairId: string;
-  pairLabel: string;
+  /** Shared by both ends of a pair. A pair with no reveal is an unpaid plant, which is a
+   *  real state. Null on a note, which has no far end. */
+  pairId: string | null;
+  pairLabel: string | null;
+  /** Which scene of its chapter this belongs to, resolved to a real id at import time. */
+  sceneOrder?: number | null;
 };
 export type DemoChapter = {
   number: number;
@@ -501,4 +568,5 @@ const flagCount = (type) => chapters.reduce((n, c) => n + c.annotations.filter((
 console.log(`plants        ${flagCount('plant')}`);
 console.log(`reveals       ${flagCount('reveal')}`);
 console.log(`pairs         ${plantRevealPairs.length} (${plantRevealPairs.filter((p) => p.reveals === 0).length} unpaid)`);
+console.log(`notes         ${flagCount('note')}`);
 console.log(`wrote         ${path.relative(process.cwd(), OUT)}`);

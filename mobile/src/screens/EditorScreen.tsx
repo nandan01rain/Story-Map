@@ -323,8 +323,8 @@ export default function EditorScreen({ route, navigation }: Props) {
           onPress={() =>
             navigation.navigate('CharacterWeb', {
               projectId: chapter.project_id,
-              // The chapter being written, so the web opens on its moment rather than cold.
-              focusChapterId: chapterId,
+              // The chapter node, which carries its scenes, its flags and its moment.
+              focusNodeId: chapterId,
             })
           }
         >
@@ -482,6 +482,20 @@ export default function EditorScreen({ route, navigation }: Props) {
                       </Text>
                       {!!a.label && <Text style={styles.flagLabel}>{a.label}</Text>}
                     </View>
+                    {/* Straight to this one flag in the character web -- the same jump the
+                        Reader offers, from the list where flags are actually managed. */}
+                    <Pressable
+                      onPress={() => {
+                        setFlagsVisible(false);
+                        navigation.navigate('CharacterWeb', {
+                          projectId: chapter.project_id,
+                          focusNodeId: a.id,
+                        });
+                      }}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.flagWeb}>web</Text>
+                    </Pressable>
                     <Pressable onPress={() => removeAnnotation(a.id)} hitSlop={10}>
                       <Text style={styles.flagRemove}>×</Text>
                     </Pressable>
@@ -604,6 +618,7 @@ function makeStyles(colors: ThemeColors) {
     flagText: { color: colors.textDim, fontSize: 13, fontStyle: 'italic' },
     flagLabel: { color: colors.textFaint, fontSize: 12 },
     flagRemove: { color: colors.error, fontSize: 18, paddingHorizontal: 4 },
+    flagWeb: { color: colors.gold, fontSize: 11, paddingHorizontal: 6 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
     modalCard: { backgroundColor: colors.panel, borderRadius: 10, padding: 20, borderWidth: 1, borderColor: colors.border },
     modalTitle: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 16, marginBottom: 10 },

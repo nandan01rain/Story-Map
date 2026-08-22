@@ -175,16 +175,46 @@ const presence = [...presentAt.entries()].flatMap(([chapter, keys]) =>
   })),
 );
 
+const sceneId = (chapter, order) => `s:${chapter}:${order}`;
+
+// The structural layer. Chapters exist whether or not anyone was placed in them, which is
+// the whole reason they are returned alongside events rather than instead of them.
+const chapters = fixture.chapters.map((c) => ({
+  id: chapterId(c.number),
+  title: c.title,
+  book: 0,
+  act: c.act,
+  seq: c.number,
+  status: 'drafted',
+  words: c.content.length,
+  eventId: presentAt.has(c.number) ? eventId(c.number) : null,
+}));
+
+const scenes = fixture.chapters.flatMap((c) =>
+  c.scenes.map((sc) => ({
+    id: sceneId(c.number, sc.order),
+    chapterId: chapterId(c.number),
+    seq: sc.order,
+    title: sc.title,
+    summary: sc.summary,
+    pov: sc.pov,
+    status: 'drafted',
+  })),
+);
+
 const flags = fixture.chapters.flatMap((c) =>
   c.annotations.map((a) => ({
     id: a.id,
     type: a.type,
     text: a.text,
     label: a.label,
-    pairId: a.pairId,
-    pairLabel: a.pairLabel,
+    pairId: a.pairId ?? null,
+    pairLabel: a.pairLabel ?? null,
     chapterId: chapterId(c.number),
     chapterTitle: c.title,
+    // The app resolves this against real scene rows after inserting them; here the ids are
+    // invented, so it resolves against the same invention.
+    sceneId: a.sceneOrder != null ? sceneId(c.number, a.sceneOrder) : null,
     // Null where nobody was placed in the chapter, exactly as the real query returns it --
     // the renderer has to cope with an unanchored flag either way.
     eventId: presentAt.has(c.number) ? eventId(c.number) : null,
@@ -192,7 +222,7 @@ const flags = fixture.chapters.flatMap((c) =>
   })),
 );
 
-const payload = { nodes, links, events, presence, interactions, flags };
+const payload = { nodes, links, events, presence, interactions, flags, chapters, scenes };
 
 // Injected ahead of the force-graph tag so the document starts with data instead of asking
 // for it; the renderer treats a pre-set window.__GRAPH__ as "no host to talk to".
@@ -214,8 +244,10 @@ fs.writeFileSync(OUT, banner + document, 'utf8');
 
 const count = (type) => flags.filter((f) => f.type === type).length;
 console.log(`characters    ${nodes.length}`);
+console.log(`chapters      ${chapters.length}`);
+console.log(`scenes        ${scenes.length}`);
 console.log(`events        ${events.length}`);
 console.log(`relationships ${links.length} lines from ${interactions.length} interactions`);
 console.log(`presence      ${presence.length}`);
-console.log(`flags         ${count('plant')} plants, ${count('reveal')} reveals`);
+console.log(`flags         ${count('plant')} plants, ${count('reveal')} reveals, ${count('note')} notes`);
 console.log(`wrote         ${path.relative(ROOT, OUT)}`);

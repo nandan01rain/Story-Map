@@ -1275,11 +1275,18 @@ elsewhere in this app's history.)*
 
 The Reader no longer creates or edits story flags. The Flag button and its Plant/Reveal/Note
 sheet are gone; `beginFlag` is gone with them. What it does instead is **show** the flags
-that exist: a plant's text is tinted green and a reveal's red, using the character web's own
-two colours so a line flagged green there is green here. Selecting a tinted passage prints
-what it is and what pair it belongs to, read-only, under the action bar — otherwise the
-colour is a mystery. A legend in the footer names the two colours and counts them, and is
-hidden entirely in a chapter with no flags.
+that exist, and only when asked: a flag toggle in the header tints plants green, reveals red
+and notes amber, using the character web's own colours so a line flagged green there is
+green here. **Off by default** — the marks are for the moments you go looking for them, and a
+chapter permanently striped in three colours is a chapter you cannot read. The preference
+persists (`showFlags` in `readerPrefs`, which spreads over the defaults, so prefs saved
+before it existed come back with it off rather than undefined).
+
+Selecting a tinted passage prints what it is and what pair it belongs to, read-only, under
+the action bar — otherwise the colour is a mystery — and **tapping that caption opens the
+character web on that exact flag**, which is the finest granularity there is. A legend in the
+footer names the colours and counts them, shown only while the toggle is on and the chapter
+actually has flags.
 
 **Highlighting stays.** It writes to `annotations` like a flag does, but it is a reading
 mark, not a story flag — no label, no place in the Flags list, and the data model has drawn
@@ -2407,8 +2414,9 @@ SVG trail.
 
 `supabase/migrations/20260821_character_graph.sql`, plus `..._graph_progression.sql`,
 `..._graph_detail.sql` and `20260822_graph_flags.sql`, which replace the read function
-three times over. **The first three are run against the live project;
-`20260822_graph_flags.sql` is NOT yet** - it needs pasting into the SQL Editor before the
+four times over. **The first three are run against the live project;
+`20260822_graph_flags.sql` and `20260822b_graph_structure.sql` are NOT yet** — the second
+supersedes the first, so running only `20260822b` is enough - it needs pasting into the SQL Editor before the
 Plants & Reveals layer returns anything. Nothing breaks in the meantime: the client
 defaults each key of the payload independently, so an app talking to a database without
 that migration loses one layer rather than the view.
@@ -2465,7 +2473,7 @@ backtick inside a `String.raw` template ends the template — the TypeScript mod
 while the extraction, which reads to the *last* occurrence, still produces a page that
 looks perfectly fine. This happened, in a comment quoting an identifier.
 
-**Three layers, switched rather than merged:**
+**Four layers, switched rather than merged:**
 
 - **Relationships** — character to character, coloured by interaction type on a fixed
   palette. Strictly one hop.
@@ -2473,10 +2481,22 @@ looks perfectly fine. This happened, in a comment quoting an identifier.
   their chain of events *and every other character standing in those events* — a
   deliberate second hop, only in this mode, because the point of a progression is who
   else is in the room.
-- **Plants & Reveals** — plant to reveal, with a sub-row of filters: All / Plants /
-  Reveals / Pairs / Unpaid. Selecting either end lights the whole pair and the moments
-  both ends land in. An unpaid plant says so in words rather than expanding to an empty
-  list; so does a reveal with no plant.
+- **Plants & Reveals** — plant to reveal, plus notes, with a sub-row of filters: All /
+  Plants / Reveals / Notes / Pairs / Unpaid. Selecting either end lights the whole pair and
+  the moments both ends land in. An unpaid plant says so in words rather than expanding to
+  an empty list; so does a reveal with no plant. A note is a flag with no far end: it gets
+  its quote and its label and stops there, and is excluded from Pairs and Unpaid, which are
+  about plant/reveal pairs by definition.
+- **Structure** — book → act → chapter → scene, the same hierarchy the map uses, with every
+  chapter carrying its scenes, its flags and its moment. This is what makes the web
+  reachable at every granularity rather than only at "character" and "moment".
+
+**Chapters are not events, and both are returned.** An event is somewhere characters are
+present, written by extraction or by hand; a chapter with nobody placed in it has none. A
+chapter exists regardless, owns the prose, and is what an annotation actually hangs off —
+which is why flags now anchor to their chapter (or their scene, where they name one) rather
+than to the chapter's event. Under the old arrangement a flag in an unpopulated chapter had
+nothing to attach to and floated.
 
 The panel changes with the mode: relationships lists individual interactions, progression
 lists the arc with POV chapters marked, a flag shows its pair's title, the flagged line
@@ -2502,10 +2522,13 @@ emissive material in 3D); the lines running out of it take a darker blue, so the
 reads as the thing that was tapped rather than dissolving into its own edges. Gold stays
 the colour of a selected *character*.
 
-Characters are circles, events are diamonds, a plant is a triangle pointing up and a reveal
-one pointing down — so a pair reads as two halves of one shape before anyone notices the
-green and the red, which matters for anyone who cannot tell those apart. In 3D the
-correspondence holds: octahedra for events, tetrahedra for flags. Labels are drawn, not
+Six shapes, all distinct, checked by a build-time trace rather than by eye: a character is a
+circle, an event a diamond, a chapter a hexagon (the only shape that reads as a container), a
+scene a square, a note a page with its corner turned down, and a plant and a reveal are
+triangles pointing up and down respectively — so a pair reads as two halves of one shape
+before anyone notices the green and the red, which matters for anyone who cannot tell those
+apart. In 3D the correspondence holds: octahedra for events, a dodecahedron for a chapter,
+boxes for scenes and notes, tetrahedra for plants and reveals. Labels are drawn, not
 hovered: a graph of unlabelled dots cannot be navigated.
 
 **The detail panel is a sheet, not a modal.** It was a fixed 42vh slab with no way to
@@ -2516,13 +2539,14 @@ the sheet's height so selecting from the index never parks the node behind the p
 describing it. The canvas above the sheet was always interactive; there was simply hardly
 any of it.
 
-**Reachable from the Reader and the Editor**, not only the nav drawer — the Reader's header
-carries the same `link` icon the drawer uses, the Editor a "Web" button beside "Reader".
-Both pass `focusChapterId`, and the screen resolves that to the event node whose
-`properties.chapter_id` matches, then posts a `focus` message so the web opens on the moment
-you were reading or writing rather than on the whole saga. A chapter nobody has been placed
-in has no event; the web then just opens at large, which is a better answer than an error
-about something that was implied rather than asked for.
+**Reachable from the Reader and the Editor at every granularity**, not only the nav drawer.
+The route takes one `focusNodeId`, and no translation is needed at either end: a chapter, a
+scene and an annotation are all nodes under their own database ids. So the Reader's header
+button hands over the chapter being read, a tap on a flag caption hands over that single
+flagged line, and the Editor does both from its toolbar and its Flags list. The renderer
+switches to whichever layer can draw the kind it turns out to be — flags to Plants &
+Reveals, chapters and scenes to Structure, events to Progression — and ignores an id it does
+not recognise, which is the right answer for something deleted since the screen opened.
 
 **The index** (the hamburger chip) is a full-screen searchable list with five tabs —
 Characters, Events, Plants, Reveals, Pairs — because past a couple of dozen nodes, finding
@@ -2710,6 +2734,25 @@ wrong chapter, the label says so instead of the discrepancy being smoothed over.
 - Flags land in `chapters.annotations`, which means they render as marks in the editor and
   the Reader as well as feeding the character web's Plants & Reveals layer. There is one
   source of truth, not two.
+
+**Notes.** The pack had none, which left the character web's Notes filter with nothing to
+draw and no way to tell whether it worked. They are derived rather than written: the Act
+Breakdown already states what each chapter closes on, so that line becomes a note anchored to
+the chapter's actual closing sentence — real pack content, mechanically placed, nothing
+invented on the writer's behalf. Attached to the chapter's **last scene** rather than to the
+chapter at large, because a note about how a chapter ends is a note about its final scene,
+and because scene-level association is otherwise a field nothing exercises. 15 of the 17
+chapters get one; the other two are skipped because the anchor would have collided with an
+existing flag.
+
+Scene ids do not exist until the scenes are inserted, so the fixture carries a `sceneOrder`
+and `demoImport` rewrites it to a real id in a second pass after the scene insert returns.
+
+**Every chapter's prose used to end with a stray `---`.** The splitter reads every line up to
+the next chapter header, and the manuscript separates chapters with a horizontal rule — so
+the rule belonged to the chapter before it, and was rendering in the Reader. Stripped now.
+It surfaced because the note derivation takes each chapter's closing sentence and kept
+finding `---`.
 
 **Build order:** `node scripts/build-demo-fixture.mjs` first, then
 `node scripts/build-graph-demo.mjs` — the second reads the fixture the first writes.

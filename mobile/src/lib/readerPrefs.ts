@@ -21,6 +21,13 @@ export type ReaderPrefs = {
   dimOpacity: number;
   textAlign: ReaderTextAlign;
   fontFamily: ReaderFontFamily;
+  /**
+   * Whether plants, reveals and notes are tinted in the prose. Off by default: the marks are
+   * for the moments you go looking for them, and a chapter permanently striped green and red
+   * is a chapter you cannot read. loadReaderPrefs spreads over the defaults, so prefs saved
+   * before this existed come back with it off rather than undefined.
+   */
+  showFlags: boolean;
 };
 
 export const DEFAULT_READER_PREFS: ReaderPrefs = {
@@ -29,6 +36,7 @@ export const DEFAULT_READER_PREFS: ReaderPrefs = {
   dimOpacity: 0,
   textAlign: 'left',
   fontFamily: 'serif',
+  showFlags: false,
 };
 
 function movingKey(projectId: string, bookIndex: number) {

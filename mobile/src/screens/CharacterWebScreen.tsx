@@ -25,7 +25,7 @@ const KIND_OPTIONS = ['confrontation', 'alliance', 'betrayal', 'mentorship', 'ro
 // second native implementation (spec §6) -- it runs here inside a WebView and talks back
 // over postMessage.
 export default function CharacterWebScreen({ route, navigation }: Props) {
-  const { projectId, focusChapterId } = route.params;
+  const { projectId, focusNodeId } = route.params;
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const webRef = useRef<WebView>(null);
@@ -74,18 +74,14 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
     if (!webReady || !graph) return;
     webRef.current?.postMessage(JSON.stringify({ type: 'data', payload: graph }));
 
-    // Reached from the Reader or the Editor, which know a chapter rather than a node. The
-    // event for a chapter carries its id in properties, which is the only link between the
-    // two halves of the app -- an event has no column pointing at a chapter.
-    if (!focusChapterId) return;
-    const event = graph.events.find(
-      (e) => (e.properties as { chapter_id?: string } | null)?.chapter_id === focusChapterId,
-    );
-    // No event means nobody has been placed in that chapter yet. Opening the web at large is
-    // a better answer than a message about why it could not do the thing that was implied
-    // rather than asked for.
-    if (event) webRef.current?.postMessage(JSON.stringify({ type: 'focus', id: event.id }));
-  }, [webReady, graph, focusChapterId]);
+    // Reached from the Reader or the Editor, pointing at one chapter, scene or flag. No
+    // lookup: those are node ids already. The renderer switches to whichever layer can draw
+    // the kind it turns out to be, and ignores an id it does not know -- which is the right
+    // answer for a chapter deleted since the screen was opened.
+    if (focusNodeId) {
+      webRef.current?.postMessage(JSON.stringify({ type: 'focus', id: focusNodeId }));
+    }
+  }, [webReady, graph, focusNodeId]);
 
   function handleMessage(raw: string) {
     try {
