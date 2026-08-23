@@ -2536,6 +2536,16 @@ looks perfectly fine. This happened, in a comment quoting an identifier.
   chapter carrying its scenes, its flags and its moment. This is what makes the web
   reachable at every granularity rather than only at "character" and "moment".
 
+**A mythic thread is a note, not a seventh kind of node.** A note is an author's idea for a
+line, scene or arc; a mythic thread is the subset of those that echo a known mythological arc
+or setting. So it is a note carrying two extra fields -- `thread` names the parallel,
+`characterId` says whose arc it belongs to -- and keeps the note's shape, anchoring and
+panel. It changes colour (teal, to be told apart from the amber it is a subset of and the
+plant green beside it) and gains one link, to its character. That link is what makes "show me
+this person's threads" one hop rather than a scan. Threads are excluded from Pairs and Unpaid
+for the same reason notes are, and from the Notes index tab, which would otherwise list them
+twice. Authored from the Editor's Flags list, on note rows only.
+
 **Chapters are not events, and both are returned.** An event is somewhere characters are
 present, written by extraction or by hand; a chapter with nobody placed in it has none. A
 chapter exists regardless, owns the prose, and is what an annotation actually hangs off —
