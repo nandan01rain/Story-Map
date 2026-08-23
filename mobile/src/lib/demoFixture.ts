@@ -22,6 +22,10 @@ export type DemoAnnotation = {
   pairLabel: string | null;
   /** Which scene of its chapter this belongs to, resolved to a real id at import time. */
   sceneOrder?: number | null;
+  /** A mythic thread's name. Only ever set on a note. */
+  thread?: string | null;
+  /** Whose arc the parallel belongs to, resolved to a real character node id at import. */
+  characterKey?: string | null;
 };
 export type DemoChapter = {
   number: number;
@@ -95,6 +99,17 @@ export const DEMO_FIXTURE: DemoFixture = {
           "pairLabel": "Nagavalli was purchased, not courted"
         },
         {
+          "id": "thread-the-woman-taken-0",
+          "type": "note",
+          "text": "she was being described in the same conversations as the horses and the silverware",
+          "label": "Sita, Persephone, Helen — the abducted woman whose story is told by everyone except her. Ch 0 exists to give her the telling back.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The woman taken",
+          "characterKey": "nagavalli",
+          "sceneOrder": null
+        },
+        {
           "id": "pr-02-p0",
           "type": "plant",
           "text": "that he had gone to Ramanathan with the particular unhurried calm of a man who has already decided the shape of the evening and is merely walking through its stages, that there had been no shouting, no crime of passion in the way the word suggested a loss of control, only a decision, executed.",
@@ -163,6 +178,17 @@ export const DEMO_FIXTURE: DemoFixture = {
       "summary": "Establish the present-day family, the legend as the family tells it, and Nakulan's reasons for insisting on the visit despite warnings.",
       "endsOn": "The locked door of the Thekkini, seen from outside for the first time.",
       "annotations": [
+        {
+          "id": "thread-the-forbidden-chamber-0",
+          "type": "note",
+          "text": "The keys held, always, by the household's eldest, never touched, never spoken of lightly.",
+          "label": "Bluebeard, Pandora, Lot’s wife: the room that must not be opened, and the certainty that it will be. The prohibition is the plot.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The forbidden chamber",
+          "characterKey": "ganga",
+          "sceneOrder": null
+        },
         {
           "id": "pr-22-p0",
           "type": "plant",
@@ -428,6 +454,17 @@ export const DEMO_FIXTURE: DemoFixture = {
       "endsOn": "Nakulan on the phone, asking Sunny to come immediately. **End of Act One.**",
       "annotations": [
         {
+          "id": "thread-the-forbidden-chamber-1",
+          "type": "note",
+          "text": "It's opened,",
+          "label": "The motif completes the moment the door gives. Everything after is consequence, which is how the forbidden-chamber story always runs.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The forbidden chamber",
+          "characterKey": "ganga",
+          "sceneOrder": null
+        },
+        {
           "id": "pr-23-p0",
           "type": "plant",
           "text": "The rite ended without incident, which should have been a relief and instead only deepened the unease in the room — a ritual that produces no visible effect is, to a frightened household, not evidence of nothing happening but evidence that whatever is happening is stronger than the tools they have to address it.",
@@ -568,6 +605,17 @@ export const DEMO_FIXTURE: DemoFixture = {
       "endsOn": "Sunny alone in the corridor afterward, no longer treating this as a straightforward case.",
       "annotations": [
         {
+          "id": "thread-the-goddess-and-the-demon-0",
+          "type": "note",
+          "text": "references to a betrayal, to a river of Thanjavur, to a man's hands.",
+          "label": "The register the alter sings in is devotional. It is building itself a myth to act inside, and it has cast the parts already.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The goddess and the demon",
+          "characterKey": "ganga",
+          "sceneOrder": null
+        },
+        {
           "id": "pr-14-p0",
           "type": "plant",
           "text": "details that made Sunny's clinical instincts sharpen even through the genuine unease crawling up his spine: precise turns of phrase, an intimacy with the geography of a court two hundred miles from here",
@@ -700,6 +748,17 @@ export const DEMO_FIXTURE: DemoFixture = {
           "label": "Bhargavi Amma names what the family's version leaves out.",
           "pairId": "pr-01",
           "pairLabel": "Nagavalli was purchased, not courted"
+        },
+        {
+          "id": "thread-the-woman-taken-1",
+          "type": "note",
+          "text": "the transaction, not a courtship; Ramanathan already her partner before the Karanavar had ever laid eyes on her, not a seducer who stole her away",
+          "label": "Named outright, a century and a half later, by a stranger with no stake in the family’s version of it.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The woman taken",
+          "characterKey": "nagavalli",
+          "sceneOrder": null
         },
         {
           "id": "pr-02-r1",
@@ -1111,6 +1170,17 @@ export const DEMO_FIXTURE: DemoFixture = {
       "endsOn": "The sword raised.",
       "annotations": [
         {
+          "id": "thread-the-goddess-and-the-demon-1",
+          "type": "note",
+          "text": "\"He is here,\" the Namboodiri agreed, matching her register exactly, \"and the debt will be answered, as promised",
+          "label": "Durgashtami is the night Durga kills Mahishasura. The alter casts itself as the goddess and Nakulan as the demon, which is exactly the wrong way round.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The goddess and the demon",
+          "characterKey": "ganga",
+          "sceneOrder": null
+        },
+        {
           "id": "pr-13-r2",
           "type": "reveal",
           "text": "Sunny watched Ganga's — Nagavalli's — gaze find him and soften, entirely, into something that had nothing to do with the flat fury of a moment before",
@@ -1196,6 +1266,17 @@ export const DEMO_FIXTURE: DemoFixture = {
           "label": "The blade falls, on the night it was promised for.",
           "pairId": "pr-15",
           "pairLabel": "The Durgashtami deadline"
+        },
+        {
+          "id": "thread-the-goddess-and-the-demon-2",
+          "type": "note",
+          "text": "\"Go freely,\" he said, \"as you were promised. The debt is paid. You are released.\"",
+          "label": "The frame is honoured in form and refused in substance: the rite completes, the killing does not. Both traditions get to claim the result.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The goddess and the demon",
+          "characterKey": "ganga",
+          "sceneOrder": null
         },
         {
           "id": "note-ch15",
@@ -1289,6 +1370,17 @@ export const DEMO_FIXTURE: DemoFixture = {
           "label": "Two words, after a paragraph of him not managing to ask cleanly.",
           "pairId": "pr-21",
           "pairLabel": "Sunny and Sridevi, working together"
+        },
+        {
+          "id": "thread-the-forbidden-chamber-2",
+          "type": "note",
+          "text": "the Thekkini's door standing open behind them in the afternoon light, empty now, ordinary, a room like any other room, waiting for nothing at all.",
+          "label": "And the inversion: the taboo is lifted, so the chamber stops being a chamber. It is just a room, which is the most that can be said for it.",
+          "pairId": null,
+          "pairLabel": null,
+          "thread": "The forbidden chamber",
+          "characterKey": "ganga",
+          "sceneOrder": null
         },
         {
           "id": "note-ch16",

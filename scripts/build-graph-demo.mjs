@@ -222,6 +222,8 @@ const flags = fixture.chapters.flatMap((c) =>
     // The app resolves this against real scene rows after inserting them; here the ids are
     // invented, so it resolves against the same invention.
     sceneId: a.sceneOrder != null ? sceneId(c.number, a.sceneOrder) : null,
+    thread: a.thread ?? null,
+    characterId: a.characterKey ? characterId(a.characterKey) : null,
     // Null where nobody was placed in the chapter, exactly as the real query returns it --
     // the renderer has to cope with an unanchored flag either way.
     eventId: presentAt.has(c.number) ? eventId(c.number) : null,

@@ -13,10 +13,21 @@ export type Annotation = {
   id: string;
   type: FlagType | 'highlight';
   text: string; // the exact flagged substring -- annotations relocate by searching for
-  // this on every render rather than tracking a fixed offset (handoff doc §3.5). Linked-
-  // plant matching and thread-based Mythic Threads are Phase 3 scope, not modeled yet.
+  // this on every render rather than tracking a fixed offset (handoff doc §3.5).
   label: string;
+  /** Both ends of a plant/reveal pair carry these; the pair's title travels with each end. */
+  pairId?: string;
+  pairLabel?: string;
+  /** Narrows a note from its whole chapter to one scene. */
+  sceneId?: string;
+  /**
+   * Mythic thread: the name of the mythological parallel this note draws, e.g. "Sita-Zia".
+   * Only meaningful on a note -- a thread IS a note, the subset the writer has marked as
+   * echoing a known arc or setting.
+   */
   thread?: string;
+  /** Whose arc the parallel belongs to. A graph character node id. */
+  characterId?: string;
 };
 
 export type Version = {

@@ -524,3 +524,54 @@ export const PLANT_REVEAL_PAIRS = [
     ],
   },
 ];
+
+// Mythic threads for the demo pack.
+//
+// A mythic thread is a NOTE the writer has marked as a parallel to a known mythological arc
+// or setting. The Southern Wing states no such parallels itself, so unlike the plant/reveal
+// table above — which is the writer's own, verbatim — these are DEMO ANNOTATIONS written to
+// exercise the feature. They are deliberately the most universal motifs the material
+// actually contains, not readings imposed on it, and nothing here should be mistaken for a
+// claim about the manuscript.
+//
+// Same anchor rules as the pairs: a verbatim quote, `...` for an elision.
+// `character` is a key from the character bible, resolved to a real node id at import.
+export const MYTHIC_THREADS = [
+  {
+    thread: 'The forbidden chamber',
+    // Ganga, not Valyammai: the motif belongs to whoever transgresses, and Valyammai is not
+    // in the character bible's cast anyway. It also gives one character two threads, which
+    // is what the browse-by-character view exists to show.
+    character: 'ganga',
+    touches: [
+      [1, `The keys held, always, by the household's eldest, never touched, never spoken of lightly.`,
+        'Bluebeard, Pandora, Lot’s wife: the room that must not be opened, and the certainty that it will be. The prohibition is the plot.'],
+      [5, `It's opened,`,
+        'The motif completes the moment the door gives. Everything after is consequence, which is how the forbidden-chamber story always runs.'],
+      [16, `the Thekkini's door standing open behind them in the afternoon light, empty now, ordinary, a room like any other room, waiting for nothing at all.`,
+        'And the inversion: the taboo is lifted, so the chamber stops being a chamber. It is just a room, which is the most that can be said for it.'],
+    ],
+  },
+  {
+    thread: 'The goddess and the demon',
+    character: 'ganga',
+    touches: [
+      [7, `references to a betrayal, to a river of Thanjavur, to a man's hands.`,
+        'The register the alter sings in is devotional. It is building itself a myth to act inside, and it has cast the parts already.'],
+      [14, `"He is here," the Namboodiri agreed, matching her register exactly, "and the debt will be answered, as promised`,
+        'Durgashtami is the night Durga kills Mahishasura. The alter casts itself as the goddess and Nakulan as the demon, which is exactly the wrong way round.'],
+      [15, `"Go freely," he said, "as you were promised. The debt is paid. You are released."`,
+        'The frame is honoured in form and refused in substance: the rite completes, the killing does not. Both traditions get to claim the result.'],
+    ],
+  },
+  {
+    thread: 'The woman taken',
+    character: 'nagavalli',
+    touches: [
+      [0, `she was being described in the same conversations as the horses and the silverware`,
+        'Sita, Persephone, Helen — the abducted woman whose story is told by everyone except her. Ch 0 exists to give her the telling back.'],
+      [9, `the transaction, not a courtship; Ramanathan already her partner before the Karanavar had ever laid eyes on her, not a seducer who stole her away`,
+        'Named outright, a century and a half later, by a stranger with no stake in the family’s version of it.'],
+    ],
+  },
+];
