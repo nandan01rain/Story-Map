@@ -1,8 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   InteractionManager,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -97,8 +98,18 @@ export default function EditorScreen({ route, navigation }: Props) {
   // with no way to bring it back except scrolling by hand. Owning the scroll view is what
   // makes "keep the caret visible" expressible at all.
   const scrollRef = useRef<ScrollView | null>(null);
+  const scrollAreaRef = useRef<View | null>(null);
   const viewportHeightRef = useRef(0);
   const contentHeightRef = useRef(0);
+  // How much of the scroll view the keyboard is covering.
+  //
+  // This cannot be assumed to be zero. Expo SDK 54+ turns on edge-to-edge, which means the
+  // window does NOT resize when the keyboard opens -- the scroll view keeps its full height
+  // and simply has keys drawn over its lower part. Measuring the viewport with onLayout
+  // therefore reports a height that includes the hidden region, and "keep the caret two
+  // lines above the bottom" puts it two lines above the bottom of the SCREEN, behind the
+  // keyboard. Which is exactly what it did.
+  const keyboardOverlapRef = useRef(0);
 
   // Header shows just the back arrow, nothing else -- per explicit feedback, no title
   // text (the chapter's position/title already appear in the in-page `position` line).
@@ -308,9 +319,11 @@ export default function EditorScreen({ route, navigation }: Props) {
   //
   // Only ever scrolls when the caret is actually out of view: scrolling on every keystroke
   // fights the reader when they have deliberately scrolled somewhere else.
-  useEffect(() => {
-    const viewport = viewportHeightRef.current;
-    if (!scrollRef.current || viewport === 0) return;
+  const keepCaretVisible = useCallback(() => {
+    // The part of the scroll view you can actually see: its own height, less whatever the
+    // keyboard is drawn over.
+    const viewport = viewportHeightRef.current - keyboardOverlapRef.current;
+    if (!scrollRef.current || viewport <= 0) return;
 
     const caretTop = EDITOR_PADDING + linesBeforeSelection * LINE_HEIGHT;
     const caretBottom = caretTop + LINE_HEIGHT;
@@ -326,7 +339,38 @@ export default function EditorScreen({ route, navigation }: Props) {
 
     const max = Math.max(0, contentHeightRef.current - viewport);
     scrollRef.current.scrollTo({ y: Math.min(Math.max(0, next), max), animated: true });
-  }, [linesBeforeSelection, selection.start, content]);
+  }, [linesBeforeSelection]);
+
+  useEffect(() => {
+    keepCaretVisible();
+  }, [keepCaretVisible, selection.start, content]);
+
+  // The keyboard's own geometry, which is the only reliable source for how much of the
+  // screen it covers. endCoordinates.screenY is its top edge in screen coordinates, so
+  // measuring where the scroll view ends gives the overlap directly -- and that arithmetic
+  // is correct whether or not the window resized, so it does not have to know which
+  // behaviour this Android version and this Expo SDK happen to produce.
+  useEffect(() => {
+    function onShow(e: { endCoordinates: { screenY: number } }) {
+      const node = scrollAreaRef.current;
+      if (!node) return;
+      node.measureInWindow((_x: number, y: number, _w: number, h: number) => {
+        keyboardOverlapRef.current = Math.max(0, y + h - e.endCoordinates.screenY);
+        keepCaretVisible();
+      });
+    }
+    function onHide() {
+      keyboardOverlapRef.current = 0;
+    }
+    // *Did* rather than *Will*: on Android the frame is only correct once the keyboard has
+    // finished animating, and the two events do not both fire on every Android version.
+    const show = Keyboard.addListener('keyboardDidShow', onShow);
+    const hide = Keyboard.addListener('keyboardDidHide', onHide);
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [keepCaretVisible]);
 
   const hasSelection = selection.end > selection.start;
   const selectedText = hasSelection ? content.slice(selection.start, selection.end) : null;
@@ -504,42 +548,44 @@ export default function EditorScreen({ route, navigation }: Props) {
         {content.slice(0, selection.start)}
       </Text>
 
-      <ScrollView
-        ref={scrollRef}
-        style={styles.editScroll}
-        contentContainerStyle={styles.editScrollContent}
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="none"
-        onLayout={(e) => {
-          viewportHeightRef.current = e.nativeEvent.layout.height;
-        }}
-        onContentSizeChange={(_w, h) => {
-          contentHeightRef.current = h;
-        }}
-        onScroll={(e) => {
-          inputScrollYRef.current = e.nativeEvent.contentOffset.y;
-        }}
-        // The flag popup is positioned from this offset, so it has to keep up with a drag
-        // rather than only reporting where the scroll settled.
-        scrollEventThrottle={16}
-      >
-        <TextInput
-          ref={textInputRef}
-          style={styles.editInput}
-          value={content}
-          onChangeText={handleContentChange}
-          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-          multiline
-          autoFocus
-          // The input must NOT scroll itself. Two scrollers over the same text means the
-          // caret can be inside the input's own viewport and still off screen, which is
-          // exactly the bug this replaces.
-          scrollEnabled={false}
-          textAlignVertical="top"
-          placeholder="Start writing..."
-          placeholderTextColor={colors.textFaint}
-        />
-      </ScrollView>
+      <View ref={scrollAreaRef} style={styles.editScroll} collapsable={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.editScroll}
+          contentContainerStyle={styles.editScrollContent}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
+          onLayout={(e) => {
+            viewportHeightRef.current = e.nativeEvent.layout.height;
+          }}
+          onContentSizeChange={(_w, h) => {
+            contentHeightRef.current = h;
+          }}
+          onScroll={(e) => {
+            inputScrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          // The flag popup is positioned from this offset, so it has to keep up with a drag
+          // rather than only reporting where the scroll settled.
+          scrollEventThrottle={16}
+        >
+          <TextInput
+            ref={textInputRef}
+            style={styles.editInput}
+            value={content}
+            onChangeText={handleContentChange}
+            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+            multiline
+            autoFocus
+            // The input must NOT scroll itself. Two scrollers over the same text means the
+            // caret can be inside the input's own viewport and still off screen, which is
+            // exactly the bug this replaces.
+            scrollEnabled={false}
+            textAlignVertical="top"
+            placeholder="Start writing..."
+            placeholderTextColor={colors.textFaint}
+          />
+        </ScrollView>
+      </View>
 
       {/* The mirror of the Reader's "Editor" action: flag the selection, or follow it into
           the Reader and land on the same words. Both directions now pass the selected
