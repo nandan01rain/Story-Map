@@ -228,8 +228,14 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .link-candidate .lc-loc{font-family:var(--font-mono);font-size:9.5px;color:var(--gold);margin-top:2px;}
 .link-candidate.lc-skip{color:var(--text-dim);font-style:italic;}
 
-#ledger-view, #thread-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
-#ledger-view.show, #thread-view.show{display:flex;}
+#ledger-view, #thread-view, #web-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
+#ledger-view.show, #thread-view.show, #web-view.show{display:flex;}
+/* The renderer is one shared document (character-web.html), embedded rather than
+   reimplemented -- the phone loads the same markup into a WebView. Its own dark canvas is
+   #0d1110, deliberately a shade off the app's --bg, so the graph reads as a surface rather
+   than as a hole in the page. */
+#web-frame{flex:1;border:0;width:100%;background:#0d1110;}
+#web-view .web-note{padding:10px 14px;color:var(--text-dim);font:12px/1.5 var(--font-body);border-top:1px solid var(--border);}
 #ledger-body{flex:1;overflow-y:auto;padding:20px 24px 60px;}
 .ledger-row{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-top:1px solid rgba(255,255,255,0.06);width:100%;max-width:720px;margin:0 auto;}
 .ledger-row:first-child{border-top:none;}
@@ -1564,6 +1570,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
         <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
         <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Continuity check</button>
+        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Character Web</button>
         <button class="btn hdr-collapsible" id="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Ledger</button>
         <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-compass"></use></svg> Mythic Threads</button>
         <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-books"></use></svg> Documents</button>
@@ -1856,6 +1863,15 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <button class="btn small btn-x" id="thread-view-close" title="Close">&#215;</button>
   </div>
   <div id="thread-view-body"></div>
+</div>
+
+<div id="web-view">
+  <div class="editor-head-style">
+    <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">&#128376; Character Web</div>
+    <button class="btn small btn-x" id="web-close" title="Close">&#215;</button>
+  </div>
+  <iframe id="web-frame" title="Character Web" src="character-web.html"></iframe>
+  <div class="web-note" id="web-note" style="display:none;"></div>
 </div>
 
 <div class="modal" id="mythic-index-modal">
@@ -5507,6 +5523,75 @@ function renderLedger(){
     wireLabelEditButton(el, el.closest('.ledger-row'), el.dataset.editChapter, parseInt(el.dataset.editAnnotation), renderLedger);
   });
 }
+/* ---------- CHARACTER WEB ----------
+   The renderer is character-web.html, the same document the phone runs in a WebView, loaded
+   here in an iframe. Nothing about the graph is implemented twice: this end fetches the data
+   and hands it over, exactly as CharacterWebScreen does.
+
+   The handshake is the renderer's own: with no window.__GRAPH__ it posts {type:'ready'} and
+   waits. Sending before that is dropped silently, which is why the fetch result is held
+   until the frame says it is listening. */
+let webGraphData = null;
+let webFrameReady = false;
+
+function postToWeb(msg){
+  const frame = document.getElementById('web-frame');
+  if(frame && frame.contentWindow) frame.contentWindow.postMessage(JSON.stringify(msg), '*');
+}
+
+function flushWebGraph(){
+  if(webFrameReady && webGraphData) postToWeb({type:'data', payload:webGraphData});
+}
+
+window.addEventListener('message', (e) => {
+  const frame = document.getElementById('web-frame');
+  // Only the frame we embedded. Anything else on the page is not ours to act on.
+  if(!frame || e.source !== frame.contentWindow) return;
+  let msg;
+  try{ msg = JSON.parse(e.data); }catch(err){ return; }
+  if(msg.type === 'ready'){ webFrameReady = true; flushWebGraph(); }
+});
+
+async function loadCharacterWeb(){
+  const note = document.getElementById('web-note');
+  const projectId = currentProjectId;
+  if(!projectId){
+    note.style.display = 'block';
+    note.textContent = 'Open a project first — the web is drawn per project.';
+    return;
+  }
+  note.style.display = 'none';
+
+  const {data, error} = await sbClient.rpc('character_graph', {p_project_id: projectId});
+  if(error){
+    note.style.display = 'block';
+    note.textContent = `Could not load the graph: ${error.message}`;
+    return;
+  }
+  // Defaulted key by key rather than only when the whole payload is missing, same as the
+  // mobile client: a database without the newer migrations returns an older shape, and one
+  // absent key should cost one layer rather than the whole view.
+  const g = data || {};
+  webGraphData = {
+    nodes: g.nodes || [], links: g.links || [], events: g.events || [],
+    presence: g.presence || [], interactions: g.interactions || [],
+    flags: g.flags || [], chapters: g.chapters || [], scenes: g.scenes || []
+  };
+  if(!('flags' in (data||{}))){
+    note.style.display = 'block';
+    note.textContent = 'Plants & Reveals and Structure need a database update that has not been run yet — see supabase/migrations/20260822b_graph_structure.sql.';
+  }
+  flushWebGraph();
+}
+
+document.getElementById('web-btn').addEventListener('click', () => {
+  document.getElementById('web-view').classList.add('show');
+  loadCharacterWeb();
+});
+document.getElementById('web-close').addEventListener('click', () => {
+  document.getElementById('web-view').classList.remove('show');
+});
+
 document.getElementById('ledger-btn').addEventListener('click', () => {
   renderLedger();
   document.getElementById('ledger-view').classList.add('show');
