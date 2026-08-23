@@ -1,41 +1,7 @@
-// The character web: one self-contained document, rendered by force-graph.
-//
-// Kept as a string rather than a bundled .html asset because React Native cannot require
-// HTML, and because this is the canonical copy -- the PWA should serve this same markup
-// rather than growing a second implementation (spec §6). Data arrives by postMessage on
-// mobile and can be assigned to window.__GRAPH__ directly when embedded elsewhere.
-// scripts/build-graph-demo.mjs writes graph/character-web-demo.html out of this constant,
-// so the browser-runnable copy can never drift from what the app actually ships.
-//
-// Three layers, switched rather than merged:
-//
-//   RELATIONSHIPS  character <-> character. Who knows whom, coloured by what passes
-//                  between them.
-//   PROGRESSION    character -> event. Where a character actually is in the story, in
-//                  chapter order, and who else is in the room. Selecting a character here
-//                  lights their chain of events, draws the path they take through them,
-//                  and renumbers those events from the start of THAT character's arc --
-//                  which is the thing a cast list cannot show you.
-//   PLANTS         plant -> reveal, and notes alongside them. Every flagged line in the
-//                  prose, each plant tied to the reveal that pays it. Read out of the
-//                  chapters' annotations, so the book and this view can never disagree.
-//   STRUCTURE      book -> act -> chapter -> scene, the same hierarchy the map uses, with
-//                  each chapter carrying the event, flags and scenes that hang off it. This
-//                  is the layer that makes the web reachable at every granularity rather
-//                  than only at "character" and "moment".
-//
-// Switching layers rebuilds graphData from the same node objects rather than hiding nodes in
-// place. A hidden node still exerts charge, and fifty-odd flag nodes silently shoving the
-// cast apart in Relationships was worse than the reheat that reusing the objects costs --
-// positions survive, because d3 keeps x/y on the objects themselves.
-//
-// Rendering in 2D by default, and 2D is the only renderer loaded up front. The 3D view is
-// genuinely worse on a phone -- hit-testing a sphere at portrait width is unreliable
-// (verified: a click landing two pixels off does nothing at all) -- so it is worth neither
-// the default nor the download until someone asks for it. Shapes are held in correspondence
-// across both: an event is a diamond in 2D and an octahedron in 3D, a plant or reveal is a
-// triangle and a tetrahedron.
-export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
+<!-- GENERATED FILE - do not edit by hand.
+     Markup from mobile/src/lib/characterWebHtml.ts. No data: the host posts it in.
+     Rebuild with: node scripts/build-graph-demo.mjs -->
+<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -1521,4 +1487,4 @@ export const CHARACTER_WEB_HTML = String.raw`<!doctype html>
 })();
 </script>
 </body>
-</html>`;
+</html>

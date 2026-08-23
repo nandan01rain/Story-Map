@@ -2,13 +2,17 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v3';
+const CACHE_VERSION = 'storymap-shell-v4';
 
 const APP_SHELL_PATHS = [
   './',
   'index.html',
   'manifest.json',
   'supabase-config.js',
+  // The character web's renderer, loaded in an iframe by index.html. Without it in the
+  // shell the graph is the one surface that breaks offline while everything around it
+  // works, which reads as a bug rather than as a missing network.
+  'character-web.html',
   'icons/icon-192.png',
   'icons/icon-512.png'
 ];

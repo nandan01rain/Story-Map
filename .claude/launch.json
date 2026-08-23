@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "graph-preview",
+      "name": "storymap",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "graph"],
-      "port": 4173
+      "runtimeArgs": ["-m", "http.server", "4175", "--directory", "."],
+      "port": 4175
     }
   ]
 }

@@ -1,4 +1,10 @@
-// Writes graph/character-web-demo.html — the browser-runnable copy of the character web.
+// Writes the two standalone copies of the character web.
+//
+//   character-web.html            — no data. The PWA loads this in an iframe and posts the
+//                                   real graph into it. This is how the PWA gets the web
+//                                   without a second implementation of the renderer.
+//   graph/character-web-demo.html — the same markup with the demo pack baked in, for
+//                                   opening in a browser to look at the thing directly.
 //
 // Run: node scripts/build-graph-demo.mjs   (after build-demo-fixture.mjs)
 //
@@ -15,6 +21,7 @@ const ROOT = process.cwd();
 const HTML_SOURCE = path.join(ROOT, 'mobile', 'src', 'lib', 'characterWebHtml.ts');
 const FIXTURE_SOURCE = path.join(ROOT, 'mobile', 'src', 'lib', 'demoFixture.ts');
 const OUT = path.join(ROOT, 'graph', 'character-web-demo.html');
+const OUT_EMBED = path.join(ROOT, 'character-web.html');
 
 // Both sources are read as text rather than imported: one is a TypeScript module and the
 // other carries type annotations, and neither is loadable by node without a build step this
@@ -242,6 +249,15 @@ const document = html.replace(
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, banner + document, 'utf8');
 
+// The embeddable copy: identical markup, no data. With no window.__GRAPH__ the renderer
+// posts {type:'ready'} and waits, which is exactly the handshake the mobile WebView already
+// uses -- so the PWA's iframe and the phone's WebView drive the same document the same way.
+const embedBanner =
+  '<!-- GENERATED FILE - do not edit by hand.\n' +
+  '     Markup from mobile/src/lib/characterWebHtml.ts. No data: the host posts it in.\n' +
+  '     Rebuild with: node scripts/build-graph-demo.mjs -->\n';
+fs.writeFileSync(OUT_EMBED, embedBanner + html, 'utf8');
+
 const count = (type) => flags.filter((f) => f.type === type).length;
 console.log(`characters    ${nodes.length}`);
 console.log(`chapters      ${chapters.length}`);
@@ -251,3 +267,4 @@ console.log(`relationships ${links.length} lines from ${interactions.length} int
 console.log(`presence      ${presence.length}`);
 console.log(`flags         ${count('plant')} plants, ${count('reveal')} reveals, ${count('note')} notes`);
 console.log(`wrote         ${path.relative(ROOT, OUT)}`);
+console.log(`wrote         ${path.relative(ROOT, OUT_EMBED)}`);
