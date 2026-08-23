@@ -38,6 +38,12 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e9da412f-855e-415f-b51f-2eb8a9d439c6"
+      }
+    },
+    "owner": "nx-1"
   }
 }
