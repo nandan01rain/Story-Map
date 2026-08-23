@@ -16,6 +16,7 @@ import {
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
+import { useTrashStore } from '../store/trashStore';
 import {
   DOCUMENT_TYPES,
   DOCUMENT_TYPE_LABELS,
@@ -38,6 +39,9 @@ export default function DocumentsScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const user = useAuthStore((s) => s.user);
+  // Documents go to the trash rather than being destroyed -- an imported reference doc is
+  // exactly the kind of thing worth being able to get back.
+  const trashDocument = useTrashStore((s) => s.trashDocument);
   const { documents, loading, error, fetchDocuments, createDocument, updateDocument, deleteDocument } =
     useDocumentStore();
 
@@ -105,13 +109,21 @@ export default function DocumentsScreen({ route, navigation }: Props) {
   }
 
   function confirmDelete(doc: StoryDocument) {
-    Alert.alert('Delete document', `Permanently delete "${doc.title}"?`, [
+    // Not permanent any more -- an imported reference doc is exactly the kind of thing worth
+    // being able to get back.
+    Alert.alert('Delete document', `Move "${doc.title}" to the trash?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteDocument(doc.id);
+          if (!user) return;
+          const { error: err } = await trashDocument(projectId, user.id, doc);
+          if (err) {
+            setOpenDoc(null);
+            return;
+          }
+          fetchDocuments(projectId);
           setOpenDoc(null);
         },
       },

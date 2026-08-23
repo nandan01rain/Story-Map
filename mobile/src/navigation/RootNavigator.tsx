@@ -7,6 +7,7 @@ import ChapterListScreen from '../screens/ChapterListScreen';
 import EditorScreen from '../screens/EditorScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import CharacterWebScreen from '../screens/CharacterWebScreen';
+import TrashScreen from '../screens/TrashScreen';
 import GraphReviewScreen from '../screens/GraphReviewScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import DriveImportScreen from '../screens/DriveImportScreen';
@@ -65,6 +66,7 @@ export default function RootNavigator() {
           <Stack.Screen name="DriveImport" component={DriveImportScreen} />
           <Stack.Screen name="Assistant" component={AssistantScreen} />
           <Stack.Screen name="CharacterWeb" component={CharacterWebScreen} />
+          <Stack.Screen name="Trash" component={TrashScreen} />
           <Stack.Screen name="GraphReview" component={GraphReviewScreen} />
           <Stack.Screen name="StickyNotes" component={StickyNotesScreen} options={{ title: '' }} />
           <Stack.Screen name="Search" component={SearchScreen} />

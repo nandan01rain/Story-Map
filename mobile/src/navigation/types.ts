@@ -19,5 +19,6 @@ export type SignedInStackParamList = {
    * can hand over the flag the writer just selected and the web will land on it.
    */
   CharacterWeb: { projectId: string; focusNodeId?: string };
+  Trash: { projectId: string };
   GraphReview: { projectId: string };
 };

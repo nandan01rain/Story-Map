@@ -113,6 +113,8 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   // Hard delete for now -- the PWA soft-deletes to a trash table (handoff doc §5); trash
   // is Phase 3 scope (see plan), this matches the interim behavior of "delete removes it
   // from view" without yet building the recovery path.
+  // Hard delete, unrecoverable. The UI goes through trashStore instead; this stays for
+  // callers that genuinely mean "gone", and there are none today.
   deleteChapter: async (chapterId) => {
     const { error } = await supabase.from('chapters').delete().eq('id', chapterId);
     if (error) return { error: error.message };

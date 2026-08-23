@@ -9,6 +9,7 @@ import NavDrawer from '../components/NavDrawer';
 import { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSlidePanel } from '../lib/useSlidePanel';
 import { useSortablePositions } from '../lib/useSortablePositions';
+import { type EpubScope, exportEpub } from '../lib/epub';
 import { BOOKS, statusColor, wordCount } from '../lib/storyData';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useAuthStore } from '../store/authStore';
@@ -34,6 +35,29 @@ const ITEM_HEIGHT = ROW_HEIGHT + LABEL_HEIGHT;
 export default function ChapterListScreen({ route, navigation }: Props) {
   const { projectId, projectName } = route.params;
   const { chapters, loading, error, fetchChapters, createChapter } = useChapterStore();
+  const [epubOpen, setEpubOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [epubError, setEpubError] = useState('');
+
+  // Books that actually contain something. Offering all five when four are empty is offering
+  // four ways to export nothing.
+  const booksWithChapters = useMemo(
+    () => [...new Set(chapters.map((c) => c.book))].sort((a, b) => a - b),
+    [chapters],
+  );
+
+  async function runExport(scope: EpubScope) {
+    setExporting(true);
+    setEpubError('');
+    // Saga order, which is what a book is: book, then act, then chapter.
+    const selected = chapters
+      .filter((c) => scope.bookIndex === null || c.book === scope.bookIndex)
+      .sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order);
+    const { error: err } = await exportEpub(projectName, selected, scope);
+    setExporting(false);
+    if (err) setEpubError(err);
+    else setEpubOpen(false);
+  }
   const [expandedBooks, setExpandedBooks] = useState<Set<number>>(new Set([0]));
   const [addChapterBook, setAddChapterBook] = useState<number | null>(null);
   const [newChapterTitle, setNewChapterTitle] = useState('');
@@ -98,8 +122,53 @@ export default function ChapterListScreen({ route, navigation }: Props) {
     go();
   }
 
+  const epubSheet = (
+    <Modal visible={epubOpen} transparent animationType="slide" onRequestClose={() => setEpubOpen(false)}>
+      <View style={styles.epubBackdrop}>
+        <View style={styles.epubSheet}>
+          <Text style={styles.epubTitle}>Export as eBook</Text>
+          <Text style={styles.epubHint}>
+            An .epub you can open in any reader, or send anywhere from the share sheet.
+          </Text>
+
+          <Pressable
+            style={styles.epubOption}
+            disabled={exporting}
+            onPress={() => runExport({ bookIndex: null })}
+          >
+            <Text style={styles.epubOptionText}>Whole project</Text>
+            <Text style={styles.epubOptionMeta}>{chapters.length} chapters</Text>
+          </Pressable>
+
+          {booksWithChapters.map((b) => (
+            <Pressable
+              key={b}
+              style={styles.epubOption}
+              disabled={exporting}
+              onPress={() => runExport({ bookIndex: b })}
+            >
+              <Text style={styles.epubOptionText}>{BOOKS[b]}</Text>
+              <Text style={styles.epubOptionMeta}>
+                {chapters.filter((c) => c.book === b).length} chapters
+              </Text>
+            </Pressable>
+          ))}
+
+          {exporting && <Text style={styles.epubHint}>Building…</Text>}
+          {!!epubError && <Text style={styles.epubError}>{epubError}</Text>}
+
+          <Pressable onPress={() => setEpubOpen(false)} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+            <Text style={styles.epubCancel}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const drawer = (
-    <NavDrawer
+    <>
+      {epubSheet}
+      <NavDrawer
       controller={drawerPanel}
       panelWidth={drawerWidth}
       projectName={projectName}
@@ -112,7 +181,10 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onOpenDocuments={() => navigateFromDrawer(() => navigation.navigate('Documents', { projectId }))}
       onOpenAssistant={() => navigateFromDrawer(() => navigation.navigate('Assistant', { projectId }))}
       onOpenCharacterWeb={() => navigateFromDrawer(() => navigation.navigate('CharacterWeb', { projectId }))}
-    />
+      onOpenTrash={() => navigateFromDrawer(() => navigation.navigate('Trash', { projectId }))}
+      onExportEpub={() => navigateFromDrawer(() => setEpubOpen(true))}
+      />
+    </>
   );
 
   const edgeSwipeZone = <EdgeSwipeZone controller={drawerPanel} />;
@@ -384,6 +456,31 @@ function BookChapterList({
 
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
+    epubBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    epubSheet: {
+      backgroundColor: colors.panel,
+      borderTopLeftRadius: 14,
+      borderTopRightRadius: 14,
+      padding: 20,
+      gap: 8,
+    },
+    epubTitle: { color: colors.text, fontFamily: FONTS.heading, fontSize: 17 },
+    epubHint: { color: colors.textFaint, fontSize: 12, lineHeight: 17 },
+    epubOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.borderDim,
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginTop: 4,
+    },
+    epubOptionText: { color: colors.text, fontSize: 14.5 },
+    epubOptionMeta: { color: colors.textFaint, fontSize: 11.5 },
+    epubError: { color: colors.error, fontSize: 12.5, lineHeight: 18 },
+    epubCancel: { color: colors.textDim, fontSize: 14 },
     screen: { flex: 1, backgroundColor: colors.bg },
     content: { padding: 16, paddingBottom: 40 },
     centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
