@@ -205,6 +205,70 @@ export default function EditorScreen({ route, navigation }: Props) {
     [annotations],
   );
 
+  // Pairing. The groupings offered are every one already used anywhere in this chapter's
+  // flags, so an existing setup is joined rather than a near-duplicate typed. Cross-chapter
+  // groupings are not offered here -- the editor only holds one chapter -- which is a real
+  // limit worth knowing: a reveal three chapters later has to be joined from its own side.
+  const [pairFor, setPairFor] = useState<Annotation | null>(null);
+  const [pairSelection, setPairSelection] = useState<{ id: string; label: string }[]>([]);
+  const [newPairLabel, setNewPairLabel] = useState('');
+
+  const knownPairs = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const a of annotations) {
+      for (const p of a.pairs ?? []) if (!byId.has(p.id)) byId.set(p.id, p.label);
+      // Anything written before the array shape existed.
+      if (a.pairId && !byId.has(a.pairId)) byId.set(a.pairId, a.pairLabel ?? '');
+    }
+    return [...byId.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }, [annotations]);
+
+  function membershipsOf(a: Annotation): { id: string; label: string }[] {
+    if (a.pairs && a.pairs.length) return a.pairs;
+    if (a.pairId) return [{ id: a.pairId, label: a.pairLabel ?? '' }];
+    return [];
+  }
+
+  function openPairSheet(a: Annotation) {
+    setPairFor(a);
+    setPairSelection(membershipsOf(a));
+    setNewPairLabel('');
+  }
+
+  function togglePair(entry: { id: string; label: string }) {
+    setPairSelection((prev) =>
+      prev.some((p) => p.id === entry.id)
+        ? prev.filter((p) => p.id !== entry.id)
+        : [...prev, entry],
+    );
+  }
+
+  function addNewPair() {
+    const label = newPairLabel.trim();
+    if (!label) return;
+    // Content-free id: the label is what the writer sees and may want to rename later, so it
+    // should not also be the key that ties the two ends together.
+    const id = `pair-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    setPairSelection((prev) => [...prev, { id, label }]);
+    setNewPairLabel('');
+  }
+
+  function savePairs() {
+    if (!pairFor) return;
+    const next = annotations.map((a) => {
+      if (a.id !== pairFor.id) return a;
+      // The legacy single fields are dropped on write, so a flag is never described by both
+      // shapes at once.
+      const { pairId, pairLabel, ...rest } = a;
+      return { ...rest, pairs: pairSelection } as Annotation;
+    });
+    setAnnotations(next);
+    scheduleAutosave(content, next);
+    setPairFor(null);
+  }
+
   function openThreadSheet(a: Annotation) {
     setThreadFor(a);
     setThreadName(a.thread ?? '');
@@ -529,6 +593,15 @@ export default function EditorScreen({ route, navigation }: Props) {
                       </Text>
                       {!!a.label && <Text style={styles.flagLabel}>{a.label}</Text>}
                     </View>
+                    {/* Which setup/payoff groupings this end belongs to. Offered on plants
+                        and reveals only -- a note is not one end of anything. */}
+                    {(a.type === 'plant' || a.type === 'reveal') && (
+                      <Pressable onPress={() => openPairSheet(a)} hitSlop={8}>
+                        <Text style={styles.flagWeb}>
+                          {membershipsOf(a).length > 0 ? `⇄${membershipsOf(a).length}` : 'pair'}
+                        </Text>
+                      </Pressable>
+                    )}
                     {/* A mythic thread is a note the writer has marked as echoing a known
                         arc. Offered only on notes, because that is the only place it means
                         anything. */}
@@ -568,6 +641,79 @@ export default function EditorScreen({ route, navigation }: Props) {
       </Modal>
 
       {/* Version history -- ports renderVersionList()/restore (index.html) */}
+      <Modal visible={pairFor !== null} transparent animationType="slide" onRequestClose={() => setPairFor(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {pairFor?.type === 'plant' ? 'What pays this off' : 'What sets this up'}
+            </Text>
+            <Text style={styles.flagText} numberOfLines={2}>"{pairFor?.text}"</Text>
+            <Text style={styles.threadLabel}>Groupings</Text>
+            <Text style={styles.flagLabel}>
+              A plant can belong to several, and several plants can share one. Pick every
+              grouping this line takes part in.
+            </Text>
+
+            <ScrollView style={{ maxHeight: 220 }}>
+              <View style={styles.threadChips}>
+                {knownPairs.length === 0 && (
+                  <Text style={styles.flagLabel}>None in this chapter yet — name one below.</Text>
+                )}
+                {knownPairs.map((entry) => {
+                  const on = pairSelection.some((p) => p.id === entry.id);
+                  return (
+                    <Pressable
+                      key={entry.id}
+                      style={[styles.threadChip, on && styles.threadChipOn]}
+                      onPress={() => togglePair(entry)}
+                    >
+                      <Text style={styles.threadChipText}>{entry.label || 'Untitled'}</Text>
+                    </Pressable>
+                  );
+                })}
+                {/* Selections made in this sheet that do not exist elsewhere yet. */}
+                {pairSelection
+                  .filter((p) => !knownPairs.some((k) => k.id === p.id))
+                  .map((p) => (
+                    <Pressable
+                      key={p.id}
+                      style={[styles.threadChip, styles.threadChipOn]}
+                      onPress={() => togglePair(p)}
+                    >
+                      <Text style={styles.threadChipText}>{p.label}</Text>
+                    </Pressable>
+                  ))}
+              </View>
+            </ScrollView>
+
+            <Text style={styles.threadLabel}>New grouping</Text>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+              <TextInput
+                style={[styles.threadInput, { flex: 1 }]}
+                value={newPairLabel}
+                onChangeText={setNewPairLabel}
+                placeholder="e.g. The Durgashtami deadline"
+                placeholderTextColor={colors.textFaint}
+                onSubmitEditing={addNewPair}
+              />
+              <Pressable onPress={addNewPair} hitSlop={8}>
+                <Text style={styles.modalConfirm}>Add</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.threadActions}>
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={() => setPairFor(null)} hitSlop={8}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={savePairs} hitSlop={8}>
+                <Text style={styles.modalConfirm}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={threadFor !== null} transparent animationType="slide" onRequestClose={() => setThreadFor(null)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>

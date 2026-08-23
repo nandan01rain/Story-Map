@@ -215,8 +215,8 @@ const flags = fixture.chapters.flatMap((c) =>
     type: a.type,
     text: a.text,
     label: a.label,
-    pairId: a.pairId ?? null,
-    pairLabel: a.pairLabel ?? null,
+    // The array shape, matching what character_graph() returns after 20260824.
+    pairs: a.pairs ?? [],
     chapterId: chapterId(c.number),
     chapterTitle: c.title,
     // The app resolves this against real scene rows after inserting them; here the ids are

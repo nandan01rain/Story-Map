@@ -301,14 +301,14 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   these relationships change across five books. Not built. Nor is automatic
   faction/location extraction, or the PWA's own embedding of the renderer (the
   document is written to be shared; the PWA just doesn't serve it yet).
-- **Pairing a plant to a reveal from inside the app.** The character web can show
-  pairs, browse them, jump to either end and flag unpaid plants, but the editor's
-  Plant/Reveal buttons still write an *unpaired* flag — `pairId`/`pairLabel` are
-  currently only written by the demo pack's build script
-  (`scripts/demo-plants-reveals.mjs`). The PWA's own `linkedPlant` shape isn't read
-  by the mobile web yet either, so the two halves of the app model the same
-  relationship differently. This is the single biggest gap in the plant/reveal
-  feature: everything downstream of a pair exists, nothing upstream of one does.
+- **The PWA's own `linkedPlant` shape** — `{chapterId, annotationId}` on the reveal —
+  is a second, incompatible model of the plant/reveal relationship and is not read by
+  the character web. Whichever survives, the two halves of the app should not keep
+  both. (Pairing itself is no longer a gap: it is many-to-many, authored from the
+  Editor's Flags list — see handoff §17.)
+- **Pairing across chapters from the editor.** The pairing sheet offers groupings
+  already used in *that chapter*, because the editor holds one chapter. A reveal
+  several chapters later has to be joined from its own side.
 - **Two graph migrations are unrun.** `20260822_graph_flags.sql` and
   `20260822b_graph_structure.sql` — the second supersedes the first, so running
   only the newer one against the live project is enough. Until then the
@@ -506,10 +506,10 @@ needs no translation because all three are nodes under their own database ids.
 
 Plants, reveals and notes are read live out of `chapters.annotations` rather
 than copied into the graph tables, so flagging a line in the editor puts it on
-the web with no sync step. **Three migrations have not been run against the live
-project yet** — `20260822_graph_flags.sql`, `20260822b_graph_structure.sql`
-and `20260823_graph_threads.sql`; each supersedes the one before, so running
-only `20260823_graph_threads.sql` is enough. Until then those layers return nothing and nothing
+the web with no sync step. **Four migrations have not been run against the live
+project yet** — `20260822_graph_flags.sql`, `20260822b_graph_structure.sql`,
+`20260823_graph_threads.sql` and `20260824_graph_pairs.sql`; each supersedes
+the one before, so running only `20260824_graph_pairs.sql` is enough. Until then those layers return nothing and nothing
 else breaks: the client defaults each key of the payload independently.
 `graph/character-web-demo.html` is now generated from the renderer plus the demo
 pack by `scripts/build-graph-demo.mjs` instead of being a hand-kept duplicate

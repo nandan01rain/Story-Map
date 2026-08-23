@@ -243,6 +243,11 @@ export const PLANT_REVEAL_PAIRS = [
   {
     id: 'pr-13',
     title: `Mahadevan's clean hands`,
+    // Both ends also belong to pr-14: what Sunny noticed in that corridor is part of the
+    // same body of evidence as the voice's impossible accuracy, and the Ch 10 differential
+    // is where both are read back. This is the case the old one-pair-per-flag shape could
+    // not express -- a line doing two jobs at once.
+    also: ['pr-14'],
     plants: [
       [
         6,
@@ -366,6 +371,9 @@ export const PLANT_REVEAL_PAIRS = [
   {
     id: 'pr-19',
     title: 'Nakulan asked to trust and hold still',
+    // The swap is the mechanism; his stillness is what makes it work. Neither pays off
+    // without the other, so both ends sit in pr-18 as well.
+    also: ['pr-18'],
     plants: [
       [
         13,

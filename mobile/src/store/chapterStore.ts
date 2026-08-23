@@ -15,8 +15,15 @@ export type Annotation = {
   text: string; // the exact flagged substring -- annotations relocate by searching for
   // this on every render rather than tracking a fixed offset (handoff doc §3.5).
   label: string;
-  /** Both ends of a plant/reveal pair carry these; the pair's title travels with each end. */
+  /**
+   * Which setup/payoff groupings this flag belongs to, each with the grouping's own title.
+   * An array because the relationship is many-to-many in both directions AND a single flag
+   * can take part in more than one grouping.
+   */
+  pairs?: { id: string; label: string }[];
+  /** @deprecated Superseded by `pairs`. Still read so older annotations keep working. */
   pairId?: string;
+  /** @deprecated Superseded by `pairs`. */
   pairLabel?: string;
   /** Narrows a note from its whole chapter to one scene. */
   sceneId?: string;
