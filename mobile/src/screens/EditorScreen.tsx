@@ -30,6 +30,7 @@ const AUTOSAVE_DELAY_MS = 1200; // matches the PWA's editorSaveTimer exactly (in
 const FLAG_LABELS: Record<FlagType, string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
 const LINE_HEIGHT = 27;
 const TEXTINPUT_TOP_OFFSET = 96; // position label + toolbar height, above the TextInput itself
+const EDITOR_PADDING = 20;
 
 // Single always-editing screen now that ReaderScreen (page-level, chrome-free) is the
 // real reading surface -- the earlier read/edit mode toggle and the separate "Flag text"
@@ -90,6 +91,14 @@ export default function EditorScreen({ route, navigation }: Props) {
   // position only actually needs to be current at the moment a selection changes, which
   // already triggers a render via onSelectionChange -- so reading the ref there is enough.
   const inputScrollYRef = useRef(0);
+  // The editor scrolls itself rather than letting the TextInput do it. A multiline
+  // TextInput scrolls internally and React Native exposes no way to ask it to reveal the
+  // caret -- so once typing passed the fold, the line being written sat behind the keyboard
+  // with no way to bring it back except scrolling by hand. Owning the scroll view is what
+  // makes "keep the caret visible" expressible at all.
+  const scrollRef = useRef<ScrollView | null>(null);
+  const viewportHeightRef = useRef(0);
+  const contentHeightRef = useRef(0);
 
   // Header shows just the back arrow, nothing else -- per explicit feedback, no title
   // text (the chapter's position/title already appear in the in-page `position` line).
@@ -293,6 +302,32 @@ export default function EditorScreen({ route, navigation }: Props) {
     setThreadFor(null);
   }
 
+  // Where the caret sits in the content, and a scroll that brings it back inside the
+  // viewport if it has fallen outside. Driven by the same line count the flag popup uses --
+  // the off-screen measurer below is already computing it, so this costs nothing new.
+  //
+  // Only ever scrolls when the caret is actually out of view: scrolling on every keystroke
+  // fights the reader when they have deliberately scrolled somewhere else.
+  useEffect(() => {
+    const viewport = viewportHeightRef.current;
+    if (!scrollRef.current || viewport === 0) return;
+
+    const caretTop = EDITOR_PADDING + linesBeforeSelection * LINE_HEIGHT;
+    const caretBottom = caretTop + LINE_HEIGHT;
+    const scrollY = inputScrollYRef.current;
+    // A couple of lines of air, so the caret is never flush against an edge -- you want to
+    // see the line you are writing plus a little of what surrounds it.
+    const margin = LINE_HEIGHT * 2;
+
+    let next: number | null = null;
+    if (caretBottom > scrollY + viewport - margin) next = caretBottom - viewport + margin;
+    else if (caretTop < scrollY + margin) next = caretTop - margin;
+    if (next === null) return;
+
+    const max = Math.max(0, contentHeightRef.current - viewport);
+    scrollRef.current.scrollTo({ y: Math.min(Math.max(0, next), max), animated: true });
+  }, [linesBeforeSelection, selection.start, content]);
+
   const hasSelection = selection.end > selection.start;
   const selectedText = hasSelection ? content.slice(selection.start, selection.end) : null;
 
@@ -419,7 +454,11 @@ export default function EditorScreen({ route, navigation }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      // Android is deliberately given no behavior. app.json leaves
+      // softwareKeyboardLayoutMode at Expo's default of "resize", so the OS already shrinks
+      // the window to sit above the keyboard; "height" then subtracted the keyboard a second
+      // time and the layout fought itself. iOS does not resize, so it still needs padding.
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Text style={styles.position}>
@@ -454,27 +493,53 @@ export default function EditorScreen({ route, navigation }: Props) {
           many lines precede it (onTextLayout) so the "⋮" popup can land near the
           selection -- RN gives no direct caret/selection layout API. */}
       <Text
-        style={[styles.editInput, styles.measurer]}
+        // The width matters and was missing. Absolutely positioned with no width, this Text
+        // laid out as a single unbroken line however long the prose was, so the line count
+        // it reported was always ~1 -- which silently mispositioned the flag popup and would
+        // have defeated the caret tracking above entirely. Constrained to the real input's
+        // width so its wrapping matches what is actually on screen.
+        style={[styles.editInput, styles.measurer, { width: winWidth }]}
         onTextLayout={(e) => setLinesBeforeSelection(e.nativeEvent.lines.length)}
       >
         {content.slice(0, selection.start)}
       </Text>
 
-      <TextInput
-        ref={textInputRef}
-        style={styles.editInput}
-        value={content}
-        onChangeText={handleContentChange}
-        onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+      <ScrollView
+        ref={scrollRef}
+        style={styles.editScroll}
+        contentContainerStyle={styles.editScrollContent}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
+        onLayout={(e) => {
+          viewportHeightRef.current = e.nativeEvent.layout.height;
+        }}
+        onContentSizeChange={(_w, h) => {
+          contentHeightRef.current = h;
+        }}
         onScroll={(e) => {
           inputScrollYRef.current = e.nativeEvent.contentOffset.y;
         }}
-        multiline
-        autoFocus
-        textAlignVertical="top"
-        placeholder="Start writing..."
-        placeholderTextColor={colors.textFaint}
-      />
+        // The flag popup is positioned from this offset, so it has to keep up with a drag
+        // rather than only reporting where the scroll settled.
+        scrollEventThrottle={16}
+      >
+        <TextInput
+          ref={textInputRef}
+          style={styles.editInput}
+          value={content}
+          onChangeText={handleContentChange}
+          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+          multiline
+          autoFocus
+          // The input must NOT scroll itself. Two scrollers over the same text means the
+          // caret can be inside the input's own viewport and still off screen, which is
+          // exactly the bug this replaces.
+          scrollEnabled={false}
+          textAlignVertical="top"
+          placeholder="Start writing..."
+          placeholderTextColor={colors.textFaint}
+        />
+      </ScrollView>
 
       {/* The mirror of the Reader's "Editor" action: flag the selection, or follow it into
           the Reader and land on the same words. Both directions now pass the selected
@@ -834,13 +899,19 @@ function makeStyles(colors: ThemeColors) {
     toolbarBtn: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
     status: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 11, flex: 1, textAlign: 'center' },
     measurer: { position: 'absolute', left: -9999, top: 0, opacity: 0 },
+    editScroll: { flex: 1 },
+    // Room to scroll the last line clear of the keyboard. Without it the final paragraph
+    // can never be brought above the fold, because there is nothing below it to scroll into.
+    editScrollContent: { flexGrow: 1, paddingBottom: 220 },
     editInput: {
-      flex: 1,
+      // No flex here any more: inside a ScrollView the input has to be its own height so the
+      // scroll view has something to scroll. flex:1 would pin it to the viewport and the
+      // text would go back to being clipped.
       color: colors.text,
       fontFamily: FONTS.literary,
       fontSize: 16.5,
       lineHeight: LINE_HEIGHT,
-      padding: 20,
+      padding: EDITOR_PADDING,
     },
     jumpPopup: {
       position: 'absolute',
