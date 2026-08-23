@@ -120,12 +120,11 @@ chapter boundaries for pacing).
 
 ## Full feature list
 
-- **Map view**: SVG trail, Book bands containing Act clusters containing
-  Chapter nodes. Drag-and-drop reordering (chapter → act/book reassignment by
-  drop position). Status-colored nodes, gap/word-flag badges.
-- **List view**: mobile-friendly accordion (Book → expand → Acts/Chapters).
-  Independent of map view — both exist simultaneously, user toggles between
-  them, preference persisted.
+- **List view**: accordion (Book → expand → Acts/Chapters), and the only
+  structural view. Map view was removed 2026-08-23 — the character web
+  replaces it in both apps, and the SVG trail had become decoration rather
+  than a tool. Its removal took ~228 KB out of `index.html`, most of it a
+  second inlined copy of the background image List view still uses.
 - **Chapter drawer**: position, status, scenes (with POV, summary, plants-needed
   for reference), word count vs. book-level target, Plants/Reveals/Notes
   widget buttons, chapter notes, delete (→ trash), 🧵 Thread button.
