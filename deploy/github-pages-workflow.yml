@@ -1,0 +1,54 @@
+name: Deploy PWA to GitHub Pages
+
+# The PWA is a static site — index.html plus a handful of sidecar files — so there is nothing
+# to build. This publishes the repo root as-is on every push to main, which is what makes
+# "updates arrive without reinstalling" true for the web/desktop half: the service worker is
+# network-first for the app shell, so a deploy is picked up on the next load.
+#
+# The mobile half gets the same property from EAS Update, not from here.
+
+on:
+  push:
+    branches: [main]
+  # So a deploy can be forced from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never two deploys at once; cancel-in-progress is deliberately false so a queued deploy of
+# newer code does not kill a running one mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the site
+        # Only what the app actually serves. `mobile/`, `supabase/`, `scripts/`, `demo/` and
+        # the handoff docs are development material and have no business on a public URL --
+        # and shipping them would mean every push published the whole repo twice over.
+        run: |
+          mkdir -p _site
+          cp index.html character-web.html manifest.json service-worker.js supabase-config.js _site/
+          cp -r assets icons _site/
+          # A 404 that loads the app rather than GitHub's default page: the PWA is a single
+          # document, so any path under the scope should land in it.
+          cp index.html _site/404.html
+          echo "Staged:" && du -sh _site && ls _site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -2,7 +2,7 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v4';
+const CACHE_VERSION = 'storymap-shell-v5';
 
 const APP_SHELL_PATHS = [
   './',
@@ -13,6 +13,11 @@ const APP_SHELL_PATHS = [
   // shell the graph is the one surface that breaks offline while everything around it
   // works, which reads as a bug rather than as a missing network.
   'character-web.html',
+  // List view's background. It used to be a 209 KB base64 data URI inside index.html -- the
+  // same image twice, since the map had its own copy -- which meant it was re-downloaded
+  // with the document on every deploy and could never be cached separately. As a file it is
+  // fetched once and revalidated like anything else.
+  'assets/list-bg.jpg',
   'icons/icon-192.png',
   'icons/icon-512.png'
 ];

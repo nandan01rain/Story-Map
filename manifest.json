@@ -2,7 +2,7 @@
   "name": "StoryMap",
   "short_name": "StoryMap",
   "start_url": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#6b5a6e",
   "theme_color": "#6b5a6e",
   "icons": [
@@ -16,5 +16,8 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "description": "A writing tool for a five-book mythological saga.",
+  "orientation": "any",
+  "scope": "./"
 }

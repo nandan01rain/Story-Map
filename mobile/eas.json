@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "//": "The profile to use. Produces an installable .apk rather than the .aab the Play Store wants — nothing here goes near a store, it goes straight onto your own phone. Bound to the 'preview' update channel, so `eas update --branch preview` reaches builds made with this profile.",
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "preview",
+      "distribution": "internal"
+    },
+    "production": {
+      "//": "Kept for the day this does go to a store. .aab, its own channel, so a production build never picks up an update meant for the phone in your pocket.",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "channel": "production",
+      "autoIncrement": true
+    },
+    "development": {
+      "//": "A dev client — the debug build you attach the Metro bundler to. Not needed for normal use; useful when a native module is misbehaving and Expo Go cannot load it.",
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

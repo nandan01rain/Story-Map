@@ -1,9 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DropProvider } from 'react-native-reanimated-dnd';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { useOtaUpdate } from './src/lib/useOtaUpdate';
 import RootNavigator from './src/navigation/RootNavigator';
 import { FONTS, NIGHT_COLORS, ThemeProvider, useAppFonts, useTheme } from './src/theme';
 
@@ -21,10 +22,35 @@ TextAny.defaultProps.style = [{ fontFamily: FONTS.body }, TextAny.defaultProps.s
 // App itself renders before the persisted theme choice has loaded from AsyncStorage,
 // hence the plain NIGHT_COLORS-toned loading screen below (can't call useTheme there).
 function AppShell() {
-  const { mode } = useTheme();
+  const { mode, colors } = useTheme();
+  const ota = useOtaUpdate();
   return (
     <>
       <RootNavigator />
+      {/* Offered, never forced. An update downloaded mid-sentence should not restart the app
+          out from under someone -- a reload you did not ask for is indistinguishable from a
+          crash. Sits at the bottom so it never covers a screen's own header. */}
+      {ota.ready && (
+        <Pressable
+          onPress={ota.apply}
+          style={{
+            position: 'absolute',
+            left: 14,
+            right: 14,
+            bottom: 24,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: 9,
+            borderWidth: 1,
+            borderColor: colors.gold,
+            backgroundColor: colors.panel,
+          }}
+        >
+          <Text style={{ color: colors.gold, fontSize: 13.5 }}>
+            An update is ready — tap to restart
+          </Text>
+        </Pressable>
+      )}
       <StatusBar style={mode === 'day' ? 'dark' : 'light'} />
     </>
   );
