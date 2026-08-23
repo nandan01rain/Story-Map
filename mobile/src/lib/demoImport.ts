@@ -156,7 +156,7 @@ export async function importDemoProject(
     //
     // `sceneOrder` is stripped here and the real scene id written back further down, once
     // the scenes exist to have ids.
-    annotations: c.annotations.map(({ sceneOrder, ...rest }) => rest),
+    annotations: c.annotations.map(({ sceneOrder, characterKey, ...rest }) => rest),
     versions: [],
   }));
 
@@ -172,6 +172,10 @@ export async function importDemoProject(
   // Scenes carry the POV, which is what makes the POV tracker work against this data.
   const byOrder = new Map<number, string>();
   for (const row of insertedChapters ?? []) byOrder.set(row.order as number, row.id as string);
+
+  // Held from the scene insert until the characters exist, so both id resolutions happen in
+  // one update per chapter rather than two.
+  let sceneResolution: { sceneByChapterOrder: Map<string, string> } | null = null;
 
   const sceneRows = fixture.chapters.flatMap((c) => {
     const chapterId = byOrder.get(c.number);
@@ -207,24 +211,7 @@ export async function importDemoProject(
       sceneByChapterOrder.set(`${row.chapter_id}:${row.order}`, row.id as string);
     }
 
-    const withSceneNotes = fixture.chapters.filter((c) =>
-      c.annotations.some((a) => a.sceneOrder != null),
-    );
-
-    await Promise.all(
-      withSceneNotes.map((c) => {
-        const chapterRowId = byOrder.get(c.number);
-        if (!chapterRowId) return Promise.resolve();
-        const annotations = c.annotations.map(({ sceneOrder, ...rest }) => {
-          if (sceneOrder == null) return rest;
-          const resolved = sceneByChapterOrder.get(`${chapterRowId}:${sceneOrder}`);
-          // A note whose scene did not survive stays a chapter-level note rather than
-          // carrying a dangling id.
-          return resolved ? { ...rest, sceneId: resolved } : rest;
-        });
-        return supabase.from('chapters').update({ annotations }).eq('id', chapterRowId);
-      }),
-    );
+    sceneResolution = { sceneByChapterOrder };
   }
 
   const documentRows = fixture.documents.map((d) => ({
@@ -356,6 +343,37 @@ export async function importDemoProject(
     if (edgeError) {
       return finish({ projectId: project.id, projectName, error: `Relationships: ${edgeError.message}` });
     }
+  }
+
+  // Second pass over the chapters' annotations, now that both scenes and characters exist
+  // and have ids. A note can name a scene, and a mythic thread names the character whose arc
+  // it echoes; neither id can be known when the chapters themselves are written.
+  const needsResolving = fixture.chapters.filter((c) =>
+    c.annotations.some((a) => a.sceneOrder != null || a.characterKey != null),
+  );
+
+  if (needsResolving.length > 0) {
+    await Promise.all(
+      needsResolving.map((c) => {
+        const chapterRowId = byOrder.get(c.number);
+        if (!chapterRowId) return Promise.resolve();
+        const annotations = c.annotations.map(({ sceneOrder, characterKey, ...rest }) => {
+          const resolved: Record<string, unknown> = { ...rest };
+          if (sceneOrder != null && sceneResolution) {
+            const sceneId = sceneResolution.sceneByChapterOrder.get(`${chapterRowId}:${sceneOrder}`);
+            // A note whose scene did not survive stays a chapter-level note rather than
+            // carrying a dangling id.
+            if (sceneId) resolved.sceneId = sceneId;
+          }
+          if (characterKey != null) {
+            const characterId = idByKey.get(characterKey);
+            if (characterId) resolved.characterId = characterId;
+          }
+          return resolved;
+        });
+        return supabase.from('chapters').update({ annotations }).eq('id', chapterRowId);
+      }),
+    );
   }
 
   // PRESENT_AT: who appears in which chapter. This is the progression layer — without it a

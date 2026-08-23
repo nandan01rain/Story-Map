@@ -67,6 +67,15 @@ export type GraphFlag = {
   label: string;
   pairId: string | null;
   pairLabel: string | null;
+  /**
+   * A mythic thread is a NOTE the writer has marked as a parallel to some known
+   * mythological arc or setting -- not a separate kind of thing. `thread` names the
+   * parallel; `characterId` says whose arc it belongs to. Both null on every other flag,
+   * and on an ordinary note.
+   */
+  thread: string | null;
+  /** A graph character node id. Unenforced -- an annotation is jsonb -- so resolve defensively. */
+  characterId: string | null;
   chapterId: string;
   chapterTitle: string;
   /** Set when the flag is about one scene rather than the whole chapter. Optional -- nothing

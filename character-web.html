@@ -36,6 +36,7 @@
   .chip.plant.on { border-color: #5aa469; color: #7fce8c; background: rgba(90,164,105,0.18); }
   .chip.reveal.on { border-color: #c0504d; color: #e28a86; background: rgba(192,80,77,0.18); }
   .chip.note.on { border-color: #b08a5a; color: #d8b184; background: rgba(176,138,90,0.18); }
+  .chip.thread.on { border-color: #3aa8a0; color: #6fd0c8; background: rgba(58,168,160,0.18); }
   /* A sheet, not a modal. It used to be a fixed 42vh slab with no way to get rid of it,
      which on a phone is most of the graph -- and the node you had just tapped was as often
      as not underneath it. Now it collapses to its own title bar, closes outright, and can be
@@ -82,6 +83,7 @@
   #focus .quote.plant { border-left-color: #5aa469; }
   #focus .quote.reveal { border-left-color: #c0504d; }
   #focus .quote.note { border-left-color: #b08a5a; }
+  #focus .quote.thread { border-left-color: #3aa8a0; }
   #focus .item {
     border-top: 1px solid #1f2725; padding: 9px 0 8px; cursor: pointer;
   }
@@ -156,6 +158,7 @@
     <div class="chip plant" id="flag-plants">Plants</div>
     <div class="chip reveal" id="flag-reveals">Reveals</div>
     <div class="chip note" id="flag-notes">Notes</div>
+    <div class="chip thread" id="flag-threads">Threads</div>
     <div class="chip" id="flag-pairs">Pairs</div>
     <div class="chip" id="flag-open">Unpaid</div>
   </div>
@@ -182,6 +185,7 @@
     <div class="chip plant" data-tab="plants">Plants</div>
     <div class="chip reveal" data-tab="reveals">Reveals</div>
     <div class="chip note" data-tab="notes">Notes</div>
+    <div class="chip thread" data-tab="threads">Threads</div>
     <div class="chip" data-tab="pairs">Pairs</div>
   </div>
   <div class="rows" id="idx-rows"></div>
@@ -196,7 +200,7 @@
   var EMPTY = { nodes: [], links: [], events: [], presence: [], interactions: [], flags: [] };
   var raw = window.__GRAPH__ || EMPTY;
   var mode = 'rel';       // 'rel' | 'prog' | 'flags'
-  var flagFilter = 'all'; // 'all' | 'plants' | 'reveals' | 'notes' | 'pairs' | 'open'
+  var flagFilter = 'all'; // 'all' | 'plants' | 'reveals' | 'notes' | 'threads' | 'pairs' | 'open'
   var dim = '2d';         // '2d' | '3d'
   var graph = null;
   var selectedId = null;
@@ -226,6 +230,10 @@
   var PLANT_COLOR = '#5aa469';
   var REVEAL_COLOR = '#c0504d';
   var NOTE_COLOR = '#b08a5a';
+  // A mythic thread is a note, so it keeps the note's shape and takes a colour of its own.
+  // Teal rather than another warm tone: it has to be told apart from the amber it is a
+  // subset of, and from the plant green it will sit beside.
+  var THREAD_COLOR = '#3aa8a0';
   var CHAPTER_COLOR = '#8e7cc3';
   var SCENE_COLOR = '#6d7f96';
   var PAIR_COLOR = '#c69a3a';
@@ -277,6 +285,10 @@
         id: f.id, label: f.text, kind: f.type,
         pairId: key, pairLabel: pairs[key].label, flagLabel: f.label,
         chapterId: f.chapterId, sceneId: f.sceneId,
+        // A note with a thread is a mythic thread. Kept as a property rather than a seventh
+        // node kind, because it is genuinely a note -- same shape, same anchoring, same
+        // panel; only the colour and the extra link to a character differ.
+        thread: f.thread || null, characterId: f.characterId || null,
         chapterTitle: f.chapterTitle, eventId: f.eventId, seq: f.seq
       });
     });
@@ -299,6 +311,14 @@
     (raw.flags || []).forEach(function (f) {
       var anchor = (f.sceneId && byId[f.sceneId]) ? f.sceneId : f.chapterId;
       if (anchor) links.push({ source: f.id, target: anchor, layer: 'flag', flagType: f.type });
+    });
+
+    // A mythic thread hangs off the character whose arc it echoes, which is what makes
+    // "show me every thread for this person" a one-hop question rather than a scan.
+    (raw.flags || []).forEach(function (f) {
+      if (f.thread && f.characterId && byId[f.characterId]) {
+        links.push({ source: f.id, target: f.characterId, layer: 'thread' });
+      }
     });
 
     // The hierarchy itself: chapter to its scenes, and chapter to the moment extraction
@@ -329,7 +349,8 @@
     if (m === 'rel') return { rel: true };
     if (m === 'prog') return { prog: true };
     if (m === 'structure') return { structure: true, flag: true };
-    return { flag: true, pair: true };
+    // Threads reach out of the flag layer to characters, so that layer travels with it.
+    return { flag: true, pair: true, thread: true };
   }
 
   // Which flag nodes the sub-filter admits. Events and characters are decided separately:
@@ -340,6 +361,7 @@
     if (flagFilter === 'plants') return n.kind === 'plant';
     if (flagFilter === 'reveals') return n.kind === 'reveal';
     if (flagFilter === 'notes') return n.kind === 'note';
+    if (flagFilter === 'threads') return n.kind === 'note' && !!n.thread;
     // Pairs and unpaid are about plant/reveal pairs; a note is in neither by definition.
     if (n.kind === 'note') return false;
     var pair = pairs[n.pairId];
@@ -361,19 +383,25 @@
     // land in. Under a filter, an anchor with no surviving flag is a node with nothing to
     // say -- seventeen of those around four unpaid plants is the filter failing to filter.
     var anchored = {};
+    var threadCharacters = {};
     if (mode === 'flags') {
       all.nodes.forEach(function (n) {
         if (isFlag(n) && flagVisible(n)) {
           keep[n.id] = true;
           if (n.sceneId) anchored[n.sceneId] = true;
           else if (n.chapterId) anchored[n.chapterId] = true;
+          // Without this the thread link has one end missing and is dropped, which reads as
+          // the feature not working rather than as a filtered-out node.
+          if (n.thread && n.characterId) threadCharacters[n.characterId] = true;
         }
       });
     }
 
     var nodes = all.nodes.filter(function (n) {
       var ok;
-      if (n.kind === 'character') ok = mode === 'rel' || mode === 'prog';
+      if (n.kind === 'character') {
+        ok = mode === 'rel' || mode === 'prog' || (mode === 'flags' && !!threadCharacters[n.id]);
+      }
       else if (n.kind === 'event') ok = mode === 'prog' || mode === 'structure';
       else if (n.kind === 'chapter') ok = mode === 'structure' || (mode === 'flags' && !!anchored[n.id]);
       else if (n.kind === 'scene') ok = mode === 'structure' || (mode === 'flags' && !!anchored[n.id]);
@@ -475,7 +503,7 @@
     if (n.kind === 'event') base = EVENT_COLOR;
     else if (n.kind === 'plant') base = PLANT_COLOR;
     else if (n.kind === 'reveal') base = REVEAL_COLOR;
-    else if (n.kind === 'note') base = NOTE_COLOR;
+    else if (n.kind === 'note') base = n.thread ? THREAD_COLOR : NOTE_COLOR;
     else if (n.kind === 'chapter') base = CHAPTER_COLOR;
     else if (n.kind === 'scene') base = SCENE_COLOR;
     else base = n.needsReview ? '#c69a3a' : '#cfd8d5';
@@ -495,6 +523,9 @@
       reveal: [REVEAL_COLOR, 'rgba(192,80,77,0.4)'],
       note: [NOTE_COLOR, 'rgba(176,138,90,0.4)']
     };
+    if (l.layer === 'thread') {
+      return !active ? 'rgba(58,168,160,0.45)' : (active.links[l.i] ? THREAD_COLOR : GHOST);
+    }
     var base;
     if (l.layer === 'prog') base = PROG_COLOR;
     else if (l.layer === 'pair') base = PAIR_COLOR;
@@ -522,6 +553,7 @@
     if (l.layer === 'prog') return 0.7;
     if (l.layer === 'flag') return 0.8;
     if (l.layer === 'pair') return 1.2;
+    if (l.layer === 'thread') return 1.4;
     // The spine of the structure layer, so the hierarchy reads at a glance rather than
     // looking like one more kind of association.
     if (l.layer === 'structure') return l.rel === 'scene' ? 1.6 : 1.1;
@@ -636,7 +668,8 @@
       event: '#9fb0bd', plant: '#8fc99a', reveal: '#dd9895',
       note: '#d8b184', chapter: '#bfb2dd', scene: '#a3b2c4'
     };
-    ctx.fillStyle = faded ? 'rgba(160,172,169,0.25)' : (INK[n.kind] || '#e6ecea');
+    var ink = n.kind === 'note' && n.thread ? '#6fd0c8' : (INK[n.kind] || '#e6ecea');
+    ctx.fillStyle = faded ? 'rgba(160,172,169,0.25)' : ink;
 
     var text;
     if (n.kind === 'character') text = n.label;
@@ -644,7 +677,7 @@
     // on the graph it is thirty words where six will do. A note has no pair, so it falls
     // back to its own label and then to the line it marks.
     else if (n.kind === 'plant' || n.kind === 'reveal') text = shorten(n.pairLabel || n.label, 24);
-    else if (n.kind === 'note') text = shorten(n.flagLabel || n.label, 24);
+    else if (n.kind === 'note') text = shorten(n.thread || n.flagLabel || n.label, 24);
     else text = shorten(n.label, 22);
     ctx.fillText(text, n.x, n.y + r + 1.5);
   }
@@ -777,6 +810,26 @@
     });
   }
 
+  // A character's mythic threads, listed under whatever else the panel is showing. This is
+  // the "see all the threads for that character" question, answered in the one place the
+  // character is already selected.
+  function threadsFor(characterId) {
+    var mine = all.nodes.filter(function (n) {
+      return n.kind === 'note' && n.thread && n.characterId === characterId;
+    }).sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+    if (mine.length === 0) return '';
+
+    var names = {};
+    mine.forEach(function (n) { names[n.thread] = (names[n.thread] || 0) + 1; });
+    return '<div class="sub" style="margin-top:10px">' +
+      Object.keys(names).length + ' mythic thread' +
+      (Object.keys(names).length === 1 ? '' : 's') + '</div>' +
+      mine.map(function (n) {
+        return item(esc(n.thread), 'thread', THREAD_COLOR, n.chapterTitle || '',
+          n.label + (n.flagLabel ? '\n\n' + n.flagLabel : ''), null);
+      }).join('');
+  }
+
   function focusRelationships(me) {
     // Every individual interaction, not the aggregate: a pair who fall out in Ch 6 and
     // reconcile in Ch 12 have two things to say, and one averaged line says neither.
@@ -794,7 +847,7 @@
         it.description || 'No explanation recorded for this one yet.',
         null
       );
-    }).join('');
+    }).join('') + threadsFor(me.id);
   }
 
   function focusProgression(me) {
@@ -821,7 +874,7 @@
         detail || 'No summary recorded for this chapter yet.',
         progOrder[ev.id]
       );
-    }).join('');
+    }).join('') + threadsFor(me.id);
   }
 
   function focusEvent(me) {
@@ -856,11 +909,30 @@
     // rather than being told it is an unpaid something.
     if (me.kind === 'note') {
       var scene = me.sceneId ? byId[me.sceneId] : null;
-      return '<h3>Note</h3>' +
-        '<div class="sub">' + esc(me.chapterTitle || '') +
-        (scene ? ' · ' + esc(scene.label) : '') + '</div>' +
-        '<div class="quote note">' + esc(me.label) + '</div>' +
+      var owner = me.characterId ? byId[me.characterId] : null;
+      var html = '<h3>' + (me.thread ? esc(me.thread) : 'Note') + '</h3>' +
+        '<div class="sub">' + (me.thread ? 'Mythic thread · ' : '') +
+        esc(me.chapterTitle || '') + (scene ? ' · ' + esc(scene.label) : '') +
+        (owner ? ' · ' + esc(owner.label) : '') + '</div>' +
+        '<div class="quote ' + (me.thread ? 'thread' : 'note') + '">' + esc(me.label) + '</div>' +
         (me.flagLabel ? '<div class="sub">' + esc(me.flagLabel) + '</div>' : '');
+
+      // Every other touch of the same parallel, in saga order. A thread that recurs is the
+      // only kind worth naming, so the other touches are the point of opening this one.
+      if (me.thread) {
+        var siblings = all.nodes.filter(function (n) {
+          return n.kind === 'note' && n.thread === me.thread && n.id !== me.id;
+        }).sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+        html += siblings.map(function (n) {
+          return item(esc(shorten(n.label, 46)), 'touch', THREAD_COLOR, n.chapterTitle || '',
+            n.label + (n.flagLabel ? '\n\n' + n.flagLabel : ''), null);
+        }).join('');
+        if (siblings.length === 0) {
+          html += item('Only touch so far', 'thread', THREAD_COLOR, '',
+            'This parallel is drawn once. A thread earns the name when it recurs -- tag another note with the same thread and they gather here.', null);
+        }
+      }
+      return html;
     }
 
     var pair = pairs[me.pairId] || { plants: [], reveals: [], label: me.pairLabel };
@@ -1018,11 +1090,39 @@
           };
         });
     }
+    if (indexTab === 'threads') {
+      // Grouped by the parallel rather than listed flat: a thread is a thing that recurs,
+      // and twelve separate rows for one parallel is the opposite of the point.
+      var byThread = {};
+      all.nodes.forEach(function (n) {
+        if (n.kind !== 'note' || !n.thread) return;
+        if (!byThread[n.thread]) byThread[n.thread] = [];
+        byThread[n.thread].push(n);
+      });
+      return Object.keys(byThread)
+        .filter(function (t) {
+          return hit(t) || byThread[t].some(function (n) { return hit(n.label) || hit(n.flagLabel); });
+        })
+        .sort()
+        .map(function (t) {
+          var touches = byThread[t].sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+          var owner = touches[0].characterId ? byId[touches[0].characterId] : null;
+          return {
+            id: touches[0].id, no: touches.length, name: t,
+            meta: (owner ? owner.label + ' · ' : '') + touches.length +
+              ' touch' + (touches.length === 1 ? '' : 'es'),
+            tag: owner ? '' : 'no character'
+          };
+        });
+    }
     if (indexTab === 'plants' || indexTab === 'reveals' || indexTab === 'notes') {
       var kind = indexTab === 'notes' ? 'note' : (indexTab === 'plants' ? 'plant' : 'reveal');
       return all.nodes
         .filter(function (n) {
-          return n.kind === kind && (hit(n.label) || hit(n.pairLabel) || hit(n.chapterTitle) || hit(n.flagLabel));
+          if (n.kind !== kind) return false;
+          // Threads have their own tab; listing them here too makes both lists worse.
+          if (kind === 'note' && n.thread) return false;
+          return hit(n.label) || hit(n.pairLabel) || hit(n.chapterTitle) || hit(n.flagLabel);
         })
         .sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); })
         .map(function (n) {
@@ -1286,7 +1386,9 @@
     };
     var el = document.getElementById('count');
     if (mode === 'flags') {
-      el.textContent = of('plant') + ' plants · ' + of('reveal') + ' reveals · ' + of('note') + ' notes';
+      var threads = source.filter(function (n) { return n.kind === 'note' && n.thread; }).length;
+      el.textContent = of('plant') + ' plants · ' + of('reveal') + ' reveals · ' +
+        (of('note') - threads) + ' notes · ' + threads + ' threads';
     } else if (mode === 'structure') {
       el.textContent = of('chapter') + ' chapters · ' + of('scene') + ' scenes';
     } else {
@@ -1327,12 +1429,14 @@
   function setFlagFilter(next) {
     flagFilter = next;
     [['all', 'flag-all'], ['plants', 'flag-plants'], ['reveals', 'flag-reveals'],
-     ['notes', 'flag-notes'], ['pairs', 'flag-pairs'], ['open', 'flag-open']].forEach(function (p) {
+     ['notes', 'flag-notes'], ['threads', 'flag-threads'],
+     ['pairs', 'flag-pairs'], ['open', 'flag-open']].forEach(function (p) {
       var el = document.getElementById(p[1]);
       var base = 'chip';
       if (p[0] === 'plants') base = 'chip plant';
       else if (p[0] === 'reveals') base = 'chip reveal';
       else if (p[0] === 'notes') base = 'chip note';
+      else if (p[0] === 'threads') base = 'chip thread';
       el.className = base + (flagFilter === p[0] ? ' on' : '');
     });
     if (graph) {
@@ -1355,6 +1459,7 @@
   document.getElementById('flag-plants').addEventListener('click', function () { setFlagFilter('plants'); });
   document.getElementById('flag-reveals').addEventListener('click', function () { setFlagFilter('reveals'); });
   document.getElementById('flag-notes').addEventListener('click', function () { setFlagFilter('notes'); });
+  document.getElementById('flag-threads').addEventListener('click', function () { setFlagFilter('threads'); });
   document.getElementById('flag-pairs').addEventListener('click', function () { setFlagFilter('pairs'); });
   document.getElementById('flag-open').addEventListener('click', function () { setFlagFilter('open'); });
 
@@ -1397,7 +1502,11 @@
       indexTab = el.getAttribute('data-tab');
       Array.prototype.forEach.call(document.querySelectorAll('#index .tabs .chip'), function (other) {
         var tab = other.getAttribute('data-tab');
-        var base = tab === 'plants' ? 'chip plant' : (tab === 'reveals' ? 'chip reveal' : 'chip');
+        var base = 'chip';
+        if (tab === 'plants') base = 'chip plant';
+        else if (tab === 'reveals') base = 'chip reveal';
+        else if (tab === 'notes') base = 'chip note';
+        else if (tab === 'threads') base = 'chip thread';
         other.className = base + (tab === indexTab ? ' on' : '');
       });
       renderIndex();

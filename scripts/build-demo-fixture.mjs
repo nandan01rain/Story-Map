@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { PLANT_REVEAL_PAIRS } from './demo-plants-reveals.mjs';
+import { MYTHIC_THREADS, PLANT_REVEAL_PAIRS } from './demo-plants-reveals.mjs';
 
 const DEMO = path.join(process.cwd(), 'demo');
 const OUT = path.join(process.cwd(), 'mobile', 'src', 'lib', 'demoFixture.ts');
@@ -264,6 +264,44 @@ for (const chapter of chapters) {
   for (const a of chapter.annotations) delete a.at;
 }
 
+// --- mythic threads -------------------------------------------------------
+// Notes carrying a `thread`, which is all a mythic thread is. Same anchor resolver as the
+// pairs, so a quote that stops matching the prose fails the build rather than vanishing.
+const threadFailures = [];
+for (const entry of MYTHIC_THREADS) {
+  entry.touches.forEach(([chapterNumber, anchor, label], i) => {
+    const found = locateAnchor(chapterNumber, anchor);
+    if (found.error) {
+      threadFailures.push(`${entry.thread} - ${found.error}`);
+      return;
+    }
+    chapterByNumber.get(chapterNumber).annotations.push({
+      id: `thread-${entry.thread.toLowerCase().replace(/[^a-z]+/g, '-')}-${i}`,
+      type: 'note',
+      text: found.text,
+      label,
+      pairId: null,
+      pairLabel: null,
+      thread: entry.thread,
+      // Resolved to a real character node id at import; the fixture cannot know one.
+      characterKey: entry.character,
+      sceneOrder: null,
+      at: found.at,
+    });
+  });
+}
+
+if (threadFailures.length > 0) {
+  throw new Error(`Mythic thread anchors that did not match:\n  ${threadFailures.join('\n  ')}`);
+}
+
+for (const chapter of chapters) {
+  chapter.annotations.sort(
+    (a, b) => chapter.content.indexOf(a.text) - chapter.content.indexOf(b.text),
+  );
+  for (const a of chapter.annotations) delete a.at;
+}
+
 // Overlapping flags are dropped at render time in annotation-array order (storyData.ts),
 // which would make one of the two invisible for reasons nothing explains. Caught here
 // instead, where the fix is to move an anchor. Runs after the notes are in, so it covers
@@ -414,6 +452,16 @@ const relationships = [
 ];
 
 const knownKeys = new Set(characters.map((c) => c.key));
+
+// A thread pointing at a character who does not exist is a thread nobody can browse to --
+// the whole feature is "see this person's threads".
+const orphanThreads = MYTHIC_THREADS.filter((t) => !knownKeys.has(t.character));
+if (orphanThreads.length > 0) {
+  throw new Error(
+    `Threads on unknown characters: ${orphanThreads.map((t) => `${t.thread}->${t.character}`).join(', ')}`,
+  );
+}
+
 const dropped = relationships.filter(([a, b]) => !knownKeys.has(a) || !knownKeys.has(b));
 if (dropped.length > 0) {
   // Silently dropping these is how the "Dr. Sunny Joseph" short-name bug hid: five edges
@@ -505,6 +553,10 @@ export type DemoAnnotation = {
   pairLabel: string | null;
   /** Which scene of its chapter this belongs to, resolved to a real id at import time. */
   sceneOrder?: number | null;
+  /** A mythic thread's name. Only ever set on a note. */
+  thread?: string | null;
+  /** Whose arc the parallel belongs to, resolved to a real character node id at import. */
+  characterKey?: string | null;
 };
 export type DemoChapter = {
   number: number;
@@ -568,5 +620,10 @@ const flagCount = (type) => chapters.reduce((n, c) => n + c.annotations.filter((
 console.log(`plants        ${flagCount('plant')}`);
 console.log(`reveals       ${flagCount('reveal')}`);
 console.log(`pairs         ${plantRevealPairs.length} (${plantRevealPairs.filter((p) => p.reveals === 0).length} unpaid)`);
-console.log(`notes         ${flagCount('note')}`);
+const threadCount = chapters.reduce(
+  (n, c) => n + c.annotations.filter((a) => a.thread).length,
+  0,
+);
+console.log(`notes         ${flagCount('note') - threadCount}`);
+console.log(`threads       ${MYTHIC_THREADS.length} (${threadCount} touches)`);
 console.log(`wrote         ${path.relative(process.cwd(), OUT)}`);
