@@ -54,8 +54,13 @@ cd mobile
 eas init                  # creates the EAS project and fills in the id
 ```
 
-`eas init` replaces both `REPLACE_WITH_EAS_PROJECT_ID` placeholders in `mobile/app.json`
-(`updates.url` and `extra.eas.projectId`). Nothing works until it has.
+`eas init` writes `extra.eas.projectId` into `mobile/app.json` and links the project; the
+updates URL resolves from that link at build time. Neither key is in the file to begin with,
+deliberately — a placeholder value makes the CLI believe the project is already linked, so it
+skips creating one and then fails on the value not being a UUID.
+
+**Commit `mobile/app.json` afterwards**, or the link is lost and the next machine re-creates
+a different project.
 
 ### The three build profiles
 
