@@ -57,6 +57,21 @@ eas init                  # creates the EAS project and fills in the id
 `eas init` replaces both `REPLACE_WITH_EAS_PROJECT_ID` placeholders in `mobile/app.json`
 (`updates.url` and `extra.eas.projectId`). Nothing works until it has.
 
+### The three build profiles
+
+`eas.json` has no comments in it — EAS validates that file against a strict schema and
+rejects unknown keys, including the `"//"` convention JSON tolerates elsewhere. So the
+explanations live here:
+
+| Profile | Output | Channel | For |
+|---|---|---|---|
+| `preview` | `.apk` | `preview` | Your own phone. Installs directly, no store. |
+| `production` | `.aab` | `production` | The day this goes to the Play Store. Its own channel, so a store build can never pick up an update meant for your pocket. |
+| `development` | `.apk` + dev client | — | Attaching the Metro bundler when a native module misbehaves and Expo Go cannot load it. Not needed normally. |
+
+`distribution: "internal"` on preview is what makes EAS give you an install URL instead of
+preparing a store submission.
+
 ### Build the APK
 
 ```bash
