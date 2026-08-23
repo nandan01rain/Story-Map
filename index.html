@@ -19,6 +19,26 @@
      distinct from the rest of the app's dark-panel palette above. */
   --parchment:#cfbb8c; --parchment-dark:#b7a173; --ink:#2c2011; --brass:#8a6a35;
   --plate-dark:#170f08;
+}
+
+/* Day, ported from the mobile app's DAY_COLORS (mobile/src/theme.ts), which is the newer of
+   the two and the one that has actually been used on a device.
+
+   Only the structural roles move: surfaces to cream, ink to dark brown. Gold, ember, teal
+   and danger are identical in both palettes by deliberate choice -- an accent that changes
+   with the time of day stops being an accent and starts being a second theme.
+
+   The four surface tokens step in the opposite direction from night. There, --bg is darkest
+   and each layer above it lightens; here --bg is lightest and each layer settles darker, so
+   "further forward" reads the same way in both.
+
+   Applied by a data-theme attribute on <html> rather than by prefers-color-scheme: this
+   follows the clock, not the OS appearance setting, and those are different questions. */
+html[data-theme="day"]{
+  --bg:#faf3e0; --bg-alt:#f4ead0; --panel:#f1e6c8; --panel-2:#ecdfb8;
+  --border:#d9c896; --text:#2c2011; --text-dim:#6b5d42;
+  --gray:#8a7355;
+  --plate-dark:#efe3c2;
   /* Typography tokens — default values reproduce the app's current, already-shipping
      fonts exactly (Cinzel Decorative / Cinzel / Spectral / Inter / JetBrains Mono),
      one role per distinct font previously hardcoded throughout the stylesheet:
@@ -225,6 +245,13 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .link-candidate .lc-snippet{font-family:var(--font-literary);font-style:italic;color:var(--text-dim);}
 .link-candidate .lc-loc{font-family:var(--font-mono);font-size:9.5px;color:var(--gold);margin-top:2px;}
 .link-candidate.lc-skip{color:var(--text-dim);font-style:italic;}
+
+.theme-row{display:flex;gap:6px;margin:2px 0 8px;}
+.theme-choice{
+  flex:1;background:var(--bg-alt);border:1px solid var(--border);color:var(--text-dim);
+  border-radius:6px;padding:6px 0;font:11px/1 var(--font-body);cursor:pointer;
+}
+.theme-choice.active{border-color:var(--gold);color:var(--gold);background:rgba(198,154,58,0.14);}
 
 #ledger-view, #thread-view, #web-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
 #ledger-view.show, #thread-view.show, #web-view.show{display:flex;}
@@ -1574,6 +1601,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
       <div class="hdr-section" data-section="manage">
         <div class="hdr-section-label" data-toggle-section="manage"><span class="hdr-section-label-text">Manage</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
+        <div class="theme-row">
+          <button class="theme-choice" data-theme-choice="day" title="Day">&#9788;</button>
+          <button class="theme-choice" data-theme-choice="night" title="Night">&#9789;</button>
+          <button class="theme-choice" data-theme-choice="auto" title="Follow the clock">Auto</button>
+        </div>
         <button class="btn hdr-collapsible" id="export-btn"><svg class="nav-icon"><use href="#icon-download"></use></svg> Export</button>
         <button class="btn hdr-collapsible" id="export-epub-btn"><svg class="nav-icon"><use href="#icon-book-closed"></use></svg> Export as eBook</button>
         <button class="btn hdr-collapsible" id="import-btn"><svg class="nav-icon"><use href="#icon-upload"></use></svg> Import</button>
@@ -5060,6 +5092,56 @@ function renderLedger(){
     wireLabelEditButton(el, el.closest('.ledger-row'), el.dataset.editChapter, parseInt(el.dataset.editAnnotation), renderLedger);
   });
 }
+/* ---------- DAY / NIGHT ----------
+   Three preferences, one resolved value. 'auto' follows the DEVICE CLOCK -- 6am to 6pm reads
+   as day -- not the OS's light/dark setting, which is a preference someone set once and not
+   a statement about what time it is. Same rule, same hours and same storage semantics as the
+   mobile app (mobile/src/theme.ts), so the two look alike at the same moment.
+
+   Device-local, like mobile's: this is about the room you are sitting in, not about the
+   account, so it lives in localStorage rather than in user_metadata. */
+const THEME_KEY = 'storymap-theme';
+const DAY_START_HOUR = 6, DAY_END_HOUR = 18;
+let themePreference = 'night';
+
+function resolveThemeByClock(){
+  const hour = new Date().getHours();
+  return hour >= DAY_START_HOUR && hour < DAY_END_HOUR ? 'day' : 'night';
+}
+
+function applyTheme(){
+  const resolved = themePreference === 'auto' ? resolveThemeByClock() : themePreference;
+  // Night is the stylesheet's own :root, so it is the absence of the attribute rather than a
+  // second set of overrides that has to be kept in step with the first.
+  if(resolved === 'day') document.documentElement.setAttribute('data-theme', 'day');
+  else document.documentElement.removeAttribute('data-theme');
+
+  document.querySelectorAll('[data-theme-choice]').forEach(el => {
+    el.classList.toggle('active', el.dataset.themeChoice === themePreference);
+  });
+}
+
+function setThemePreference(next){
+  themePreference = next;
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  applyTheme();
+}
+
+(function initTheme(){
+  try{
+    const saved = localStorage.getItem(THEME_KEY);
+    if(saved === 'day' || saved === 'night' || saved === 'auto') themePreference = saved;
+  }catch(e){}
+  applyTheme();
+  // Only matters while 'auto' is selected, but cheap enough to always run -- so the flip
+  // actually happens at 6am and 6pm rather than the next time the page is loaded.
+  setInterval(() => { if(themePreference === 'auto') applyTheme(); }, 60000);
+})();
+
+document.querySelectorAll('[data-theme-choice]').forEach(el => {
+  el.addEventListener('click', () => setThemePreference(el.dataset.themeChoice));
+});
+
 /* ---------- CHARACTER WEB ----------
    The renderer is character-web.html, the same document the phone runs in a WebView, loaded
    here in an iframe. Nothing about the graph is implemented twice: this end fetches the data
