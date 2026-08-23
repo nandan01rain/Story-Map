@@ -18,8 +18,8 @@ export type DemoAnnotation = {
   label: string;
   /** Shared by both ends of a pair. A pair with no reveal is an unpaid plant, which is a
    *  real state. Null on a note, which has no far end. */
-  pairId: string | null;
-  pairLabel: string | null;
+  /** Every setup/payoff grouping this flag belongs to. Empty on a note. */
+  pairs: { id: string; label: string }[];
   /** Which scene of its chapter this belongs to, resolved to a real id at import time. */
   sceneOrder?: number | null;
   /** A mythic thread's name. Only ever set on a note. */
@@ -87,24 +87,31 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "She kept, in a box she told no one about, a single dried jasmine flower from the first night he had told her, plainly, without performance, that he loved her",
           "label": "Never returned to, anywhere in the manuscript.",
-          "pairId": "pr-24",
-          "pairLabel": "The dried jasmine flower"
+          "pairs": [
+            {
+              "id": "pr-24",
+              "label": "The dried jasmine flower"
+            }
+          ]
         },
         {
           "id": "pr-01-p0",
           "type": "plant",
           "text": "There was no negotiation in the way stories would later tell it. There was a price, and a party who received it, and Nagavalli was not that party.",
           "label": "The transaction stated plainly, in the only chapter with no family legend layered over it.",
-          "pairId": "pr-01",
-          "pairLabel": "Nagavalli was purchased, not courted"
+          "pairs": [
+            {
+              "id": "pr-01",
+              "label": "Nagavalli was purchased, not courted"
+            }
+          ]
         },
         {
           "id": "thread-the-woman-taken-0",
           "type": "note",
           "text": "she was being described in the same conversations as the horses and the silverware",
           "label": "Sita, Persephone, Helen — the abducted woman whose story is told by everyone except her. Ch 0 exists to give her the telling back.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The woman taken",
           "characterKey": "nagavalli",
           "sceneOrder": null
@@ -114,24 +121,31 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "that he had gone to Ramanathan with the particular unhurried calm of a man who has already decided the shape of the evening and is merely walking through its stages, that there had been no shouting, no crime of passion in the way the word suggested a loss of control, only a decision, executed.",
           "label": "The cottage first, and the calm of a man walking through stages he has already decided.",
-          "pairId": "pr-02",
-          "pairLabel": "Sequential, methodical murders — not one crime of passion"
+          "pairs": [
+            {
+              "id": "pr-02",
+              "label": "Sequential, methodical murders — not one crime of passion"
+            }
+          ]
         },
         {
           "id": "pr-25-p0",
           "type": "plant",
           "text": "The anklets were still on the floor of the Thekkini three days later",
           "label": "Set down where they fell, and left there for a century and a half.",
-          "pairId": "pr-25",
-          "pairLabel": "The anklets, the mirror, the lamp"
+          "pairs": [
+            {
+              "id": "pr-25",
+              "label": "The anklets, the mirror, the lamp"
+            }
+          ]
         },
         {
           "id": "note-ch0",
           "type": "note",
           "text": "No one, in the century and a half that followed, ever quite managed to think of a reason they should be moved, and so they stayed exactly where they had fallen, gathering dust in a room nobody entered, waiting — if a pair of anklets can be said to wait for anything — for someone to finally ask the right question about what, precisely, had happened in this house, and to whom, and why the answer the family told itself at dinner had never once included the word *bought*.",
           "label": "Ends on: The anklets, still.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 4
         }
       ],
@@ -183,8 +197,7 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "note",
           "text": "The keys held, always, by the household's eldest, never touched, never spoken of lightly.",
           "label": "Bluebeard, Pandora, Lot’s wife: the room that must not be opened, and the certainty that it will be. The prohibition is the plot.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The forbidden chamber",
           "characterKey": "ganga",
           "sceneOrder": null
@@ -194,16 +207,24 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "\"You will not go near that door,\" Valyammai said",
           "label": "The prohibition, delivered to the room and aimed at one person in it.",
-          "pairId": "pr-22",
-          "pairLabel": "The locked door, and Valyammai's warning"
+          "pairs": [
+            {
+              "id": "pr-22",
+              "label": "The locked door, and Valyammai's warning"
+            }
+          ]
         },
         {
           "id": "pr-03-p0",
           "type": "plant",
           "text": "he knew this only because Ganga's slippers, left neatly by the door the night before, were faintly, inexplicably, dusty.",
           "label": "She has already walked the gallery, before anyone thinks the keys are missing.",
-          "pairId": "pr-03",
-          "pairLabel": "Ganga's dusty slippers, night one"
+          "pairs": [
+            {
+              "id": "pr-03",
+              "label": "Ganga's dusty slippers, night one"
+            }
+          ]
         }
       ],
       "scenes": [
@@ -254,32 +275,43 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "that half-second delay, the eyes catching up to the face a beat after the face had already begun to smile.",
           "label": "The first visible trace of the alter, dressed as tiredness.",
-          "pairId": "pr-04",
-          "pairLabel": "Ganga's far-away lapses"
+          "pairs": [
+            {
+              "id": "pr-04",
+              "label": "Ganga's far-away lapses"
+            }
+          ]
         },
         {
           "id": "pr-05-p0",
           "type": "plant",
           "text": "Ganga's hand moved, without her seeming to notice it moving, to rest flat against her stomach",
           "label": "The undisclosed grief, gestured at and never named.",
-          "pairId": "pr-05",
-          "pairLabel": "The hand on the stomach"
+          "pairs": [
+            {
+              "id": "pr-05",
+              "label": "The hand on the stomach"
+            }
+          ]
         },
         {
           "id": "pr-06-p0",
           "type": "plant",
           "text": "You know I did my residency partly on a dissociative disorders ward. Nothing scares me anymore.",
           "label": "The diagnosis is in his mouth in Chapter 2, as a joke, eight chapters before he means it.",
-          "pairId": "pr-06",
-          "pairLabel": "Sunny's dissociative-ward joke"
+          "pairs": [
+            {
+              "id": "pr-06",
+              "label": "Sunny's dissociative-ward joke"
+            }
+          ]
         },
         {
           "id": "note-ch2",
           "type": "note",
           "text": "He did not yet know how soon he would be asking Sunny the same question again, in person, with considerably less room left for easy explanations.",
           "label": "Ends on: Ganga's hand, briefly, resting on her own stomach without seeming to notice she's done it.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -325,32 +357,48 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "Sridevi noticed things. It was not a virtue she had cultivated so much as a habit she had backed into, the way a person backs into a corner of a crowded room without deciding to — she had grown up slightly to the side of this family's attention, close enough to be included, never quite close enough to be the center of anything, and a person in that position learns, without meaning to, to watch.",
           "label": "Established as temperament long before it becomes useful.",
-          "pairId": "pr-09",
-          "pairLabel": "Sridevi's habit of quiet observation"
+          "pairs": [
+            {
+              "id": "pr-09",
+              "label": "Sridevi's habit of quiet observation"
+            }
+          ]
         },
         {
           "id": "pr-25-p1",
           "type": "plant",
           "text": "a cracked mirror that had lost most of its silvering, and, near the foot of the bed, a pair of anklets, tarnished black",
           "label": "Seen again, close up — and then not used.",
-          "pairId": "pr-25",
-          "pairLabel": "The anklets, the mirror, the lamp"
+          "pairs": [
+            {
+              "id": "pr-25",
+              "label": "The anklets, the mirror, the lamp"
+            }
+          ]
         },
         {
           "id": "pr-07-p0",
           "type": "plant",
           "text": "heard her say something under her breath. A few words, low, in a cadence that was almost but not quite the Tamil the household used, the accent slightly wrong",
           "label": "A language learned by ear rather than lived in — the tell that it was performed at her, not inherited.",
-          "pairId": "pr-07",
-          "pairLabel": "The unfamiliar Tamil phrase"
+          "pairs": [
+            {
+              "id": "pr-07",
+              "label": "The unfamiliar Tamil phrase"
+            }
+          ]
         },
         {
           "id": "pr-08-p0",
           "type": "plant",
           "text": "G. said something in the Thekkini. Not sure what. Didn't sound like her.",
           "label": "The record begins the day of the key theft, before anyone knows there is anything to record.",
-          "pairId": "pr-08",
-          "pairLabel": "Sridevi's first notebook entry"
+          "pairs": [
+            {
+              "id": "pr-08",
+              "label": "Sridevi's first notebook entry"
+            }
+          ]
         }
       ],
       "scenes": [
@@ -395,24 +443,31 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "a long diagonal slash through the painted hands, crudely repaired with backing cloth that had itself gone dark with age.",
           "label": "The slash goes through the hands specifically. Ch 9's true history never reconnects to the image.",
-          "pairId": "pr-26",
-          "pairLabel": "The damaged ancestor portrait"
+          "pairs": [
+            {
+              "id": "pr-26",
+              "label": "The damaged ancestor portrait"
+            }
+          ]
         },
         {
           "id": "pr-10-p0",
           "type": "plant",
           "text": "A tumbler on the dining table, standing undisturbed, no one within arm's reach, simply — cracked, cleanly",
           "label": "The first breakage, with a perfectly reasonable explanation already attached to it.",
-          "pairId": "pr-10",
-          "pairLabel": "Objects shattering with no clear cause"
+          "pairs": [
+            {
+              "id": "pr-10",
+              "label": "Objects shattering with no clear cause"
+            }
+          ]
         },
         {
           "id": "note-ch4",
           "type": "note",
           "text": "She only looked at the small lamp, and let it burn, and did not go to bed until it had.",
           "label": "Ends on: Valyammai discovering the disturbed lock, saying nothing to anyone yet.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -458,8 +513,7 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "note",
           "text": "It's opened,",
           "label": "The motif completes the moment the door gives. Everything after is consequence, which is how the forbidden-chamber story always runs.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The forbidden chamber",
           "characterKey": "ganga",
           "sceneOrder": null
@@ -469,32 +523,43 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "The rite ended without incident, which should have been a relief and instead only deepened the unease in the room — a ritual that produces no visible effect is, to a frightened household, not evidence of nothing happening but evidence that whatever is happening is stronger than the tools they have to address it.",
           "label": "Tradition alone, and it does nothing.",
-          "pairId": "pr-23",
-          "pairLabel": "The failed puja against the designed rite"
+          "pairs": [
+            {
+              "id": "pr-23",
+              "label": "The failed puja against the designed rite"
+            }
+          ]
         },
         {
           "id": "pr-12-p0",
           "type": "plant",
           "text": "Ganga, standing near the shrine room's lamps, her saree already alight along one edge, moving — not screaming, not panicking, moving with a strange deliberate slowness",
           "label": "Deliberate slowness where panic belongs — the detail that makes it a state, not an attack.",
-          "pairId": "pr-12",
-          "pairLabel": "The saree fire"
+          "pairs": [
+            {
+              "id": "pr-12",
+              "label": "The saree fire"
+            }
+          ]
         },
         {
           "id": "pr-11-p0",
           "type": "plant",
           "text": "watched it land first, uncertainly, on his own wife, a dozen frightened eyes finding her and flinching away again as though the accusation were too large to actually hold in place — and then, in the scramble to find somewhere safer to put it, watched it swing instead toward Sridevi",
           "label": "The accusation looking for somewhere safer to land.",
-          "pairId": "pr-11",
-          "pairLabel": "\"Possessed\" — spoken, then redirected to Sridevi"
+          "pairs": [
+            {
+              "id": "pr-11",
+              "label": "\"Possessed\" — spoken, then redirected to Sridevi"
+            }
+          ]
         },
         {
           "id": "note-ch5",
           "type": "note",
           "text": "Nakulan hung up and stood alone in the dark corridor for a long moment, the smell of smoke still faint in the air, and did not yet know how much the shape of the coming days would owe to a promise made half-asleep, across an ocean, by a man who had no idea yet just how strange the truth was going to turn out to be.",
           "label": "Ends on: Nakulan on the phone, asking Sunny to come immediately. **End of Act One.**",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 4
         }
       ],
@@ -546,24 +611,35 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "You have the look of someone who writes things down.",
           "label": "Sunny reads it off her in one line, which is how he ends up with a corroborating witness.",
-          "pairId": "pr-09",
-          "pairLabel": "Sridevi's habit of quiet observation"
+          "pairs": [
+            {
+              "id": "pr-09",
+              "label": "Sridevi's habit of quiet observation"
+            }
+          ]
         },
         {
           "id": "pr-13-p0",
           "type": "plant",
           "text": "He noted that Mahadevan, kneeling several feet away, had both hands empty and neither sleeve so much as creased.",
           "label": "The physical evidence nobody else in that corridor is looking at.",
-          "pairId": "pr-13",
-          "pairLabel": "Mahadevan's clean hands"
+          "pairs": [
+            {
+              "id": "pr-13",
+              "label": "Mahadevan's clean hands"
+            },
+            {
+              "id": "pr-14",
+              "label": "The voice's unusually accurate history"
+            }
+          ]
         },
         {
           "id": "note-ch6",
           "type": "note",
           "text": "Mahadevan caught Sunny's eye once, on his way past, a look that was half gratitude for the postponement and half genuine bewilderment, and Sunny gave him nothing back but a small, noncommittal nod — not yet an alliance, not yet a dismissal, just a doctor filing away one more piece of a picture that was already, quietly, beginning to assemble itself into a shape he did not yet want to say out loud.",
           "label": "Ends on: Sunny asking, mildly, whether anyone actually saw what happened, and getting no clear answer.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -609,8 +685,7 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "note",
           "text": "references to a betrayal, to a river of Thanjavur, to a man's hands.",
           "label": "The register the alter sings in is devotional. It is building itself a myth to act inside, and it has cast the parts already.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The goddess and the demon",
           "characterKey": "ganga",
           "sceneOrder": null
@@ -620,24 +695,31 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "details that made Sunny's clinical instincts sharpen even through the genuine unease crawling up his spine: precise turns of phrase, an intimacy with the geography of a court two hundred miles from here",
           "label": "Accuracy no family retelling could carry.",
-          "pairId": "pr-14",
-          "pairLabel": "The voice's unusually accurate history"
+          "pairs": [
+            {
+              "id": "pr-14",
+              "label": "The voice's unusually accurate history"
+            }
+          ]
         },
         {
           "id": "pr-15-p0",
           "type": "plant",
           "text": "\"On Durgashtami,\" the voice said, when the account was finished, \"you will answer for it. I will finish what his hands began, and this time nothing will stop the blade.\"",
           "label": "The deadline that structures the whole of Act Three.",
-          "pairId": "pr-15",
-          "pairLabel": "The Durgashtami deadline"
+          "pairs": [
+            {
+              "id": "pr-15",
+              "label": "The Durgashtami deadline"
+            }
+          ]
         },
         {
           "id": "note-ch7",
           "type": "note",
           "text": "He was investigating a person.",
           "label": "Ends on: Sunny alone in the corridor afterward, no longer treating this as a straightforward case.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -683,24 +765,31 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "I did not do this,* she wrote, first, because she needed the sentence in her own handwriting where she could look at it.",
           "label": "Written for herself, with no expectation that anyone will ever read it.",
-          "pairId": "pr-16",
-          "pairLabel": "Sridevi's notebook opening line"
+          "pairs": [
+            {
+              "id": "pr-16",
+              "label": "Sridevi's notebook opening line"
+            }
+          ]
         },
         {
           "id": "pr-27-p0",
           "type": "plant",
           "text": "the argument she'd overheard three days earlier between Achuthan Pillai and Nakulan's uncle over the quarterly accounts — a detail she had noted at the time only out of habit",
           "label": "Story Bible §3 and the Continuity Timeline both specify this thread stays unresolved.",
-          "pairId": "pr-27",
-          "pairLabel": "The accountant thread — contradicts the planning docs"
+          "pairs": [
+            {
+              "id": "pr-27",
+              "label": "The accountant thread — contradicts the planning docs"
+            }
+          ]
         },
         {
           "id": "note-ch8",
           "type": "note",
           "text": "She only knew that she had been wronged, and that being wronged, this particular time, had given her something to do with her hands besides wait — and that whatever came next, she intended to have a record of everything, in her own words, ready the moment anyone finally cared to ask her what she'd actually seen.",
           "label": "Ends on: Sridevi, alone, starting her notes with the sentence: \"I did not do this.\"",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -746,16 +835,19 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "It's not wrong, exactly. It's just missing the part where nobody asked her anything.",
           "label": "Bhargavi Amma names what the family's version leaves out.",
-          "pairId": "pr-01",
-          "pairLabel": "Nagavalli was purchased, not courted"
+          "pairs": [
+            {
+              "id": "pr-01",
+              "label": "Nagavalli was purchased, not courted"
+            }
+          ]
         },
         {
           "id": "thread-the-woman-taken-1",
           "type": "note",
           "text": "the transaction, not a courtship; Ramanathan already her partner before the Karanavar had ever laid eyes on her, not a seducer who stole her away",
           "label": "Named outright, a century and a half later, by a stranger with no stake in the family’s version of it.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The woman taken",
           "characterKey": "nagavalli",
           "sceneOrder": null
@@ -765,24 +857,31 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "the murders themselves, described not as a single unified act of a man undone by passion but as two separate, sequential acts, the cottage first, methodical, and only afterward, drunk and unravelling, the Thekkini.",
           "label": "The outside record confirms the order, which is the detail the legend sands off.",
-          "pairId": "pr-02",
-          "pairLabel": "Sequential, methodical murders — not one crime of passion"
+          "pairs": [
+            {
+              "id": "pr-02",
+              "label": "Sequential, methodical murders — not one crime of passion"
+            }
+          ]
         },
         {
           "id": "pr-14-r1",
           "type": "reveal",
           "text": "Whoever, or whatever, was speaking from behind that locked door knew a version of the story the family itself did not know.",
           "label": "Matched against the Evoor record — and it narrows the field of explanation rather than widening it.",
-          "pairId": "pr-14",
-          "pairLabel": "The voice's unusually accurate history"
+          "pairs": [
+            {
+              "id": "pr-14",
+              "label": "The voice's unusually accurate history"
+            }
+          ]
         },
         {
           "id": "note-ch9",
           "type": "note",
           "text": "But he had, for the first time since arriving at Madampalli, the shape of a question he actually knew how to ask, and he drove the rest of the way back in a silence that had nothing left of jetlag or performance in it at all.",
           "label": "Ends on: Sunny, on the road back, asking himself who in the household could possibly know these specific, unrecorded details.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -828,96 +927,143 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "laying every fact he had out on the small writing desk in his room the way he'd once been trained to lay out a differential diagnosis — not in order of drama, but in order of evidence.",
           "label": "Folded into the evidence list. Note: that paragraph never names the shattering objects — this payoff is structural, not stated.",
-          "pairId": "pr-10",
-          "pairLabel": "Objects shattering with no clear cause"
+          "pairs": [
+            {
+              "id": "pr-10",
+              "label": "Objects shattering with no clear cause"
+            }
+          ]
         },
         {
           "id": "pr-04-r1",
           "type": "reveal",
           "text": "Ganga's far-away moods, first noted by Nakulan before either of them had reason to think anything of it.",
           "label": "Recognised as an early dissociative symptom rather than travel fatigue.",
-          "pairId": "pr-04",
-          "pairLabel": "Ganga's far-away lapses"
+          "pairs": [
+            {
+              "id": "pr-04",
+              "label": "Ganga's far-away lapses"
+            }
+          ]
         },
         {
           "id": "pr-03-r1",
           "type": "reveal",
           "text": "The dust on her slippers, the very first morning, before the keys were even officially missing.",
           "label": "Read back as evidence, in Sunny's differential.",
-          "pairId": "pr-03",
-          "pairLabel": "Ganga's dusty slippers, night one"
+          "pairs": [
+            {
+              "id": "pr-03",
+              "label": "Ganga's dusty slippers, night one"
+            }
+          ]
         },
         {
           "id": "pr-12-r1",
           "type": "reveal",
           "text": "The saree fire, which Ganga genuinely did not seem to remember, staged close enough to open flame that it read, on close honest examination, far more plausibly as an accident involving a person not fully present in her own body than as an attack by anything external.",
           "label": "Confirmed as a dissociative-state accident.",
-          "pairId": "pr-12",
-          "pairLabel": "The saree fire"
+          "pairs": [
+            {
+              "id": "pr-12",
+              "label": "The saree fire"
+            }
+          ]
         },
         {
           "id": "pr-13-r1",
           "type": "reveal",
           "text": "The Alli incident, where the physical evidence — Mahadevan's empty, uncreased hands — had never actually supported the accusation",
           "label": "Stated outright: the household convicted him by proximity.",
-          "pairId": "pr-13",
-          "pairLabel": "Mahadevan's clean hands"
+          "pairs": [
+            {
+              "id": "pr-13",
+              "label": "Mahadevan's clean hands"
+            },
+            {
+              "id": "pr-14",
+              "label": "The voice's unusually accurate history"
+            }
+          ]
         },
         {
           "id": "pr-14-r2",
           "type": "reveal",
           "text": "a version, Sunny was now near certain, that could only have reached Ganga through an unusually thorough, unusually immersive childhood exposure",
           "label": "The clinical conclusion drawn from it. (The supplied table lists this line under Ch 9; it is in Ch 10.)",
-          "pairId": "pr-14",
-          "pairLabel": "The voice's unusually accurate history"
+          "pairs": [
+            {
+              "id": "pr-14",
+              "label": "The voice's unusually accurate history"
+            }
+          ]
         },
         {
           "id": "pr-07-r1",
           "type": "reveal",
           "text": "a grand-aunt on Ganga's side, now deceased, who had spent years steeped in Tamil court-dance history, who had — the cousin remembered this vividly, laughing slightly at the memory — used to perform the whole Nagavalli story for a young, rapt Ganga, in full costume",
           "label": "Traced to the grand-aunt, in costume, again and again.",
-          "pairId": "pr-07",
-          "pairLabel": "The unfamiliar Tamil phrase"
+          "pairs": [
+            {
+              "id": "pr-07",
+              "label": "The unfamiliar Tamil phrase"
+            }
+          ]
         },
         {
           "id": "pr-06-r1",
           "type": "reveal",
           "text": "He wrote out the clinical picture in full, for his own clarity as much as anything: a Dissociative Identity Disorder",
           "label": "The joke, made seriously.",
-          "pairId": "pr-06",
-          "pairLabel": "Sunny's dissociative-ward joke"
+          "pairs": [
+            {
+              "id": "pr-06",
+              "label": "Sunny's dissociative-ward joke"
+            }
+          ]
         },
         {
           "id": "pr-08-r1",
           "type": "reveal",
           "text": "she reached for her notebook and turned it around to face him. \"I've been keeping my own record,\"",
           "label": "Two independent lines of evidence converging — hers built with no knowledge of his.",
-          "pairId": "pr-08",
-          "pairLabel": "Sridevi's first notebook entry"
+          "pairs": [
+            {
+              "id": "pr-08",
+              "label": "Sridevi's first notebook entry"
+            }
+          ]
         },
         {
           "id": "pr-16-r1",
           "type": "reveal",
           "text": "her account, built with no knowledge of his diagnosis, mapped almost exactly onto the timeline he'd assembled from the other direction.",
           "label": "The record that corroborates Sunny from the opposite direction.",
-          "pairId": "pr-16",
-          "pairLabel": "Sridevi's notebook opening line"
+          "pairs": [
+            {
+              "id": "pr-16",
+              "label": "Sridevi's notebook opening line"
+            }
+          ]
         },
         {
           "id": "pr-21-p0",
           "type": "plant",
           "text": "\"This is extraordinary,\" he said, and meant it entirely as a compliment. \"You'd have made a decent clinician.\"",
           "label": "Small, collaborative, and not yet romantic.",
-          "pairId": "pr-21",
-          "pairLabel": "Sunny and Sridevi, working together"
+          "pairs": [
+            {
+              "id": "pr-21",
+              "label": "Sunny and Sridevi, working together"
+            }
+          ]
         },
         {
           "id": "note-ch10",
           "type": "note",
           "text": "\"Exactly that,\" Sunny said, and sat with the weight of it a long moment, because the diagnosis, however correct, was, on its own, entirely useless to a household that would never accept a psychiatric explanation on its own terms — and Durgashtami was five days away.",
           "label": "Ends on: Sunny's realization that a clinical diagnosis alone will save no one — the family will never accept it on its own terms.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 4
         }
       ],
@@ -969,32 +1115,43 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "a conversation, quietly reconstructed, that placed Achuthan Pillai's movements near the kitchen at precisely the relevant window, and a financial motive nobody had bothered examining",
           "label": "The prose resolves it anyway. This reveal contradicts the plan — it needs a decision, not a fix.",
-          "pairId": "pr-27",
-          "pairLabel": "The accountant thread — contradicts the planning docs"
+          "pairs": [
+            {
+              "id": "pr-27",
+              "label": "The accountant thread — contradicts the planning docs"
+            }
+          ]
         },
         {
           "id": "pr-11-r1",
           "type": "reveal",
           "text": "\"She had nothing to do with it,\" Sunny said. \"I said what I said to buy time for an investigation that had nothing to do with tea at all, and that was unfair to her, and I'd like the record corrected properly.\"",
           "label": "Retracted in public, at the cost of admitting what the accusation was for.",
-          "pairId": "pr-11",
-          "pairLabel": "\"Possessed\" — spoken, then redirected to Sridevi"
+          "pairs": [
+            {
+              "id": "pr-11",
+              "label": "\"Possessed\" — spoken, then redirected to Sridevi"
+            }
+          ]
         },
         {
           "id": "pr-17-p0",
           "type": "plant",
           "text": "Old associate. We crossed paths years ago, on a case that needed exactly this kind of cooperation and neither of us expected to find it in the other.",
           "label": "One line, so Act Three can skip a slow-build introduction. The backstory itself stays deliberately unwritten.",
-          "pairId": "pr-17",
-          "pairLabel": "Sunny and the Namboodiri's prior association"
+          "pairs": [
+            {
+              "id": "pr-17",
+              "label": "Sunny and the Namboodiri's prior association"
+            }
+          ]
         },
         {
           "id": "note-ch11",
           "type": "note",
           "text": "Sunny went to meet him first, before the family could, and Sridevi, watching from the verandah, saw the two men clasp hands with the specific warmth of an old friendship neither of them had bothered to announce, and felt, for the first time since the keys had gone missing, something that was almost, cautiously, hope.",
           "label": "Ends on: The Namboodiri's palanquin/car arriving at the gate. **End of Act Two.**",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -1040,32 +1197,43 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "I have sat with a great many griefs in my life that called themselves spirits, doctor. I do not think you and I are describing different events.",
           "label": "The collaboration is the payoff. The shared history is never elaborated.",
-          "pairId": "pr-17",
-          "pairLabel": "Sunny and the Namboodiri's prior association"
+          "pairs": [
+            {
+              "id": "pr-17",
+              "label": "Sunny and the Namboodiri's prior association"
+            }
+          ]
         },
         {
           "id": "pr-23-r1",
           "type": "reveal",
           "text": "I will perform a correct and complete rite. Whether that satisfies your clinical requirements as well is, I suspect, a question of design rather than contradiction.",
           "label": "The same rite, designed rather than merely performed. (Structural payoff — the supplied table quotes no line for this end.)",
-          "pairId": "pr-23",
-          "pairLabel": "The failed puja against the designed rite"
+          "pairs": [
+            {
+              "id": "pr-23",
+              "label": "The failed puja against the designed rite"
+            }
+          ]
         },
         {
           "id": "pr-18-p0",
           "type": "plant",
           "text": "a lifelike straw dummy, dressed and weighted to convince a blade under poor light and worse composure; a hidden lever, silent, that would allow the real man to be withdrawn and the substitute swung into place in the same motion; the timing of the ash and smoke coordinated exactly against that swap",
           "label": "Designed on the page, in full, three chapters before it runs.",
-          "pairId": "pr-18",
-          "pairLabel": "The ritual mechanism — dummy, lever, ash and smoke"
+          "pairs": [
+            {
+              "id": "pr-18",
+              "label": "The ritual mechanism — dummy, lever, ash and smoke"
+            }
+          ]
         },
         {
           "id": "note-ch12",
           "type": "note",
           "text": "\"I'll make sure of it,\" Sunny said, and meant it.",
           "label": "Ends on: The Namboodiri's blessing of the plan, in ritual language that means something different to him than it does to Sunny — and both of them fine with that.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -1111,24 +1279,35 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "plant",
           "text": "Hold still. Trust the ground under your feet more than what your eyes are telling you. That's all I'm asking.",
           "label": "The one thing this book ever actually asks of him.",
-          "pairId": "pr-19",
-          "pairLabel": "Nakulan asked to trust and hold still"
+          "pairs": [
+            {
+              "id": "pr-19",
+              "label": "Nakulan asked to trust and hold still"
+            },
+            {
+              "id": "pr-18",
+              "label": "The ritual mechanism — dummy, lever, ash and smoke"
+            }
+          ]
         },
         {
           "id": "pr-20-p0",
           "type": "plant",
           "text": "I'm frightened, Nakulan. Not of the ghost. Of not knowing what I've been doing while I wasn't there for it.",
           "label": "The real fear, stated the night before, and it is not the ghost.",
-          "pairId": "pr-20",
-          "pairLabel": "Ganga fears not knowing what she has done"
+          "pairs": [
+            {
+              "id": "pr-20",
+              "label": "Ganga fears not knowing what she has done"
+            }
+          ]
         },
         {
           "id": "note-ch13",
           "type": "note",
           "text": "He only knew that tomorrow, one way or another, something in this house was finally going to be asked to answer for itself, and that he intended to be standing exactly where he was asked to stand when it did.",
           "label": "Ends on: Nakulan and Ganga's hands, briefly touching, neither of them saying what they mean.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -1174,8 +1353,7 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "note",
           "text": "\"He is here,\" the Namboodiri agreed, matching her register exactly, \"and the debt will be answered, as promised",
           "label": "Durgashtami is the night Durga kills Mahishasura. The alter casts itself as the goddess and Nakulan as the demon, which is exactly the wrong way round.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The goddess and the demon",
           "characterKey": "ganga",
           "sceneOrder": null
@@ -1185,16 +1363,23 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "Sunny watched Ganga's — Nagavalli's — gaze find him and soften, entirely, into something that had nothing to do with the flat fury of a moment before",
           "label": "Dramatised: the alter was never attacking him. It was recognising him as Ramanathan.",
-          "pairId": "pr-13",
-          "pairLabel": "Mahadevan's clean hands"
+          "pairs": [
+            {
+              "id": "pr-13",
+              "label": "Mahadevan's clean hands"
+            },
+            {
+              "id": "pr-14",
+              "label": "The voice's unusually accurate history"
+            }
+          ]
         },
         {
           "id": "note-ch14",
           "type": "note",
           "text": "The blade continued its arc toward Nakulan's unmoving, trusting form, and Sunny's fingers closed on the lever.",
           "label": "Ends on: The sword raised.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 3
         }
       ],
@@ -1240,40 +1425,59 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "casting a great handful of sacred ash and thick ceremonial smoke directly into the path of the descending blade",
           "label": "The blinding: ritually correct and operationally necessary at the same instant.",
-          "pairId": "pr-18",
-          "pairLabel": "The ritual mechanism — dummy, lever, ash and smoke"
+          "pairs": [
+            {
+              "id": "pr-18",
+              "label": "The ritual mechanism — dummy, lever, ash and smoke"
+            }
+          ]
         },
         {
           "id": "pr-18-r2",
           "type": "reveal",
           "text": "The lever gave way smoothly, silently",
           "label": "The swap, executed under pressure.",
-          "pairId": "pr-18",
-          "pairLabel": "The ritual mechanism — dummy, lever, ash and smoke"
+          "pairs": [
+            {
+              "id": "pr-18",
+              "label": "The ritual mechanism — dummy, lever, ash and smoke"
+            }
+          ]
         },
         {
           "id": "pr-19-r1",
           "type": "reveal",
           "text": "Nakulan — who had, to his eternal credit, not flinched, not moved, held the trust he'd been asked to hold with a stillness Sunny would remember for the rest of his life",
           "label": "He holds. It is the whole of his arc, paid in one sentence.",
-          "pairId": "pr-19",
-          "pairLabel": "Nakulan asked to trust and hold still"
+          "pairs": [
+            {
+              "id": "pr-19",
+              "label": "Nakulan asked to trust and hold still"
+            },
+            {
+              "id": "pr-18",
+              "label": "The ritual mechanism — dummy, lever, ash and smoke"
+            }
+          ]
         },
         {
           "id": "pr-15-r1",
           "type": "reveal",
           "text": "It fell with the full, blind, absolute fury of a hundred and fifty years",
           "label": "The blade falls, on the night it was promised for.",
-          "pairId": "pr-15",
-          "pairLabel": "The Durgashtami deadline"
+          "pairs": [
+            {
+              "id": "pr-15",
+              "label": "The Durgashtami deadline"
+            }
+          ]
         },
         {
           "id": "thread-the-goddess-and-the-demon-2",
           "type": "note",
           "text": "\"Go freely,\" he said, \"as you were promised. The debt is paid. You are released.\"",
           "label": "The frame is honoured in form and refused in substance: the rite completes, the killing does not. Both traditions get to claim the result.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The goddess and the demon",
           "characterKey": "ganga",
           "sceneOrder": null
@@ -1283,8 +1487,7 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "note",
           "text": "\"You're safe, and it's over.\"",
           "label": "Ends on: Ganga, on the ground, breathing, herself.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 4
         }
       ],
@@ -1336,48 +1539,67 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "reveal",
           "text": "\"You don't have her memories,\" Sunny said, gently, \"because they were never yours to have.",
           "label": "Answered honestly rather than kindly.",
-          "pairId": "pr-20",
-          "pairLabel": "Ganga fears not knowing what she has done"
+          "pairs": [
+            {
+              "id": "pr-20",
+              "label": "Ganga fears not knowing what she has done"
+            }
+          ]
         },
         {
           "id": "pr-05-r1",
           "type": "reveal",
           "text": "\"There's something else,\" he said, on the third day, when she was steady enough to hear it. \"Nakulan told me. About the pregnancy.\"",
           "label": "Named at last, and deliberately kept separate from the dissociation.",
-          "pairId": "pr-05",
-          "pairLabel": "The hand on the stomach"
+          "pairs": [
+            {
+              "id": "pr-05",
+              "label": "The hand on the stomach"
+            }
+          ]
         },
         {
           "id": "pr-22-r1",
           "type": "reveal",
           "text": "\"The room's staying open,\" Valyammai said. \"I decided. No more locking things away and hoping.\"",
           "label": "The prohibition withdrawn, by the person who issued it.",
-          "pairId": "pr-22",
-          "pairLabel": "The locked door, and Valyammai's warning"
+          "pairs": [
+            {
+              "id": "pr-22",
+              "label": "The locked door, and Valyammai's warning"
+            }
+          ]
         },
         {
           "id": "pr-21-r1",
           "type": "reveal",
           "text": "I was thinking you might consider coming with me",
           "label": "The proposal — earned across several such moments rather than declared.",
-          "pairId": "pr-21",
-          "pairLabel": "Sunny and Sridevi, working together"
+          "pairs": [
+            {
+              "id": "pr-21",
+              "label": "Sunny and Sridevi, working together"
+            }
+          ]
         },
         {
           "id": "pr-21-r2",
           "type": "reveal",
           "text": "and said yes",
           "label": "Two words, after a paragraph of him not managing to ask cleanly.",
-          "pairId": "pr-21",
-          "pairLabel": "Sunny and Sridevi, working together"
+          "pairs": [
+            {
+              "id": "pr-21",
+              "label": "Sunny and Sridevi, working together"
+            }
+          ]
         },
         {
           "id": "thread-the-forbidden-chamber-2",
           "type": "note",
           "text": "the Thekkini's door standing open behind them in the afternoon light, empty now, ordinary, a room like any other room, waiting for nothing at all.",
           "label": "And the inversion: the taboo is lifted, so the chamber stops being a chamber. It is just a room, which is the most that can be said for it.",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "thread": "The forbidden chamber",
           "characterKey": "ganga",
           "sceneOrder": null
@@ -1387,8 +1609,7 @@ export const DEMO_FIXTURE: DemoFixture = {
           "type": "note",
           "text": "He nodded, and didn't press for more, and the car carried them out through the gates and onto the long red road, leaving the house and its century and a half of carefully guarded silence behind them, open now, at last, to whatever the family chose to do with the truth instead.",
           "label": "Ends on: Ganga and Nakulan leaving the estate; the Thekkini's door, standing open now, empty, ordinary. **End of Act Three. End of book.**",
-          "pairId": null,
-          "pairLabel": null,
+          "pairs": [],
           "sceneOrder": 4
         }
       ],

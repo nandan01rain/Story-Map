@@ -65,8 +65,15 @@ export type GraphFlag = {
   text: string;
   /** What this end of the pair does. */
   label: string;
-  pairId: string | null;
-  pairLabel: string | null;
+  /**
+   * The setup/payoff groupings this flag takes part in. Many-to-many in both directions:
+   * several plants can converge on one reveal, one plant can spawn several reveals, and a
+   * single flag can belong to more than one grouping, because a line can do two jobs.
+   *
+   * Always an array from the RPC -- a legacy single `pairId`/`pairLabel` is promoted to one
+   * element there, so nothing downstream has to know the old shape existed.
+   */
+  pairs: { id: string; label: string }[];
   /**
    * A mythic thread is a NOTE the writer has marked as a parallel to some known
    * mythological arc or setting -- not a separate kind of thing. `thread` names the

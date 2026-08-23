@@ -188,8 +188,15 @@ for (const pair of PLANT_REVEAL_PAIRS) {
       // What makes this an end of a pair rather than a loose flag. The pair's own title
       // travels with each end so the character web can group them without a second query --
       // annotations are jsonb, and denormalising three fields into them costs nothing.
-      pairId: pair.id,
-      pairLabel: pair.title,
+      // Many-to-many: an array, because a flag can take part in more than one setup/payoff
+      // grouping. `also` on a pair entry names the extra groupings its ends also belong to.
+      pairs: [{ id: pair.id, label: pair.title }].concat(
+        (pair.also || []).map((id) => {
+          const other = PLANT_REVEAL_PAIRS.find((p) => p.id === id);
+          if (!other) throw new Error(`${pair.id} points at unknown grouping ${id}`);
+          return { id: other.id, label: other.title };
+        }),
+      ),
       // Sorted on below, then dropped: an annotation does not carry a position, by design.
       at: found.at,
     });
@@ -249,8 +256,7 @@ for (const chapter of chapters) {
     type: 'note',
     text: anchor,
     label: `Ends on: ${chapter.endsOn}`,
-    pairId: null,
-    pairLabel: null,
+    pairs: [],
     // Resolved to a real scene id at import time; the fixture cannot know one.
     sceneOrder: lastScene ? lastScene.order : null,
     at,
@@ -280,8 +286,7 @@ for (const entry of MYTHIC_THREADS) {
       type: 'note',
       text: found.text,
       label,
-      pairId: null,
-      pairLabel: null,
+      pairs: [],
       thread: entry.thread,
       // Resolved to a real character node id at import; the fixture cannot know one.
       characterKey: entry.character,
@@ -549,8 +554,8 @@ export type DemoAnnotation = {
   label: string;
   /** Shared by both ends of a pair. A pair with no reveal is an unpaid plant, which is a
    *  real state. Null on a note, which has no far end. */
-  pairId: string | null;
-  pairLabel: string | null;
+  /** Every setup/payoff grouping this flag belongs to. Empty on a note. */
+  pairs: { id: string; label: string }[];
   /** Which scene of its chapter this belongs to, resolved to a real id at import time. */
   sceneOrder?: number | null;
   /** A mythic thread's name. Only ever set on a note. */

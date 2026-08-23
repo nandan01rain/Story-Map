@@ -10,9 +10,9 @@ document already settles; do not blindly trust `CLAUDE.md`'s roadmap either.
 
 **Before anything else, as of 2026-08-23:** three database migrations are written and
 committed but **not run** against the live Supabase project —
-`20260822_graph_flags.sql`, `20260822b_graph_structure.sql` and `20260823_graph_threads.sql`.
-Each supersedes the one before it, so pasting only **`20260823_graph_threads.sql`** into the
-SQL Editor is enough. Until that happens the character web's Plants & Reveals, Structure and
+`20260822_graph_flags.sql`, `20260822b_graph_structure.sql`, `20260823_graph_threads.sql`
+and `20260824_graph_pairs.sql`. Each supersedes the one before it, so pasting only
+**`20260824_graph_pairs.sql`** into the SQL Editor is enough. Until that happens the character web's Plants & Reveals, Structure and
 Threads layers return nothing, and the app says so rather than pretending the project has no
 flags. Nothing else is affected. See §17.1.
 
@@ -2548,6 +2548,27 @@ plant green beside it) and gains one link, to its character. That link is what m
 this person's threads" one hop rather than a scan. Threads are excluded from Pairs and Unpaid
 for the same reason notes are, and from the Notes index tab, which would otherwise list them
 twice. Authored from the Editor's Flags list, on note rows only.
+
+**Plants and reveals are many-to-many, in both directions and both ways round.** Several
+plants can converge on one reveal; one plant can spawn several reveals; and a single flag can
+belong to more than one setup/payoff *grouping*, because a line of prose can be doing two
+jobs at once. That last part is what the original one-`pairId`-per-flag shape could not
+express at all.
+
+A flag carries `pairs: [{id, label}]`. The RPC promotes a legacy single `pairId`/`pairLabel`
+to a one-element array, so the client only ever sees the new shape. Every plant in a grouping
+is joined to every reveal in it, deduplicated — two flags can share more than one grouping,
+and the same two nodes joined twice would silently double the drawn weight of a link.
+
+Consequences worth knowing:
+- **"Paired"** means *any* grouping it belongs to has both ends. A flag answered in one and
+  open in another is answered.
+- **"Unpaid"** means nothing anywhere claims it, not "one of its groupings is thin".
+- The panel names every grouping a flag is in and, when there is more than one, says which
+  one each counterpart is reached **via**.
+- Authored from the Editor's Flags list on plant and reveal rows. Groupings offered are those
+  already used in **that chapter** — the editor holds one chapter, so a reveal three chapters
+  later has to be joined from its own side. A real limit, not an oversight.
 
 **Chapters are not events, and both are returned.** An event is somewhere characters are
 present, written by extraction or by hand; a chapter with nobody placed in it has none. A

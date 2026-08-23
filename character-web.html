@@ -280,15 +280,33 @@
 
     pairs = {};
     (raw.flags || []).forEach(function (f) {
-      // A note belongs to no pair. Giving it a solo bucket keeps one code path for the panel
-      // and the index instead of a second one that exists only to say "this has no partner".
-      var key = f.pairId || ('solo:' + f.id);
-      if (!pairs[key]) pairs[key] = { id: key, label: f.pairLabel || f.label || (f.type === 'note' ? 'Note' : 'Unpaired'), plants: [], reveals: [] };
-      if (f.type === 'plant') pairs[key].plants.push(f);
-      else if (f.type === 'reveal') pairs[key].reveals.push(f);
+      // Many-to-many, in both directions and both ways round: a flag can belong to several
+      // setup/payoff groupings, and each grouping can hold any number of plants and reveals.
+      // The pairs field arrives as an array; a legacy single pairId is accepted for anything
+      // written before that, and for the demo generator, which builds payloads without a database.
+      var memberships = [];
+      if (f.pairs && f.pairs.length) memberships = f.pairs;
+      else if (f.pairId) memberships = [{ id: f.pairId, label: f.pairLabel || '' }];
+
+      // A note belongs to no grouping. Giving it a solo bucket keeps one code path for the
+      // panel and the index instead of a second one that exists only to say "no partner".
+      if (memberships.length === 0) memberships = [{ id: 'solo:' + f.id, label: '' }];
+
+      var keys = [];
+      memberships.forEach(function (m) {
+        var key = m.id;
+        if (!pairs[key]) pairs[key] = { id: key, label: '', plants: [], reveals: [] };
+        // First member to offer a title wins. Every member carries it, and they agree in
+        // practice, but a blank on one of them should not blank the grouping.
+        if (!pairs[key].label && m.label) pairs[key].label = m.label;
+        if (f.type === 'plant') pairs[key].plants.push(f);
+        else if (f.type === 'reveal') pairs[key].reveals.push(f);
+        keys.push(key);
+      });
+
       nodes.push({
         id: f.id, label: f.text, kind: f.type,
-        pairId: key, pairLabel: pairs[key].label, flagLabel: f.label,
+        pairIds: keys, flagLabel: f.label,
         chapterId: f.chapterId, sceneId: f.sceneId,
         // A note with a thread is a mythic thread. Kept as a property rather than a seventh
         // node kind, because it is genuinely a note -- same shape, same anchoring, same
@@ -296,6 +314,14 @@
         thread: f.thread || null, characterId: f.characterId || null,
         chapterTitle: f.chapterTitle, eventId: f.eventId, seq: f.seq
       });
+    });
+
+    // A fallback title for anything nobody named, so a grouping is never a blank heading.
+    Object.keys(pairs).forEach(function (key) {
+      var pair = pairs[key];
+      if (pair.label) return;
+      var first = pair.plants[0] || pair.reveals[0];
+      pair.label = (first && first.label) || (key.indexOf('solo:') === 0 ? 'Note' : 'Unpaired');
     });
 
     // Built before the links, because a flag link has to ask whether the scene it names
@@ -334,10 +360,21 @@
     (raw.chapters || []).forEach(function (c) {
       if (c.eventId) links.push({ source: c.id, target: c.eventId, layer: 'structure', rel: 'event' });
     });
+    // Every plant in a grouping joins to every reveal in it. That is what makes this a web
+    // rather than a row of couples: three plants converging on one reveal draw three lines
+    // into it, and a plant that belongs to two groupings reaches into both.
+    //
+    // Deduplicated, because two flags can share more than one grouping and the same pair of
+    // nodes would otherwise be joined twice, which doubles the drawn weight of a link for no
+    // reason anyone could see.
+    var drawn = {};
     Object.keys(pairs).forEach(function (key) {
       var pair = pairs[key];
       pair.plants.forEach(function (p) {
         pair.reveals.forEach(function (r) {
+          var edge = p.id + '>' + r.id;
+          if (drawn[edge]) return;
+          drawn[edge] = true;
           links.push({ source: p.id, target: r.id, layer: 'pair', pairId: key });
         });
       });
@@ -361,18 +398,44 @@
   // Which flag nodes the sub-filter admits. Events and characters are decided separately:
   // events stay as context in every flag view, characters are dropped entirely because a
   // plant has nothing to do with who was standing near it.
+  // Every grouping a node belongs to. One place, so nothing has to remember that the field
+  // is a list or that a note has none.
+  function pairsOf(n) {
+    return (n.pairIds || []).map(function (id) { return pairs[id]; }).filter(Boolean);
+  }
+
+  // What a flag actually connects to, across every grouping it is in. Deduplicated: two
+  // flags sharing two groupings are still one relationship.
+  function counterpartsOf(n) {
+    var want = n.kind === 'plant' ? 'reveals' : 'plants';
+    var seen = {}, out = [];
+    pairsOf(n).forEach(function (pair) {
+      pair[want].forEach(function (f) {
+        if (seen[f.id]) return;
+        seen[f.id] = true;
+        out.push(f);
+      });
+    });
+    return out;
+  }
+
   function flagVisible(n) {
     if (flagFilter === 'all') return true;
     if (flagFilter === 'plants') return n.kind === 'plant';
     if (flagFilter === 'reveals') return n.kind === 'reveal';
     if (flagFilter === 'notes') return n.kind === 'note';
     if (flagFilter === 'threads') return n.kind === 'note' && !!n.thread;
-    // Pairs and unpaid are about plant/reveal pairs; a note is in neither by definition.
+    // Pairs and unpaid are about plant/reveal groupings; a note is in neither by definition.
     if (n.kind === 'note') return false;
-    var pair = pairs[n.pairId];
-    if (!pair) return false;
-    if (flagFilter === 'pairs') return pair.plants.length > 0 && pair.reveals.length > 0;
-    return pair.reveals.length === 0; // 'open' -- a plant nobody has paid yet
+    var mine = pairsOf(n);
+    if (mine.length === 0) return false;
+    // Paired if ANY grouping it belongs to has both ends -- a flag that is answered in one
+    // grouping and open in another is answered.
+    if (flagFilter === 'pairs') {
+      return mine.some(function (p) { return p.plants.length > 0 && p.reveals.length > 0; });
+    }
+    // Unpaid means nothing anywhere claims it, not "one of its groupings is thin".
+    return n.kind === 'plant' && mine.every(function (p) { return p.reveals.length === 0; });
   }
 
   function rebuildView() {
@@ -681,7 +744,13 @@
     // The pair's title, not the flagged sentence. The sentence is what the panel is for;
     // on the graph it is thirty words where six will do. A note has no pair, so it falls
     // back to its own label and then to the line it marks.
-    else if (n.kind === 'plant' || n.kind === 'reveal') text = shorten(n.pairLabel || n.label, 24);
+    else if (n.kind === 'plant' || n.kind === 'reveal') {
+      var mine = pairsOf(n);
+      // The grouping's title, or how many it is in when that is the more useful fact.
+      text = mine.length > 1
+        ? shorten(mine[0].label, 18) + ' +' + (mine.length - 1)
+        : shorten((mine[0] && mine[0].label) || n.label, 24);
+    }
     else if (n.kind === 'note') text = shorten(n.thread || n.flagLabel || n.label, 24);
     else text = shorten(n.label, 22);
     ctx.fillText(text, n.x, n.y + r + 1.5);
@@ -774,8 +843,9 @@
     if (me.kind === 'note') return me.flagLabel || shorten(me.label, 40);
     if (me.kind === 'chapter') return (me.seq != null ? me.seq + '. ' : '') + me.label;
     if (me.kind === 'plant' || me.kind === 'reveal') {
-      var pair = pairs[me.pairId];
-      return (pair && pair.label) || me.pairLabel || shorten(me.label, 40);
+      var mine = pairsOf(me);
+      if (mine.length === 0) return shorten(me.label, 40);
+      return mine.length === 1 ? mine[0].label : mine.map(function (p) { return p.label; }).join(' · ');
     }
     if (me.kind === 'event') {
       var serial = serialOf(me);
@@ -906,8 +976,12 @@
         'Tap them in Progression to see this event inside their own arc.', null);
     }).join('');
     html += here.map(function (f) {
+      // Read off the built node rather than the raw flag: groupings live on the node now,
+      // and a flag can be in more than one of them.
+      var node = byId[f.id];
+      var via = node ? pairsOf(node).map(function (p) { return p.label; }).join(', ') : '';
       return item(esc(shorten(f.text, 46)), f.type, f.type === 'plant' ? PLANT_COLOR : REVEAL_COLOR,
-        f.pairLabel || '', f.text + (f.label ? '\n\n' + f.label : ''), null);
+        via, f.text + (f.label ? '\n\n' + f.label : ''), null);
     }).join('');
     return html;
   }
@@ -943,14 +1017,18 @@
       return html;
     }
 
-    var pair = pairs[me.pairId] || { plants: [], reveals: [], label: me.pairLabel };
-    var counterparts = me.kind === 'plant' ? pair.reveals : pair.plants;
-    var unpaid = pair.reveals.length === 0;
+    var mine = pairsOf(me);
+    var counterparts = counterpartsOf(me);
+    var unpaid = me.kind === 'plant' && counterparts.length === 0;
+    var title = mine.length === 1
+      ? mine[0].label
+      : mine.map(function (p) { return p.label; }).join(' · ');
 
-    var html = '<h3>' + esc(pair.label) + '</h3>' +
-      '<div class="sub">' + esc(me.chapterTitle || '') + ' · ' +
-      pair.plants.length + ' plant' + (pair.plants.length === 1 ? '' : 's') + ' · ' +
-      pair.reveals.length + ' reveal' + (pair.reveals.length === 1 ? '' : 's') +
+    var html = '<h3>' + esc(title || 'Unpaired') + '</h3>' +
+      '<div class="sub">' + esc(me.chapterTitle || '') +
+      (mine.length > 1 ? ' · in ' + mine.length + ' groupings' : '') +
+      ' · ' + counterparts.length +
+      (me.kind === 'plant' ? ' reveal' : ' plant') + (counterparts.length === 1 ? '' : 's') +
       (unpaid ? ' · unpaid' : '') + '</div>' +
       '<div class="quote ' + me.kind + '">' + esc(me.label) + '</div>';
     if (me.flagLabel) html += '<div class="sub">' + esc(me.flagLabel) + '</div>';
@@ -967,11 +1045,22 @@
       return html;
     }
 
+    // Which grouping each counterpart is reached through, since with several in play "why is
+    // this here" is a real question.
+    function viaFor(f) {
+      var shared = mine.filter(function (p) {
+        return p.plants.concat(p.reveals).some(function (x) { return x.id === f.id; });
+      });
+      return shared.length && mine.length > 1
+        ? (f.chapterTitle || '') + ' · via ' + shared.map(function (p) { return p.label; }).join(', ')
+        : f.chapterTitle || '';
+    }
+
     return html + counterparts.map(function (f) {
       return item(
         esc(shorten(f.text, 46)),
         f.type, f.type === 'plant' ? PLANT_COLOR : REVEAL_COLOR,
-        f.chapterTitle || '',
+        viaFor(f),
         f.text + (f.label ? '\n\n' + f.label : ''),
         null
       );
@@ -1014,8 +1103,8 @@
     }).join('');
 
     html += flags.map(function (f) {
-      return item(esc(shorten(f.label, 46)), FLAG_WORD[f.kind], FLAG_COLOR[f.kind],
-        f.pairLabel && f.kind !== 'note' ? f.pairLabel : '',
+      var via = f.kind === 'note' ? '' : pairsOf(f).map(function (p) { return p.label; }).join(', ');
+      return item(esc(shorten(f.label, 46)), FLAG_WORD[f.kind], FLAG_COLOR[f.kind], via,
         f.label + (f.flagLabel ? '\n\n' + f.flagLabel : ''), null);
     }).join('');
 
@@ -1130,7 +1219,8 @@
           if (n.kind !== kind) return false;
           // Threads have their own tab; listing them here too makes both lists worse.
           if (kind === 'note' && n.thread) return false;
-          return hit(n.label) || hit(n.pairLabel) || hit(n.chapterTitle) || hit(n.flagLabel);
+          if (hit(n.label) || hit(n.chapterTitle) || hit(n.flagLabel)) return true;
+          return pairsOf(n).some(function (p) { return hit(p.label); });
         })
         .sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); })
         .map(function (n) {
@@ -1140,11 +1230,12 @@
               meta: n.chapterTitle || '', tag: ''
             };
           }
-          var pair = pairs[n.pairId] || { plants: [], reveals: [] };
-          var counterparts = kind === 'plant' ? pair.reveals.length : pair.plants.length;
+          var mine = pairsOf(n);
+          var counterparts = counterpartsOf(n).length;
           return {
-            id: n.id, no: '', name: shorten(n.label, 90),
-            meta: (n.chapterTitle || '') + ' · ' + n.pairLabel,
+            // How many it connects to, which is the fact many-to-many makes worth showing.
+            id: n.id, no: counterparts || '', name: shorten(n.label, 90),
+            meta: (n.chapterTitle || '') + ' · ' + mine.map(function (p) { return p.label; }).join(', '),
             tag: counterparts === 0 ? (kind === 'plant' ? 'unpaid' : 'no plant') : ''
           };
         });
