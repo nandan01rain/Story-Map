@@ -149,6 +149,7 @@
     <div class="chip" id="mode-prog">Progression</div>
     <div class="chip" id="mode-flags">Plants &amp; Reveals</div>
     <div class="chip" id="mode-structure">Structure</div>
+    <div class="chip" id="toggle-thread">Thread</div>
     <div class="chip" id="open-index">&#9776; Index</div>
     <div class="chip" id="toggle-dim">3D</div>
     <div class="chip mute" id="count"></div>
@@ -215,6 +216,10 @@
   var progChain = [];   // the selected character's events, in chapter order
   var labelEverything = false;
   var refitPending = false;
+  // Progression drawn as a line rather than as a web. A force layout answers "who else was
+  // there"; it cannot answer "and then what happened", because it has no left and no right.
+  // A thread does: one track, chapter order, the character's own events pinned along it.
+  var threadMode = false;
 
   var TYPE_COLOR = {
     confrontation: '#e0764a', alliance: '#6fae74', betrayal: '#c0504d',
@@ -697,8 +702,10 @@
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(198,154,58,0.20)';
-    ctx.lineWidth = 5 / scale;
+    // Thicker in thread mode: there it is the spine of the layout rather than a trace over
+    // one, and it should read as the thing the events are strung on.
+    ctx.strokeStyle = threadMode ? 'rgba(198,154,58,0.28)' : 'rgba(198,154,58,0.20)';
+    ctx.lineWidth = (threadMode ? 8 : 5) / scale;
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
     for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
@@ -853,7 +860,8 @@
   function focusProgression(me) {
     var html = '<h3>' + esc(me.label) + '</h3>' +
       '<div class="sub">' + progChain.length + ' event' + (progChain.length === 1 ? '' : 's') +
-      ' in their arc, numbered from their first</div>';
+      ' in their arc, numbered from their first' +
+      (threadMode ? ' · laid out as a thread' : '') + '</div>';
     return html + progChain.map(function (ev) {
       var others = [];
       var isPov = false;
@@ -1238,6 +1246,44 @@
     graph.zoomToFit(500, 55);
   }
 
+  // Lays the selected character's arc out as a horizontal track and pins those nodes there,
+  // leaving everyone else to the simulation. d3 respects fx/fy absolutely, so this is a
+  // layout instruction rather than a force competing with the others -- the events stop
+  // moving, and the characters standing in them arrange themselves around the line.
+  //
+  // Spacing is by position in the arc, not by chapter number: a character who appears in
+  // chapters 1 and 17 and nothing between should read as two beats, not as two beats a
+  // screen apart.
+  function applyThreadLayout() {
+    if (!graph) return;
+    var chain = progChain;
+
+    if (!threadMode || mode !== 'prog' || chain.length === 0) {
+      // Released rather than left pinned, or the track survives into every other view.
+      all.nodes.forEach(function (n) { n.fx = null; n.fy = null; });
+      if (graph.d3ReheatSimulation) graph.d3ReheatSimulation();
+      return;
+    }
+
+    var gap = 70;
+    var width = gap * (chain.length - 1);
+    chain.forEach(function (n, i) {
+      n.fx = i * gap - width / 2;
+      // A gentle zigzag rather than a dead straight line: at a dozen events the labels
+      // collide on one axis, and alternating them keeps every title readable.
+      n.fy = (i % 2 === 0 ? -1 : 1) * 16;
+    });
+
+    var me = byId[selectedId];
+    if (me) {
+      // The character sits at the head of their own thread, off the track, so the gold
+      // spokes fan out rather than running along it.
+      me.fx = -width / 2 - gap;
+      me.fy = 0;
+    }
+    if (graph.d3ReheatSimulation) graph.d3ReheatSimulation();
+  }
+
   // How much of the bottom of the screen the sheet is covering, in pixels.
   function panelHeight() {
     var box = document.getElementById('focus');
@@ -1282,6 +1328,9 @@
     selectedId = id;
     recomputeProgression();
     active = activeSet();
+    // The track is a property of who is selected, so it is rebuilt whenever that changes --
+    // including to nothing, which releases every pin.
+    applyThreadLayout();
     refresh();
     showFocus();
     post({ type: 'select', id: id, label: id ? labelOf(id) : null, kind: id && byId[id] ? byId[id].kind : null });
@@ -1421,6 +1470,7 @@
     }
     recomputeProgression();
     active = activeSet();
+    applyThreadLayout();
     updateCount();
     refresh();
     showFocus();
@@ -1493,6 +1543,20 @@
     }, { passive: true });
     bar.addEventListener('touchend', function () { startY = null; }, { passive: true });
   })();
+
+  function setThreadMode(on) {
+    threadMode = on;
+    document.getElementById('toggle-thread').className = 'chip' + (on ? ' on' : '');
+    // Only meaningful in Progression; switching it on elsewhere would pin nodes in a view
+    // that has no chain to pin.
+    if (on && mode !== 'prog') setMode('prog');
+    applyThreadLayout();
+    requestRefit();
+  }
+
+  document.getElementById('toggle-thread').addEventListener('click', function () {
+    setThreadMode(!threadMode);
+  });
 
   document.getElementById('open-index').addEventListener('click', openIndex);
   document.getElementById('idx-close').addEventListener('click', closeIndex);
