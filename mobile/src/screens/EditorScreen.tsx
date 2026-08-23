@@ -19,9 +19,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, BOOKS, chapterNumberInBook, wordCount } from '../lib/storyData';
+import { fetchCharacterGraph, type GraphNode } from '../lib/characterGraph';
 import { useAssistantStore } from '../store/assistantStore';
 import { type Annotation, type FlagType, useChapterStore } from '../store/chapterStore';
-import { FONTS, type ThemeColors, useTheme } from '../theme';
+import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
 
@@ -181,6 +182,52 @@ export default function EditorScreen({ route, navigation }: Props) {
     () => annotations.filter((a): a is Annotation & { type: FlagType } => a.type !== 'highlight'),
     [annotations],
   );
+
+  // A thread has to name whose arc it echoes, so the editor needs the cast. Fetched once
+  // when the thread sheet is first opened rather than on mount -- most editing sessions
+  // never flag a thread, and this is a network round trip.
+  const [cast, setCast] = useState<GraphNode[]>([]);
+  const [threadFor, setThreadFor] = useState<Annotation | null>(null);
+  const [threadName, setThreadName] = useState('');
+  const [threadCharacter, setThreadCharacter] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!threadFor || cast.length > 0 || !chapter) return;
+    fetchCharacterGraph(chapter.project_id).then(({ data }) => {
+      if (data) setCast(data.nodes.filter((n) => n.type === 'character'));
+    });
+  }, [threadFor, cast.length, chapter]);
+
+  // Every thread already used in this chapter, so a recurring parallel is picked rather
+  // than retyped -- a thread only means anything when the same name is reused.
+  const knownThreads = useMemo(
+    () => [...new Set(annotations.map((a) => a.thread).filter((t): t is string => !!t))].sort(),
+    [annotations],
+  );
+
+  function openThreadSheet(a: Annotation) {
+    setThreadFor(a);
+    setThreadName(a.thread ?? '');
+    setThreadCharacter(a.characterId ?? null);
+  }
+
+  function saveThread(clear = false) {
+    if (!threadFor) return;
+    const name = threadName.trim();
+    const next = annotations.map((a) => {
+      if (a.id !== threadFor.id) return a;
+      if (clear || !name) {
+        // Unmarking leaves an ordinary note behind rather than deleting it: the idea was
+        // worth writing down whether or not it turned out to echo anything.
+        const { thread, characterId, ...rest } = a;
+        return rest as Annotation;
+      }
+      return { ...a, thread: name, characterId: threadCharacter ?? undefined };
+    });
+    setAnnotations(next);
+    scheduleAutosave(content, next);
+    setThreadFor(null);
+  }
 
   const hasSelection = selection.end > selection.start;
   const selectedText = hasSelection ? content.slice(selection.start, selection.end) : null;
@@ -482,6 +529,16 @@ export default function EditorScreen({ route, navigation }: Props) {
                       </Text>
                       {!!a.label && <Text style={styles.flagLabel}>{a.label}</Text>}
                     </View>
+                    {/* A mythic thread is a note the writer has marked as echoing a known
+                        arc. Offered only on notes, because that is the only place it means
+                        anything. */}
+                    {a.type === 'note' && (
+                      <Pressable onPress={() => openThreadSheet(a)} hitSlop={8}>
+                        <Text style={[styles.flagWeb, a.thread && styles.flagThreadOn]}>
+                          {a.thread ? '🧭' : 'thread'}
+                        </Text>
+                      </Pressable>
+                    )}
                     {/* Straight to this one flag in the character web -- the same jump the
                         Reader offers, from the list where flags are actually managed. */}
                     <Pressable
@@ -511,6 +568,68 @@ export default function EditorScreen({ route, navigation }: Props) {
       </Modal>
 
       {/* Version history -- ports renderVersionList()/restore (index.html) */}
+      <Modal visible={threadFor !== null} transparent animationType="slide" onRequestClose={() => setThreadFor(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Mythic thread</Text>
+            <Text style={styles.flagText} numberOfLines={2}>"{threadFor?.text}"</Text>
+
+            <Text style={styles.threadLabel}>The parallel</Text>
+            <TextInput
+              style={styles.threadInput}
+              value={threadName}
+              onChangeText={setThreadName}
+              placeholder="e.g. The forbidden chamber"
+              placeholderTextColor={colors.textFaint}
+              autoFocus
+            />
+            {knownThreads.length > 0 && (
+              <View style={styles.threadChips}>
+                {knownThreads.map((t) => (
+                  <Pressable key={t} style={styles.threadChip} onPress={() => setThreadName(t)}>
+                    <Text style={styles.threadChipText}>{t}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <Text style={styles.threadLabel}>Whose arc</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.threadChips}>
+                {cast.length === 0 ? (
+                  <Text style={styles.flagLabel}>No cast yet — add characters in the web first.</Text>
+                ) : (
+                  cast.map((c) => (
+                    <Pressable
+                      key={c.id}
+                      style={[styles.threadChip, threadCharacter === c.id && styles.threadChipOn]}
+                      onPress={() => setThreadCharacter(threadCharacter === c.id ? null : c.id)}
+                    >
+                      <Text style={styles.threadChipText}>{c.label}</Text>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            </ScrollView>
+
+            <View style={styles.threadActions}>
+              {!!threadFor?.thread && (
+                <Pressable onPress={() => saveThread(true)} hitSlop={8}>
+                  <Text style={styles.threadClear}>Unmark</Text>
+                </Pressable>
+              )}
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={() => setThreadFor(null)} hitSlop={8}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={() => saveThread()} hitSlop={8}>
+                <Text style={styles.modalConfirm}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={historyVisible} transparent animationType="fade" onRequestClose={() => setHistoryVisible(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -619,6 +738,37 @@ function makeStyles(colors: ThemeColors) {
     flagLabel: { color: colors.textFaint, fontSize: 12 },
     flagRemove: { color: colors.error, fontSize: 18, paddingHorizontal: 4 },
     flagWeb: { color: colors.gold, fontSize: 11, paddingHorizontal: 6 },
+    flagThreadOn: { fontSize: 14 },
+    threadLabel: {
+      color: colors.textFaint,
+      fontFamily: FONTS.mono,
+      fontSize: 10,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 14,
+      marginBottom: 6,
+    },
+    threadInput: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: colors.text,
+      fontSize: 15,
+    },
+    threadChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    threadChip: {
+      borderWidth: 1,
+      borderColor: colors.borderDim,
+      borderRadius: 14,
+      paddingVertical: 6,
+      paddingHorizontal: 11,
+    },
+    threadChipOn: { borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.16) },
+    threadChipText: { color: colors.textDim, fontSize: 12 },
+    threadActions: { flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 18 },
+    threadClear: { color: colors.error, fontSize: 13 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
     modalCard: { backgroundColor: colors.panel, borderRadius: 10, padding: 20, borderWidth: 1, borderColor: colors.border },
     modalTitle: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 16, marginBottom: 10 },
