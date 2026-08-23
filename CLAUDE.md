@@ -506,10 +506,10 @@ needs no translation because all three are nodes under their own database ids.
 
 Plants, reveals and notes are read live out of `chapters.annotations` rather
 than copied into the graph tables, so flagging a line in the editor puts it on
-the web with no sync step. **Two migrations have not been run against the live
-project yet** — `supabase/migrations/20260822_graph_flags.sql` and
-`20260822b_graph_structure.sql`; the second supersedes the first, so running
-only `20260822b` is enough. Until then those layers return nothing and nothing
+the web with no sync step. **Three migrations have not been run against the live
+project yet** — `20260822_graph_flags.sql`, `20260822b_graph_structure.sql`
+and `20260823_graph_threads.sql`; each supersedes the one before, so running
+only `20260823_graph_threads.sql` is enough. Until then those layers return nothing and nothing
 else breaks: the client defaults each key of the payload independently.
 `graph/character-web-demo.html` is now generated from the renderer plus the demo
 pack by `scripts/build-graph-demo.mjs` instead of being a hand-kept duplicate
@@ -525,6 +525,19 @@ Supabase dashboard before it can connect — account work, not code. See handoff
 doc §14 for the mobile app's session-by-session detail, §16 for the engine
 layer, §17 for the character web and §18 for the demo pack — this paragraph is
 the summary only.
+
+**PWA / mobile parity (2026-08-23).** The two apps were independent codebases
+over one Supabase project, neither a superset of the other. Closed in both
+directions so development can continue on both. Into the PWA: the character
+web (all four layers, embedded from one shared renderer rather than
+reimplemented) and day/night/auto. Out of the PWA: Map view, scrapped — the
+web replaces it, and its removal took 228 KB out of `index.html`. Into
+mobile: trash (same table and row shape as the PWA, so either app can restore
+the other's deletions) and EPUB export. New in both, via the shared renderer:
+mythic threads, and Progression laid out as a linear thread rather than a web.
+Deliberately not ported: the PWA's POV tracker and Mythic Threads (superseded
+by Progression's POV marks and by thread-flagged notes respectively), and the
+continuity checker, which is Icarus's job now. See handoff §19.
 
 ## Design principles worth preserving
 

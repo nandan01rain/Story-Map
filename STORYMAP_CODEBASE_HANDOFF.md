@@ -8,13 +8,16 @@ now **stale in several places** — where it conflicts with this document or wit
 the actual code, this document and the code win. Do not re-derive decisions this
 document already settles; do not blindly trust `CLAUDE.md`'s roadmap either.
 
-**Before anything else, as of 2026-08-22:** two database migrations are written and
+**Before anything else, as of 2026-08-23:** three database migrations are written and
 committed but **not run** against the live Supabase project —
-`supabase/migrations/20260822_graph_flags.sql` and `20260822b_graph_structure.sql`. The
-second supersedes the first, so pasting only `20260822b` into the SQL Editor is enough.
-Until that happens the character web's Plants & Reveals and Structure layers return nothing,
-and the app says so rather than pretending the project has no flags. Nothing else is
-affected. See §17.1.
+`20260822_graph_flags.sql`, `20260822b_graph_structure.sql` and `20260823_graph_threads.sql`.
+Each supersedes the one before it, so pasting only **`20260823_graph_threads.sql`** into the
+SQL Editor is enough. Until that happens the character web's Plants & Reveals, Structure and
+Threads layers return nothing, and the app says so rather than pretending the project has no
+flags. Nothing else is affected. See §17.1.
+
+**The two apps are now at parity**, and further work is meant to land on both. Map view is
+gone from the PWA; the character web is in it. Trash and EPUB export are in mobile. See §19.
 
 Source-confidence tagging used throughout:
 - **[VERIFIED]** — confirmed directly by reading the current repo during this handoff.
@@ -2832,3 +2835,65 @@ finding `---`.
 
 **Build order:** `node scripts/build-demo-fixture.mjs` first, then
 `node scripts/build-graph-demo.mjs` — the second reads the fixture the first writes.
+
+---
+
+## 19. PWA / MOBILE PARITY PASS (2026-08-23)
+
+Two independent codebases over one Supabase project, neither of which was a superset of the
+other. Closed in both directions so that development can continue on both rather than one
+drifting further ahead.
+
+### 19.1 What moved
+
+| | Direction | Note |
+|---|---|---|
+| Character web | → PWA | Embedded, not reimplemented (§19.2) |
+| Map view | removed | The web replaces it; −228 KB from `index.html` |
+| Day/night/auto | → PWA | Mobile's palette and rule, unchanged |
+| Trash | → mobile | Same table and row shape as the PWA |
+| EPUB export | → mobile | Same builder; only the last step differs |
+| Mythic threads | both | New in this pass, in the shared renderer |
+| Linear Progression | both | New in this pass, in the shared renderer |
+
+### 19.2 One renderer, two hosts
+
+`scripts/build-graph-demo.mjs` emits two files from `CHARACTER_WEB_HTML`:
+
+- **`character-web.html`** — no data. The PWA loads it in an iframe and posts the graph in.
+- **`graph/character-web-demo.html`** — the same markup with the demo pack baked in.
+
+The PWA fetches `character_graph()` through `sbClient` and hands the payload over; mobile
+does the same through a WebView. Neither implements the graph.
+
+**The trap, found by testing rather than reading:** the renderer's `post()` only spoke to
+`window.ReactNativeWebView`. In an iframe it did nothing at all, silently — the frame waited
+for data forever while the host waited for the `ready` it never sent. It now falls back to
+`window.parent`. Anything else added to that message channel has to work in both hosts.
+
+### 19.3 Things worth knowing before touching these
+
+- **The PWA's service worker is network-first for the app shell** and has been since an
+  earlier session, with a comment recording why. A deploy is picked up on the next load;
+  offline still works from cache. If a change appears not to ship, suspect the browser's own
+  HTTP cache or a dead dev server before suspecting the SW.
+- **`index.html` inlines the same 209 KB JPEG that List view uses as a background.** The map
+  had a second copy of it, which went with the map. Pulling the survivor out into a real
+  cacheable asset would roughly halve the file again and is the single biggest remaining win
+  on download size.
+- **expo-file-system v57 replaced `writeAsStringAsync`/`cacheDirectory` with `File`/`Paths`.**
+  The old names still exist as exports and throw at runtime, which is worse than missing.
+- **Native modules cannot arrive over the air.** `jszip`, `expo-file-system` and
+  `expo-sharing` were added in this pass; `expo-sharing` is a config plugin. Anything else
+  needing a native module has to go in before the APK is built, or wait for the next one.
+
+### 19.4 Still not at parity, deliberately
+
+- **POV tracker and Mythic Threads (the PWA's originals)** are not ported. Progression marks
+  POV chapters already, and the PWA's Mythic Threads is superseded by the thread-flagged
+  notes described in §17 — the same idea with an actual data model behind it.
+- **Continuity checker** is not ported. It is Icarus's job now (§15), including spelling,
+  grammar and punctuation, and including editing rather than only reporting.
+- **Google Drive import and the assistants** remain mobile-only.
+
+---
