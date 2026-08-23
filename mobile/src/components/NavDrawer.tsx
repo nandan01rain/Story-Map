@@ -36,6 +36,8 @@ const DISCOVER: DrawerItem[] = [
 ];
 
 const MANAGE: DrawerItem[] = [
+  { key: 'epub', icon: 'books', label: 'Export as eBook' },
+  { key: 'trash', icon: 'trash', label: 'Trash' },
   { key: 'export', icon: 'download', label: 'Export' },
   { key: 'export-epub', icon: 'book-closed', label: 'Export as eBook' },
   { key: 'import', icon: 'upload', label: 'Import' },
@@ -71,6 +73,8 @@ export default function NavDrawer({
   onOpenDocuments,
   onOpenAssistant,
   onOpenCharacterWeb,
+  onOpenTrash,
+  onExportEpub,
 }: {
   controller: SlidePanelController;
   panelWidth: number;
@@ -84,6 +88,8 @@ export default function NavDrawer({
   onOpenDocuments: () => void;
   onOpenAssistant: () => void;
   onOpenCharacterWeb: () => void;
+  onOpenTrash: () => void;
+  onExportEpub: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
   const { colors } = useTheme();
@@ -104,6 +110,8 @@ export default function NavDrawer({
     if (item.key === 'documents') return { ...item, onPress: onOpenDocuments };
     if (item.key === 'assistant') return { ...item, onPress: onOpenAssistant };
     if (item.key === 'character-web') return { ...item, onPress: onOpenCharacterWeb };
+    if (item.key === 'trash') return { ...item, onPress: onOpenTrash };
+    if (item.key === 'epub') return { ...item, onPress: onExportEpub };
     return item;
   });
 

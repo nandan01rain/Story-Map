@@ -16,7 +16,9 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { BOOKS, chapterNumberInBook, statusColor, wordCount } from '../lib/storyData';
 import { supabase } from '../lib/supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
+import { useAuthStore } from '../store/authStore';
 import { useSceneStore } from '../store/sceneStore';
+import { useTrashStore } from '../store/trashStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ChapterDrawer'>;
@@ -36,7 +38,11 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   const chapter = useChapterStore((s) => s.chapters.find((c) => c.id === chapterId));
   const allChapters = useChapterStore((s) => s.chapters);
   const updateChapter = useChapterStore((s) => s.updateChapter);
-  const deleteChapter = useChapterStore((s) => s.deleteChapter);
+  // Deletes go through the trash, not through the stores' own hard delete. Every
+  // destructive action in this app is meant to be recoverable (see the design principles in
+  // CLAUDE.md); mobile held the principle and had no bin, so it was permanent everywhere.
+  const { trashChapter, trashScene } = useTrashStore();
+  const user = useAuthStore((s) => s.user);
   const { scenes, fetchScenes, createScene, updateScene, deleteScene } = useSceneStore();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -101,13 +107,22 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   }
 
   function handleDelete() {
-    Alert.alert('Delete chapter', `Delete "${chapter!.title}"? This cannot be undone yet (trash isn't built).`, [
+    Alert.alert('Delete chapter', `Move "${chapter!.title}" to the trash? Its scenes go with it.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await deleteChapter(chapterId);
+          if (!user || !chapter) return;
+          // The chapter's scenes are captured here, before the delete, because the foreign
+          // key cascades them -- afterwards there is nothing left to put in the payload and
+          // a restore would bring back an empty chapter.
+          const { error } = await trashChapter(
+            chapter.project_id,
+            user.id,
+            chapter,
+            scenes.filter((s) => s.chapter_id === chapterId),
+          );
           if (error) Alert.alert('Could not delete', error);
           else navigation.goBack();
         },
@@ -186,7 +201,12 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
               placeholder="Scene title"
               placeholderTextColor={colors.textFaint}
             />
-            <Pressable onPress={() => deleteScene(scene.id)} hitSlop={10}>
+            <Pressable
+              onPress={() => {
+                if (user && chapter) trashScene(chapter.project_id, user.id, scene);
+              }}
+              hitSlop={10}
+            >
               <Text style={styles.sceneRemove}>×</Text>
             </Pressable>
           </View>
