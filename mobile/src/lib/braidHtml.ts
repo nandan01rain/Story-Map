@@ -89,10 +89,22 @@ export const BRAID_HTML = String.raw`<!doctype html>
   #detail dd { margin: 0; }
   #dclose { position: absolute; top: 0; right: 0; font-size: 15px; }
 
-  #scrub { position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; width: 260px;
-    text-align: center; }
+  #footer { position: fixed; left: 0; right: 0; bottom: 0; height: 46px; z-index: 4;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    padding: 0 16px; gap: 16px; }
+  #legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10.5px; color: var(--quiet); }
+  #legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  #legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; flex: none; }
+
+  #scrub { width: 260px; text-align: center; }
   #scrub input { width: 100%; accent-color: #f2b93c; background: none; }
   #scrub .lab { color: var(--quiet); font-size: 10px; margin-top: 1px; }
+
+  #zoom { display: flex; gap: 4px; justify-content: flex-end; }
+  #zoom button { width: 26px; height: 26px; padding: 0; border: 1px solid var(--rule);
+    border-radius: 50%; color: var(--quiet); font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; }
+  #zoom button:hover { color: var(--accent); border-color: var(--accent); }
 
   #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     text-align: center; padding: 40px; color: var(--quiet); font-family: var(--book); }
@@ -146,9 +158,28 @@ export const BRAID_HTML = String.raw`<!doctype html>
 
 <div class="panel" id="detail"><button id="dclose">&times;</button><div id="dbody"></div></div>
 
-<div id="scrub" hidden>
-  <input type="range" id="upto" min="1" value="1">
-  <div class="lab" id="uptolab"></div>
+<div id="footer" hidden>
+  <!-- Only what the braid actually draws. The reference sheet also listed motifs,
+       locations and documents; none of those exist here, and a legend for absent things
+       is worse than no legend. -->
+  <div id="legend">
+    <span><i style="background:#6f74c4"></i>Subplots</span>
+    <span><i style="background:#86c46a"></i>Still open</span>
+    <span><i style="background:#3fb3a8"></i>Mythic threads</span>
+    <span><i style="background:#6f7ad0"></i>Characters</span>
+    <span><i style="background:#74b45f"></i>Plants</span>
+    <span><i style="background:#c4483c"></i>Reveals</span>
+    <span><i style="background:#d39a4a"></i>Notes</span>
+  </div>
+  <div id="scrub">
+    <input type="range" id="upto" min="1" value="1">
+    <div class="lab" id="uptolab"></div>
+  </div>
+  <div id="zoom">
+    <button id="zoom-out" title="Further out">&minus;</button>
+    <button id="zoom-fit" title="Fit the saga">&#9633;</button>
+    <button id="zoom-in" title="Closer in">&plus;</button>
+  </div>
 </div>
 
 <script>window.__SOURCE__ = "";</script>
@@ -2461,6 +2492,17 @@ orderSw.addEventListener('click', () => {
   location.search = params.toString();
 });
 
+// Zoom by the same dolly the wheel uses, so the buttons and the wheel cannot disagree.
+function dolly(factor){
+  dist = Math.max(45, Math.min(1400, dist * factor));
+  updateCamera();
+}
+document.getElementById('zoom-in').addEventListener('click', () => dolly(0.78));
+document.getElementById('zoom-out').addEventListener('click', () => dolly(1.28));
+document.getElementById('zoom-fit').addEventListener('click', () => {
+  theta = 0.34; dist = framingDistance(); target.set(0, 0, 0); updateCamera();
+});
+
 document.getElementById('reset').addEventListener('click', () => {
   theta = 0.34; dist = framingDistance(); target.set(0, 0, 0); updateCamera();
 });
@@ -2502,7 +2544,7 @@ document.getElementById('subtitle').textContent =
   (axis.order === 'story' ? ' · ordered as it happened' : '');
 document.getElementById('uptolab').textContent = 'showing the whole saga';
 document.getElementById('bar').hidden = false;
-document.getElementById('scrub').hidden = false;
+document.getElementById('footer').hidden = false;
 
 // One dropdown open at a time, and any touch of the canvas closes them: the braid should
 // never be competing with a panel for the screen.

@@ -746,7 +746,54 @@ button.btn.primary#add-chapter-btn::before{
   #app[data-pane="braid"] #main > #list-view{display:none;}
   #app[data-pane="list"] #main > #web-view{display:none;}
 
+  /* DAY IS NOT NIGHT INVERTED.
+     The rail stays dark against a cream page -- that contrast is the point of the layout,
+     and a fully cream shell loses the spine of it. Only the working surfaces go light. */
+  html[data-theme="day"] #sidebar{
+    background:#161009; border-right:1px solid rgba(198,154,58,0.28);
+  }
+  html[data-theme="day"] .sb-item{color:#d8cbb0;}
+  html[data-theme="day"] .sb-item:hover{background:rgba(198,154,58,0.10);}
+  html[data-theme="day"] .sb-item.on{background:rgba(198,154,58,0.16); color:var(--gold);}
+  html[data-theme="day"] .sb-group{color:#9a8c6e;}
+  html[data-theme="day"] .sb-epigraph{color:#9a8a68; border-top-color:rgba(198,154,58,0.22);}
+
   #dock{display:grid; grid-template-columns:1fr 1.25fr 1fr; gap:14px; min-height:0;}
+  /* The book card carries a bookmark ribbon down its left edge and a seal at the foot --
+     the same parchment vocabulary the rest of the app uses, rather than a plain box. */
+  #dock-book{position:relative; padding-left:30px;}
+  #dock-book::before{
+    content:""; position:absolute; left:12px; top:-1px; width:14px; height:56px;
+    background:linear-gradient(180deg, var(--gold), rgba(198,154,58,0.55));
+    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+    opacity:.85;
+  }
+  #dock-book::after{
+    content:""; position:absolute; right:14px; bottom:12px; width:26px; height:26px;
+    background:var(--flourish) center/contain no-repeat; opacity:.35;
+  }
+
+  /* An open thread is a thread: it gets the colour of one down its edge. */
+  #dock-open-rows .dock-row{
+    border-left:3px solid var(--gold); padding-left:9px; margin-bottom:5px;
+    background:var(--bg-alt); border-radius:0 6px 6px 0;
+  }
+  #dock-open-rows .dock-row:nth-child(3n+2){border-left-color:var(--teal);}
+  #dock-open-rows .dock-row:nth-child(3n+3){border-left-color:var(--ember);}
+  #dock-open .dock-count{
+    background:var(--ember); color:#fff; border-radius:999px; padding:1px 8px;
+    font-family:var(--font-mono); font-size:10.5px;
+  }
+
+  /* A chapter's status as a dot rather than a word repeated eighteen times. */
+  .dock-row .s{display:flex; align-items:center; gap:7px;}
+  .dock-row .s::after{
+    content:""; width:6px; height:6px; border-radius:50%; background:var(--gray); flex:none;
+  }
+  .dock-row[data-status="drafted"] .s::after{background:var(--ember);}
+  .dock-row[data-status="final"] .s::after{background:var(--teal);}
+  .dock-row[data-status="outline"] .s::after{background:var(--gold);}
+
   .dock-card{
     border:1px solid var(--border); border-radius:12px; background:var(--panel);
     padding:14px 16px; min-height:0; display:flex; flex-direction:column; max-height:240px;
@@ -3314,6 +3361,7 @@ function renderDock(){
     d.innerHTML = '<span class="n">' + (n === null ? '' : escapeHtml(String(n))) + '</span>' +
       '<span class="t">' + escapeHtml(t) + '</span>' +
       '<span class="s">' + escapeHtml(st || '') + '</span>';
+    if(st) d.dataset.status = st;
     if(onClick) d.addEventListener('click', onClick);
     return d;
   };
