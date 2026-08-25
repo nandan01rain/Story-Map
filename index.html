@@ -20,6 +20,8 @@
   --leaf:#3d4a2b; --leaf-edge:#4d5c36; --leaf-hi:#4a5a34;
   --texture-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --texture-parchment: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%238a7355' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7'/%3E%3C/g%3E%3C/svg%3E");
+  --ink-knob:#1c211c;
   --rail:#1c211c; --rail-edge:rgba(198,154,58,0.24);
   --rail-ink:#e9e2ce; --rail-dim:#9ba093; --rail-hover:rgba(198,154,58,0.09);
   --quill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23c69a3a' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 20c6-1 10-4 13-9 1.6-2.7 2.2-5 2.4-7-2 .2-4.3.8-7 2.4-5 3-8 7-9 13z'/%3E%3Cpath d='M4 20l6-6'/%3E%3C/g%3E%3C/svg%3E");
@@ -812,6 +814,75 @@ button.btn.primary#add-chapter-btn:hover{
      and a fully cream shell loses the spine of it. Only the working surfaces go light. */
   /* No day override: the rail is the same grey-green in both, which is what the
      reference shows and what keeps its own ink legible either way. */
+
+  /* THE BAR.
+     In the reference the tools are not buttons on a band -- they are labels on the page.
+     No fills, no borders, no rounded boxes; the only enclosed thing is the one action that
+     creates something. So the chrome comes off, and the ground is flat paper rather than a
+     gradient. */
+  #app > header{
+    background-color:var(--bg);
+    background-image:var(--texture-parchment);
+    background-size:200px 200px;
+    background-blend-mode:overlay;
+    box-shadow:none;
+    border-bottom:1px solid var(--border);
+    padding:12px 20px;
+    align-items:flex-start;
+  }
+  #app > header .header-actions button.btn{
+    background:none; border:0; border-radius:0; padding:7px 10px;
+    color:var(--text); font-size:13px; min-height:34px;
+  }
+  #app > header .header-actions button.btn:hover{
+    color:var(--gold); background:rgba(198,154,58,0.08); border-radius:6px;
+  }
+  /* The one exception, and the only boxed thing in the row. */
+  #app > header button.btn.primary#add-chapter-btn{
+    border-radius:8px; padding:8px 16px; min-height:36px;
+  }
+  #app > header .nav-icon{color:currentColor; opacity:.75; margin-right:6px;}
+  #app > header button.btn:hover .nav-icon{opacity:1;}
+
+  /* A count is a dot, not a zero. Nothing is shown when there is nothing to show. */
+  #app > header #notes-count-badge, #app > header #trash-count-badge{
+    width:6px; height:6px; padding:0; min-width:0; border-radius:50%;
+    background:var(--ember); color:transparent; overflow:hidden;
+    display:inline-block; vertical-align:middle; margin-left:6px;
+  }
+  #app > header #notes-count-badge.zero, #app > header #trash-count-badge.zero{display:none;}
+
+  /* The day/night control is one switch, as the reference draws it: a sun, a track and a
+     knob. It still carries three states -- the knob shows an A while the clock is deciding
+     -- because dropping "auto" to match a picture would be losing a feature to match a
+     picture. */
+  #app > header .theme-row{
+    display:inline-flex; align-items:center; gap:0; margin:0 4px;
+    background:var(--bg-alt); border:1px solid var(--border);
+    border-radius:999px; padding:3px; height:30px; position:relative; width:58px;
+  }
+  /* The three separate choices stay in the DOM for the phone panel, which still shows them
+     as three; in the bar they are one control that cycles, so they are simply not drawn. */
+  #app > header .theme-choice{display:none;}
+  #app > header .theme-row{cursor:pointer;}
+  /* A wrapper left over from the old Map/List toggle, which rendered as a stray dot beside
+     the primary action. :empty does not match it -- it holds whitespace, and whitespace is a
+     text node -- so it is hidden outright. */
+  #app > header #view-toggle-wrap{display:none;}
+  #app > header .theme-row::before{
+    content:""; position:absolute; left:7px; top:50%; transform:translateY(-50%);
+    width:13px; height:13px; background:var(--sun) center/contain no-repeat; opacity:.8;
+  }
+  #app > header .theme-row::after{
+    content:""; position:absolute; top:3px; right:3px; width:22px; height:22px;
+    border-radius:50%; background:var(--ink-knob);
+    transition:transform .18s ease, background .18s ease;
+  }
+  html[data-theme="day"] #app > header .theme-row::after{transform:translateX(0);}
+  #app > header .theme-row[data-state="night"]::after{background:#0f0b06;}
+  #app > header .theme-row[data-state="auto"]::after{
+    background:var(--gold);
+  }
 
   #dock{display:grid; grid-template-columns:1fr 1.25fr 1fr; gap:14px; min-height:0;}
   /* The book card carries a bookmark ribbon down its left edge and a seal at the foot --
@@ -1803,7 +1874,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <div class="hdr-section-label" data-toggle-section="discover"><span class="hdr-section-label-text">Discover</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
         <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
         <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
-        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Continuity check</button>
+        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Continuity Check</button>
         <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Character Web</button>
         <button class="btn hdr-collapsible" id="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Ledger</button>
         <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-compass"></use></svg> Mythic Threads</button>
@@ -1836,7 +1907,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
           <input type="checkbox" id="ai-toggle-input" style="display:none;">
         </div>
         <button class="btn primary hdr-collapsible" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
-        <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-swap"></use></svg> Switch project</button>
+        <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-swap"></use></svg> Switch Project</button>
         <button class="btn hdr-collapsible" id="app-settings-btn" style="display:none;">⚙ Settings</button>
         <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-exit"></use></svg> Sign out</button>
       </div>
@@ -5710,6 +5781,9 @@ function applyTheme(){
   document.querySelectorAll('[data-theme-choice]').forEach(el => {
     el.classList.toggle('active', el.dataset.themeChoice === themePreference);
   });
+  // The switch draws from the PREFERENCE, not the resolved value: a reader who chose auto
+  // should see that they chose auto, not whichever side of six o'clock it happens to be.
+  document.querySelectorAll('.theme-row').forEach(row => { row.dataset.state = themePreference; });
 
   // The braid is a separate document with its own palette, so it has to be told. It reads
   // the theme once at load -- the labels are baked into canvas textures, so switching in
@@ -5751,6 +5825,18 @@ function setThemePreference(next){
 
 document.querySelectorAll('[data-theme-choice]').forEach(el => {
   el.addEventListener('click', () => setThemePreference(el.dataset.themeChoice));
+});
+
+// In the bar the three choices are one switch. Cycling keeps all three reachable from a
+// control that only has room to show one -- dropping auto to match a two-state picture
+// would be losing a feature to match a picture.
+const THEME_CYCLE = ['day', 'night', 'auto'];
+document.querySelectorAll('#app > header .theme-row').forEach(row => {
+  row.addEventListener('click', (e) => {
+    if(e.target.closest('[data-theme-choice]')) return;   // the phone panel's own buttons
+    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(themePreference) + 1) % THEME_CYCLE.length];
+    setThemePreference(next);
+  });
 });
 
 /* ---------- THE BRAID ----------
