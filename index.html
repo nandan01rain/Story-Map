@@ -5510,6 +5510,21 @@ function applyTheme(){
   document.querySelectorAll('[data-theme-choice]').forEach(el => {
     el.classList.toggle('active', el.dataset.themeChoice === themePreference);
   });
+
+  // The braid is a separate document with its own palette, so it has to be told. It reads
+  // the theme once at load -- the labels are baked into canvas textures, so switching in
+  // place would mean regenerating every one of them -- which means a theme change reloads
+  // the frame. The camera returns to its opening framing; a theme change is rare enough
+  // that this is the right trade against regenerating the scene.
+  const frame = document.getElementById('web-frame');
+  if(frame){
+    const want = 'braid.html?theme=' + resolved;
+    const have = (frame.getAttribute('src') || '');
+    if(have !== want){
+      webFrameReady = false;      // the new document has to say ready before it is sent data
+      frame.setAttribute('src', want);
+    }
+  }
 }
 
 function setThemePreference(next){

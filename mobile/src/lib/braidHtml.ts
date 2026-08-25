@@ -50,7 +50,7 @@ export const BRAID_HTML = String.raw`<!doctype html>
   .dd > summary:hover { color: var(--ink); }
   .dd[open] > summary { color: var(--accent); }
   .pop { position: absolute; right: 0; top: 26px; min-width: 168px; padding: 10px 12px;
-    background: rgba(3,6,13,0.96); border: 1px solid var(--rule); border-radius: 4px; }
+    background: var(--pop); border: 1px solid var(--rule); border-radius: 4px; }
   .pop.wide { width: 260px; max-height: 46vh; display: flex; flex-direction: column; }
   .row { padding: 3px 0; cursor: pointer; font-size: 12px; color: var(--quiet); white-space: nowrap; }
   .row:hover { color: var(--ink); }
@@ -1036,26 +1036,59 @@ const spine = computeSpine(raw, {
 });
 const axis = spine.axis, N = axis.slots;
 
-// Dyed thread, not signal colour, but at working chroma. The first pass desaturated these
-// so far that the additive glow bleached what little was left; with the glow fixed to add
-// hue rather than whiteness, the cores can hold real colour again. Semantics unchanged:
-// madder reveals, weld plants, indigo subplots, verdigris threads, gold structure.
-const C = {
-  chapter: 0xe8b45a,   // gold, lit
-  scene:   0xa8926b,   // raw flax
-  event:   0x8b8478,
-  plant:   0x74b45f,   // weld over indigo, a muted green
-  reveal:  0xc4483c,   // madder
-  note:    0xd39a4a,   // ochre
-  thread:  0x3fb3a8,   // verdigris -- the mythic-thread teal, dyed down
-  character: 0x6f7ad0, // indigo
-  spine:   0xf5be48,   // the trunk everything hangs from
-  ribbonOpen: 0x86c46a,
-  ribbon:  0x6f74c4,   // indigo, resolved
-  gold:    0xf2b93c,
-  ground:  0x03060d,   // near-black, still blue
+// Two palettes: thread lit in the dark, and thread on paper. The semantics are identical in
+// both -- madder reveals, weld plants, indigo subplots, verdigris threads, gold structure --
+// only the values move, so nothing has to be relearned when the light changes.
+//
+// Day is NOT the night palette on a pale ground. Additive glow adds light, and adding light
+// to white produces nothing at all, so day drops the glow entirely and lets colour and the
+// casing do the work. That is also what thread on paper actually looks like: it does not
+// glow, it sits there.
+const PALETTES = {
+  night: {
+    ground:  0x03060d,
+    chapter: 0xe8b45a, scene: 0xa8926b, event: 0x8b8478,
+    plant:   0x74b45f, reveal: 0xc4483c, note: 0xd39a4a,
+    thread:  0x3fb3a8, character: 0x6f7ad0,
+    spine:   0xf5be48, ribbonOpen: 0x86c46a, ribbon: 0x6f74c4,
+    gold:    0xf2b93c,
+    ink: '#f0c464', quiet: '#bb8f3c', band: '#f0c464', act: '#bb8f3c',
+    books: [0x0c1226, 0x0f1329, 0x0a1327, 0x101228, 0x0c0f20],
+    glow: 1, sky: true,
+    css: { ground: '#03060d', ink: '#f0c464', quiet: '#a8813a',
+           rule: 'rgba(242,185,60,0.18)', accent: '#f2b93c', pop: 'rgba(3,6,13,0.96)' },
+  },
+  day: {
+    // A warm white page rather than a blue-black sky.
+    ground:  0xfaf7f0,
+    chapter: 0xb8862a, scene: 0x8a7f6a, event: 0x7d7568,
+    plant:   0x3f7f34, reveal: 0xa8332a, note: 0x9c6a1f,
+    thread:  0x1f7f77, character: 0x3f4a9e,
+    spine:   0xb8860b, ribbonOpen: 0x3f7f34, ribbon: 0x4a4fa0,
+    gold:    0xa8791f,
+    ink: '#2b2318', quiet: '#6f6250', band: '#8a6a2a', act: '#8a7f6a',
+    books: [0xefe6d4, 0xeae4d6, 0xe9e6dc, 0xece3d8, 0xefe8d8],
+    glow: 0, sky: false,
+    css: { ground: '#faf7f0', ink: '#2b2318', quiet: '#6f6250',
+           rule: 'rgba(70,58,38,0.18)', accent: '#a8791f', pop: 'rgba(250,247,240,0.97)' },
+  },
 };
-const BOOK_TINT = [0x0c1226, 0x0f1329, 0x0a1327, 0x101228, 0x0c0f20];
+
+const THEME = (new URLSearchParams(location.search).get('theme') === 'day') ? 'day' : 'night';
+const C = PALETTES[THEME];
+
+// The chrome follows the same choice, through the variables the stylesheet already reads.
+(function paintChrome() {
+  const r = document.documentElement.style;
+  r.setProperty('--ground', C.css.ground);
+  r.setProperty('--ink', C.css.ink);
+  r.setProperty('--quiet', C.css.quiet);
+  r.setProperty('--rule', C.css.rule);
+  r.setProperty('--accent', C.css.accent);
+  r.setProperty('--pop', C.css.pop);
+})();
+
+const BOOK_TINT = C.books;
 
 // ---- the coordinate system ------------------------------------------------------
 // X is saga order and nothing else touches it. Y is the lane. Z is that same lane wrapped
@@ -1156,8 +1189,8 @@ function casingMaterial() {
 }
 function threadMaterial(colour) {
   return new THREE.MeshStandardMaterial({
-    color: colour, roughness: 0.62, metalness: 0.0,
-    emissive: colour, emissiveIntensity: 0.22, transparent: false, depthWrite: true,
+    color: colour, roughness: THEME === 'day' ? 0.85 : 0.62, metalness: 0.0,
+    emissive: colour, emissiveIntensity: 0.22 * C.glow, transparent: false, depthWrite: true,
   });
 }
 
@@ -1169,10 +1202,10 @@ function threadMaterial(colour) {
 // GLOW CARRIES MEANING. Intensity is not uniform: it says what state the thread is in, so
 // luminance is doing work the data already contains rather than being decoration.
 const GLOW = {
-  ribbon: 0.075,     // resolved: low and steady
-  open:   0.155,     // still open: the brightest thing in its neighbourhood
-  thread: 0.045,     // mythic: lowest, because it runs saga-length and would dominate
-  spine:  0.115,     // the one constant, and the only structural thing that glows
+  ribbon: 0.075 * C.glow,   // resolved: low and steady
+  open:   0.155 * C.glow,   // still open: the brightest thing in its neighbourhood
+  thread: 0.045 * C.glow,   // mythic: lowest, because it runs saga-length and would dominate
+  spine:  0.115 * C.glow,   // the one constant, and the only structural thing that glows
 };
 // THE BLEACHING FIX.
 //
@@ -1246,11 +1279,11 @@ scene.background = new THREE.Color(C.ground);
 scene.fog = new THREE.Fog(C.ground, 520, 1800);
 
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 4000);
-scene.add(new THREE.AmbientLight(0xdfe6f5, 0.55));
-const key = new THREE.DirectionalLight(0xffeed4, 1.15);
+scene.add(new THREE.AmbientLight(THEME === 'day' ? 0xffffff : 0xdfe6f5, THEME === 'day' ? 0.9 : 0.55));
+const key = new THREE.DirectionalLight(THEME === 'day' ? 0xfff6e8 : 0xffeed4, THEME === 'day' ? 0.75 : 1.15);
 key.position.set(-0.4, 1, 0.8);
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x8fa8d8, 0.42);
+const rim = new THREE.DirectionalLight(THEME === 'day' ? 0xcfd8e8 : 0x8fa8d8, THEME === 'day' ? 0.25 : 0.42);
 rim.position.set(0.6, -0.5, -0.9);
 scene.add(rim);
 
@@ -1268,7 +1301,7 @@ function label(text, opts) {
   const w = Math.ceil(g.measureText(text).width) + pad * 2;
   c.width = w; c.height = size + pad * 2;
   g.font = (o.weight || 500) + ' ' + size + 'px ' + face;
-  g.fillStyle = o.color || '#f0c464';
+  g.fillStyle = o.color || C.ink;
   g.textBaseline = 'middle';
   if (o.letter) g.letterSpacing = o.letter;
   g.fillText(text, pad, c.height / 2);
@@ -1357,6 +1390,7 @@ function buildSky() {
   return sky;
 }
 const sky = buildSky();
+sky.visible = C.sky;   // a starfield on a white page is not a sky, it is dirt
 camera.add(sky);
 scene.add(camera);
 
@@ -1387,7 +1421,7 @@ axis.books.forEach((b, i) => {
   slab.position.set((x0 + x1) / 2, 26, -46);
   groups.books.add(slab);
 
-  const cap = label('BOOK ' + toRoman(b.book + 1), { size: 46, world: 8, color: '#f0c464', weight: 400 });
+  const cap = label('BOOK ' + toRoman(b.book + 1), { size: 46, world: 8, color: C.band, weight: 400 });
   cap.position.set((x0 + x1) / 2, 92, -45);
   groups.books.add(cap);
 
@@ -1399,7 +1433,7 @@ axis.books.forEach((b, i) => {
 });
 
 axis.acts.forEach((a) => {
-  const t = label('Act ' + a.act, { size: 30, world: 4.5, color: '#bb8f3c', opacity: 0.7 });
+  const t = label('Act ' + a.act, { size: 30, world: 4.5, color: C.act, opacity: 0.7 });
   t.position.set((X(a.from) + X(a.to)) / 2, 72, -44);
   groups.books.add(t);
 });
@@ -1671,7 +1705,7 @@ axis.sorted.forEach((c) => {
   picks.push(m);
   chapterMesh[c.id] = m;
 
-  const n = label(String(o), { size: 26, world: 3.4, color: '#bb8f3c', opacity: 0.8 });
+  const n = label(String(o), { size: 26, world: 3.4, color: C.quiet, opacity: 0.8 });
   n.position.set(X(o), SPINE_Y - 6.5, 0);
   n.userData = { numeralFor: c.id, ord: o };
   groups.structure.add(n);
@@ -1683,7 +1717,7 @@ axis.sorted.forEach((c) => {
   // of its own chapter slot and sits on a single line; where even that collides, the
   // collision pass drops it rather than letting two titles share pixels.
   const t = label(clip(c.title, TITLE_CHARS), {
-    size: 30, world: TITLE_WORLD, color: '#f0c464', opacity: 0.95, book: true,
+    size: 30, world: TITLE_WORLD, color: C.ink, opacity: 0.95, book: true,
   });
   t.position.set(X(o), SPINE_Y + 9.5, 0);
   t.userData = { titleFor: c.id, ord: o };
@@ -1825,7 +1859,7 @@ spine.ribbons.forEach((r) => {
   if (fray) g.add(fray);
 
   const tag = label(clip(r.label, 22), {
-    size: 26, world: 2.6, color: r.open ? '#a9bd94' : '#9aa0c4', opacity: 0.9,
+    size: 26, world: 2.6, color: r.open ? '#' + new THREE.Color(C.ribbonOpen).getHexString() : '#' + new THREE.Color(C.ribbon).getHexString(), opacity: 0.9,
   });
   g.add(tag);
   g.userData.fray = fray;
@@ -1843,7 +1877,7 @@ spine.threads.forEach((t) => {
   const g = new THREE.Group();
   const mat = threadMaterial(C.thread);
   g.userData = { kind: 'thread-arc', id: t.id, ord: t.start, data: t, mat: mat, tube: null, glows: [] };
-  const tag = label(clip(t.label, 24), { size: 26, world: 2.6, color: '#7fb8b2', opacity: 0.9 });
+  const tag = label(clip(t.label, 24), { size: 26, world: 2.6, color: '#' + new THREE.Color(C.thread).getHexString(), opacity: 0.9 });
   g.add(tag);
   g.userData.tag = tag;
   groups.threads.add(g);
@@ -1867,7 +1901,7 @@ spine.strands.forEach((s) => {
     m.userData = { bead: true, ord: b.ord };
     g.add(m);
   });
-  const tag = label(s.label, { size: 26, world: 2.6, color: '#9aa0c4', opacity: 0.85 });
+  const tag = label(s.label, { size: 26, world: 2.6, color: '#' + new THREE.Color(C.character).getHexString(), opacity: 0.85 });
   g.add(tag);
   g.userData.tag = tag;
   g.userData.line = null;
