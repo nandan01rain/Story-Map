@@ -2348,6 +2348,40 @@ function resolvePresentationConfig(){
 // current look, not a visual change. The data-* attributes have no corresponding CSS rules yet
 // (only one visualization/layout/motion/background value exists in practice) — they exist so a
 // future second preset has somewhere to hook in without this function needing to change again.
+/* The surface tokens -- the ones that decide whether the app is dark or light. Everything
+   else in a preset's palette (gold, ember, teal, danger) is an accent and is identical in
+   both themes by deliberate choice, so a preset may keep setting those whatever the hour.
+
+   These are listed because of a real collision: applyPresentationConfig writes the preset's
+   palette as INLINE custom properties on <html>, and an inline property beats a stylesheet
+   rule. So html[data-theme="day"] could never win once a project had loaded, and the day
+   toggle changed nothing but the braid -- which is a separate document, and therefore the
+   only surface the inline palette could not reach. */
+const THEME_SURFACE_TOKENS = new Set([
+  '--bg', '--bg-alt', '--panel', '--panel-2', '--border',
+  '--text', '--text-dim', '--gray', '--plate-dark',
+]);
+
+// Kept on window rather than in a module binding so applyTheme can read it during script
+// evaluation without meeting a temporal dead zone -- the mistake that took the whole script
+// down last time this file grew a cross-reference.
+window.__presetPalette = window.__presetPalette || {};
+
+function dayIsActive(){
+  return document.documentElement.getAttribute('data-theme') === 'day';
+}
+
+// Re-asserts whichever palette should be winning right now. Day drops the preset's surface
+// tokens so the stylesheet's day rules apply; night puts them back.
+function reconcileThemeAndPreset(){
+  const root = document.documentElement;
+  const day = dayIsActive();
+  THEME_SURFACE_TOKENS.forEach((token) => {
+    if(day) root.style.removeProperty(token);
+    else if(window.__presetPalette[token]) root.style.setProperty(token, window.__presetPalette[token]);
+  });
+}
+
 function applyPresentationConfig(){
   const config = resolvePresentationConfig();
   const root = document.documentElement;
@@ -2356,7 +2390,13 @@ function applyPresentationConfig(){
   root.setAttribute('data-layout', config.layout);
   root.setAttribute('data-motion', config.motion);
   root.setAttribute('data-background', config.background);
-  Object.entries(config.palette || {}).forEach(([k, v]) => root.style.setProperty(k, v));
+  window.__presetPalette = config.palette || {};
+  Object.entries(config.palette || {}).forEach(([k, v]) => {
+    // A surface token is the theme's to decide while day is on; the preset gets it back the
+    // moment night returns.
+    if(dayIsActive() && THEME_SURFACE_TOKENS.has(k)) { root.style.removeProperty(k); return; }
+    root.style.setProperty(k, v);
+  });
   Object.entries(config.typography || {}).forEach(([k, v]) => root.style.setProperty(k, v));
 }
 let chapterWordTargets = [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
@@ -5506,6 +5546,10 @@ function applyTheme(){
   // second set of overrides that has to be kept in step with the first.
   if(resolved === 'day') document.documentElement.setAttribute('data-theme', 'day');
   else document.documentElement.removeAttribute('data-theme');
+
+  // The attribute alone is not enough: a loaded project has written the preset's palette
+  // inline, and inline wins. This is what actually makes the toggle reach the app.
+  reconcileThemeAndPreset();
 
   document.querySelectorAll('[data-theme-choice]').forEach(el => {
     el.classList.toggle('active', el.dataset.themeChoice === themePreference);
