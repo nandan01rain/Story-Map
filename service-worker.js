@@ -2,17 +2,22 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v5';
+const CACHE_VERSION = 'storymap-shell-v6';
 
 const APP_SHELL_PATHS = [
   './',
   'index.html',
   'manifest.json',
   'supabase-config.js',
-  // The character web's renderer, loaded in an iframe by index.html. Without it in the
-  // shell the graph is the one surface that breaks offline while everything around it
-  // works, which reads as a bug rather than as a missing network.
-  'character-web.html',
+  // The braid, loaded in an iframe by index.html. Without it in the shell the graph is the
+  // one surface that breaks offline while everything around it works, which reads as a bug
+  // rather than as a missing network.
+  //
+  // Both query forms are listed because the host appends the resolved theme, and a cache
+  // entry for the bare URL does not answer a request for braid.html?theme=day.
+  'braid.html',
+  'braid.html?theme=night',
+  'braid.html?theme=day',
   // List view's background. It used to be a 209 KB base64 data URI inside index.html -- the
   // same image twice, since the map had its own copy -- which meant it was re-downloaded
   // with the document on every deploy and could never be cached separately. As a file it is

@@ -2233,22 +2233,27 @@ function applyEmphasis(lit, strength) {
       // Up in saturation as well as in light: a brighter pale thread still reads pale.
       mat.color.copy(saturated(base, 0.3, 1.25));
       mat.emissive.copy(saturated(base, 0.3, 1.0));
-      mat.emissiveIntensity = 0.22 + 0.5 * strength;
+      mat.emissiveIntensity = (0.28 + 0.85 * strength) * (C.glow ? 1 : 0.35);
       mat.transparent = false;
       mat.opacity = 1;
     } else {
-      mat.color.copy(saturated(base, -0.45, 0.72));
-      mat.emissive.set(0x000000);
-      mat.emissiveIntensity = 0;
+      // Dimmed, not drained. An earlier version dropped unselected threads to a tenth of
+      // their saturation, which meant one click turned the entire picture grey and the
+      // braid stopped looking like dyed thread at all. The contrast now comes from lifting
+      // the selected thread rather than from bleaching the other twenty-six: they keep
+      // their hue and most of their weight, and simply stop glowing.
+      mat.color.copy(saturated(base, -0.12, 0.86));
+      mat.emissive.copy(saturated(base, -0.12, 0.5));
+      mat.emissiveIntensity = 0.06 * C.glow;
       mat.transparent = true;
-      mat.opacity = 1 - 0.72 * strength;
+      mat.opacity = 1 - 0.4 * strength;
     }
     mat.needsUpdate = true;
 
     g.userData.glows.forEach((gl) => {
       const rest = gl.userData.restOpacity;
       gl.material.opacity = !active ? rest
-        : (on ? Math.min(0.6, rest * (1 + 2.6 * strength)) : rest * (1 - 0.85 * strength));
+        : (on ? Math.min(0.7, rest * (1 + 3.6 * strength)) : rest * (1 - 0.55 * strength));
     });
   });
 }
