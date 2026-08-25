@@ -16,3 +16,10 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 *.swp
+
+# A local dump of one project's structure for exercising the spine against real
+# material (scripts/dump-project-structure.mjs). Chapter and scene titles are the
+# manuscript; it stays on the machine that made it.
+graph/.local-project.json
+graph/.local-spine-prototype.html
+graph/.local-braid-3d.html

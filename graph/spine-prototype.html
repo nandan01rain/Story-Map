@@ -1,0 +1,1475 @@
+<!-- GENERATED FILE - do not edit by hand.
+     Geometry from graph/spine-layout.mjs, data from graph/character-web-demo.html.
+     Rebuild with: node scripts/build-spine-prototype.mjs -->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>StoryMap — the saga spine</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0d1110;
+    font: 13px/1.45 -apple-system, system-ui, sans-serif; color: #cfd8d5; }
+  #cv { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #cv.drag { cursor: grabbing; }
+  #hud { position: fixed; top: 0; left: 0; right: 0; padding: 8px 10px; display: flex;
+    gap: 6px; align-items: center; flex-wrap: wrap;
+    background: linear-gradient(#0d1110ee, #0d111000); pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  .chip { border: 1px solid #2c3733; background: #141a18; color: #cfd8d5; border-radius: 999px;
+    padding: 5px 11px; font-size: 12px; cursor: pointer; }
+  .chip.on { border-color: #c69a3a; color: #f2c94c; background: rgba(198,154,58,0.18); }
+  #tail { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #7f8fa0; }
+  #upto { width: 150px; }
+  #focus { position: fixed; left: 0; right: 0; bottom: 0; max-height: 38vh; overflow: auto;
+    background: #141a18; border-top: 1px solid #2c3733; padding: 12px 14px 16px;
+    transform: translateY(100%); transition: transform .18s ease; }
+  #focus.open { transform: none; }
+  #focus h2 { margin: 0 0 6px; font-size: 14px; color: #f2c94c; font-weight: 600; }
+  #focus dl { margin: 0 0 8px; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+  #focus dt { color: #7f8fa0; }
+  #focus dd { margin: 0; }
+  .warn { color: #f2c94c; }
+  #dismiss { border: 1px solid #2c3733; background: #0d1110; color: #cfd8d5;
+    border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  #close { position: absolute; top: 8px; right: 10px; background: none; border: 0;
+    color: #7f8fa0; font-size: 20px; cursor: pointer; line-height: 1; }
+</style>
+
+<canvas id="cv"></canvas>
+<div id="hud">
+  <button class="chip" id="t-scene">Scenes</button>
+  <button class="chip" id="t-flag">Plants &amp; Reveals</button>
+  <button class="chip" id="t-ribbon">Subplots</button>
+  <button class="chip" id="t-strand">Characters</button>
+  <button class="chip" id="t-moment">Moments</button>
+  <button class="chip" id="t-health">Trouble marks</button>
+  <button class="chip" id="t-round">Wrap around</button>
+  <button class="chip" id="fit">Fit</button>
+  <div id="tail">
+    <label for="upto">up to</label><input type="range" id="upto" min="1" value="1"><span id="uptoLabel"></span>
+    <span id="count"></span>
+  </div>
+</div>
+<div id="focus"><button id="close">&times;</button><div id="body"></div></div>
+
+<script>window.__GRAPH__ = {"nodes":[{"id":"c:ganga","label":"Ganga","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":9},{"id":"c:nakulan","label":"Nakulan","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":6},{"id":"c:sunny","label":"Dr. Sunny Joseph","type":"character","properties":{"aliases":["Sunny"]},"source":"manual","needsReview":false,"degree":10},{"id":"c:sridevi","label":"Sridevi","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":5},{"id":"c:alli","label":"Alli","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":3},{"id":"c:mahadevan","label":"Mahadevan","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":4},{"id":"c:elders","label":"The Elders","type":"character","properties":{"aliases":["Elders"]},"source":"manual","needsReview":false,"degree":5},{"id":"c:namboodiri","label":"Pullattuparam Brahmadathan Namboodiri","type":"character","properties":{"aliases":["Namboodiri"]},"source":"manual","needsReview":false,"degree":2},{"id":"c:nagavalli","label":"Nagavalli","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":2},{"id":"c:ramanathan","label":"Ramanathan","type":"character","properties":{"aliases":[]},"source":"manual","needsReview":false,"degree":3},{"id":"c:thambi","label":"Karanavar Sankaran Thambi","type":"character","properties":{"aliases":["Thambi"]},"source":"manual","needsReview":false,"degree":3}],"links":[{"source":"c:ganga","target":"c:nakulan","count":2,"type":"romantic","valence":"positive","eventIds":["e:13"],"needsReview":true},{"source":"c:ganga","target":"c:sunny","count":3,"type":"alliance","valence":"positive","eventIds":["e:7","e:10"],"needsReview":true},{"source":"c:ganga","target":"c:sridevi","count":1,"type":"alliance","valence":"positive","eventIds":[],"needsReview":false},{"source":"c:alli","target":"c:ganga","count":2,"type":"other","valence":"ambiguous","eventIds":["e:3","e:8"],"needsReview":true},{"source":"c:ganga","target":"c:mahadevan","count":1,"type":"confrontation","valence":"ambiguous","eventIds":["e:6"],"needsReview":true},{"source":"c:nakulan","target":"c:sunny","count":2,"type":"alliance","valence":"positive","eventIds":["e:2"],"needsReview":false},{"source":"c:elders","target":"c:nakulan","count":1,"type":"confrontation","valence":"ambiguous","eventIds":[],"needsReview":true},{"source":"c:sridevi","target":"c:sunny","count":3,"type":"alliance","valence":"positive","eventIds":["e:16","e:11"],"needsReview":false},{"source":"c:namboodiri","target":"c:sunny","count":1,"type":"alliance","valence":"ambiguous","eventIds":["e:12"],"needsReview":false},{"source":"c:elders","target":"c:sunny","count":1,"type":"confrontation","valence":"ambiguous","eventIds":[],"needsReview":true},{"source":"c:elders","target":"c:sridevi","count":1,"type":"confrontation","valence":"negative","eventIds":[],"needsReview":false},{"source":"c:alli","target":"c:mahadevan","count":1,"type":"romantic","valence":"positive","eventIds":[],"needsReview":false},{"source":"c:elders","target":"c:mahadevan","count":1,"type":"confrontation","valence":"negative","eventIds":["e:6"],"needsReview":true},{"source":"c:elders","target":"c:namboodiri","count":1,"type":"alliance","valence":"positive","eventIds":["e:14"],"needsReview":false},{"source":"c:nagavalli","target":"c:ramanathan","count":1,"type":"romantic","valence":"positive","eventIds":["e:0"],"needsReview":false},{"source":"c:nagavalli","target":"c:thambi","count":1,"type":"betrayal","valence":"negative","eventIds":["e:0"],"needsReview":false},{"source":"c:ramanathan","target":"c:thambi","count":1,"type":"betrayal","valence":"negative","eventIds":["e:0"],"needsReview":false},{"source":"c:nakulan","target":"c:thambi","count":1,"type":"other","valence":"ambiguous","eventIds":[],"needsReview":true},{"source":"c:mahadevan","target":"c:ramanathan","count":1,"type":"other","valence":"ambiguous","eventIds":[],"needsReview":true}],"events":[{"id":"e:0","label":"WHAT THE COURT REMEMBERS","type":"event","needsReview":false,"participants":3,"seq":0,"properties":{"chapter_id":"ch:0","order":0,"act":1,"pov":"Nagavalli","pov_character_id":"c:nagavalli","summary":"Plant the true history in the reader's hands before the family's sanitized legend is ever told, so every later retelling of the legend reads with dramatic irony.","ends_on":"The anklets, still."}},{"id":"e:1","label":"THE HOUSE THAT KEEPS ITS DOORS LOCKED","type":"event","needsReview":false,"participants":1,"seq":1,"properties":{"chapter_id":"ch:1","order":1,"act":1,"pov":"Nakulan","pov_character_id":"c:nakulan","summary":"Establish the present-day family, the legend as the family tells it, and Nakulan's reasons for insisting on the visit despite warnings.","ends_on":"The locked door of the Thekkini, seen from outside for the first time."}},{"id":"e:2","label":"FAR-AWAY MOODS","type":"event","needsReview":false,"participants":2,"seq":2,"properties":{"chapter_id":"ch:2","order":2,"act":1,"pov":"Nakulan","pov_character_id":"c:nakulan","summary":"Deepen Nakulan and Ganga's marriage; establish his friendship with Sunny early so his later summons doesn't feel mechanical; plant Ganga's undisclosed grief.","ends_on":"Ganga's hand, briefly, resting on her own stomach without seeming to notice she's done it."}},{"id":"e:3","label":"THE KEY","type":"event","needsReview":false,"participants":3,"seq":3,"properties":{"chapter_id":"ch:3","order":3,"act":1,"pov":"Sridevi","pov_character_id":"c:sridevi","summary":"Ganga's transgression; introduce Sridevi properly and establish her as a careful observer from her very first POV chapter.","ends_on":"Ganga, alone a moment, whispering a phrase in Tamil she has no memory of having learned."}},{"id":"e:4","label":"THE EYES THAT FOLLOW","type":"event","needsReview":false,"participants":1,"seq":4,"properties":{"chapter_id":"ch:4","order":4,"act":1,"pov":"Nakulan","pov_character_id":"c:nakulan","summary":"First ambiguous incident; introduce the damaged portrait; escalate household unease without yet confirming anything supernatural.","ends_on":"Valyammai discovering the disturbed lock, saying nothing to anyone yet."}},{"id":"e:5","label":"WHAT THE PUJA COULDN'T FIX","type":"event","needsReview":false,"participants":1,"seq":5,"properties":{"chapter_id":"ch:5","order":5,"act":1,"pov":"Nakulan","pov_character_id":"c:nakulan","summary":"First real violence; crystallize the family's fear into open supernatural belief; end Act One on the decision to summon outside help.","ends_on":"Nakulan on the phone, asking Sunny to come immediately. **End of Act One.**"}},{"id":"e:6","label":"THE MAN FROM AMERICA","type":"event","needsReview":false,"participants":4,"seq":6,"properties":{"chapter_id":"ch:6","order":6,"act":2,"pov":"Sunny","pov_character_id":"c:sunny","summary":"Introduce Sunny at full voice; establish his method; the Alli assault incident and Mahadevan's wrongful suspicion.","ends_on":"Sunny asking, mildly, whether anyone actually saw what happened, and getting no clear answer."}},{"id":"e:7","label":"MIDNIGHT IN THE THEKKINI","type":"event","needsReview":false,"participants":2,"seq":7,"properties":{"chapter_id":"ch:7","order":7,"act":2,"pov":"Sunny","pov_character_id":"c:sunny","summary":"The book's most overtly \"haunted\" set piece, staged so it can be reread as clinical once the reader knows the truth; the Durgashtami threat is issued.","ends_on":"Sunny alone in the corridor afterward, no longer treating this as a straightforward case."}},{"id":"e:8","label":"LOCKED IN HER OWN ROOM","type":"event","needsReview":false,"participants":3,"seq":8,"properties":{"chapter_id":"ch:8","order":8,"act":2,"pov":"Sridevi","pov_character_id":"c:sridevi","summary":"The poisoning subplot; Sridevi wrongly confined; establish this incident as mundane and separate from the dissociative pattern (per Story Bible §3).","ends_on":"Sridevi, alone, starting her notes with the sentence: \"I did not do this.\""}},{"id":"e:9","label":"WHAT EVOOR REMEMBERS","type":"event","needsReview":false,"participants":1,"seq":9,"properties":{"chapter_id":"ch:9","order":9,"act":2,"pov":"Sunny","pov_character_id":"c:sunny","summary":"Fracture the legend; deliver the true 150-year-old history to both Sunny and the reader; deepen the thematic spine.","ends_on":"Sunny, on the road back, asking himself who in the household could possibly know these specific, unrecorded details."}},{"id":"e:10","label":"THE DIAGNOSIS","type":"event","needsReview":false,"participants":2,"seq":10,"properties":{"chapter_id":"ch:10","order":10,"act":2,"pov":"Sunny","pov_character_id":"c:sunny","summary":"Sunny reaches the correct diagnosis privately; confides in Sridevi; the melancholy red herring is debunked; the true nature of Ganga's condition is laid out fully for the reader.","ends_on":"Sunny's realization that a clinical diagnosis alone will save no one — the family will never accept it on its own terms."}},{"id":"e:11","label":"WHAT SRIDEVI KNEW","type":"event","needsReview":false,"participants":2,"seq":11,"properties":{"chapter_id":"ch:11","order":11,"act":2,"pov":"Sridevi","pov_character_id":"c:sridevi","summary":"Public vindication; the elders summon the Namboodiri, setting up Act Three.","ends_on":"The Namboodiri's palanquin/car arriving at the gate. **End of Act Two.**"}},{"id":"e:12","label":"TWO TRADITIONS, ONE PLAN","type":"event","needsReview":false,"participants":2,"seq":12,"properties":{"chapter_id":"ch:12","order":12,"act":3,"pov":"Sunny","pov_character_id":"c:sunny","summary":"The book's thematic centerpiece — Sunny and the Namboodiri's collaboration, worked out in full.","ends_on":"The Namboodiri's blessing of the plan, in ritual language that means something different to him than it does to Sunny — and both of them fine with that."}},{"id":"e:13","label":"THE NIGHT BEFORE","type":"event","needsReview":false,"participants":2,"seq":13,"properties":{"chapter_id":"ch:13","order":13,"act":3,"pov":"Nakulan","pov_character_id":"c:nakulan","summary":"Rising dread; Nakulan learns he is to be the \"target\"; a last quiet scene between Nakulan and Ganga before the crisis.","ends_on":"Nakulan and Ganga's hands, briefly touching, neither of them saying what they mean."}},{"id":"e:14","label":"DURGASHTAMI","type":"event","needsReview":false,"participants":3,"seq":14,"properties":{"chapter_id":"ch:14","order":14,"act":3,"pov":"Sunny","pov_character_id":"c:sunny","summary":"The alter fully takes over; the family witnesses the ritual begin; the last beat before the swap.","ends_on":"The sword raised."}},{"id":"e:15","label":"THE SWAP","type":"event","needsReview":false,"participants":1,"seq":15,"properties":{"chapter_id":"ch:15","order":15,"act":3,"pov":"Sunny","pov_character_id":"c:sunny","summary":"The physical climax; the alter's exit; the immediate aftermath.","ends_on":"Ganga, on the ground, breathing, herself."}},{"id":"e:16","label":"WHAT GANGA REMEMBERS","type":"event","needsReview":false,"participants":3,"seq":16,"properties":{"chapter_id":"ch:16","order":16,"act":3,"pov":"Ganga","pov_character_id":"c:ganga","summary":"The one chapter inside Ganga's head; her recovery under Sunny's ongoing clinical care; the family's reconciliation; the ending beats (Sridevi/Sunny).","ends_on":"Ganga and Nakulan leaving the estate; the Thekkini's door, standing open now, empty, ordinary. **End of Act Three. End of book.**"}}],"presence":[{"character":"c:nagavalli","event":"e:0","isPov":true},{"character":"c:ramanathan","event":"e:0","isPov":false},{"character":"c:thambi","event":"e:0","isPov":false},{"character":"c:nakulan","event":"e:1","isPov":true},{"character":"c:nakulan","event":"e:2","isPov":true},{"character":"c:sunny","event":"e:2","isPov":false},{"character":"c:sridevi","event":"e:3","isPov":true},{"character":"c:ganga","event":"e:3","isPov":false},{"character":"c:alli","event":"e:3","isPov":false},{"character":"c:nakulan","event":"e:4","isPov":true},{"character":"c:nakulan","event":"e:5","isPov":true},{"character":"c:sunny","event":"e:6","isPov":true},{"character":"c:ganga","event":"e:6","isPov":false},{"character":"c:mahadevan","event":"e:6","isPov":false},{"character":"c:elders","event":"e:6","isPov":false},{"character":"c:sunny","event":"e:7","isPov":true},{"character":"c:ganga","event":"e:7","isPov":false},{"character":"c:sridevi","event":"e:8","isPov":true},{"character":"c:ganga","event":"e:8","isPov":false},{"character":"c:alli","event":"e:8","isPov":false},{"character":"c:sunny","event":"e:9","isPov":true},{"character":"c:sunny","event":"e:10","isPov":true},{"character":"c:ganga","event":"e:10","isPov":false},{"character":"c:sridevi","event":"e:11","isPov":true},{"character":"c:sunny","event":"e:11","isPov":false},{"character":"c:sunny","event":"e:12","isPov":true},{"character":"c:namboodiri","event":"e:12","isPov":false},{"character":"c:nakulan","event":"e:13","isPov":true},{"character":"c:ganga","event":"e:13","isPov":false},{"character":"c:sunny","event":"e:14","isPov":true},{"character":"c:namboodiri","event":"e:14","isPov":false},{"character":"c:elders","event":"e:14","isPov":false},{"character":"c:sunny","event":"e:15","isPov":true},{"character":"c:ganga","event":"e:16","isPov":true},{"character":"c:sunny","event":"e:16","isPov":false},{"character":"c:sridevi","event":"e:16","isPov":false}],"interactions":[{"id":"i0","from":"c:ganga","to":"c:nakulan","type":"romantic","valence":"positive","description":"love without full understanding; his largest blind spot in the book.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i2","from":"c:ganga","to":"c:sunny","type":"alliance","valence":"positive","description":"trusts him instinctively before either of them knows why; this should read, in hindsight, as the alter recognizing an ally.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i5","from":"c:ganga","to":"c:sridevi","type":"alliance","valence":"positive","description":"protective of her even while everyone else grows afraid of her, without fully knowing why she trusts her.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i9","from":"c:nakulan","to":"c:sunny","type":"alliance","valence":"positive","description":"old, easy friendship; the reason he came at all.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i11","from":"c:nakulan","to":"c:elders","type":"confrontation","valence":"ambiguous","description":"caught between them and his wife for most of Act One and Two.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":true},{"id":"i14","from":"c:sunny","to":"c:sridevi","type":"alliance","valence":"positive","description":"the book's central non-romantic-coded-until-suddenly-it-is relationship; built on being taken seriously by someone for the first time in the story.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i16","from":"c:sunny","to":"c:elders","type":"confrontation","valence":"ambiguous","description":"They read him as a clown for longer than he minds — informal, irreverent, unbothered by a hierarchy the house runs on. He lets them, because being underestimated makes people drop their guard, and it is the elders whose permission he will eventually need.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":true},{"id":"i17","from":"c:sridevi","to":"c:elders","type":"confrontation","valence":"negative","description":"polite deference masking real hurt at how quickly they turned on her.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i18","from":"c:alli","to":"c:mahadevan","type":"romantic","valence":"positive","description":"engaged; the strain of his wrongful suspicion (Ch 6) tests but doesn't break them.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":false},{"id":"i24","from":"c:nakulan","to":"c:thambi","type":"other","valence":"ambiguous","description":"No relationship in life — they are separated by a hundred and fifty years. But Ganga’s alter casts Nakulan as the Karanavar, so he inherits a role he never asked for and cannot argue his way out of.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":true},{"id":"i25","from":"c:mahadevan","to":"c:ramanathan","type":"other","valence":"ambiguous","description":"Mahadevan is the real-world trigger the “Ramanathan” projection latches onto. Nothing about him invites it; proximity and the wrong moment are enough.","eventId":null,"eventLabel":null,"seq":-1,"needsReview":true},{"id":"i21","from":"c:nagavalli","to":"c:ramanathan","type":"romantic","valence":"positive","description":"Partners for two years before the Karanavar bought her out of the Thanjavur court, and again in secret at Madampalli. Careful, and eventually not careful enough. Ch 0 gives them the book’s only true account of what they were to each other, so every later retelling of the legend reads against it.","eventId":"e:0","eventLabel":"WHAT THE COURT REMEMBERS","seq":0,"needsReview":false},{"id":"i22","from":"c:nagavalli","to":"c:thambi","type":"betrayal","valence":"negative","description":"He did not kill her in a rage. Ch 0 is explicit that he arrived having already decided the shape of the evening and simply walked through its stages — which is what the family legend spends a century and a half softening into something more bearable.","eventId":"e:0","eventLabel":"WHAT THE COURT REMEMBERS","seq":0,"needsReview":false},{"id":"i23","from":"c:ramanathan","to":"c:thambi","type":"betrayal","valence":"negative","description":"Killed first, and separately, at the cottage. The order matters: the Karanavar went to him before he went to her, methodically, which is the detail the sanitised family version loses.","eventId":"e:0","eventLabel":"WHAT THE COURT REMEMBERS","seq":0,"needsReview":false},{"id":"i10","from":"c:nakulan","to":"c:sunny","type":"alliance","valence":"positive","description":"old, easy friendship; the reason he came at all.","eventId":"e:2","eventLabel":"FAR-AWAY MOODS","seq":2,"needsReview":false},{"id":"i6","from":"c:ganga","to":"c:alli","type":"other","valence":"ambiguous","description":"enabler, then unwitting near-victim of her.","eventId":"e:3","eventLabel":"THE KEY","seq":3,"needsReview":true},{"id":"i8","from":"c:ganga","to":"c:mahadevan","type":"confrontation","valence":"ambiguous","description":"Read by the household as harassment and by Ganga’s alter as recognition. Both readings are wrong, and the family acts on theirs — which is what puts Mahadevan under suspicion.","eventId":"e:6","eventLabel":"THE MAN FROM AMERICA","seq":6,"needsReview":true},{"id":"i19","from":"c:mahadevan","to":"c:elders","type":"confrontation","valence":"negative","description":"The elders turn on him quickly and completely, on no evidence, because a culprit is easier to hold than an explanation.","eventId":"e:6","eventLabel":"THE MAN FROM AMERICA","seq":6,"needsReview":true},{"id":"i3","from":"c:ganga","to":"c:sunny","type":"alliance","valence":"positive","description":"trusts him instinctively before either of them knows why; this should read, in hindsight, as the alter recognizing an ally.","eventId":"e:7","eventLabel":"MIDNIGHT IN THE THEKKINI","seq":7,"needsReview":false},{"id":"i7","from":"c:ganga","to":"c:alli","type":"confrontation","valence":"negative","description":"The “attack” on Alli, which is a dissociative episode misdirected rather than an assault. Alli helped her open the Thekkini in Ch 3 and is repaid by being the nearest body when the episode breaks.","eventId":"e:8","eventLabel":"LOCKED IN HER OWN ROOM","seq":8,"needsReview":false},{"id":"i4","from":"c:ganga","to":"c:sunny","type":"mentorship","valence":"ambiguous","description":"Sunny reaches the correct diagnosis and decides not to say it aloud yet. The hardest part of his arc is not the diagnosis; it is choosing to build the cure inside the family’s belief system rather than against it.","eventId":"e:10","eventLabel":"THE DIAGNOSIS","seq":10,"needsReview":true},{"id":"i13","from":"c:sunny","to":"c:sridevi","type":"alliance","valence":"positive","description":"the book's central non-romantic-coded-until-suddenly-it-is relationship; built on being taken seriously by someone for the first time in the story.","eventId":"e:11","eventLabel":"WHAT SRIDEVI KNEW","seq":11,"needsReview":false},{"id":"i15","from":"c:sunny","to":"c:namboodiri","type":"alliance","valence":"ambiguous","description":"The book’s thesis in one conversation. The Namboodiri never concedes that Sunny is right; he simply builds his ritual around Sunny’s plan and lets both traditions claim the result.","eventId":"e:12","eventLabel":"TWO TRADITIONS, ONE PLAN","seq":12,"needsReview":false},{"id":"i1","from":"c:ganga","to":"c:nakulan","type":"confrontation","valence":"negative","description":"The alter takes over fully and recasts her husband as the man who killed her. The text should read this as tragic rather than symbolic — she is not really angry at Nakulan, the substrate trauma simply needed a face, and his was the one available.","eventId":"e:13","eventLabel":"THE NIGHT BEFORE","seq":13,"needsReview":true},{"id":"i20","from":"c:namboodiri","to":"c:elders","type":"alliance","valence":"positive","description":"His blessing is what lets the family accept the outcome without ever being told the clinical truth. The vessel a truth arrives in matters as much as the truth.","eventId":"e:14","eventLabel":"DURGASHTAMI","seq":14,"needsReview":false},{"id":"i12","from":"c:sunny","to":"c:sridevi","type":"romantic","valence":"positive","description":"He proposes. It should read as earned rather than tacked on — built across several small scenes of two people doing careful work together while everyone around them reacts.","eventId":"e:16","eventLabel":"WHAT GANGA REMEMBERS","seq":16,"needsReview":false}],"flags":[{"id":"pr-24-p0","type":"plant","text":"She kept, in a box she told no one about, a single dried jasmine flower from the first night he had told her, plainly, without performance, that he loved her","label":"Never returned to, anywhere in the manuscript.","pairs":[{"id":"pr-24","label":"The dried jasmine flower"}],"chapterId":"ch:0","chapterTitle":"WHAT THE COURT REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:0","seq":0},{"id":"pr-01-p0","type":"plant","text":"There was no negotiation in the way stories would later tell it. There was a price, and a party who received it, and Nagavalli was not that party.","label":"The transaction stated plainly, in the only chapter with no family legend layered over it.","pairs":[{"id":"pr-01","label":"Nagavalli was purchased, not courted"}],"chapterId":"ch:0","chapterTitle":"WHAT THE COURT REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:0","seq":0},{"id":"thread-the-woman-taken-0","type":"note","text":"she was being described in the same conversations as the horses and the silverware","label":"Sita, Persephone, Helen — the abducted woman whose story is told by everyone except her. Ch 0 exists to give her the telling back.","pairs":[],"chapterId":"ch:0","chapterTitle":"WHAT THE COURT REMEMBERS","sceneId":null,"thread":"The woman taken","characterId":"c:nagavalli","eventId":"e:0","seq":0},{"id":"pr-02-p0","type":"plant","text":"that he had gone to Ramanathan with the particular unhurried calm of a man who has already decided the shape of the evening and is merely walking through its stages, that there had been no shouting, no crime of passion in the way the word suggested a loss of control, only a decision, executed.","label":"The cottage first, and the calm of a man walking through stages he has already decided.","pairs":[{"id":"pr-02","label":"Sequential, methodical murders — not one crime of passion"}],"chapterId":"ch:0","chapterTitle":"WHAT THE COURT REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:0","seq":0},{"id":"pr-25-p0","type":"plant","text":"The anklets were still on the floor of the Thekkini three days later","label":"Set down where they fell, and left there for a century and a half.","pairs":[{"id":"pr-25","label":"The anklets, the mirror, the lamp"}],"chapterId":"ch:0","chapterTitle":"WHAT THE COURT REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:0","seq":0},{"id":"note-ch0","type":"note","text":"No one, in the century and a half that followed, ever quite managed to think of a reason they should be moved, and so they stayed exactly where they had fallen, gathering dust in a room nobody entered, waiting — if a pair of anklets can be said to wait for anything — for someone to finally ask the right question about what, precisely, had happened in this house, and to whom, and why the answer the family told itself at dinner had never once included the word *bought*.","label":"Ends on: The anklets, still.","pairs":[],"chapterId":"ch:0","chapterTitle":"WHAT THE COURT REMEMBERS","sceneId":"s:0:4","thread":null,"characterId":null,"eventId":"e:0","seq":0},{"id":"thread-the-forbidden-chamber-0","type":"note","text":"The keys held, always, by the household's eldest, never touched, never spoken of lightly.","label":"Bluebeard, Pandora, Lot’s wife: the room that must not be opened, and the certainty that it will be. The prohibition is the plot.","pairs":[],"chapterId":"ch:1","chapterTitle":"THE HOUSE THAT KEEPS ITS DOORS LOCKED","sceneId":null,"thread":"The forbidden chamber","characterId":"c:ganga","eventId":"e:1","seq":1},{"id":"pr-22-p0","type":"plant","text":"\"You will not go near that door,\" Valyammai said","label":"The prohibition, delivered to the room and aimed at one person in it.","pairs":[{"id":"pr-22","label":"The locked door, and Valyammai's warning"}],"chapterId":"ch:1","chapterTitle":"THE HOUSE THAT KEEPS ITS DOORS LOCKED","sceneId":null,"thread":null,"characterId":null,"eventId":"e:1","seq":1},{"id":"pr-03-p0","type":"plant","text":"he knew this only because Ganga's slippers, left neatly by the door the night before, were faintly, inexplicably, dusty.","label":"She has already walked the gallery, before anyone thinks the keys are missing.","pairs":[{"id":"pr-03","label":"Ganga's dusty slippers, night one"}],"chapterId":"ch:1","chapterTitle":"THE HOUSE THAT KEEPS ITS DOORS LOCKED","sceneId":null,"thread":null,"characterId":null,"eventId":"e:1","seq":1},{"id":"pr-04-p0","type":"plant","text":"that half-second delay, the eyes catching up to the face a beat after the face had already begun to smile.","label":"The first visible trace of the alter, dressed as tiredness.","pairs":[{"id":"pr-04","label":"Ganga's far-away lapses"}],"chapterId":"ch:2","chapterTitle":"FAR-AWAY MOODS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:2","seq":2},{"id":"pr-05-p0","type":"plant","text":"Ganga's hand moved, without her seeming to notice it moving, to rest flat against her stomach","label":"The undisclosed grief, gestured at and never named.","pairs":[{"id":"pr-05","label":"The hand on the stomach"}],"chapterId":"ch:2","chapterTitle":"FAR-AWAY MOODS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:2","seq":2},{"id":"pr-06-p0","type":"plant","text":"You know I did my residency partly on a dissociative disorders ward. Nothing scares me anymore.","label":"The diagnosis is in his mouth in Chapter 2, as a joke, eight chapters before he means it.","pairs":[{"id":"pr-06","label":"Sunny's dissociative-ward joke"}],"chapterId":"ch:2","chapterTitle":"FAR-AWAY MOODS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:2","seq":2},{"id":"note-ch2","type":"note","text":"He did not yet know how soon he would be asking Sunny the same question again, in person, with considerably less room left for easy explanations.","label":"Ends on: Ganga's hand, briefly, resting on her own stomach without seeming to notice she's done it.","pairs":[],"chapterId":"ch:2","chapterTitle":"FAR-AWAY MOODS","sceneId":"s:2:3","thread":null,"characterId":null,"eventId":"e:2","seq":2},{"id":"pr-09-p0","type":"plant","text":"Sridevi noticed things. It was not a virtue she had cultivated so much as a habit she had backed into, the way a person backs into a corner of a crowded room without deciding to — she had grown up slightly to the side of this family's attention, close enough to be included, never quite close enough to be the center of anything, and a person in that position learns, without meaning to, to watch.","label":"Established as temperament long before it becomes useful.","pairs":[{"id":"pr-09","label":"Sridevi's habit of quiet observation"}],"chapterId":"ch:3","chapterTitle":"THE KEY","sceneId":null,"thread":null,"characterId":null,"eventId":"e:3","seq":3},{"id":"pr-25-p1","type":"plant","text":"a cracked mirror that had lost most of its silvering, and, near the foot of the bed, a pair of anklets, tarnished black","label":"Seen again, close up — and then not used.","pairs":[{"id":"pr-25","label":"The anklets, the mirror, the lamp"}],"chapterId":"ch:3","chapterTitle":"THE KEY","sceneId":null,"thread":null,"characterId":null,"eventId":"e:3","seq":3},{"id":"pr-07-p0","type":"plant","text":"heard her say something under her breath. A few words, low, in a cadence that was almost but not quite the Tamil the household used, the accent slightly wrong","label":"A language learned by ear rather than lived in — the tell that it was performed at her, not inherited.","pairs":[{"id":"pr-07","label":"The unfamiliar Tamil phrase"}],"chapterId":"ch:3","chapterTitle":"THE KEY","sceneId":null,"thread":null,"characterId":null,"eventId":"e:3","seq":3},{"id":"pr-08-p0","type":"plant","text":"G. said something in the Thekkini. Not sure what. Didn't sound like her.","label":"The record begins the day of the key theft, before anyone knows there is anything to record.","pairs":[{"id":"pr-08","label":"Sridevi's first notebook entry"}],"chapterId":"ch:3","chapterTitle":"THE KEY","sceneId":null,"thread":null,"characterId":null,"eventId":"e:3","seq":3},{"id":"pr-26-p0","type":"plant","text":"a long diagonal slash through the painted hands, crudely repaired with backing cloth that had itself gone dark with age.","label":"The slash goes through the hands specifically. Ch 9's true history never reconnects to the image.","pairs":[{"id":"pr-26","label":"The damaged ancestor portrait"}],"chapterId":"ch:4","chapterTitle":"THE EYES THAT FOLLOW","sceneId":null,"thread":null,"characterId":null,"eventId":"e:4","seq":4},{"id":"pr-10-p0","type":"plant","text":"A tumbler on the dining table, standing undisturbed, no one within arm's reach, simply — cracked, cleanly","label":"The first breakage, with a perfectly reasonable explanation already attached to it.","pairs":[{"id":"pr-10","label":"Objects shattering with no clear cause"}],"chapterId":"ch:4","chapterTitle":"THE EYES THAT FOLLOW","sceneId":null,"thread":null,"characterId":null,"eventId":"e:4","seq":4},{"id":"note-ch4","type":"note","text":"She only looked at the small lamp, and let it burn, and did not go to bed until it had.","label":"Ends on: Valyammai discovering the disturbed lock, saying nothing to anyone yet.","pairs":[],"chapterId":"ch:4","chapterTitle":"THE EYES THAT FOLLOW","sceneId":"s:4:3","thread":null,"characterId":null,"eventId":"e:4","seq":4},{"id":"thread-the-forbidden-chamber-1","type":"note","text":"It's opened,","label":"The motif completes the moment the door gives. Everything after is consequence, which is how the forbidden-chamber story always runs.","pairs":[],"chapterId":"ch:5","chapterTitle":"WHAT THE PUJA COULDN'T FIX","sceneId":null,"thread":"The forbidden chamber","characterId":"c:ganga","eventId":"e:5","seq":5},{"id":"pr-23-p0","type":"plant","text":"The rite ended without incident, which should have been a relief and instead only deepened the unease in the room — a ritual that produces no visible effect is, to a frightened household, not evidence of nothing happening but evidence that whatever is happening is stronger than the tools they have to address it.","label":"Tradition alone, and it does nothing.","pairs":[{"id":"pr-23","label":"The failed puja against the designed rite"}],"chapterId":"ch:5","chapterTitle":"WHAT THE PUJA COULDN'T FIX","sceneId":null,"thread":null,"characterId":null,"eventId":"e:5","seq":5},{"id":"pr-12-p0","type":"plant","text":"Ganga, standing near the shrine room's lamps, her saree already alight along one edge, moving — not screaming, not panicking, moving with a strange deliberate slowness","label":"Deliberate slowness where panic belongs — the detail that makes it a state, not an attack.","pairs":[{"id":"pr-12","label":"The saree fire"}],"chapterId":"ch:5","chapterTitle":"WHAT THE PUJA COULDN'T FIX","sceneId":null,"thread":null,"characterId":null,"eventId":"e:5","seq":5},{"id":"pr-11-p0","type":"plant","text":"watched it land first, uncertainly, on his own wife, a dozen frightened eyes finding her and flinching away again as though the accusation were too large to actually hold in place — and then, in the scramble to find somewhere safer to put it, watched it swing instead toward Sridevi","label":"The accusation looking for somewhere safer to land.","pairs":[{"id":"pr-11","label":"\"Possessed\" — spoken, then redirected to Sridevi"}],"chapterId":"ch:5","chapterTitle":"WHAT THE PUJA COULDN'T FIX","sceneId":null,"thread":null,"characterId":null,"eventId":"e:5","seq":5},{"id":"note-ch5","type":"note","text":"Nakulan hung up and stood alone in the dark corridor for a long moment, the smell of smoke still faint in the air, and did not yet know how much the shape of the coming days would owe to a promise made half-asleep, across an ocean, by a man who had no idea yet just how strange the truth was going to turn out to be.","label":"Ends on: Nakulan on the phone, asking Sunny to come immediately. **End of Act One.**","pairs":[],"chapterId":"ch:5","chapterTitle":"WHAT THE PUJA COULDN'T FIX","sceneId":"s:5:4","thread":null,"characterId":null,"eventId":"e:5","seq":5},{"id":"pr-09-r1","type":"reveal","text":"You have the look of someone who writes things down.","label":"Sunny reads it off her in one line, which is how he ends up with a corroborating witness.","pairs":[{"id":"pr-09","label":"Sridevi's habit of quiet observation"}],"chapterId":"ch:6","chapterTitle":"THE MAN FROM AMERICA","sceneId":null,"thread":null,"characterId":null,"eventId":"e:6","seq":6},{"id":"pr-13-p0","type":"plant","text":"He noted that Mahadevan, kneeling several feet away, had both hands empty and neither sleeve so much as creased.","label":"The physical evidence nobody else in that corridor is looking at.","pairs":[{"id":"pr-13","label":"Mahadevan's clean hands"},{"id":"pr-14","label":"The voice's unusually accurate history"}],"chapterId":"ch:6","chapterTitle":"THE MAN FROM AMERICA","sceneId":null,"thread":null,"characterId":null,"eventId":"e:6","seq":6},{"id":"note-ch6","type":"note","text":"Mahadevan caught Sunny's eye once, on his way past, a look that was half gratitude for the postponement and half genuine bewilderment, and Sunny gave him nothing back but a small, noncommittal nod — not yet an alliance, not yet a dismissal, just a doctor filing away one more piece of a picture that was already, quietly, beginning to assemble itself into a shape he did not yet want to say out loud.","label":"Ends on: Sunny asking, mildly, whether anyone actually saw what happened, and getting no clear answer.","pairs":[],"chapterId":"ch:6","chapterTitle":"THE MAN FROM AMERICA","sceneId":"s:6:3","thread":null,"characterId":null,"eventId":"e:6","seq":6},{"id":"thread-the-goddess-and-the-demon-0","type":"note","text":"references to a betrayal, to a river of Thanjavur, to a man's hands.","label":"The register the alter sings in is devotional. It is building itself a myth to act inside, and it has cast the parts already.","pairs":[],"chapterId":"ch:7","chapterTitle":"MIDNIGHT IN THE THEKKINI","sceneId":null,"thread":"The goddess and the demon","characterId":"c:ganga","eventId":"e:7","seq":7},{"id":"pr-14-p0","type":"plant","text":"details that made Sunny's clinical instincts sharpen even through the genuine unease crawling up his spine: precise turns of phrase, an intimacy with the geography of a court two hundred miles from here","label":"Accuracy no family retelling could carry.","pairs":[{"id":"pr-14","label":"The voice's unusually accurate history"}],"chapterId":"ch:7","chapterTitle":"MIDNIGHT IN THE THEKKINI","sceneId":null,"thread":null,"characterId":null,"eventId":"e:7","seq":7},{"id":"pr-15-p0","type":"plant","text":"\"On Durgashtami,\" the voice said, when the account was finished, \"you will answer for it. I will finish what his hands began, and this time nothing will stop the blade.\"","label":"The deadline that structures the whole of Act Three.","pairs":[{"id":"pr-15","label":"The Durgashtami deadline"}],"chapterId":"ch:7","chapterTitle":"MIDNIGHT IN THE THEKKINI","sceneId":null,"thread":null,"characterId":null,"eventId":"e:7","seq":7},{"id":"note-ch7","type":"note","text":"He was investigating a person.","label":"Ends on: Sunny alone in the corridor afterward, no longer treating this as a straightforward case.","pairs":[],"chapterId":"ch:7","chapterTitle":"MIDNIGHT IN THE THEKKINI","sceneId":"s:7:3","thread":null,"characterId":null,"eventId":"e:7","seq":7},{"id":"pr-16-p0","type":"plant","text":"I did not do this,* she wrote, first, because she needed the sentence in her own handwriting where she could look at it.","label":"Written for herself, with no expectation that anyone will ever read it.","pairs":[{"id":"pr-16","label":"Sridevi's notebook opening line"}],"chapterId":"ch:8","chapterTitle":"LOCKED IN HER OWN ROOM","sceneId":null,"thread":null,"characterId":null,"eventId":"e:8","seq":8},{"id":"pr-27-p0","type":"plant","text":"the argument she'd overheard three days earlier between Achuthan Pillai and Nakulan's uncle over the quarterly accounts — a detail she had noted at the time only out of habit","label":"Story Bible §3 and the Continuity Timeline both specify this thread stays unresolved.","pairs":[{"id":"pr-27","label":"The accountant thread — contradicts the planning docs"}],"chapterId":"ch:8","chapterTitle":"LOCKED IN HER OWN ROOM","sceneId":null,"thread":null,"characterId":null,"eventId":"e:8","seq":8},{"id":"note-ch8","type":"note","text":"She only knew that she had been wronged, and that being wronged, this particular time, had given her something to do with her hands besides wait — and that whatever came next, she intended to have a record of everything, in her own words, ready the moment anyone finally cared to ask her what she'd actually seen.","label":"Ends on: Sridevi, alone, starting her notes with the sentence: \"I did not do this.\"","pairs":[],"chapterId":"ch:8","chapterTitle":"LOCKED IN HER OWN ROOM","sceneId":"s:8:3","thread":null,"characterId":null,"eventId":"e:8","seq":8},{"id":"pr-01-r1","type":"reveal","text":"It's not wrong, exactly. It's just missing the part where nobody asked her anything.","label":"Bhargavi Amma names what the family's version leaves out.","pairs":[{"id":"pr-01","label":"Nagavalli was purchased, not courted"}],"chapterId":"ch:9","chapterTitle":"WHAT EVOOR REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:9","seq":9},{"id":"thread-the-woman-taken-1","type":"note","text":"the transaction, not a courtship; Ramanathan already her partner before the Karanavar had ever laid eyes on her, not a seducer who stole her away","label":"Named outright, a century and a half later, by a stranger with no stake in the family’s version of it.","pairs":[],"chapterId":"ch:9","chapterTitle":"WHAT EVOOR REMEMBERS","sceneId":null,"thread":"The woman taken","characterId":"c:nagavalli","eventId":"e:9","seq":9},{"id":"pr-02-r1","type":"reveal","text":"the murders themselves, described not as a single unified act of a man undone by passion but as two separate, sequential acts, the cottage first, methodical, and only afterward, drunk and unravelling, the Thekkini.","label":"The outside record confirms the order, which is the detail the legend sands off.","pairs":[{"id":"pr-02","label":"Sequential, methodical murders — not one crime of passion"}],"chapterId":"ch:9","chapterTitle":"WHAT EVOOR REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:9","seq":9},{"id":"pr-14-r1","type":"reveal","text":"Whoever, or whatever, was speaking from behind that locked door knew a version of the story the family itself did not know.","label":"Matched against the Evoor record — and it narrows the field of explanation rather than widening it.","pairs":[{"id":"pr-14","label":"The voice's unusually accurate history"}],"chapterId":"ch:9","chapterTitle":"WHAT EVOOR REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:9","seq":9},{"id":"note-ch9","type":"note","text":"But he had, for the first time since arriving at Madampalli, the shape of a question he actually knew how to ask, and he drove the rest of the way back in a silence that had nothing left of jetlag or performance in it at all.","label":"Ends on: Sunny, on the road back, asking himself who in the household could possibly know these specific, unrecorded details.","pairs":[],"chapterId":"ch:9","chapterTitle":"WHAT EVOOR REMEMBERS","sceneId":"s:9:3","thread":null,"characterId":null,"eventId":"e:9","seq":9},{"id":"pr-10-r1","type":"reveal","text":"laying every fact he had out on the small writing desk in his room the way he'd once been trained to lay out a differential diagnosis — not in order of drama, but in order of evidence.","label":"Folded into the evidence list. Note: that paragraph never names the shattering objects — this payoff is structural, not stated.","pairs":[{"id":"pr-10","label":"Objects shattering with no clear cause"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-04-r1","type":"reveal","text":"Ganga's far-away moods, first noted by Nakulan before either of them had reason to think anything of it.","label":"Recognised as an early dissociative symptom rather than travel fatigue.","pairs":[{"id":"pr-04","label":"Ganga's far-away lapses"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-03-r1","type":"reveal","text":"The dust on her slippers, the very first morning, before the keys were even officially missing.","label":"Read back as evidence, in Sunny's differential.","pairs":[{"id":"pr-03","label":"Ganga's dusty slippers, night one"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-12-r1","type":"reveal","text":"The saree fire, which Ganga genuinely did not seem to remember, staged close enough to open flame that it read, on close honest examination, far more plausibly as an accident involving a person not fully present in her own body than as an attack by anything external.","label":"Confirmed as a dissociative-state accident.","pairs":[{"id":"pr-12","label":"The saree fire"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-13-r1","type":"reveal","text":"The Alli incident, where the physical evidence — Mahadevan's empty, uncreased hands — had never actually supported the accusation","label":"Stated outright: the household convicted him by proximity.","pairs":[{"id":"pr-13","label":"Mahadevan's clean hands"},{"id":"pr-14","label":"The voice's unusually accurate history"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-14-r2","type":"reveal","text":"a version, Sunny was now near certain, that could only have reached Ganga through an unusually thorough, unusually immersive childhood exposure","label":"The clinical conclusion drawn from it. (The supplied table lists this line under Ch 9; it is in Ch 10.)","pairs":[{"id":"pr-14","label":"The voice's unusually accurate history"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-07-r1","type":"reveal","text":"a grand-aunt on Ganga's side, now deceased, who had spent years steeped in Tamil court-dance history, who had — the cousin remembered this vividly, laughing slightly at the memory — used to perform the whole Nagavalli story for a young, rapt Ganga, in full costume","label":"Traced to the grand-aunt, in costume, again and again.","pairs":[{"id":"pr-07","label":"The unfamiliar Tamil phrase"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-06-r1","type":"reveal","text":"He wrote out the clinical picture in full, for his own clarity as much as anything: a Dissociative Identity Disorder","label":"The joke, made seriously.","pairs":[{"id":"pr-06","label":"Sunny's dissociative-ward joke"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-08-r1","type":"reveal","text":"she reached for her notebook and turned it around to face him. \"I've been keeping my own record,\"","label":"Two independent lines of evidence converging — hers built with no knowledge of his.","pairs":[{"id":"pr-08","label":"Sridevi's first notebook entry"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-16-r1","type":"reveal","text":"her account, built with no knowledge of his diagnosis, mapped almost exactly onto the timeline he'd assembled from the other direction.","label":"The record that corroborates Sunny from the opposite direction.","pairs":[{"id":"pr-16","label":"Sridevi's notebook opening line"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-21-p0","type":"plant","text":"\"This is extraordinary,\" he said, and meant it entirely as a compliment. \"You'd have made a decent clinician.\"","label":"Small, collaborative, and not yet romantic.","pairs":[{"id":"pr-21","label":"Sunny and Sridevi, working together"}],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"note-ch10","type":"note","text":"\"Exactly that,\" Sunny said, and sat with the weight of it a long moment, because the diagnosis, however correct, was, on its own, entirely useless to a household that would never accept a psychiatric explanation on its own terms — and Durgashtami was five days away.","label":"Ends on: Sunny's realization that a clinical diagnosis alone will save no one — the family will never accept it on its own terms.","pairs":[],"chapterId":"ch:10","chapterTitle":"THE DIAGNOSIS","sceneId":"s:10:4","thread":null,"characterId":null,"eventId":"e:10","seq":10},{"id":"pr-27-r1","type":"reveal","text":"a conversation, quietly reconstructed, that placed Achuthan Pillai's movements near the kitchen at precisely the relevant window, and a financial motive nobody had bothered examining","label":"The prose resolves it anyway. This reveal contradicts the plan — it needs a decision, not a fix.","pairs":[{"id":"pr-27","label":"The accountant thread — contradicts the planning docs"}],"chapterId":"ch:11","chapterTitle":"WHAT SRIDEVI KNEW","sceneId":null,"thread":null,"characterId":null,"eventId":"e:11","seq":11},{"id":"pr-11-r1","type":"reveal","text":"\"She had nothing to do with it,\" Sunny said. \"I said what I said to buy time for an investigation that had nothing to do with tea at all, and that was unfair to her, and I'd like the record corrected properly.\"","label":"Retracted in public, at the cost of admitting what the accusation was for.","pairs":[{"id":"pr-11","label":"\"Possessed\" — spoken, then redirected to Sridevi"}],"chapterId":"ch:11","chapterTitle":"WHAT SRIDEVI KNEW","sceneId":null,"thread":null,"characterId":null,"eventId":"e:11","seq":11},{"id":"pr-17-p0","type":"plant","text":"Old associate. We crossed paths years ago, on a case that needed exactly this kind of cooperation and neither of us expected to find it in the other.","label":"One line, so Act Three can skip a slow-build introduction. The backstory itself stays deliberately unwritten.","pairs":[{"id":"pr-17","label":"Sunny and the Namboodiri's prior association"}],"chapterId":"ch:11","chapterTitle":"WHAT SRIDEVI KNEW","sceneId":null,"thread":null,"characterId":null,"eventId":"e:11","seq":11},{"id":"note-ch11","type":"note","text":"Sunny went to meet him first, before the family could, and Sridevi, watching from the verandah, saw the two men clasp hands with the specific warmth of an old friendship neither of them had bothered to announce, and felt, for the first time since the keys had gone missing, something that was almost, cautiously, hope.","label":"Ends on: The Namboodiri's palanquin/car arriving at the gate. **End of Act Two.**","pairs":[],"chapterId":"ch:11","chapterTitle":"WHAT SRIDEVI KNEW","sceneId":"s:11:3","thread":null,"characterId":null,"eventId":"e:11","seq":11},{"id":"pr-17-r1","type":"reveal","text":"I have sat with a great many griefs in my life that called themselves spirits, doctor. I do not think you and I are describing different events.","label":"The collaboration is the payoff. The shared history is never elaborated.","pairs":[{"id":"pr-17","label":"Sunny and the Namboodiri's prior association"}],"chapterId":"ch:12","chapterTitle":"TWO TRADITIONS, ONE PLAN","sceneId":null,"thread":null,"characterId":null,"eventId":"e:12","seq":12},{"id":"pr-23-r1","type":"reveal","text":"I will perform a correct and complete rite. Whether that satisfies your clinical requirements as well is, I suspect, a question of design rather than contradiction.","label":"The same rite, designed rather than merely performed. (Structural payoff — the supplied table quotes no line for this end.)","pairs":[{"id":"pr-23","label":"The failed puja against the designed rite"}],"chapterId":"ch:12","chapterTitle":"TWO TRADITIONS, ONE PLAN","sceneId":null,"thread":null,"characterId":null,"eventId":"e:12","seq":12},{"id":"pr-18-p0","type":"plant","text":"a lifelike straw dummy, dressed and weighted to convince a blade under poor light and worse composure; a hidden lever, silent, that would allow the real man to be withdrawn and the substitute swung into place in the same motion; the timing of the ash and smoke coordinated exactly against that swap","label":"Designed on the page, in full, three chapters before it runs.","pairs":[{"id":"pr-18","label":"The ritual mechanism — dummy, lever, ash and smoke"}],"chapterId":"ch:12","chapterTitle":"TWO TRADITIONS, ONE PLAN","sceneId":null,"thread":null,"characterId":null,"eventId":"e:12","seq":12},{"id":"note-ch12","type":"note","text":"\"I'll make sure of it,\" Sunny said, and meant it.","label":"Ends on: The Namboodiri's blessing of the plan, in ritual language that means something different to him than it does to Sunny — and both of them fine with that.","pairs":[],"chapterId":"ch:12","chapterTitle":"TWO TRADITIONS, ONE PLAN","sceneId":"s:12:3","thread":null,"characterId":null,"eventId":"e:12","seq":12},{"id":"pr-19-p0","type":"plant","text":"Hold still. Trust the ground under your feet more than what your eyes are telling you. That's all I'm asking.","label":"The one thing this book ever actually asks of him.","pairs":[{"id":"pr-19","label":"Nakulan asked to trust and hold still"},{"id":"pr-18","label":"The ritual mechanism — dummy, lever, ash and smoke"}],"chapterId":"ch:13","chapterTitle":"THE NIGHT BEFORE","sceneId":null,"thread":null,"characterId":null,"eventId":"e:13","seq":13},{"id":"pr-20-p0","type":"plant","text":"I'm frightened, Nakulan. Not of the ghost. Of not knowing what I've been doing while I wasn't there for it.","label":"The real fear, stated the night before, and it is not the ghost.","pairs":[{"id":"pr-20","label":"Ganga fears not knowing what she has done"}],"chapterId":"ch:13","chapterTitle":"THE NIGHT BEFORE","sceneId":null,"thread":null,"characterId":null,"eventId":"e:13","seq":13},{"id":"note-ch13","type":"note","text":"He only knew that tomorrow, one way or another, something in this house was finally going to be asked to answer for itself, and that he intended to be standing exactly where he was asked to stand when it did.","label":"Ends on: Nakulan and Ganga's hands, briefly touching, neither of them saying what they mean.","pairs":[],"chapterId":"ch:13","chapterTitle":"THE NIGHT BEFORE","sceneId":"s:13:3","thread":null,"characterId":null,"eventId":"e:13","seq":13},{"id":"thread-the-goddess-and-the-demon-1","type":"note","text":"\"He is here,\" the Namboodiri agreed, matching her register exactly, \"and the debt will be answered, as promised","label":"Durgashtami is the night Durga kills Mahishasura. The alter casts itself as the goddess and Nakulan as the demon, which is exactly the wrong way round.","pairs":[],"chapterId":"ch:14","chapterTitle":"DURGASHTAMI","sceneId":null,"thread":"The goddess and the demon","characterId":"c:ganga","eventId":"e:14","seq":14},{"id":"pr-13-r2","type":"reveal","text":"Sunny watched Ganga's — Nagavalli's — gaze find him and soften, entirely, into something that had nothing to do with the flat fury of a moment before","label":"Dramatised: the alter was never attacking him. It was recognising him as Ramanathan.","pairs":[{"id":"pr-13","label":"Mahadevan's clean hands"},{"id":"pr-14","label":"The voice's unusually accurate history"}],"chapterId":"ch:14","chapterTitle":"DURGASHTAMI","sceneId":null,"thread":null,"characterId":null,"eventId":"e:14","seq":14},{"id":"note-ch14","type":"note","text":"The blade continued its arc toward Nakulan's unmoving, trusting form, and Sunny's fingers closed on the lever.","label":"Ends on: The sword raised.","pairs":[],"chapterId":"ch:14","chapterTitle":"DURGASHTAMI","sceneId":"s:14:3","thread":null,"characterId":null,"eventId":"e:14","seq":14},{"id":"pr-18-r1","type":"reveal","text":"casting a great handful of sacred ash and thick ceremonial smoke directly into the path of the descending blade","label":"The blinding: ritually correct and operationally necessary at the same instant.","pairs":[{"id":"pr-18","label":"The ritual mechanism — dummy, lever, ash and smoke"}],"chapterId":"ch:15","chapterTitle":"THE SWAP","sceneId":null,"thread":null,"characterId":null,"eventId":"e:15","seq":15},{"id":"pr-18-r2","type":"reveal","text":"The lever gave way smoothly, silently","label":"The swap, executed under pressure.","pairs":[{"id":"pr-18","label":"The ritual mechanism — dummy, lever, ash and smoke"}],"chapterId":"ch:15","chapterTitle":"THE SWAP","sceneId":null,"thread":null,"characterId":null,"eventId":"e:15","seq":15},{"id":"pr-19-r1","type":"reveal","text":"Nakulan — who had, to his eternal credit, not flinched, not moved, held the trust he'd been asked to hold with a stillness Sunny would remember for the rest of his life","label":"He holds. It is the whole of his arc, paid in one sentence.","pairs":[{"id":"pr-19","label":"Nakulan asked to trust and hold still"},{"id":"pr-18","label":"The ritual mechanism — dummy, lever, ash and smoke"}],"chapterId":"ch:15","chapterTitle":"THE SWAP","sceneId":null,"thread":null,"characterId":null,"eventId":"e:15","seq":15},{"id":"pr-15-r1","type":"reveal","text":"It fell with the full, blind, absolute fury of a hundred and fifty years","label":"The blade falls, on the night it was promised for.","pairs":[{"id":"pr-15","label":"The Durgashtami deadline"}],"chapterId":"ch:15","chapterTitle":"THE SWAP","sceneId":null,"thread":null,"characterId":null,"eventId":"e:15","seq":15},{"id":"thread-the-goddess-and-the-demon-2","type":"note","text":"\"Go freely,\" he said, \"as you were promised. The debt is paid. You are released.\"","label":"The frame is honoured in form and refused in substance: the rite completes, the killing does not. Both traditions get to claim the result.","pairs":[],"chapterId":"ch:15","chapterTitle":"THE SWAP","sceneId":null,"thread":"The goddess and the demon","characterId":"c:ganga","eventId":"e:15","seq":15},{"id":"note-ch15","type":"note","text":"\"You're safe, and it's over.\"","label":"Ends on: Ganga, on the ground, breathing, herself.","pairs":[],"chapterId":"ch:15","chapterTitle":"THE SWAP","sceneId":"s:15:4","thread":null,"characterId":null,"eventId":"e:15","seq":15},{"id":"pr-20-r1","type":"reveal","text":"\"You don't have her memories,\" Sunny said, gently, \"because they were never yours to have.","label":"Answered honestly rather than kindly.","pairs":[{"id":"pr-20","label":"Ganga fears not knowing what she has done"}],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:16","seq":16},{"id":"pr-05-r1","type":"reveal","text":"\"There's something else,\" he said, on the third day, when she was steady enough to hear it. \"Nakulan told me. About the pregnancy.\"","label":"Named at last, and deliberately kept separate from the dissociation.","pairs":[{"id":"pr-05","label":"The hand on the stomach"}],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:16","seq":16},{"id":"pr-22-r1","type":"reveal","text":"\"The room's staying open,\" Valyammai said. \"I decided. No more locking things away and hoping.\"","label":"The prohibition withdrawn, by the person who issued it.","pairs":[{"id":"pr-22","label":"The locked door, and Valyammai's warning"}],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:16","seq":16},{"id":"pr-21-r1","type":"reveal","text":"I was thinking you might consider coming with me","label":"The proposal — earned across several such moments rather than declared.","pairs":[{"id":"pr-21","label":"Sunny and Sridevi, working together"}],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:16","seq":16},{"id":"pr-21-r2","type":"reveal","text":"and said yes","label":"Two words, after a paragraph of him not managing to ask cleanly.","pairs":[{"id":"pr-21","label":"Sunny and Sridevi, working together"}],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":null,"thread":null,"characterId":null,"eventId":"e:16","seq":16},{"id":"thread-the-forbidden-chamber-2","type":"note","text":"the Thekkini's door standing open behind them in the afternoon light, empty now, ordinary, a room like any other room, waiting for nothing at all.","label":"And the inversion: the taboo is lifted, so the chamber stops being a chamber. It is just a room, which is the most that can be said for it.","pairs":[],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":null,"thread":"The forbidden chamber","characterId":"c:ganga","eventId":"e:16","seq":16},{"id":"note-ch16","type":"note","text":"He nodded, and didn't press for more, and the car carried them out through the gates and onto the long red road, leaving the house and its century and a half of carefully guarded silence behind them, open now, at last, to whatever the family chose to do with the truth instead.","label":"Ends on: Ganga and Nakulan leaving the estate; the Thekkini's door, standing open now, empty, ordinary. **End of Act Three. End of book.**","pairs":[],"chapterId":"ch:16","chapterTitle":"WHAT GANGA REMEMBERS","sceneId":"s:16:4","thread":null,"characterId":null,"eventId":"e:16","seq":16}],"chapters":[{"id":"ch:0","title":"WHAT THE COURT REMEMBERS","book":0,"act":1,"seq":0,"status":"drafted","words":4683,"eventId":"e:0"},{"id":"ch:1","title":"THE HOUSE THAT KEEPS ITS DOORS LOCKED","book":0,"act":1,"seq":1,"status":"drafted","words":4541,"eventId":"e:1"},{"id":"ch:2","title":"FAR-AWAY MOODS","book":0,"act":1,"seq":2,"status":"drafted","words":4851,"eventId":"e:2"},{"id":"ch:3","title":"THE KEY","book":0,"act":1,"seq":3,"status":"drafted","words":5228,"eventId":"e:3"},{"id":"ch:4","title":"THE EYES THAT FOLLOW","book":0,"act":1,"seq":4,"status":"drafted","words":4841,"eventId":"e:4"},{"id":"ch:5","title":"WHAT THE PUJA COULDN'T FIX","book":0,"act":1,"seq":5,"status":"drafted","words":5513,"eventId":"e:5"},{"id":"ch:6","title":"THE MAN FROM AMERICA","book":0,"act":2,"seq":6,"status":"drafted","words":5399,"eventId":"e:6"},{"id":"ch:7","title":"MIDNIGHT IN THE THEKKINI","book":0,"act":2,"seq":7,"status":"drafted","words":4980,"eventId":"e:7"},{"id":"ch:8","title":"LOCKED IN HER OWN ROOM","book":0,"act":2,"seq":8,"status":"drafted","words":5095,"eventId":"e:8"},{"id":"ch:9","title":"WHAT EVOOR REMEMBERS","book":0,"act":2,"seq":9,"status":"drafted","words":5252,"eventId":"e:9"},{"id":"ch:10","title":"THE DIAGNOSIS","book":0,"act":2,"seq":10,"status":"drafted","words":5786,"eventId":"e:10"},{"id":"ch:11","title":"WHAT SRIDEVI KNEW","book":0,"act":2,"seq":11,"status":"drafted","words":5024,"eventId":"e:11"},{"id":"ch:12","title":"TWO TRADITIONS, ONE PLAN","book":0,"act":3,"seq":12,"status":"drafted","words":5193,"eventId":"e:12"},{"id":"ch:13","title":"THE NIGHT BEFORE","book":0,"act":3,"seq":13,"status":"drafted","words":4558,"eventId":"e:13"},{"id":"ch:14","title":"DURGASHTAMI","book":0,"act":3,"seq":14,"status":"drafted","words":4588,"eventId":"e:14"},{"id":"ch:15","title":"THE SWAP","book":0,"act":3,"seq":15,"status":"drafted","words":4447,"eventId":"e:15"},{"id":"ch:16","title":"WHAT GANGA REMEMBERS","book":0,"act":3,"seq":16,"status":"drafted","words":5609,"eventId":"e:16"}],"scenes":[{"id":"s:0:0","chapterId":"ch:0","seq":0,"title":"Thanjavur court, Nagavalli performing; Ramanathan watchin…","summary":"Thanjavur court, Nagavalli performing; Ramanathan watching from the margins — established as already her partner, not a later \"seduction.\"","pov":"Nagavalli","status":"drafted"},{"id":"s:0:1","chapterId":"ch:0","seq":1,"title":"The Karanavar's visit; the transaction that removes her f…","summary":"The Karanavar's visit; the transaction that removes her from the court, told plainly, without romance.","pov":"Nagavalli","status":"drafted"},{"id":"s:0:2","chapterId":"ch:0","seq":2,"title":"Arrival at Madampalli; the Thekkini as a gift that is als…","summary":"Arrival at Madampalli; the Thekkini as a gift that is also a cage.","pov":"Nagavalli","status":"drafted"},{"id":"s:0:3","chapterId":"ch:0","seq":3,"title":"Ramanathan's cottage, the secret visits.","summary":"Ramanathan's cottage, the secret visits.","pov":"Nagavalli","status":"drafted"},{"id":"s:0:4","chapterId":"ch:0","seq":4,"title":"The night: the Karanavar discovers them, goes to the cott…","summary":"The night: the Karanavar discovers them, goes to the cottage first — controlled, methodical, not a crime of passion — then to the Thekkini.","pov":"Nagavalli","status":"drafted"},{"id":"s:1:0","chapterId":"ch:1","seq":0,"title":"Arrival at Madampalli; the extended family already assemb…","summary":"Arrival at Madampalli; the extended family already assembling, unable to let the couple go alone.","pov":"Nakulan","status":"drafted"},{"id":"s:1:1","chapterId":"ch:1","seq":1,"title":"Valyammai's formal warning about the Thekkini, told in fu…","summary":"Valyammai's formal warning about the Thekkini, told in full — the family version of the legend (Story Bible §1), delivered as fact.","pov":"Nakulan","status":"drafted"},{"id":"s:1:2","chapterId":"ch:1","seq":2,"title":"Ganga's visible, performative skepticism in front of the …","summary":"Ganga's visible, performative skepticism in front of the family.","pov":"Nakulan","status":"drafted"},{"id":"s:1:3","chapterId":"ch:1","seq":3,"title":"A quiet aside: Nakulan's own reason for insisting on stay…","summary":"A quiet aside: Nakulan's own reason for insisting on staying here — refusing to let the house's reputation run his life.","pov":"Nakulan","status":"drafted"},{"id":"s:1:4","chapterId":"ch:1","seq":4,"title":"First hint of Ganga's \"far-away moods,\" read by Nakulan a…","summary":"First hint of Ganga's \"far-away moods,\" read by Nakulan as ordinary tiredness from travel.","pov":"Nakulan","status":"drafted"},{"id":"s:2:0","chapterId":"ch:2","seq":0,"title":"A quiet domestic scene; Nakulan notices Ganga somewhere e…","summary":"A quiet domestic scene; Nakulan notices Ganga somewhere else entirely for several seconds, snapping back as if nothing happened.","pov":"Nakulan","status":"drafted"},{"id":"s:2:1","chapterId":"ch:2","seq":1,"title":"A brief, deflected exchange about a recent loss — kept va…","summary":"A brief, deflected exchange about a recent loss — kept vague enough not to name it outright (see Patch 1).","pov":"Nakulan","status":"drafted"},{"id":"s:2:2","chapterId":"ch:2","seq":2,"title":"Nakulan mentions Sunny by name, establishing the friendsh…","summary":"Nakulan mentions Sunny by name, establishing the friendship and the fact that Sunny is \"the person you call when something's wrong that a doctor here won't understand.\"","pov":"Nakulan","status":"drafted"},{"id":"s:2:3","chapterId":"ch:2","seq":3,"title":"Family gossip overheard: comparisons of Ganga to a relati…","summary":"Family gossip overheard: comparisons of Ganga to a relative with a history of \"melancholy\" — the red herring the family will lean on later.","pov":"Nakulan","status":"drafted"},{"id":"s:3:0","chapterId":"ch:3","seq":0,"title":"Sridevi witnesses Ganga persuading Alli to help steal the…","summary":"Sridevi witnesses Ganga persuading Alli to help steal the keys — recounts it faithfully, without embellishment, already the book's most reliable narrator.","pov":"Sridevi","status":"drafted"},{"id":"s:3:1","chapterId":"ch:3","seq":1,"title":"The theft itself; the Thekkini's external door, used spec…","summary":"The theft itself; the Thekkini's external door, used specifically so they needn't cross the main house.","pov":"Sridevi","status":"drafted"},{"id":"s:3:2","chapterId":"ch:3","seq":2,"title":"Inside: the anklets, the lamp, the cracked mirror — Ganga…","summary":"Inside: the anklets, the lamp, the cracked mirror — Ganga's reaction is curiosity, not fear, and specifically a *recognition* she can't explain to herself.","pov":"Sridevi","status":"drafted"},{"id":"s:3:3","chapterId":"ch:3","seq":3,"title":"They relock the room; nobody else knows yet.","summary":"They relock the room; nobody else knows yet.","pov":"Sridevi","status":"drafted"},{"id":"s:4:0","chapterId":"ch:4","seq":0,"title":"The portrait gallery, connecting the main house to the Th…","summary":"The portrait gallery, connecting the main house to the Thekkini's outer door; a portrait of the historical Karanavar has a slashed or defaced section — nobody in the present generation remembers why or when.","pov":"Nakulan","status":"drafted"},{"id":"s:4:1","chapterId":"ch:4","seq":1,"title":"Household objects begin shattering inexplicably — staged …","summary":"Household objects begin shattering inexplicably — staged so it's plausible as draft, structural settling, or (unconfirmed) something else.","pov":"Nakulan","status":"drafted"},{"id":"s:4:2","chapterId":"ch:4","seq":2,"title":"Valyammai's fear sharpens into open dread; she notices th…","summary":"Valyammai's fear sharpens into open dread; she notices the Thekkini's lock has been disturbed.","pov":"Nakulan","status":"drafted"},{"id":"s:4:3","chapterId":"ch:4","seq":3,"title":"Ganga's mood shifts sharply and briefly at dinner — gone …","summary":"Ganga's mood shifts sharply and briefly at dinner — gone before anyone can name it.","pov":"Nakulan","status":"drafted"},{"id":"s:5:0","chapterId":"ch:5","seq":0,"title":"The disturbed lock is discovered by the whole family; the…","summary":"The disturbed lock is discovered by the whole family; the theft is out.","pov":"Nakulan","status":"drafted"},{"id":"s:5:1","chapterId":"ch:5","seq":1,"title":"A traditional purification ritual/puja is performed to ca…","summary":"A traditional purification ritual/puja is performed to calm the house — fails visibly, worsening the mood rather than resolving it.","pov":"Nakulan","status":"drafted"},{"id":"s:5:2","chapterId":"ch:5","seq":2,"title":"That night: Ganga's saree catches fire near the household…","summary":"That night: Ganga's saree catches fire near the household shrine's lamps — staged so it is plausible as an accident involving someone in a dissociative state near open flame, without confirming anything.","pov":"Nakulan","status":"drafted"},{"id":"s:5:3","chapterId":"ch:5","seq":3,"title":"Panic; the family's fear becomes explicit and collective …","summary":"Panic; the family's fear becomes explicit and collective — someone says the word \"possessed\" aloud for the first time, aimed uncertainly at Ganga, then redirected (wrongly) toward Sridevi because of her composure in the chaos, which reads to the frightened family as unnatural calm.","pov":"Nakulan","status":"drafted"},{"id":"s:5:4","chapterId":"ch:5","seq":4,"title":"Nakulan, shaken, decides to call Sunny.","summary":"Nakulan, shaken, decides to call Sunny.","pov":"Nakulan","status":"drafted"},{"id":"s:6:0","chapterId":"ch:6","seq":0,"title":"Sunny's arrival — wry, informal, immediately undercutting…","summary":"Sunny's arrival — wry, informal, immediately undercutting the household's dread with humor the family finds either refreshing or disrespectful depending on who you ask.","pov":"Sunny","status":"drafted"},{"id":"s:6:1","chapterId":"ch:6","seq":1,"title":"His first read of the situation: treats it as a case, not…","summary":"His first read of the situation: treats it as a case, not a haunting, without dismissing the family's fear as stupid.","pov":"Sunny","status":"drafted"},{"id":"s:6:2","chapterId":"ch:6","seq":2,"title":"That night: Alli is violently frightened/grabbed in a dim…","summary":"That night: Alli is violently frightened/grabbed in a dim corridor; Mahadevan, found nearby, is accused — he protests his innocence loudly and is not believed.","pov":"Sunny","status":"drafted"},{"id":"s:6:3","chapterId":"ch:6","seq":3,"title":"Sunny's private read of the scene doesn't match the accus…","summary":"Sunny's private read of the scene doesn't match the accusation, though he says nothing yet.","pov":"Sunny","status":"drafted"},{"id":"s:7:0","chapterId":"ch:7","seq":0,"title":"Midnight: singing and dancing in Tamil, coming from the r…","summary":"Midnight: singing and dancing in Tamil, coming from the re-locked Thekkini.","pov":"Sunny","status":"drafted"},{"id":"s:7:1","chapterId":"ch:7","seq":1,"title":"Sunny goes to investigate rather than avoid it — adopts t…","summary":"Sunny goes to investigate rather than avoid it — adopts the vocal persona of the historical Karanavar (a calculated risk, explained in his own head as \"give it something to talk to\") and engages the voice in dialogue.","pov":"Sunny","status":"drafted"},{"id":"s:7:2","chapterId":"ch:7","seq":2,"title":"The voice identifies itself as Nagavalli, names her griev…","summary":"The voice identifies itself as Nagavalli, names her grievance, and vows to decapitate the Karanavar on the coming night of Durgashtami.","pov":"Sunny","status":"drafted"},{"id":"s:7:3","chapterId":"ch:7","seq":3,"title":"Sunny doesn't confirm or deny anything to the family afte…","summary":"Sunny doesn't confirm or deny anything to the family afterward — buys himself time to investigate properly instead of reacting.","pov":"Sunny","status":"drafted"},{"id":"s:8:0","chapterId":"ch:8","seq":0,"title":"An unknown party attempts to poison Nakulan's tea — caugh…","summary":"An unknown party attempts to poison Nakulan's tea — caught before real harm is done.","pov":"Sridevi","status":"drafted"},{"id":"s:8:1","chapterId":"ch:8","seq":1,"title":"Sunny, still gathering information and buying time, publi…","summary":"Sunny, still gathering information and buying time, publicly blames Sridevi and has her confined to her quarters — a calculated, uncomfortable choice on his part, not a genuine belief.","pov":"Sridevi","status":"drafted"},{"id":"s:8:2","chapterId":"ch:8","seq":2,"title":"Sridevi's private reaction: humiliation, then a decision …","summary":"Sridevi's private reaction: humiliation, then a decision to start keeping her own written account of events rather than simply enduring the suspicion.","pov":"Sridevi","status":"drafted"},{"id":"s:8:3","chapterId":"ch:8","seq":3,"title":"A brief, deliberately unresolved thread: the estate accou…","summary":"A brief, deliberately unresolved thread: the estate accountant (**[OPEN]** — needs a name before drafting) had a financial dispute with Nakulan's uncle days earlier, planted as a plausible mundane suspect for the poisoning without ever being confirmed on the page.","pov":"Sridevi","status":"drafted"},{"id":"s:9:0","chapterId":"ch:9","seq":0,"title":"Sunny travels to Evoor, following a hunch from the vocal …","summary":"Sunny travels to Evoor, following a hunch from the vocal cadence and specific Tamil phrasing used by the \"voice\" — a detail nobody else thought to chase.","pov":"Sunny","status":"drafted"},{"id":"s:9:1","chapterId":"ch:9","seq":1,"title":"Interviews a descendant of the household's old retainer f…","summary":"Interviews a descendant of the household's old retainer family and consults a temple record.","pov":"Sunny","status":"drafted"},{"id":"s:9:2","chapterId":"ch:9","seq":2,"title":"Receives the true history (Story Bible §1): the transacti…","summary":"Receives the true history (Story Bible §1): the transaction, not a romance; Ramanathan not a seducer but her already-partner; the murders as methodical rather than a single crime of passion; the mysterious forty-years-later gap before the haunting reports began.","pov":"Sunny","status":"drafted"},{"id":"s:9:3","chapterId":"ch:9","seq":3,"title":"Sunny connects the true history's details to specific phr…","summary":"Sunny connects the true history's details to specific phrases the \"voice\" used in Ch 7 — phrases that match the accurate record, not the sanitized family legend, which is the first hard clinical clue that whoever is speaking learned the story from somewhere more specific and detailed than the family's telling.","pov":"Sunny","status":"drafted"},{"id":"s:10:0","chapterId":"ch:10","seq":0,"title":"Sunny reviews everything: Nakulan's \"far-away moods,\" the…","summary":"Sunny reviews everything: Nakulan's \"far-away moods,\" the grand-aunt's childhood performances of the legend, the phrase-matching from Evoor, the pattern of incidents that are each independently explicable, Ganga's own hand-on-stomach tell from Ch 2.","pov":"Sunny","status":"drafted"},{"id":"s:10:1","chapterId":"ch:10","seq":1,"title":"Diagnosis, laid out in full clinical honesty: Dissociativ…","summary":"Diagnosis, laid out in full clinical honesty: Dissociative Identity Disorder, with a clear etiology — the childhood exposure, the accumulated present-day stress, an alternate identity that has adopted the Nagavalli persona wholesale, including details only explicable if Ganga absorbed the deep, accurate version of the story as a child (implicating the grand-aunt's performances, not supernatural knowledge).","pov":"Sunny","status":"drafted"},{"id":"s:10:2","chapterId":"ch:10","seq":2,"title":"The melancholy-relative red herring is explicitly debunke…","summary":"The melancholy-relative red herring is explicitly debunked — a different, unrelated family history that everyone had been pattern-matching onto Ganga out of fear, not evidence.","pov":"Sunny","status":"drafted"},{"id":"s:10:3","chapterId":"ch:10","seq":3,"title":"Sunny confides fully in Sridevi, the only person he trust…","summary":"Sunny confides fully in Sridevi, the only person he trusts with the truth; she shares her own written record in return, and it corroborates his read precisely.","pov":"Sunny","status":"drafted"},{"id":"s:10:4","chapterId":"ch:10","seq":4,"title":"Sridevi agrees to help.","summary":"Sridevi agrees to help.","pov":"Sunny","status":"drafted"},{"id":"s:11:0","chapterId":"ch:11","seq":0,"title":"With Sunny's backing, Sridevi's written record and the tr…","summary":"With Sunny's backing, Sridevi's written record and the true circumstances of the tea incident come out — she is publicly cleared.","pov":"Sridevi","status":"drafted"},{"id":"s:11:1","chapterId":"ch:11","seq":1,"title":"The family's collective relief and shame, handled without…","summary":"The family's collective relief and shame, handled without anyone grovelling extensively — a brisk, dignified correction rather than a big emotional scene, in keeping with the household's reserved register.","pov":"Sridevi","status":"drafted"},{"id":"s:11:2","chapterId":"ch:11","seq":2,"title":"Meanwhile, and separately, the elders — frightened and no…","summary":"Meanwhile, and separately, the elders — frightened and now doubly so with Durgashtami approaching — summon the renowned tantric expert, **Pullattuparam Brahmadathan Namboodiri**, over Sunny's mild private objection.","pov":"Sridevi","status":"drafted"},{"id":"s:11:3","chapterId":"ch:11","seq":3,"title":"Sunny recognizes the name; the two are old associates.","summary":"Sunny recognizes the name; the two are old associates.","pov":"Sridevi","status":"drafted"},{"id":"s:12:0","chapterId":"ch:12","seq":0,"title":"Sunny and the Namboodiri meet privately; Sunny lays out t…","summary":"Sunny and the Namboodiri meet privately; Sunny lays out the clinical truth in full.","pov":"Sunny","status":"drafted"},{"id":"s:12:1","chapterId":"ch:12","seq":1,"title":"The Namboodiri does not concede that Sunny's framework is…","summary":"The Namboodiri does not concede that Sunny's framework is \"more true\" than his own — he simply recognizes that his own tradition's technique for a spirit's \"release\" and Sunny's clinical plan for a controlled confrontation and exit event are, mechanically, close enough to run as one ritual.","pov":"Sunny","status":"drafted"},{"id":"s:12:2","chapterId":"ch:12","seq":2,"title":"Together they design the Durgashtami ritual: a public, ce…","summary":"Together they design the Durgashtami ritual: a public, ceremonially correct exorcism that is secretly staged to give Ganga's alter the confrontation and \"victory\" it needs (a symbolic execution of the Karanavar) without anyone actually getting hurt.","pov":"Sunny","status":"drafted"},{"id":"s:12:3","chapterId":"ch:12","seq":3,"title":"The mechanism is set: a lifelike straw dummy, a lever/swa…","summary":"The mechanism is set: a lifelike straw dummy, a lever/swap mechanism, sacred ash and smoke as both ritual element and practical blind for the swap.","pov":"Sunny","status":"drafted"},{"id":"s:13:0","chapterId":"ch:13","seq":0,"title":"Preparations for the Durgashtami ritual across the househ…","summary":"Preparations for the Durgashtami ritual across the household — the ceremonial dressing of the courtyard.","pov":"Nakulan","status":"drafted"},{"id":"s:13:1","chapterId":"ch:13","seq":1,"title":"Sunny and Sridevi brief Nakulan, gently, on what's actual…","summary":"Sunny and Sridevi brief Nakulan, gently, on what's actually going to happen and what his role requires of him — steady nerve, trust, and silence.","pov":"Nakulan","status":"drafted"},{"id":"s:13:2","chapterId":"ch:13","seq":2,"title":"A quiet scene between Nakulan and Ganga (her lucid self) …","summary":"A quiet scene between Nakulan and Ganga (her lucid self) — neither of them naming what's coming, both aware something is.","pov":"Nakulan","status":"drafted"},{"id":"s:13:3","chapterId":"ch:13","seq":3,"title":"Valyammai's private fear, handled with dignity — she has …","summary":"Valyammai's private fear, handled with dignity — she has already lost one relative to this story, generations back (**[OPEN]** — ties to the Ch 9 forty-years-later gap; needs fixing whether this is literal family history or left ambiguous).","pov":"Nakulan","status":"drafted"},{"id":"s:14:0","chapterId":"ch:14","seq":0,"title":"Ganga fully submerges into the Nagavalli persona — staged…","summary":"Ganga fully submerges into the Nagavalli persona — staged so the transition itself is the book's most overt \"possession\" beat, deliberately, right before the reveal strips it of supernatural explanation for good.","pov":"Sunny","status":"drafted"},{"id":"s:14:1","chapterId":"ch:14","seq":1,"title":"She follows Mahadevan into the ritual courtyard, perceivi…","summary":"She follows Mahadevan into the ritual courtyard, perceiving him as Ramanathan.","pov":"Sunny","status":"drafted"},{"id":"s:14:2","chapterId":"ch:14","seq":2,"title":"The Namboodiri, in full ritual voice, converses with the …","summary":"The Namboodiri, in full ritual voice, converses with the persona — promises her the Karanavar's death in exchange for her departure from Ganga's body, exactly as designed with Sunny.","pov":"Sunny","status":"drafted"},{"id":"s:14:3","chapterId":"ch:14","seq":3,"title":"Nakulan is brought forward.","summary":"Nakulan is brought forward.","pov":"Sunny","status":"drafted"},{"id":"s:15:0","chapterId":"ch:15","seq":0,"title":"The Namboodiri releases smoke and sacred ash into Ganga's…","summary":"The Namboodiri releases smoke and sacred ash into Ganga's face, momentarily blinding her — ritually justified, practically necessary.","pov":"Sunny","status":"drafted"},{"id":"s:15:1","chapterId":"ch:15","seq":1,"title":"Sunny, in the same instant, works the lever, swapping Nak…","summary":"Sunny, in the same instant, works the lever, swapping Nakulan for a lifelike straw dummy dressed identically.","pov":"Sunny","status":"drafted"},{"id":"s:15:2","chapterId":"ch:15","seq":2,"title":"The persona, still blind with fury, hacks the dummy to pi…","summary":"The persona, still blind with fury, hacks the dummy to pieces, fully convinced the Karanavar is dead.","pov":"Sunny","status":"drafted"},{"id":"s:15:3","chapterId":"ch:15","seq":3,"title":"Believing her revenge complete, the alter withdraws — Gan…","summary":"Believing her revenge complete, the alter withdraws — Ganga collapses, and for the first time in the book, is simply herself, disoriented, exhausted, without memory of what just happened.","pov":"Sunny","status":"drafted"},{"id":"s:15:4","chapterId":"ch:15","seq":4,"title":"The household witnesses what looks, to them, like a succe…","summary":"The household witnesses what looks, to them, like a successful exorcism.","pov":"Sunny","status":"drafted"},{"id":"s:16:0","chapterId":"ch:16","seq":0,"title":"Ganga wakes with only fragments — not the alter's memorie…","summary":"Ganga wakes with only fragments — not the alter's memories, but the accumulated exhaustion and the recent grief she'd been carrying underneath everything (Patch 1 material, if accepted).","pov":"Ganga","status":"drafted"},{"id":"s:16:1","chapterId":"ch:16","seq":1,"title":"Sunny explains the clinical truth to her directly and gen…","summary":"Sunny explains the clinical truth to her directly and gently — the first time the diagnosis is spoken plainly to the person it's actually about, rather than around her.","pov":"Ganga","status":"drafted"},{"id":"s:16:2","chapterId":"ch:16","seq":2,"title":"A period of targeted therapy, compressed but not skipped …","summary":"A period of targeted therapy, compressed but not skipped — the book should resist a magic-instant-cure ending.","pov":"Ganga","status":"drafted"},{"id":"s:16:3","chapterId":"ch:16","seq":3,"title":"The family's farewell to the couple — warm, a little shee…","summary":"The family's farewell to the couple — warm, a little sheepish about the fear they'd aimed at Sridevi and, at points, at Ganga herself.","pov":"Ganga","status":"drafted"},{"id":"s:16:4","chapterId":"ch:16","seq":4,"title":"Before Sunny and Sridevi return their separate ways (his …","summary":"Before Sunny and Sridevi return their separate ways (his to the US, hers staying), he proposes — a scene the text should build as earned across their small collaborative moments rather than sudden.","pov":"Ganga","status":"drafted"}]};</script>
+<script>
+// The spine's layout core. Pure: no DOM, no canvas, no fetch.
+//
+// This module is the single source of the geometry. scripts/build-spine-prototype.mjs
+// inlines it into the prototype page, and scripts/test-spine-layout.mjs imports it
+// directly, so the thing under test is the thing that renders.
+//
+// The one rule the whole file obeys: NOTHING may depend on the order the payload arrays
+// happened to arrive in. Every sort carries an id tiebreak, and every map is walked
+// through a sorted key list. A layout that changes when the database returns rows in a
+// different order is a layout nobody can learn, which is the entire argument for having
+// an axis at all.
+
+// ---------------------------------------------------------------------------
+// Vocabulary note for anyone rendering this: the field names here (lane, angle,
+// ordinal) are internal. None of them may reach a user-visible string. The writer's
+// words are Plant, Reveal, Thread, Chapter, Scene, Subplot.
+// ---------------------------------------------------------------------------
+
+const RADIUS = {
+  spine: 0,     // chapters and scenes. The axis itself.
+  ribbon: 1,    // subplots.
+  strand: 2,    // characters.
+  thread: 3,    // mythic threads.
+};
+
+// Zoom thresholds for the three detail tiers. Read by the renderer, computed here so the
+// far view and the near view cannot disagree about which one they are in.
+// Tier boundaries, derived from how many DEVICE PIXELS one chapter slot occupies rather
+// than from an abstract zoom number. That is the same rule the renderer uses for detail on
+// individual marks, applied one level up, and it is the only form that survives a change of
+// display or viewport.
+//
+//   below 18px per chapter -- a chapter is narrower than its own bead, so beads are drawn
+//                            on top of one another and the honest thing is a rolled-up band
+//   below 54px per chapter -- room for the bead and its scene ticks, but not for a title
+//   at or above            -- everything
+//
+// The earlier 0.3 / 0.9 came from phone-shaped assumptions and rolled up far too early for
+// a laptop: at 0.3 a slot was already 56 device pixels wide, which is a slot with room to
+// spare being replaced by a band.
+const SLOT_PX = { structure: 18, detail: 54 };
+
+// The flat prototype expresses zoom as a scale over a 150-unit slot; these are SLOT_PX
+// converted through that, at the target display density.
+const LOD = {
+  bookBands: 0.10,  // below this: book bands and their rollup only
+  structure: 0.30,  // below this: chapters and scenes; at or above: everything
+};
+
+function tierForSlotPx(px) {
+  if (px < SLOT_PX.structure) return 'books';
+  if (px < SLOT_PX.detail) return 'structure';
+  return 'detail';
+}
+
+function tierFor(k) {
+  if (k < LOD.bookBands) return 'books';
+  if (k < LOD.structure) return 'structure';
+  return 'detail';
+}
+
+// The default visible set. Hidden layers are not a second code path -- they are the same
+// layers with visible=false, each reachable by one plainly-worded control.
+const PRESETS = {
+  standard: {
+    spine: true, bookBands: true, ribbons: true, openMarkers: true,
+    detail: true, index: true, lod: true,
+    strands: false, round: false, relationships: false, health: false, linking: false,
+  },
+  full: {
+    spine: true, bookBands: true, ribbons: true, openMarkers: true,
+    detail: true, index: true, lod: true,
+    strands: true, round: true, relationships: false, health: true, linking: true,
+  },
+};
+
+// There is no project_settings table and no project_type column in any migration, so this
+// reads a field the payload does not yet carry and falls back. Wiring it to a real column
+// later is a change here and nowhere else.
+function resolvePreset(payload) {
+  const name = (payload && payload.settings && payload.settings.complexity) || 'standard';
+  return { name: PRESETS[name] ? name : 'standard', visible: { ...(PRESETS[name] || PRESETS.standard) } };
+}
+
+const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+// ---------------------------------------------------------------------------
+// The axis
+// ---------------------------------------------------------------------------
+
+// One number per chapter, 1..N, with an id tiebreak so two chapters claiming the same slot
+// still land in a fixed order. Both rollups are built in this same pass: the far view, the
+// band label and any health badge must be reading one number, not three that drift.
+//
+// Two orderings of the same chapters:
+//
+//   'read'  -- (book, act, order). The order a reader meets them. The default, and the one
+//              every other coordinate has been derived from up to now.
+//   'story' -- the order the events happened in, from the nullable storyTime field.
+//
+// storyTime is deliberately nullable and deliberately sparse. Most chapters do not need a
+// time; what matters is that linearity is preserved. So an unmarked chapter CARRIES FORWARD
+// the time of the last marked chapter before it in reading order, and ties are broken by
+// reading order. A run of unmarked chapters therefore stays in the sequence it was written,
+// attached to whatever moment last placed it -- which is exactly how a flashback behaves:
+// mark the chapter that jumps, and everything following it comes along until something says
+// otherwise.
+//
+// Chapters before ANY marked chapter carry -Infinity, so they stay at the front in reading
+// order rather than being flung to the end by a missing value.
+function storyKeys(chapters) {
+  const reading = chapters.slice().sort(
+    (a, b) => (a.book - b.book) || (a.act - b.act) || (a.seq - b.seq) || byId(a, b),
+  );
+  const eff = {};
+  let carried = -Infinity;
+  let marked = 0;
+  reading.forEach((c) => {
+    const t = c.storyTime;
+    if (t !== null && t !== undefined && t !== '' && !Number.isNaN(Number(t))) {
+      carried = Number(t);
+      marked += 1;
+    }
+    eff[c.id] = carried;
+  });
+  const readingIndex = {};
+  reading.forEach((c, i) => { readingIndex[c.id] = i; });
+  return { eff, readingIndex, marked, reading };
+}
+
+function computeAxis(chapters, flags, openBy, order = 'read') {
+  const keys = storyKeys(chapters);
+  const sorted = order === 'story'
+    ? chapters.slice().sort(
+      (a, b) => (keys.eff[a.id] - keys.eff[b.id]) || (keys.readingIndex[a.id] - keys.readingIndex[b.id]))
+    : keys.reading.slice();
+  const ordinal = {};
+  sorted.forEach((c, i) => { ordinal[c.id] = i + 1; });
+
+  const rollup = (keyOf, label) => {
+    const out = [];
+    let current = null;
+    sorted.forEach((c, i) => {
+      const key = keyOf(c);
+      if (!current || current.key !== key) {
+        current = {
+          key, label: label(c), book: c.book, act: c.act,
+          from: i + 1, to: i + 1, chapters: 0, words: 0,
+          flags: 0, open: 0, unresolvedAtEnd: 0,
+        };
+        out.push(current);
+      }
+      current.to = i + 1;
+      current.chapters += 1;
+      current.words += c.words || 0;
+      current.open += (openBy[c.id] || 0);
+    });
+    return out;
+  };
+
+  // Bands are labelled by their ACTUAL act number, never by position in the book. Acts are
+  // inferred from whatever distinct integers exist, so a book whose first act is Act 2 is
+  // the schema working, not an error -- renumbering it or validating against it would make
+  // a legitimate outline state look like a fault.
+  const acts = rollup((c) => c.book + ':' + c.act, (c) => 'Book ' + (c.book + 1) + ' · Act ' + c.act);
+  const books = rollup((c) => String(c.book), (c) => 'Book ' + (c.book + 1));
+
+  const bucket = (list) => {
+    const at = {};
+    list.forEach((r) => { for (let o = r.from; o <= r.to; o++) at[o] = r; });
+    return at;
+  };
+  const actAt = bucket(acts);
+  const bookAt = bucket(books);
+  flags.slice().sort(byId).forEach((f) => {
+    const o = ordinal[f.chapterId];
+    if (actAt[o]) actAt[o].flags += 1;
+    if (bookAt[o]) bookAt[o].flags += 1;
+  });
+
+  return {
+    ordinal, sorted, acts, books, actAt, bookAt, slots: sorted.length,
+    farTier: chooseFarTier(books, acts, sorted.length),
+    order,
+    // How many chapters actually carry a time. Zero means the story ordering is identical
+    // to the reading one, and the control offering it should say so rather than pretending
+    // to a second view that does not exist yet.
+    storyTimesSet: keys.marked,
+  };
+}
+
+// Which level the far view rolls up to. NOT always books: on real material one book was 41
+// of 52 chapters, so a book-level far tier drew one band over four-fifths of the axis and
+// called it a summary. A far view whose largest band is most of the saga has not summarised
+// anything.
+//
+// Rule: take books when they divide the axis usefully -- at least three bands, and no band
+// larger than DOMINANT of the whole. Otherwise drop to acts, which is the finer level that
+// still isn't chapters. Reported on the axis so the renderer and any badge agree.
+const FAR_TIER = { minBands: 3, maxBands: 14, dominant: 0.4 };
+
+function chooseFarTier(books, acts, slots) {
+  const workable = (bands) => {
+    if (bands.length < FAR_TIER.minBands || bands.length > FAR_TIER.maxBands) return false;
+    const largest = Math.max(...bands.map((b) => b.chapters));
+    return largest / slots <= FAR_TIER.dominant;
+  };
+  if (workable(books)) return 'books';
+  if (workable(acts)) return 'acts';
+  // Neither divides it well: prefer whichever has more bands without exceeding the cap,
+  // because too few bands hides more than too many crowds.
+  return acts.length > books.length && acts.length <= FAR_TIER.maxBands ? 'acts' : 'books';
+}
+
+// ---------------------------------------------------------------------------
+// Groupings -- a grouping is a subplot
+// ---------------------------------------------------------------------------
+
+function buildGroupings(flags) {
+  const groups = {};
+  const membershipsOf = (f) =>
+    (f.pairs && f.pairs.length) ? f.pairs.slice() : [{ id: 'solo:' + f.id, label: '' }];
+
+  flags.slice().sort(byId).forEach((f) => {
+    membershipsOf(f).slice().sort((a, b) => (a.id < b.id ? -1 : 1)).forEach((m) => {
+      if (!groups[m.id]) groups[m.id] = { id: m.id, label: m.label || '', plants: [], reveals: [], notes: [] };
+      if (!groups[m.id].label && m.label) groups[m.id].label = m.label;
+      if (f.type === 'plant') groups[m.id].plants.push(f);
+      else if (f.type === 'reveal') groups[m.id].reveals.push(f);
+      else groups[m.id].notes.push(f);
+    });
+  });
+  return { groups, membershipsOf };
+}
+
+// Three rules for the same question, kept separate on purpose.
+//
+//   groupings  -- a plant is open when no grouping it belongs to holds a reveal.
+//   hardLink   -- a plant is open when no reveal carries a linkedPlant pointing at it.
+//   ledger     -- what index.html's renderLedger actually prints.
+//
+// hardLink and ledger are the SAME rule: renderLedger resolves paid/open through
+// findRevealForPlant, which matches on linkedPlant and nothing else. They are reported
+// separately anyway, because "the Ledger agrees" is only meaningful if it was asked.
+function openPlantRules(flags) {
+  const { groups, membershipsOf } = buildGroupings(flags);
+
+  const openByGroupings = (f) => {
+    if (f.type !== 'plant') return false;
+    const ms = (f.pairs && f.pairs.length) ? f.pairs : [];
+    if (!ms.length) return true;
+    return !ms.some((m) => groups[m.id] && groups[m.id].reveals.length > 0);
+  };
+
+  const linked = {};
+  flags.forEach((f) => {
+    if (f.type === 'reveal' && f.linkedPlant) linked[f.linkedPlant.annotationId] = true;
+  });
+  const openByHardLink = (f) => f.type === 'plant' && !linked[f.id];
+
+  const plants = flags.filter((f) => f.type === 'plant');
+  return {
+    groups, membershipsOf, openByGroupings, openByHardLink,
+    counts: {
+      total: plants.length,
+      groupings: plants.filter(openByGroupings).length,
+      hardLink: plants.filter(openByHardLink).length,
+      ledger: plants.filter(openByHardLink).length,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Interval packing -- lanes, and the same packing wrapped onto a circle
+// ---------------------------------------------------------------------------
+
+// Greedy packing over sorted intervals: an item takes the lowest lane whose last occupant
+// ended before it starts. Concurrent items get distinct lanes; non-concurrent ones reuse.
+//
+// Allocation always runs over the UNFILTERED set. Filtering sets visibility and leaves the
+// gap, because greedy packing is not stable under removal -- hiding one ribbon would
+// repack every lane after it, and a filter that rearranges the picture is not a filter.
+function allocateLanes(intervals) {
+  const sorted = intervals.slice().sort(
+    (a, b) => (a.start - b.start) || (a.end - b.end) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  const lastEnd = [];
+  const lane = {};
+  sorted.forEach((iv) => {
+    let l = 0;
+    while (l < lastEnd.length && lastEnd[l] >= iv.start) l += 1;
+    lane[iv.id] = l;
+    lastEnd[l] = iv.end;
+  });
+  return { lane, count: Math.max(1, lastEnd.length) };
+}
+
+// Incremental packing. The reason this exists: a full repack moves 17 of 21 lanes on a
+// single chapter reorder, which is a routine editing action. A spine whose X is stable and
+// whose Y reshuffles has not delivered stable coordinates -- it has delivered half of them,
+// and the half a reader builds memory on is the one that moved.
+//
+// Standard incremental interval colouring: keep every prior assignment that is still
+// conflict-free, evict only genuine conflicts, and give the evicted and the new the lowest
+// free lane. Deterministic throughout -- when two kept intervals collide, the one that
+// starts earlier keeps the lane, id breaking the tie, never insertion order.
+//
+// previous: { lane: {id: n}, count: n } from the last run, or null for a cold start.
+//
+// THE DENOMINATOR ONLY GROWS, AND ONLY A PERSON MAY RESET IT. Growth is monotone because
+// shrinking rotates every ribbon that did not move. But monotone growth over a long editing
+// life means slot width narrows permanently and never recovers, so the 26-slot ceiling
+// arrives earlier than peak concurrency alone would predict -- a project that once had 30
+// concurrent subplots keeps paying for it after they close.
+//
+// The reset is therefore an explicit action (repack: true), never a silent heuristic. A
+// layout that quietly re-packs itself when it judges the drift bad enough is a layout that
+// rearranges without being asked, which is the thing this whole design exists to stop.
+// repackAdvised() below is what a "Tidy up" control should light up on; it decides nothing.
+function repackAdvised(previous, ribbons) {
+  if (!previous || !previous.count) return false;
+  const needed = Math.max(1, ...ribbons.map((r) => (previous.lane[r.id] || 0) + 1));
+  return previous.count > Math.max(4, needed * 1.5);
+}
+
+function allocateLanesIncremental(intervals, previous) {
+  if (!previous || !previous.lane) {
+    const fresh = allocateLanes(intervals);
+    return { ...fresh, kept: 0, moved: intervals.length, grew: false };
+  }
+
+  const sorted = intervals.slice().sort(
+    (a, b) => (a.start - b.start) || (a.end - b.end) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  const overlaps = (a, b) => !(a.end < b.start || b.end < a.start);
+
+  // Pass one: provisionally keep prior lanes, evicting on collision.
+  const inLane = new Map();          // lane -> intervals settled there
+  const evicted = [];
+  let kept = 0;
+  for (const iv of sorted) {
+    const prior = previous.lane[iv.id];
+    if (prior === undefined) { evicted.push(iv); continue; }
+    const occupants = inLane.get(prior) || [];
+    if (occupants.some((o) => overlaps(o, iv))) { evicted.push(iv); continue; }
+    occupants.push(iv);
+    inLane.set(prior, occupants);
+    kept += 1;
+  }
+
+  // Pass two: the evicted and the new take the lowest lane with room.
+  const lane = {};
+  for (const [l, occupants] of inLane) for (const iv of occupants) lane[iv.id] = l;
+  for (const iv of evicted) {
+    let l = 0;
+    for (;;) {
+      const occupants = inLane.get(l) || [];
+      if (!occupants.some((o) => overlaps(o, iv))) {
+        occupants.push(iv); inLane.set(l, occupants); lane[iv.id] = l; break;
+      }
+      l += 1;
+    }
+  }
+
+  // The angular denominator only ever grows. Shrinking it would rotate every ribbon that
+  // did not move, and on a cylinder that reads as ribbons jumping across the seam -- worse
+  // than the lane churn this whole function exists to avoid. A growth is a one-time reflow
+  // and is reported rather than hidden.
+  const needed = Math.max(1, ...Object.values(lane).map((l) => l + 1));
+  const count = Math.max(previous.count || 1, needed);
+  return { lane, count, kept, moved: evicted.length, grew: count > (previous.count || 1) };
+}
+
+// How many concurrent ribbons the circle can carry before adjacent slots stop being
+// separable at rest. This is NOT the same as how many it can hold: a circle has a finite
+// circumference exactly as a column has a finite height, and wrapping defers exhaustion
+// rather than removing it.
+//
+// The binding constraint is the projection, not the circumference. Offset is r*cos(theta),
+// so separation between neighbouring slots collapses toward the front and back of the
+// cylinder -- to first order r*(dtheta^2)/2 there, against r*dtheta at the sides. The
+// front is exactly where the reader is looking.
+function angularCeiling(radius, minSeparationPx = 6) {
+  const worst = (n) => radius * Math.pow((Math.PI * 2) / n, 2) / 2;   // front/back, worst case
+  const best = (n) => radius * ((Math.PI * 2) / n);                   // sides, best case
+  let n = 2;
+  while (n < 500 && worst(n + 1) >= minSeparationPx) n += 1;
+  return { readable: n, worstAt: worst(n), bestAt: best(n), minSeparationPx, radius };
+}
+
+// The braid is a LAPTOP-FIRST surface, meant for long structural sessions. An earlier
+// version of this derived its numbers against a 390px phone held in portrait, which was
+// simply the wrong device: it produced a ceiling of 26 that was never the real constraint.
+//
+// Usable height, not window height. The axis is locked horizontal, so the cylinder's
+// diameter has to fit the SHORT dimension, and the bar and the scrubber take some of it.
+const TARGET = {
+  width: 1440,
+  height: 900,
+  usableHeight: 760,     // 900 less the bar, the scrubber and a margin
+  minSeparationPx: 6,
+};
+
+// Concurrency the circle can carry at a given usable height.
+//
+// Separation between neighbouring slots is worst at the front and back of the cylinder,
+// where it goes as r*(dTheta^2)/2. With the diameter filling the usable height, r = H/2 and
+// dTheta = 2*PI/n, so the separation is H*PI^2/n^2 and the ceiling falls out directly:
+//
+//     n <= PI * sqrt(H / minSeparation)
+//
+// which is where both the old phone figure and the new laptop one come from -- the formula
+// did not change, only the H it was asked about.
+function angularCeilingForViewport(usableHeightPx = TARGET.usableHeight,
+                                          minSeparationPx = TARGET.minSeparationPx) {
+  const n = Math.floor(Math.PI * Math.sqrt(usableHeightPx / minSeparationPx));
+  return {
+    readable: n,
+    usableHeightPx,
+    minSeparationPx,
+    separationAt: (k) => (usableHeightPx * Math.PI * Math.PI) / (k * k),
+  };
+}
+
+// The inverse: the usable height a given concurrency would need. Quadratic in concurrency,
+// which is the part that matters -- doubling how many ribbons must be separable at the
+// silhouette costs four times the height, so wrapping buys a little and then stops.
+function heightFor(concurrency, minSeparationPx = TARGET.minSeparationPx) {
+  const height = (minSeparationPx * concurrency * concurrency) / (Math.PI * Math.PI);
+  return {
+    concurrency, minSeparationPx,
+    usableHeightPx: height,
+    fitsTarget: height <= TARGET.usableHeight,
+    windowHeightNeeded: height + (TARGET.height - TARGET.usableHeight),
+    growth: 'usable height grows with the square of concurrency',
+  };
+}
+
+// Kept for the world-space form, which the renderer still uses when it needs a radius
+// rather than a viewport.
+function radiusFor(concurrency, minSeparationPx = TARGET.minSeparationPx,
+                          viewportPx = TARGET.usableHeight) {
+  const dTheta = (Math.PI * 2) / concurrency;
+  const radius = (2 * minSeparationPx) / (dTheta * dTheta);
+  return {
+    concurrency, radius, diameter: radius * 2, viewportPx,
+    fits: radius * 2 <= viewportPx,
+    growth: 'radius grows with the square of concurrency',
+  };
+}
+
+// The circle is the same packing, wrapped. Concurrent ribbons take distinct angular slots;
+// non-concurrent ones reuse them. Ordering inside a concurrent set follows the greedy walk,
+// which is opening order -- so at any slice of the axis, going round the cylinder still
+// goes forward through openings.
+//
+// WHY WRAP AT ALL -- corrected, and the old reason should not be quoted again. This was
+// originally justified by lane exhaustion: a column has finite height, a circle does not.
+// That justification is wrong. angularCeiling() puts the readable limit at 26 concurrent
+// against a flat chart's ~21, so wrapping buys about five slots. It is a rounding error,
+// not a scaling strategy, and radiusFor() shows why: the radius needed grows with the
+// SQUARE of concurrency, so the escape closes rather than opens.
+//
+// What actually justifies wrapping is that unrolling this yields the lane packing exactly.
+// Flatten is a projection of one geometry rather than a switch between two layouts, which
+// gives a second, stable reading of the same axis and keeps both postures learnable.
+// (Ranking angle globally instead would have given one lane per ribbon saga-wide once
+// unrolled, which is unusable -- so the packing is load-bearing for Flatten specifically.)
+//
+// Consequence worth stating plainly: no layout choice escapes the granularity question. If
+// concurrency on real material is anywhere near what this fixture shows, ribbons-as-pairs
+// is unrenderable flat AND wrapped, and the answer has to come from the data model or from
+// what the default view chooses to draw.
+//
+// The +PI and the half-slot put the wrap point -- where the highest slot meets slot 0 --
+// at the back of the cylinder, so the seam sits behind the camera at rest and the unroll
+// does not tear across the middle of the picture.
+function anglesFromLanes(lane, count) {
+  const angle = {};
+  Object.keys(lane).sort().forEach((id) => {
+    angle[id] = Math.PI + ((lane[id] + 0.5) / count) * Math.PI * 2;
+  });
+  return angle;
+}
+
+// ---------------------------------------------------------------------------
+// Ribbons and strands
+// ---------------------------------------------------------------------------
+
+// A ribbon spans from its earliest plant to its latest reveal. An open ribbon has no far
+// end: it runs to the end of the saga, because that is the stretch of axis it actually
+// occupies, and packing it as a point would let a later ribbon sit on top of it.
+function buildRibbons(flags, axis, rules) {
+  const { groups } = rules;
+  const out = [];
+  Object.keys(groups).sort().forEach((id) => {
+    const g = groups[id];
+    if (!g.plants.length && !g.reveals.length) return;      // a note-only grouping is not a subplot
+    if (id.indexOf('solo:') === 0) return;
+    const ords = (list) => list.map((f) => axis.ordinal[f.chapterId]).filter((o) => !!o);
+    const plantOrds = ords(g.plants);
+    const revealOrds = ords(g.reveals);
+    if (!plantOrds.length && !revealOrds.length) return;
+    // The span covers EVERY member, not plants-then-reveals. An earlier version took
+    // start from the plants and end from the reveals and then clamped end to be at least
+    // start -- which silently collapsed to a point any grouping whose reveal is READ
+    // BEFORE its plant. That is not a corner case: it is what a flashback is. A payoff
+    // that lands before its setup is a legitimate and deliberate structure, and the
+    // picture has to be able to draw it.
+    const allOrds = plantOrds.concat(revealOrds);
+    const open = revealOrds.length === 0;
+    const start = Math.min(...allOrds);
+    const end = open ? axis.slots : Math.max(...allOrds);
+
+    // True when the first reveal is read before the first plant. Reported rather than
+    // corrected: the writer meant it.
+    const reversed = !open && plantOrds.length > 0 && revealOrds.length > 0
+      && Math.min(...revealOrds) < Math.min(...plantOrds);
+
+    // How many books it crosses. NEUTRAL INFORMATION, never a warning: a setup planted in
+    // Book I and paid in Book IV is the saga working as intended, and anything that treats
+    // distance as a defect will be switched off within a week.
+    const booksCrossed = new Set();
+    for (let o = start; o <= end; o++) {
+      const b = axis.bookAt[o];
+      if (b) booksCrossed.add(b.key);
+    }
+
+    out.push({
+      id, label: g.label || 'Untitled subplot',
+      start, end, open, reversed,
+      spansBooks: booksCrossed.size,
+      plants: g.plants.map((f) => f.id), reveals: g.reveals.map((f) => f.id),
+    });
+  });
+  return out;
+}
+
+// A strand is a character's run through the saga. Two predicates, and they are NOT the
+// same thing:
+//
+//   'event'   -- the app's: presence rows against event nodes carrying properties.chapter_id.
+//   'fixture' -- the demo generator's: POV, plus relationships scoped to a chapter. It
+//                understates and never invents, so fixture strand density says nothing
+//                about real strand density.
+//
+// Either way a gap means NO EVENT RECORDED, not "character absent". That is why a strand
+// renders as a continuous ghost line with beads on it: the line asserts the character
+// exists across the span, the beads assert only where something was logged.
+function buildStrands(payload, axis, predicate = 'event') {
+  const eventChapter = {};
+  (payload.events || []).forEach((ev) => {
+    const cid = (ev.properties || {}).chapter_id;
+    if (cid) eventChapter[ev.id] = cid;
+  });
+
+  const beadsBy = {};
+  (payload.presence || []).slice()
+    .sort((a, b) => (a.character < b.character ? -1 : a.character > b.character ? 1 : (a.event < b.event ? -1 : 1)))
+    .forEach((p) => {
+      const cid = eventChapter[p.event];
+      if (predicate === 'event' && !cid) return;
+      const o = axis.ordinal[cid];
+      if (!o) return;
+      (beadsBy[p.character] = beadsBy[p.character] || []).push({ ord: o, isPov: !!p.isPov });
+    });
+
+  const out = [];
+  Object.keys(beadsBy).sort().forEach((cid) => {
+    const beads = beadsBy[cid].slice().sort((a, b) => a.ord - b.ord);
+    const node = (payload.nodes || []).find((n) => n.id === cid);
+    out.push({
+      id: cid, label: (node && node.label) || cid,
+      start: beads[0].ord, end: beads[beads.length - 1].ord,
+      beads,
+      coverage: beads.length / Math.max(1, axis.slots),
+    });
+  });
+  return out;
+}
+
+// The gate the unreliable signals are meant to sit behind. Below this, the event log is
+// too thin for any absence-based claim to mean anything.
+function strandDensity(strands, axis) {
+  if (!strands.length) return { ok: false, mean: 0, reason: 'no characters have logged events' };
+  const mean = strands.reduce((a, s) => a + s.coverage, 0) / strands.length;
+  return {
+    ok: mean >= 0.5, mean,
+    reason: mean >= 0.5 ? 'dense enough for absence-based signals'
+      : 'too sparse: an absence here means no event was logged, not that anyone left',
+  };
+}
+
+// A mythic thread is the one structure explicitly built to recur across the WHOLE saga --
+// many-to-many, book after book. Until now its touches were drawn as loose note markers with
+// nothing joining them, so the single feature designed for saga-length recurrence was the
+// one feature with no span at all. A thread with two or more touches now gets an arc like a
+// subplot's, in its own radius class so it never competes with one for a lane.
+function buildThreads(flags, axis) {
+  const byName = {};
+  flags.forEach((f) => {
+    if (f.type !== 'note' || !f.thread) return;
+    const o = axis.ordinal[f.chapterId];
+    if (!o) return;
+    (byName[f.thread] = byName[f.thread] || []).push({ id: f.id, ord: o, characterId: f.characterId });
+  });
+
+  const out = [];
+  Object.keys(byName).sort().forEach((name) => {
+    const touches = byName[name].slice().sort((a, b) => a.ord - b.ord || (a.id < b.id ? -1 : 1));
+    // One touch is not yet a recurrence. It stays a note; drawing an arc from a point to
+    // itself would claim a pattern the prose has not made.
+    if (touches.length < 2) return;
+    const start = touches[0].ord, end = touches[touches.length - 1].ord;
+    const booksCrossed = new Set();
+    for (let o = start; o <= end; o++) {
+      const b = axis.bookAt[o];
+      if (b) booksCrossed.add(b.key);
+    }
+    out.push({
+      id: 'thread:' + name, label: name, start, end,
+      touches: touches.map((t) => t.id),
+      characterId: (touches.find((t) => t.characterId) || {}).characterId || null,
+      spansBooks: booksCrossed.size,
+    });
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+// Deterministic structural signals, computed in the axis pass so the badge, the band label
+// and the far view are one number. Each carries its own reliability, in the data, not in a
+// comment -- the renderer must be able to tell a hard signal from a guess.
+//
+// Dismissals are read from the annotation itself -- `health_dismissed` on the flag, in the
+// chapters.annotations jsonb the editor already writes. Not view state and not device
+// state: this is a multi-device app over one Supabase project, and a dismissal that lives
+// on the laptop means the same signal reappears on the phone, which is precisely the
+// behaviour that teaches a writer to ignore every badge.
+//
+// options.dismissals is an overlay for things that are not annotations (a ribbon is a
+// grouping, not a row) and for tests. Anything annotation-shaped should be persisted on
+// the annotation, not passed in here.
+//
+// NOTE, unresolved: a defer and a dismissal are NOT the same act. "Not due yet" is
+// time-bounded and expected to come back; "deliberate" is permanent. They should share one
+// store keyed by subject with a kind, so there is one list to maintain rather than two --
+// but they must not collapse into one flag. See the report; awaiting a decision.
+function dismissedOnAnnotation(f) {
+  return !!(f && f.health_dismissed);
+}
+function computeHealth(payload, axis, rules, ribbons, strands, dismissals = {}) {
+  const signals = [];
+  const chapterById = {};
+  (payload.chapters || []).forEach((c) => { chapterById[c.id] = c; });
+  const drafted = (cid) => {
+    const s = (chapterById[cid] || {}).status;
+    return s === 'drafted' || s === 'final';
+  };
+
+  const flagById = {};
+  (payload.flags || []).forEach((f) => { flagById[f.id] = f; });
+  const push = (s) => {
+    if (dismissals[s.subject]) return;
+    if (dismissedOnAnnotation(flagById[s.subject])) return;
+    signals.push(s);
+  };
+
+  // RELIABLE -- hard-link/grouping absence, no strand dependency.
+  payload.flags.slice().sort(byId).forEach((f) => {
+    if (rules.openByGroupings(f)) {
+      push({
+        kind: 'open-plant', reliability: 'reliable', subject: f.id,
+        ord: axis.ordinal[f.chapterId], chapterId: f.chapterId,
+        text: 'Plant with nothing claiming it yet',
+      });
+    }
+    // An unlinked Reveal usually means not-yet-linked rather than orphan, so a second
+    // condition is required before this asserts anything: the chapter has to be written.
+    if (f.type === 'reveal' && (!f.pairs || !f.pairs.length) && drafted(f.chapterId)) {
+      push({
+        kind: 'unlinked-reveal', reliability: 'reliable', subject: f.id,
+        ord: axis.ordinal[f.chapterId], chapterId: f.chapterId,
+        text: 'Reveal in a written chapter that is not joined to a Plant',
+      });
+    }
+  });
+
+  // RELIABLE -- flag density per chapter, against the saga's own median rather than a
+  // constant, so a densely-flagged writer is not permanently in the red.
+  const perChapter = {};
+  payload.flags.forEach((f) => { perChapter[f.chapterId] = (perChapter[f.chapterId] || 0) + 1; });
+  const counts = axis.sorted.map((c) => perChapter[c.id] || 0).sort((a, b) => a - b);
+  const median = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
+  axis.sorted.forEach((c) => {
+    const n = perChapter[c.id] || 0;
+    if (median > 0 && n >= median * 3) {
+      push({
+        kind: 'flag-density', reliability: 'reliable', subject: c.id,
+        ord: axis.ordinal[c.id], chapterId: c.id,
+        text: n + ' flags here against a saga median of ' + median,
+      });
+    }
+  });
+
+  // WITHDRAWN: 'unresolved-at-book-end'.
+  //
+  // It fired whenever an open subplot's book ended before the saga did. But subplots,
+  // plants, reveals and threads are all expected to span several books -- a plant sown in
+  // Book I and paid in Book IV is the design, not a defect. The signal would therefore have
+  // fired on nearly every deliberate long-range setup, which is the "lights up the whole
+  // saga on first run and gets switched off permanently" failure this overlay set has
+  // already been warned about once.
+  //
+  // What remains true and is already said once, by 'open-plant': nothing claims this yet.
+  // Distance is reported as ribbon.spansBooks, which is information rather than a warning.
+
+  // UNRELIABLE -- both of these accuse the writer of dropping a character who simply has
+  // no logged events. Computed so the gate can be reported, emitted only if it passes.
+  const density = strandDensity(strands, axis);
+  const deferred = [];
+  strands.forEach((s) => {
+    let prev = null;
+    s.beads.forEach((b) => {
+      if (prev !== null && b.ord - prev > Math.max(3, Math.floor(axis.slots / 4))) {
+        deferred.push({
+          kind: 'long-absence', reliability: 'unreliable', subject: s.id + ':' + prev,
+          ord: prev, chapterId: null,
+          text: s.label + ' is unseen from ' + prev + ' to ' + b.ord,
+        });
+      }
+      prev = b.ord;
+    });
+    if (s.start > Math.max(2, Math.floor(axis.slots / 3))) {
+      deferred.push({
+        kind: 'late-arc', reliability: 'unreliable', subject: s.id + ':late',
+        ord: s.start, chapterId: null,
+        text: s.label + ' first appears late',
+      });
+    }
+  });
+  if (density.ok) deferred.forEach(push);
+
+  return {
+    signals,
+    withheld: density.ok ? [] : deferred,
+    density,
+    // REJECTED, deliberately not built. Several reveals landing in one chapter is a
+    // climax, not a defect, and at the concurrency this material actually shows it would
+    // fire constantly and accuse deliberate craft of being a fault. If convergence is
+    // worth seeing it belongs on the spine as a neutral mark, never in the health set.
+    subplotCollision: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The one entry point
+// ---------------------------------------------------------------------------
+
+function computeSpine(payload, options = {}) {
+  const all = (payload.flags || []).slice();
+
+  // An unanchorable annotation has no flagged substring, so there is no position on the
+  // axis it could occupy. It is excluded from the layout and from health -- a signal
+  // pointing at nothing is worse than no signal -- but it is COUNTED, so a client can say
+  // "3 annotations cannot be placed" instead of quietly showing fewer than the writer made.
+  // Before the 20260825 migration these never arrived at all.
+  const unanchorable = all.filter((f) => f.unanchorable);
+  const flags = all.filter((f) => !f.unanchorable);
+  const rules = openPlantRules(flags);
+
+  const openBy = {};
+  flags.forEach((f) => {
+    if (rules.openByGroupings(f)) openBy[f.chapterId] = (openBy[f.chapterId] || 0) + 1;
+  });
+
+  const axis = computeAxis(payload.chapters || [], flags, openBy, options.order || 'read');
+  const ribbons = buildRibbons(flags, axis, rules);
+  const strands = buildStrands(payload, axis, options.predicate || 'event');
+  const threads = buildThreads(flags, axis);
+
+  // options.previous carries the last run's assignments, per class, so a routine edit moves
+  // a handful of ribbons instead of reshuffling the picture. Absent, this is a cold start.
+  // options.repack discards the prior assignment on purpose -- the explicit "tidy up", the
+  // only way the angular denominator ever comes back down.
+  const prior = options.repack ? {} : (options.previous || {});
+  const ribbonPack = allocateLanesIncremental(ribbons, prior.ribbon);
+  const strandPack = allocateLanesIncremental(strands, prior.strand);
+  const threadPack = allocateLanesIncremental(threads, prior.thread);
+
+  const health = computeHealth({ ...payload, flags }, axis, rules, ribbons, strands, options.dismissals || {});
+
+  return {
+    axis,
+    ribbons: ribbons.map((r) => ({
+      ...r, radius: RADIUS.ribbon,
+      lane: ribbonPack.lane[r.id], angle: anglesFromLanes(ribbonPack.lane, ribbonPack.count)[r.id],
+    })),
+    strands: strands.map((s) => ({
+      ...s, radius: RADIUS.strand,
+      lane: strandPack.lane[s.id], angle: anglesFromLanes(strandPack.lane, strandPack.count)[s.id],
+    })),
+    threads: threads.map((t) => ({
+      ...t, radius: RADIUS.thread,
+      lane: threadPack.lane[t.id], angle: anglesFromLanes(threadPack.lane, threadPack.count)[t.id],
+    })),
+    laneCounts: { ribbon: ribbonPack.count, strand: strandPack.count, thread: threadPack.count },
+    // Hand this back as options.previous on the next run. This is what makes the layout
+    // incremental; without persisting it, every rebuild is a cold start.
+    assignment: {
+      ribbon: { lane: ribbonPack.lane, count: ribbonPack.count },
+      strand: { lane: strandPack.lane, count: strandPack.count },
+      thread: { lane: threadPack.lane, count: threadPack.count },
+    },
+    churn: {
+      ribbon: { kept: ribbonPack.kept, moved: ribbonPack.moved, grew: ribbonPack.grew },
+      strand: { kept: strandPack.kept, moved: strandPack.moved, grew: strandPack.grew },
+    },
+    ceiling: angularCeilingForViewport(),
+    repackAdvised: repackAdvised(prior.ribbon, ribbons),
+    openCounts: rules.counts,
+    unanchorable: { count: unanchorable.length, ids: unanchorable.map((f) => f.id) },
+    health,
+    preset: resolvePreset(payload),
+  };
+}
+
+</script>
+<script>
+(function () {
+  var raw = window.__GRAPH__;
+
+  var CHAPTER_COLOR = '#8e7cc3', SCENE_COLOR = '#6d7f96', EVENT_COLOR = '#7f8fa0';
+  var PLANT_COLOR = '#5aa469', REVEAL_COLOR = '#c0504d', NOTE_COLOR = '#b08a5a';
+  var THREAD_COLOR = '#3aa8a0', STRUCTURE_COLOR = '#6b5f8a', GOLD = '#c69a3a';
+
+  var SLOT = 150, SPINE_Y = 0, EVENT_Y = -70, SCENE_Y = 62, FLAG_Y = 118, FLAG_ROW = 30;
+  var RIBBON_BASE = 250, RIBBON_GAP = 26, RIBBON_RADIUS = 210;
+  var STRAND_BASE = 150, STRAND_GAP = 24, STRAND_RADIUS = 130;
+  var GUTTER_PAD = 2;
+
+  // Dismissals are written onto the annotation -- health_dismissed on the flag, inside the
+  // chapters.annotations jsonb the editor already writes -- and never into localStorage.
+  // This app syncs across devices through one Supabase project; a dismissal stored on the
+  // device means the signal comes back on the phone after being silenced on the laptop,
+  // which is exactly what teaches a writer to ignore every badge.
+  //
+  // There is no database in the prototype, so the write is made in memory and the exact
+  // statement it stands for is queued and shown. Nothing is persisted locally on purpose:
+  // a prototype that fakes durability hides the only part still to be built.
+  var pendingWrites = [];
+  function dismissAnnotation(id) {
+    var f = flagById[id];
+    if (f) {
+      f.health_dismissed = true;
+      pendingWrites.push({
+        table: 'chapters', chapterId: f.chapterId, annotationId: f.id,
+        sql: 'update chapters set annotations = <annotations with ' + f.id +
+             '.health_dismissed = true> where id = ' + f.chapterId,
+      });
+    } else {
+      // A subplot is a grouping, not a row -- it has no annotation to carry the flag. It
+      // has to be dismissed on every plant in it, or the grouping needs a home of its own.
+      ribbonDismissals[id] = true;
+    }
+  }
+  var ribbonDismissals = {};
+
+  // The previous assignment, so a rebuild keeps the picture rather than reshuffling it.
+  // In the app this is persisted per project and per class; here it lives for the session.
+  var previous = null;
+  function recompute() {
+    spine = computeSpine(raw, { dismissals: ribbonDismissals, previous: previous });
+    previous = spine.assignment;
+    indexHealth();
+  }
+
+  var spine = computeSpine(raw, { dismissals: {} });
+  previous = spine.assignment;
+  var axis = spine.axis, slots = axis.slots;
+  var show = spine.preset.visible;
+
+  var chapterById = {}, sceneById = {}, flagById = {};
+  raw.chapters.forEach(function (c) { chapterById[c.id] = c; });
+  raw.scenes.forEach(function (s) { sceneById[s.id] = s; });
+  raw.flags.forEach(function (f) { flagById[f.id] = f; });
+
+  var healthBySubject = {};
+  function indexHealth() {
+    healthBySubject = {};
+    spine.health.signals.forEach(function (s) {
+      (healthBySubject[s.subject] = healthBySubject[s.subject] || []).push(s);
+    });
+  }
+  indexHealth();
+
+  function slotX(o) { return (o - 1) * SLOT; }
+
+  // ---- nodes on the axis (radius 0) -----------------------------------------------
+  var nodes = [];
+  axis.sorted.forEach(function (c) {
+    nodes.push({ id: c.id, kind: 'chapter', label: c.title, x: slotX(axis.ordinal[c.id]),
+                 y: SPINE_Y, r: 15, data: c, ord: axis.ordinal[c.id] });
+  });
+
+  var scenesByChapter = {}, sceneX = {};
+  raw.scenes.forEach(function (s) {
+    (scenesByChapter[s.chapterId] = scenesByChapter[s.chapterId] || []).push(s);
+  });
+  Object.keys(scenesByChapter).sort().forEach(function (cid) {
+    var list = scenesByChapter[cid].slice().sort(function (a, b) { return a.seq - b.seq; });
+    var base = slotX(axis.ordinal[cid]);
+    list.forEach(function (s, i) {
+      var x = base + ((i + 1) / (list.length + 1) - 0.5) * SLOT * 0.78;
+      sceneX[s.id] = x;
+      nodes.push({ id: s.id, kind: 'scene', label: s.title || 'Untitled scene', x: x, y: SCENE_Y,
+                   r: 7, data: s, ord: axis.ordinal[cid] });
+    });
+  });
+
+  // Plants, Reveals and Notes sit ON the axis; the vertical offset below is legibility,
+  // not a coordinate, which is why none of them move when the view wraps around. A
+  // chapter-anchored flag has no finer position to inherit -- 64 of 79 in this material --
+  // so they fan across their chapter's stretch and stack in rows rather than piling onto
+  // one point.
+  var byAnchor = {};
+  raw.flags.slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (f) {
+    var key = (f.sceneId && sceneX[f.sceneId] !== undefined) ? 'scene:' + f.sceneId : 'chapter:' + f.chapterId;
+    (byAnchor[key] = byAnchor[key] || []).push(f);
+  });
+  Object.keys(byAnchor).sort().forEach(function (key) {
+    var list = byAnchor[key];
+    var isScene = key.indexOf('scene:') === 0;
+    var anchorId = key.slice(key.indexOf(':') + 1);
+    var cid = isScene ? sceneById[anchorId].chapterId : anchorId;
+    var base = isScene ? sceneX[anchorId] : slotX(axis.ordinal[cid]);
+    var span = isScene ? SLOT * 0.22 : SLOT * 0.74;
+    var perRow = isScene ? 2 : 4;
+    list.forEach(function (f, i) {
+      var col = i % perRow, row = Math.floor(i / perRow);
+      var inRow = Math.min(perRow, list.length - row * perRow);
+      nodes.push({
+        id: f.id, kind: (f.type === 'note' && f.thread) ? 'thread' : f.type,
+        label: f.label || (f.text || '').slice(0, 40),
+        x: base + (inRow === 1 ? 0 : (col / (inRow - 1) - 0.5)) * span,
+        y: FLAG_Y + row * FLAG_ROW, r: 7, data: f, ord: axis.ordinal[cid],
+      });
+    });
+  });
+
+  // A moment with no chapter is NOT interpolated between its neighbours: an invented
+  // position looks exactly as precise as a real one. Parked past the end, drawn hollow.
+  var gutter = 0;
+  raw.events.slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (ev) {
+    var cid = (ev.properties || {}).chapter_id;
+    var o = cid ? axis.ordinal[cid] : null;
+    nodes.push(o
+      ? { id: ev.id, kind: 'event', label: ev.label, x: slotX(o), y: EVENT_Y, r: 10, data: ev, ord: o }
+      : { id: ev.id, kind: 'event', label: ev.label, x: slotX(slots + GUTTER_PAD + gutter++),
+          y: EVENT_Y, r: 10, data: ev, ord: null, unanchored: true });
+  });
+
+  var byId = {};
+  nodes.forEach(function (n) { byId[n.id] = n; });
+  spine.ribbons.forEach(function (r) { byId[r.id] = r; });
+  spine.strands.forEach(function (s) { byId[s.id] = s; });
+
+  // ---- view -----------------------------------------------------------------------
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var view = { x: 0, y: 0, k: 1 };
+  var cam = 0;             // orbit about the axis. No roll: the axis stays horizontal.
+  var roundness = 0;       // 0 flat, 1 wrapped. Animated between the two.
+  var upTo = slots;        // the time scrubber: show the saga up to this chapter
+  var selectedId = null;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  // Flat and wrapped are one geometry seen two ways: the flat offset is the same packing
+  // the angle came from, so this blend is an unroll, not a cross-fade between layouts.
+  function offsetOf(radius, lane, angle) {
+    var flat, r;
+    if (radius === RADIUS.ribbon) { flat = RIBBON_BASE + lane * RIBBON_GAP; r = RIBBON_RADIUS; }
+    else if (radius === RADIUS.strand) { flat = -(STRAND_BASE + lane * STRAND_GAP); r = -STRAND_RADIUS; }
+    else return { y: 0, depth: 1 };
+    var wrapped = r * Math.cos(angle + cam);
+    return { y: flat * (1 - roundness) + wrapped * roundness,
+             depth: Math.sin(angle + cam) * roundness };
+  }
+
+  function tier() { return tierFor(view.k); }
+  function inTime(ord) { return !ord || ord <= upTo; }
+
+  function visible(n) {
+    if (!inTime(n.ord)) return false;
+    var t = tier();
+    if (t === 'books') return false;
+    if (n.kind === 'chapter') return true;
+    if (n.kind === 'scene') return show.scene !== false && t !== 'books';
+    if (n.kind === 'event') return show.moment === true && t === 'detail';
+    return show.flags === true && t === 'detail';
+  }
+
+  function colorOf(n) {
+    return n.kind === 'chapter' ? CHAPTER_COLOR : n.kind === 'scene' ? SCENE_COLOR
+      : n.kind === 'event' ? EVENT_COLOR : n.kind === 'plant' ? PLANT_COLOR
+      : n.kind === 'reveal' ? REVEAL_COLOR : n.kind === 'thread' ? THREAD_COLOR : NOTE_COLOR;
+  }
+
+  function shape(c, kind, x, y, r) {
+    c.beginPath();
+    if (kind === 'chapter') {
+      for (var i = 0; i < 6; i++) {
+        var a = Math.PI / 6 + i * Math.PI / 3;
+        c[i ? 'lineTo' : 'moveTo'](x + r * Math.cos(a), y + r * Math.sin(a));
+      }
+      c.closePath();
+    } else if (kind === 'event') {
+      c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath();
+    } else if (kind === 'scene') {
+      c.rect(x - r, y - r, r * 2, r * 2);
+    } else if (kind === 'plant') {
+      c.moveTo(x, y - r); c.lineTo(x + r, y + r * 0.8); c.lineTo(x - r, y + r * 0.8); c.closePath();
+    } else if (kind === 'reveal') {
+      c.moveTo(x, y + r); c.lineTo(x + r, y - r * 0.8); c.lineTo(x - r, y - r * 0.8); c.closePath();
+    } else {
+      var f = r * 0.55;
+      c.moveTo(x - r, y - r); c.lineTo(x + r - f, y - r); c.lineTo(x + r, y - r + f);
+      c.lineTo(x + r, y + r); c.lineTo(x - r, y + r); c.closePath();
+    }
+  }
+
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0d1110';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(dpr * view.k, 0, 0, dpr * view.k, view.x * dpr, view.y * dpr);
+
+    var top = (-view.y / view.k) - 40;
+    var bot = top + (cv.height / dpr) / view.k + 80;
+    var t = tier();
+    var lw = function (px) { return px / view.k; };
+
+    // Bands. Books at every zoom, acts only once chapters are being drawn -- the far view
+    // is books and their counts, and nothing else.
+    // The far tier is whatever actually summarises this saga -- books when they divide it
+    // usefully, acts when one book dominates. Decided in computeAxis so the renderer and
+    // any count agree; a far view whose largest band is most of the axis summarises nothing.
+    var farBands = axis.farTier === 'books' ? axis.books : axis.acts;
+    var bands = (t === 'books' ? farBands : axis.acts).filter(function (b) { return b.from <= upTo; });
+    bands.forEach(function (b, i) {
+      var x0 = slotX(b.from) - SLOT / 2, x1 = slotX(Math.min(b.to, upTo)) + SLOT / 2;
+      ctx.fillStyle = i % 2 ? 'rgba(107,95,138,0.09)' : 'rgba(107,95,138,0.045)';
+      ctx.fillRect(x0, top, x1 - x0, bot - top);
+      ctx.strokeStyle = 'rgba(107,95,138,0.35)';
+      ctx.lineWidth = lw(1);
+      ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, bot); ctx.stroke();
+
+      ctx.fillStyle = '#6b5f8a';
+      ctx.font = lw(t === 'books' ? 20 : 12) + 'px system-ui';
+      ctx.textAlign = 'left';
+      var label = b.label + '  —  ' + b.chapters + ' chapters · ' + b.flags + ' flagged';
+      if (b.open) label += ' · ' + b.open + ' still open';
+      ctx.fillText(label, x0 + lw(8), top + lw(t === 'books' ? 32 : 20));
+    });
+
+    if (t === 'books') { hud(); return; }
+
+    // The spine.
+    ctx.strokeStyle = STRUCTURE_COLOR;
+    ctx.lineWidth = lw(2);
+    ctx.beginPath();
+    ctx.moveTo(slotX(1), SPINE_Y); ctx.lineTo(slotX(upTo), SPINE_Y);
+    ctx.stroke();
+
+    // Subplots. Each leaves the spine where its first Plant is sown and rejoins where its
+    // last Reveal lands. One that is never claimed does not simply fade: it ends in a bar,
+    // a mark that is still there at any zoom and cannot be mistaken for something faint,
+    // distant or hidden behind the spine.
+    if (show.ribbons) {
+      spine.ribbons.slice()
+        .sort(function (a, b) { return offsetOf(RADIUS.ribbon, a.lane, a.angle).depth -
+                                       offsetOf(RADIUS.ribbon, b.lane, b.angle).depth; })
+        .forEach(function (r) {
+          if (r.start > upTo) return;
+          var end = Math.min(r.end, upTo);
+          var o = offsetOf(RADIUS.ribbon, r.lane, r.angle);
+          var x0 = slotX(r.start), x1 = slotX(end);
+          var behind = o.depth < 0;
+          var sel = r.id === selectedId;
+          ctx.globalAlpha = behind ? 0.35 : 1;
+          ctx.strokeStyle = sel ? GOLD : (r.open ? PLANT_COLOR : STRUCTURE_COLOR);
+          ctx.lineWidth = lw(sel ? 3 : 1.6);
+          ctx.beginPath();
+          ctx.moveTo(x0, SPINE_Y);
+          ctx.bezierCurveTo(x0 + SLOT * 0.3, o.y, x1 - SLOT * 0.3, o.y, x1, r.open ? o.y : SPINE_Y);
+          ctx.stroke();
+          if (r.open) {
+            ctx.lineWidth = lw(3);
+            ctx.beginPath();
+            ctx.moveTo(x1, o.y - lw(9)); ctx.lineTo(x1, o.y + lw(9));
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+        });
+    }
+
+    // Characters. A continuous ghost line across the span with beads where something was
+    // actually logged -- the line says the character exists across that stretch, the beads
+    // say only where a moment records them. A gap is an unrecorded stretch, never a claim
+    // that anybody left.
+    if (show.strands) {
+      spine.strands.forEach(function (s) {
+        if (s.start > upTo) return;
+        var o = offsetOf(RADIUS.strand, s.lane, s.angle);
+        var sel = s.id === selectedId;
+        ctx.globalAlpha = o.depth < 0 ? 0.3 : 0.75;
+        ctx.strokeStyle = sel ? GOLD : '#4a5a55';
+        ctx.lineWidth = lw(sel ? 2.5 : 1);
+        ctx.setLineDash([lw(3), lw(4)]);
+        ctx.beginPath();
+        ctx.moveTo(slotX(s.start), o.y); ctx.lineTo(slotX(Math.min(s.end, upTo)), o.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = o.depth < 0 ? 0.4 : 1;
+        ctx.fillStyle = sel ? GOLD : '#8fa39c';
+        s.beads.forEach(function (b) {
+          if (b.ord > upTo) return;
+          ctx.beginPath();
+          ctx.arc(slotX(b.ord), o.y, lw(b.isPov ? 5 : 3.2), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        if (t === 'detail') {
+          ctx.fillStyle = '#7f8fa0';
+          ctx.font = lw(10) + 'px system-ui';
+          ctx.textAlign = 'right';
+          ctx.fillText(s.label, slotX(s.start) - lw(8), o.y + lw(3));
+        }
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    // Stems, then the nodes on the axis.
+    ctx.lineWidth = lw(1);
+    ctx.strokeStyle = 'rgba(107,95,138,0.28)';
+    nodes.forEach(function (n) {
+      if (n.kind === 'chapter' || n.unanchored || !visible(n)) return;
+      ctx.beginPath();
+      ctx.moveTo(slotX(n.ord), SPINE_Y); ctx.lineTo(n.x, n.y);
+      ctx.stroke();
+    });
+
+    nodes.forEach(function (n) {
+      if (!visible(n)) return;
+      shape(ctx, n.kind, n.x, n.y, n.r);
+      if (n.unanchored) {
+        ctx.strokeStyle = colorOf(n); ctx.lineWidth = lw(1.5);
+        ctx.setLineDash([lw(4), lw(3)]); ctx.stroke(); ctx.setLineDash([]);
+      } else {
+        ctx.fillStyle = colorOf(n); ctx.fill();
+      }
+
+      if (show.health && healthBySubject[n.id]) {
+        ctx.strokeStyle = GOLD; ctx.lineWidth = lw(2);
+        ctx.beginPath();
+        ctx.moveTo(n.x - n.r, n.y + n.r * 1.7); ctx.lineTo(n.x + n.r, n.y + n.r * 1.7);
+        ctx.stroke();
+      }
+      if (n.id === selectedId) {
+        ctx.strokeStyle = GOLD; ctx.lineWidth = lw(2.5);
+        shape(ctx, n.kind, n.x, n.y, n.r + lw(4)); ctx.stroke();
+      }
+      if (n.kind === 'chapter') {
+        ctx.fillStyle = '#0d1110'; ctx.font = 'bold ' + lw(11) + 'px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(n.ord), n.x, n.y);
+        if (t === 'detail') {
+          ctx.fillStyle = '#cfd8d5'; ctx.font = lw(10) + 'px system-ui';
+          ctx.textBaseline = 'alphabetic';
+          ctx.fillText(clip(n.label, 22), n.x, n.y - lw(24));
+        }
+        ctx.textBaseline = 'alphabetic';
+      }
+    });
+    ctx.textAlign = 'left';
+    hud();
+  }
+
+  function hud() {
+    document.getElementById('count').textContent =
+      slots + ' chapters · ' + raw.flags.length + ' flagged · ' +
+      spine.openCounts.groupings + ' still open · ' + spine.ribbons.length + ' subplots';
+    document.getElementById('uptoLabel').textContent = 'ch ' + upTo;
+  }
+
+  function clip(s, n) {
+    s = String(s === null || s === undefined ? '' : s);
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  // ---- interaction ----------------------------------------------------------------
+  //
+  // Pan along the axis, orbit about it, zoom. No roll, and the axis keeps a fixed screen
+  // direction: it encodes the order the saga is read in, and an axis that can be turned
+  // to face the viewer can be collapsed to a dot.
+  var drag = null;
+  cv.addEventListener('pointerdown', function (e) {
+    drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, cam: cam, moved: false, orbit: e.shiftKey };
+    cv.setPointerCapture(e.pointerId); cv.className = 'drag';
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (drag.orbit && roundness > 0) { cam = drag.cam + dy * 0.01; }
+    else { view.x = drag.vx + dx; view.y = drag.vy + dy; }
+    draw();
+  });
+  cv.addEventListener('pointerup', function (e) {
+    var wasDrag = drag && drag.moved;
+    drag = null; cv.className = '';
+    if (!wasDrag) pick(e.clientX, e.clientY);
+  });
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var k = Math.max(0.08, Math.min(4, view.k * (e.deltaY < 0 ? 1.12 : 0.89)));
+    var wx = (e.clientX - view.x) / view.k, wy = (e.clientY - view.y) / view.k;
+    view.k = k; view.x = e.clientX - wx * k; view.y = e.clientY - wy * k;
+    draw();
+  }, { passive: false });
+
+  function pick(cx, cy) {
+    var wx = (cx - view.x) / view.k, wy = (cy - view.y) / view.k;
+    var hit = null, best = Infinity;
+    nodes.forEach(function (n) {
+      if (!visible(n)) return;
+      var d = Math.sqrt((n.x - wx) * (n.x - wx) + (n.y - wy) * (n.y - wy));
+      if (d < n.r + 8 && d < best) { best = d; hit = n; }
+    });
+    if (!hit && show.ribbons) {
+      spine.ribbons.forEach(function (r) {
+        if (r.start > upTo) return;
+        var o = offsetOf(RADIUS.ribbon, r.lane, r.angle);
+        if (wx < slotX(r.start) - 20 || wx > slotX(Math.min(r.end, upTo)) + 20) return;
+        if (Math.abs(wy - o.y) < 14 && Math.abs(wy - o.y) < best) { best = Math.abs(wy - o.y); hit = r; }
+      });
+    }
+    if (!hit && show.strands) {
+      spine.strands.forEach(function (s) {
+        if (s.start > upTo) return;
+        var o = offsetOf(RADIUS.strand, s.lane, s.angle);
+        if (wx < slotX(s.start) - 20 || wx > slotX(Math.min(s.end, upTo)) + 20) return;
+        if (Math.abs(wy - o.y) < 12 && Math.abs(wy - o.y) < best) { best = Math.abs(wy - o.y); hit = s; }
+      });
+    }
+    select(hit ? hit.id : null);
+  }
+
+  function esc(s) {
+    return String(s === null || s === undefined || s === '' ? '—' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function row(k, v) { return '<dt>' + k + '</dt><dd>' + esc(v) + '</dd>'; }
+
+  function select(id) {
+    selectedId = id;
+    var box = document.getElementById('focus');
+    if (!id) { box.className = ''; draw(); return; }
+
+    var item = byId[id], html = '';
+    var isRibbon = spine.ribbons.indexOf(item) !== -1;
+    var isStrand = spine.strands.indexOf(item) !== -1;
+
+    if (isRibbon) {
+      html += '<h2>' + esc(item.label) + '</h2><dl>';
+      html += row('a subplot', item.plants.length + ' planted, ' + item.reveals.length + ' revealed');
+      html += row('opens at chapter', item.start);
+      html += row(item.open ? 'still open' : 'resolves at chapter', item.open ? 'nothing claims it yet' : item.end);
+    } else if (isStrand) {
+      html += '<h2>' + esc(item.label) + '</h2><dl>';
+      html += row('first seen', 'chapter ' + item.start);
+      html += row('last seen', 'chapter ' + item.end);
+      html += row('appears in', item.beads.length + ' of ' + slots + ' chapters');
+      html += row('gaps mean', 'no moment recorded there — not that they are absent');
+    } else {
+      var d = item.data;
+      html += '<h2>' + esc(item.label) + '</h2><dl>';
+      html += row('position in the saga', item.ord ? 'chapter ' + item.ord + ' of ' + slots : 'not placed in a chapter');
+      if (item.kind === 'chapter') {
+        html += row('book and act', 'Book ' + (d.book + 1) + ' · Act ' + d.act);
+        html += row('words', d.words);
+        html += row('scenes', (scenesByChapter[d.id] || []).length);
+      } else if (item.kind === 'scene') {
+        html += row('in chapter', clip((chapterById[d.chapterId] || {}).title, 40));
+        html += row('told by', d.pov);
+        html += row('summary', clip(d.summary, 180));
+      } else if (item.kind === 'event') {
+        html += row('people present', d.participants);
+        html += row('told by', (d.properties || {}).pov);
+      } else {
+        html += row('attached to', d.sceneId ? 'a scene' : 'the whole chapter');
+        html += row('subplots', (d.pairs || []).map(function (p) { return p.label || p.id; }).join(', '));
+        if (item.kind === 'thread') html += row('thread', d.thread);
+        html += row('the line', clip(d.text, 220));
+      }
+    }
+    html += '</dl>';
+
+    var signals = healthBySubject[id] || [];
+    if (signals.length) {
+      html += '<div class="warn">' + signals.map(function (s) { return esc(s.text); }).join('<br>') + '</div>';
+      html += '<p><button id="dismiss" data-subject="' + esc(id) + '">This one is deliberate</button></p>';
+    }
+
+    document.getElementById('body').innerHTML = html;
+    var btn = document.getElementById('dismiss');
+    if (btn) btn.addEventListener('click', function () {
+      dismissAnnotation(this.getAttribute('data-subject'));
+      recompute();
+      select(selectedId);
+    });
+    box.className = 'open';
+    draw();
+  }
+
+  function fit() {
+    var xs = nodes.filter(function (n) { return inTime(n.ord); });
+    if (!xs.length) return;
+    var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    xs.forEach(function (n) {
+      x0 = Math.min(x0, n.x - n.r); x1 = Math.max(x1, n.x + n.r);
+      y0 = Math.min(y0, n.y - n.r); y1 = Math.max(y1, n.y + n.r);
+    });
+    if (show.ribbons) { y1 = Math.max(y1, RIBBON_BASE + spine.laneCounts.ribbon * RIBBON_GAP); }
+    if (show.strands) { y0 = Math.min(y0, -(STRAND_BASE + spine.laneCounts.strand * STRAND_GAP)); }
+    var pad = 60, w = cv.clientWidth - pad * 2, h = cv.clientHeight - pad * 2;
+    var k = Math.min(w / (x1 - x0), h / (y1 - y0));
+
+    // Fitting the whole bounding box is wrong here, and looking at it is what showed that.
+    // With 21 subplot lanes the flat layout is ~800px tall, so fitting it vertically drove
+    // the zoom below the far-view threshold: the opening screen drew three act bands and
+    // nothing else, on a project with 17 chapters and 79 flags in it. A view that opens
+    // showing none of its own content is not a fit.
+    //
+    // So the zoom never goes below the detail threshold. If the content will not fit at
+    // that zoom -- which is the 21-lane problem, not a framing problem -- the spine is
+    // anchored to the top-left and the rest is reachable by panning.
+    var floor = LOD.structure + 0.05;
+    if (k < floor) {
+      view.k = floor;
+      view.x = pad - x0 * view.k;
+      view.y = pad - (SPINE_Y - 120) * view.k;
+    } else {
+      view.k = Math.min(4, k);
+      view.x = pad - x0 * view.k + (w - (x1 - x0) * view.k) / 2;
+      view.y = pad - y0 * view.k + (h - (y1 - y0) * view.k) / 2;
+    }
+    draw();
+  }
+
+  // The unroll is animated as an unroll. The seam -- where the highest slot meets the
+  // first -- is fixed at the back of the cylinder by the angle allocation, so it opens
+  // behind the camera instead of tearing across the middle of the picture.
+  function animateRoundness(to) {
+    var from = roundness, t0 = performance.now(), ms = 420;
+    (function step(now) {
+      var p = Math.min(1, (now - t0) / ms);
+      roundness = from + (to - from) * (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+      draw();
+      if (p < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  // Every hidden thing is reachable by one plainly-worded control. No settings page, no
+  // mode picker, no second code path -- the same layers with visible set false.
+  function wire(id, key, after) {
+    var el = document.getElementById(id);
+    el.className = 'chip' + (show[key] ? ' on' : '');
+    el.addEventListener('click', function () {
+      show[key] = !show[key];
+      this.className = 'chip' + (show[key] ? ' on' : '');
+      if (after) after(show[key]);
+      draw();
+    });
+  }
+  show.scene = show.scene !== false;
+  show.flags = show.flags !== false;
+  show.moment = show.moment === true;
+  wire('t-scene', 'scene');
+  wire('t-flag', 'flags');
+  wire('t-ribbon', 'ribbons');
+  wire('t-strand', 'strands');
+  wire('t-moment', 'moment');
+  wire('t-health', 'health');
+  wire('t-round', 'round', function (on) { animateRoundness(on ? 1 : 0); });
+
+  var slider = document.getElementById('upto');
+  slider.max = String(slots); slider.value = String(slots);
+  slider.addEventListener('input', function () { upTo = +this.value; draw(); });
+
+  document.getElementById('fit').addEventListener('click', fit);
+  document.getElementById('close').addEventListener('click', function () { select(null); });
+
+  // Inspection handle. Not a debug leftover: the claim of this layout is that positions
+  // are computed rather than settled into, and that is only checkable from outside if the
+  // computed positions are reachable.
+  window.__SPINE__ = { spine: spine, nodes: nodes, view: view, pendingWrites: pendingWrites,
+                       setUpTo: function (v) { upTo = v; draw(); },
+                       setRound: function (v) { roundness = v; draw(); },
+                       tier: tier, offsetOf: offsetOf };
+
+  function resize() {
+    cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr; draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  fit();
+})();
+</script>

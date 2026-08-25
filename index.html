@@ -1666,6 +1666,13 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
       <input type="number" id="d-act-input" min="1" placeholder="Act #">
     </div>
 
+    <label>When this happens <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+    <input type="number" id="d-story-time" step="any" placeholder="leave blank to follow the chapter before it">
+    <div style="font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.45;">
+      Only needed where the story jumps. Mark the chapter a flashback starts in, and the one
+      it returns at &mdash; everything between follows along.
+    </div>
+
     <label>Status</label>
     <div class="status-row" id="d-status">
       <div class="status-pill" data-s="idea">idea</div>
@@ -2729,6 +2736,9 @@ function loadData(){
       chapters = chaptersRes.data.map(row => ({
         id: row.id, projectId: row.project_id, book: row.book, act: row.act, order: row.order,
         title: row.title, status: row.status, content: row.content, notes: row.notes,
+        // Nullable, and null is meaningful: it means "follow the chapter before this one".
+        // Coalescing it to 0 would silently place the chapter at the start of the timeline.
+        storyTime: row.story_time === null || row.story_time === undefined ? null : Number(row.story_time),
         annotations: row.annotations || [], versions: row.versions || []
       }));
 
@@ -2785,6 +2795,7 @@ function loadData(){
           (ch.annotations || []).forEach(a => { if(typeof a.id === 'number' && a.id > maxNestedId) maxNestedId = a.id; });
         });
         nextId = maxNestedId + 1;
+        normalizeLegacyPlantLinks();
       });
     });
   }).catch(err => {
@@ -2808,6 +2819,8 @@ function saveData(){
     const chapterRows = chapters.map(ch => ({
       id: ch.id, user_id: userId, project_id: currentProjectId, book: ch.book, act: ch.act, order: ch.order,
       title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
+      story_time: (ch.storyTime === undefined || ch.storyTime === '' || Number.isNaN(ch.storyTime))
+        ? null : ch.storyTime,
       annotations: ch.annotations || [], versions: ch.versions || [],
       updated_at: new Date().toISOString()
     }));
@@ -2884,6 +2897,10 @@ async function uploadLocalDataToSupabase(){
   chapters = (local.chapters || []).map(ch => ({
     id: chapterIdMap[ch.id], projectId: currentProjectId, book: ch.book, act: ch.act, order: ch.order,
     title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
+    // The legacy linkedPlant is remapped rather than dropped, because an imported file may
+    // still carry it and its chapter ids are the OLD ones. normalizeLegacyPlantLinks below
+    // then converts it into a grouping and deletes it -- this remap only keeps it resolvable
+    // long enough for that conversion to find the plant it points at.
     annotations: (ch.annotations || []).map(a => (
       a.linkedPlant && chapterIdMap[a.linkedPlant.chapterId]
         ? { ...a, linkedPlant: { ...a.linkedPlant, chapterId: chapterIdMap[a.linkedPlant.chapterId] } }
@@ -2918,6 +2935,10 @@ async function uploadLocalDataToSupabase(){
   actLabels = local.actLabels || {};
   chapterWordTargets = local.chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS;
   aiEnabled = !!local.aiEnabled;
+
+  // An imported file predating groupings still speaks linkedPlant. Convert before saving,
+  // so nothing in the old shape is ever written back to the database.
+  normalizeLegacyPlantLinks();
 
   await saveData();
 }
@@ -3221,6 +3242,10 @@ function openDrawer(id){
   document.getElementById('d-act-input').value = ch.act;
   document.querySelectorAll('#d-status .status-pill').forEach(p=>p.classList.toggle('active', p.dataset.s===ch.status));
   document.getElementById('d-notes').value = ch.notes || '';
+  // Nullable on purpose: a blank field means "wherever the previous marked chapter put us",
+  // not zero. Writing 0 here would place the chapter at the dawn of the timeline.
+  document.getElementById('d-story-time').value =
+    (ch.storyTime === null || ch.storyTime === undefined) ? '' : ch.storyTime;
 
   const wc = wordCount(ch.content);
   const [cwMin, cwMax] = chapterWordTargets[ch.book] || [null,null];
@@ -3373,6 +3398,8 @@ document.getElementById('d-save').addEventListener('click', async ()=>{
   ch.act = parseInt(document.getElementById('d-act-input').value) || 1;
   ch.status = document.querySelector('#d-status .status-pill.active').dataset.s;
   ch.notes = document.getElementById('d-notes').value;
+  const rawStoryTime = document.getElementById('d-story-time').value.trim();
+  ch.storyTime = rawStoryTime === '' ? null : Number(rawStoryTime);
   scenes.forEach(s=>{ if(s.chapterId===ch.id){ s.requires=s.requires.filter(v=>v.trim()); s.provides=s.provides.filter(v=>v.trim()); } });
   await saveData();
   closeDrawer();
@@ -4358,6 +4385,47 @@ document.getElementById('version-modal').addEventListener('click', e => {
 
 /* ---------- MARK TOOLBAR (plant / reveal / note) ---------- */
 let selectedLinkedPlant = null;
+/* ---------- PAIR GROUPINGS: the one model of setup-and-payoff ----------
+   `pairs` is canonical. `linkedPlant` was a second, incompatible model of the same
+   relationship -- one reveal to one plant, where a grouping is many-to-many in both
+   directions -- and the two disagreed about the same question, so the Ledger and the
+   character web could print different numbers for the same manuscript. It is gone.
+   Anything written by the old shape is converted on load, once. */
+function pairsOf(a){
+  if(a && Array.isArray(a.pairs) && a.pairs.length) return a.pairs;
+  if(a && a.pairId) return [{id:a.pairId, label:a.pairLabel||''}];
+  return [];
+}
+function findAnnotationById(chapterId, annotationId){
+  const ch = chapters.find(c=>c.id===chapterId);
+  if(!ch) return null;
+  const annotation = (ch.annotations||[]).find(a=>a.id===annotationId);
+  return annotation ? {annotation, chapter:ch} : null;
+}
+function joinIntoGrouping(plantAnno, revealAnno, fallbackLabel){
+  const existing = pairsOf(plantAnno)[0];
+  const pair = existing || {id:'pair:'+plantAnno.id, label: plantAnno.label || fallbackLabel || ''};
+  if(!existing) plantAnno.pairs = [pair];
+  const already = pairsOf(revealAnno).some(p=>p.id===pair.id);
+  if(!already) revealAnno.pairs = pairsOf(revealAnno).concat([pair]);
+  return pair;
+}
+/* Converts every legacy linkedPlant into a grouping shared by both ends, then removes it.
+   Runs on load and is idempotent: a reveal already joined to its plant gains nothing. */
+function normalizeLegacyPlantLinks(){
+  let converted = 0;
+  chapters.forEach(ch => (ch.annotations||[]).forEach(a => {
+    if(a.type !== 'reveal' || !a.linkedPlant) return;
+    const target = findAnnotationById(a.linkedPlant.chapterId, a.linkedPlant.annotationId);
+    if(target && target.annotation.type === 'plant'){
+      joinIntoGrouping(target.annotation, a, a.label);
+      converted++;
+    }
+    delete a.linkedPlant;
+  }));
+  if(converted) console.info('Converted ' + converted + ' legacy plant links into groupings.');
+  return converted;
+}
 function allPlantAnnotations(){
   const list = [];
   chapters.forEach(ch => (ch.annotations||[]).forEach(a => { if(a.type==='plant') list.push({annotation:a, chapter:ch}); }));
@@ -4487,7 +4555,12 @@ document.getElementById('annotation-save-btn').addEventListener('click', async (
     text: pendingMarkText,
     label
   };
-  if(pendingMarkType === 'reveal') newAnno.linkedPlant = selectedLinkedPlant;
+  if(pendingMarkType === 'reveal' && selectedLinkedPlant){
+    // Joining a reveal to a plant creates (or reuses) the grouping they share. No
+    // linkedPlant is written: there is one model of this relationship now.
+    const target = findAnnotationById(selectedLinkedPlant.chapterId, selectedLinkedPlant.annotationId);
+    if(target && target.annotation.type === 'plant') joinIntoGrouping(target.annotation, newAnno, label);
+  }
   if(pendingMarkType === 'note') newAnno.thread = document.getElementById('annotation-thread-input').value.trim();
   ch.annotations.push(newAnno);
   if(pendingMarkType === 'note') refreshThreadSuggestions();
@@ -5051,14 +5124,24 @@ function allPlantAnnotationsInOrder(){
   );
 }
 function findRevealForPlant(chapterId, annotationId){
-  for(const ch of chapters){
-    for(const a of (ch.annotations||[])){
-      if(a.type === 'reveal' && a.linkedPlant && a.linkedPlant.chapterId === chapterId && a.linkedPlant.annotationId === annotationId){
-        return {annotation:a, chapter:ch};
-      }
-    }
-  }
-  return null;
+  /* Through groupings, which is what the character web already reads -- so the Ledger and
+     the web now answer "is this paid?" with one rule instead of two. A plant may be claimed
+     by several reveals; the earliest in saga order is the one reported. */
+  const found = findAnnotationById(chapterId, annotationId);
+  if(!found) return null;
+  const ids = new Set(pairsOf(found.annotation).map(p=>p.id));
+  if(!ids.size) return null;
+  const claims = [];
+  chapters.forEach(ch => (ch.annotations||[]).forEach(a => {
+    if(a.type === 'reveal' && pairsOf(a).some(p=>ids.has(p.id))) claims.push({annotation:a, chapter:ch});
+  }));
+  if(!claims.length) return null;
+  claims.sort((x,y) =>
+    (x.chapter.book - y.chapter.book) ||
+    (x.chapter.act - y.chapter.act) ||
+    (x.chapter.order - y.chapter.order)
+  );
+  return claims[0];
 }
 function renderLedger(){
   const body = document.getElementById('ledger-body');
