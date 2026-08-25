@@ -1641,8 +1641,21 @@ document.getElementById('top').addEventListener('click', () => {
 // instead of the graph. Nothing is disposed and no state is reset, so rotating back reveals
 // the same scene at the same camera position with no reload.
 const PORTRAIT_MAX_WIDTH = 820;
+
+// A narrow window is not a phone. The first version of this tested viewport shape alone,
+// so a tall side panel on a laptop -- a preview pane, a split window -- was told to rotate,
+// which is advice a laptop cannot take. The prompt is now gated on the pointer being coarse
+// as well: on a device that can actually be turned. Anything with a mouse renders, however
+// narrow the window is, because there the user can just widen it.
+function isTouchDevice() {
+  // Asked each time, not cached at load: a detachable keyboard, a device emulator or a
+  // docked tablet can all change the answer while the page is open, and a cached one goes
+  // stale in exactly the cases this check exists for.
+  return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+
 function checkOrientation() {
-  const portrait = innerHeight > innerWidth && innerWidth < PORTRAIT_MAX_WIDTH;
+  const portrait = isTouchDevice() && innerHeight > innerWidth && innerWidth < PORTRAIT_MAX_WIDTH;
   document.getElementById('rotate').hidden = !portrait;
   document.getElementById('bar').hidden = portrait;
   document.getElementById('scrub').hidden = portrait;
@@ -1656,6 +1669,18 @@ addEventListener('resize', () => {
   checkOrientation();
 });
 addEventListener('orientationchange', checkOrientation);
+
+// Some environments resize the viewport without emitting a resize event -- device
+// emulators and embedded panes among them -- which leaves the prompt showing over a window
+// that is now perfectly wide enough. Observing the element itself catches those.
+if (window.ResizeObserver) {
+  new ResizeObserver(() => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+    checkOrientation();
+  }).observe(document.documentElement);
+}
 
 document.getElementById('subtitle').textContent =
   window.__SOURCE__ + ' · ' + N + ' chapters · ' + axis.books.length + ' book(s) · ' +
