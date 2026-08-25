@@ -94,28 +94,12 @@ export const BRAID_HTML = String.raw`<!doctype html>
   #scrub input { width: 100%; accent-color: #f2b93c; background: none; }
   #scrub .lab { color: var(--quiet); font-size: 10px; margin-top: 1px; }
 
-  /* Portrait on a narrow screen is not a degraded view of this, it is an unusable one --
-     the entire premise is a long horizontal axis. So it is refused rather than rendered
-     badly, quietly, and it comes straight back on rotation: the scene is never torn down,
-     so the camera is exactly where it was left. */
-  #rotate { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center;
-    justify-content: center; text-align: center; background: var(--ground);
-    font-family: var(--book); color: var(--quiet); padding: 32px; }
-  #rotate p { margin: 0 0 6px; font-size: 15px; }
-  #rotate .q { color: var(--ink); }
-
   #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     text-align: center; padding: 40px; color: var(--quiet); font-family: var(--book); }
 </style>
 
 <div id="stage"></div>
 <div id="boot">loading the braid&hellip;</div>
-<div id="rotate" hidden>
-  <div>
-    <p>The braid reads along a long horizontal axis.</p>
-    <p class="q">Turn your device sideways.</p>
-  </div>
-</div>
 
 <div id="bar" hidden>
   <div id="brand"><b>The Braid</b><span id="subtitle"></span></div>
@@ -2449,45 +2433,26 @@ document.getElementById('top').addEventListener('click', () => {
 // Landscape is the supported orientation; portrait on a narrow viewport shows the prompt
 // instead of the graph. Nothing is disposed and no state is reset, so rotating back reveals
 // the same scene at the same camera position with no reload.
-const PORTRAIT_MAX_WIDTH = 820;
-
-// A narrow window is not a phone. The first version of this tested viewport shape alone,
-// so a tall side panel on a laptop -- a preview pane, a split window -- was told to rotate,
-// which is advice a laptop cannot take. The prompt is now gated on the pointer being coarse
-// as well: on a device that can actually be turned. Anything with a mouse renders, however
-// narrow the window is, because there the user can just widen it.
-function isTouchDevice() {
-  // Asked each time, not cached at load: a detachable keyboard, a device emulator or a
-  // docked tablet can all change the answer while the page is open, and a cached one goes
-  // stale in exactly the cases this check exists for.
-  return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-}
-
-function checkOrientation() {
-  const portrait = isTouchDevice() && innerHeight > innerWidth && innerWidth < PORTRAIT_MAX_WIDTH;
-  document.getElementById('rotate').hidden = !portrait;
-  document.getElementById('bar').hidden = portrait;
-  document.getElementById('scrub').hidden = portrait;
-  return portrait;
-}
+// The braid always renders. An earlier version refused portrait on a narrow viewport and
+// asked the reader to rotate, which was wrong twice over: it fired on laptops whose
+// dimensions or pointer type were transiently misread, and even where it fired correctly it
+// made the reader do work the app should do. A narrow window shows a narrower slice of the
+// axis, which pans and zooms like any other view.
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
-  checkOrientation();
 });
-addEventListener('orientationchange', checkOrientation);
 
 // Some environments resize the viewport without emitting a resize event -- device
-// emulators and embedded panes among them -- which leaves the prompt showing over a window
-// that is now perfectly wide enough. Observing the element itself catches those.
+// emulators and embedded panes among them -- which leaves the canvas at a stale size.
+// Observing the element itself catches those.
 if (window.ResizeObserver) {
   new ResizeObserver(() => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
-    checkOrientation();
   }).observe(document.documentElement);
 }
 
@@ -2499,7 +2464,6 @@ document.getElementById('subtitle').textContent =
 document.getElementById('uptolab').textContent = 'showing the whole saga';
 document.getElementById('bar').hidden = false;
 document.getElementById('scrub').hidden = false;
-checkOrientation();
 
 // One dropdown open at a time, and any touch of the canvas closes them: the braid should
 // never be competing with a panel for the screen.
