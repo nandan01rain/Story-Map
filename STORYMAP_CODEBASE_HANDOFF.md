@@ -8,13 +8,14 @@ now **stale in several places** — where it conflicts with this document or wit
 the actual code, this document and the code win. Do not re-derive decisions this
 document already settles; do not blindly trust `CLAUDE.md`'s roadmap either.
 
-**Before anything else, as of 2026-08-23:** three database migrations are written and
-committed but **not run** against the live Supabase project —
-`20260822_graph_flags.sql`, `20260822b_graph_structure.sql`, `20260823_graph_threads.sql`
-and `20260824_graph_pairs.sql`. Each supersedes the one before it, so pasting only
-**`20260824_graph_pairs.sql`** into the SQL Editor is enough. Until that happens the character web's Plants & Reveals, Structure and
-Threads layers return nothing, and the app says so rather than pretending the project has no
-flags. Nothing else is affected. See §17.1.
+**As of 2026-08-23 the app is deployed and every migration is run.** The graph migrations
+superseded one another four times over; `20260824_graph_pairs.sql` is the survivor and **has
+been applied** — verified by calling the RPC and seeing `flags`, `chapters` and `scenes` come
+back in the payload. Nothing about the database is outstanding.
+
+The Android app is a standalone APK built with EAS, installed on the writer's phone, and
+takes JavaScript changes over the air. The PWA publishes to GitHub Pages. **Read §20 before
+shipping anything.**
 
 **The two apps are now at parity**, and further work is meant to land on both. Map view is
 gone from the PWA; the character web is in it. Trash and EPUB export are in mobile. See §19.
@@ -2918,3 +2919,129 @@ for data forever while the host waited for the `ready` it never sent. It now fal
 - **Google Drive import and the assistants** remain mobile-only.
 
 ---
+
+---
+
+## 20. DEPLOYMENT (2026-08-23)
+
+The app left the sandbox. Two surfaces, two mechanisms, one Supabase project — sync between
+devices was never the problem and needed no work; only distribution did.
+
+`deploy/README.md` is the operational document: the commands, in order, with what each asks.
+This section is the reasoning behind them and the traps hit getting there.
+
+### 20.1 The rule that governs everything
+
+**JavaScript ships over the air; native code does not.** Screens, stores, styles, the
+character web, the theme, the EPUB builder — all reach an installed app without reinstalling
+it. A new Expo module, a config plugin, a permission or an SDK bump is compiled into the
+binary and needs a fresh build and a manual install.
+
+`jszip`, `expo-file-system`, `expo-sharing` and `expo-updates` were added *before* the first
+build, deliberately, so trash and EPUB export did not later cost a reinstall.
+
+### 20.2 The PWA
+
+Publishes to GitHub Pages from `deploy/github-pages-workflow.yml` on every push to `main`,
+staging only what the app actually serves. The service worker is already network-first for
+the app shell, so a deploy is picked up on the next load.
+
+**The workflow file is not at `.github/workflows/`.** The credential this repo pushes with
+lacks GitHub's `workflow` scope and the push is rejected outright. It lives in `deploy/` and
+must be moved by hand — GitHub's web UI is not subject to the token's scope, so creating the
+file there works.
+
+**`index.html` went from 826 KB to 395 KB.** List view's background was a 209 KB base64 JPEG
+inlined in the document — and the same image was inlined a *second* time for Map view, which
+is why removing the map took 228 KB out on its own. It is now `assets/list-bg.jpg`, cached by
+the service worker (shell v5), fetched once rather than re-downloaded with every deploy.
+
+The manifest moved from `display: fullscreen` to `standalone` and gained a `scope`.
+Fullscreen is wrong for a desktop app living in a window beside other things.
+
+### 20.3 The Android app
+
+`eas.json` has three profiles; `preview` is the one that matters — an `.apk` on the `preview`
+channel with `distribution: internal`, which is what makes EAS hand back an install URL
+instead of preparing a store submission. Free: no Play Store account, no fee. iOS would need
+the Apple Developer Program at $99/yr and is not set up.
+
+Project **`@nx-1/storymap`**, id `e9da412f-855e-415f-b51f-2eb8a9d439c6`, committed to
+`app.json` along with `updates.url`. Both must stay committed — a checkout without them
+builds an app that silently never checks for updates, and a second `eas init` elsewhere would
+create a different project whose builds cannot receive the first one's updates.
+
+`useOtaUpdate` checks on launch and again a few seconds later, then **offers** a restart
+rather than taking one. An update downloaded mid-sentence must not restart the app: a reload
+nobody asked for is indistinguishable from a crash.
+
+`runtimeVersion` is `appVersion`, currently `1.0.0`. **An update only reaches builds whose
+runtime version matches** — bumping `version` in `app.json` strands every installed APK until
+it is reinstalled. If updates ever stop arriving for no visible reason, check this first.
+
+### 20.4 Traps hit, in order
+
+Four of the five were self-inflicted. Worth reading before the next setup:
+
+1. **`expo-doctor` went from 3 failures to 21/21 before the first build.** The one that
+   mattered: `react-native-worklets` was a missing peer dependency of
+   `react-native-reanimated`. It works perfectly in Expo Go and may crash a standalone
+   build — the exact class of fault you only find after installing. **Run `npx expo-doctor`
+   before every build.**
+2. **`eas.json` rejects the `"//"` comment convention.** EAS validates it against a strict
+   schema and refuses unknown keys, so `eas init` failed outright. That file carries no
+   comments now; the profiles are explained in `deploy/README.md`.
+3. **A placeholder `extra.eas.projectId` is worse than an absent one.** `eas init` reads the
+   field's *presence* as proof the project is linked, skips creating one, then fails on the
+   value not being a UUID. Omit keys you cannot fill.
+4. **PowerShell 5.1 has no `&&`.** Use `;`, or `; if ($?) { ... }` when the second command
+   should only run on success.
+5. **PowerShell's execution policy is `Restricted` on this machine**, which blocks npm's
+   `eas.ps1` shim. `eas.cmd` sidesteps it with no settings change; Command Prompt has no
+   execution policy at all.
+
+### 20.5 Worth doing, not urgent
+
+**The font bundle is mostly waste.** Every weight of Inter, Spectral, JetBrains Mono and
+Cinzel ships — around 90 files, several MB — while `theme.ts` names eleven. Trimming
+`useAppFonts` to what is actually used would cut both the OTA payload and the APK.
+
+`assets/` is ~7 MB, mostly uncompressed sign-in art, and is most of the PWA's download.
+
+---
+
+## 21. THE EDITOR'S CARET AND THE KEYBOARD (2026-08-23)
+
+Reported from the phone: past a certain point the line being typed sat behind the keyboard.
+Two separate faults, and the first fix was wrong in an instructive way.
+
+**A multiline `TextInput` scrolls internally and React Native exposes no way to ask it to
+reveal the caret.** So the editor now owns the scrolling: a `ScrollView` wraps the input,
+the input has `scrollEnabled={false}`, and its height is its content. Two scrollers over one
+body of text is what made the caret reachable by the input's own reckoning and invisible on
+screen.
+
+**`KeyboardAvoidingView` had `behavior="height"` on Android**, which is wrong here and is
+gone. Android is given no behavior at all now; iOS keeps `padding`.
+
+**The first attempt measured the viewport with `onLayout`, and failed.** Expo SDK 54+ enables
+edge-to-edge, so **the window does not resize when the keyboard opens** — the scroll view
+keeps its full height and simply has keys drawn over its lower part. "Two lines above the
+bottom" therefore meant two lines above the bottom of the *screen*, underneath the keyboard,
+which is exactly what the screenshot showed.
+
+The overlap is now taken from the keyboard itself: `keyboardDidShow` gives its top edge in
+screen coordinates, and measuring where the scroll view ends gives the covered height
+directly. **That arithmetic holds whether or not the window resizes**, so it does not depend
+on knowing which behaviour a given Android version and Expo SDK produce — which was the
+assumption that broke it.
+
+**A latent bug found on the way.** The off-screen `Text` that measures how many lines precede
+the caret — used by the flag popup, and now by the caret tracking — was absolutely positioned
+with **no width**. It laid out as one unbroken line however long the prose, so its line count
+was always ~1 and the flag popup has been mispositioned since it was written. Constrained to
+the input's real width.
+
+Measurement is taken from a wrapper `View`, not the `ScrollView`: React Native does not
+declare `measureInWindow` on `ScrollView` even though the host component has it, and a
+wrapper is honest where a cast would only silence the compiler.

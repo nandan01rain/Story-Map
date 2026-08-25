@@ -8,6 +8,11 @@ a single-file Claude.ai artifact (originally named `story_map.html` in that
 sandbox, now `index.html` in this repo so static hosts serve it as the site
 root); this repo is the migration of that sandbox into a real, independent app.
 
+> **As of 2026-08-23 this is no longer a sandbox project.** The Android app is
+> a standalone APK installed on the writer's phone, taking JavaScript changes
+> over the air; the PWA publishes to GitHub Pages. Every database migration is
+> run. `deploy/README.md` has the commands; handoff §20 has the reasoning.
+>
 > **This file is the original project brief and is now stale in several
 > places it hasn't been updated for.** `STORYMAP_CODEBASE_HANDOFF.md` in this
 > repo is the actively maintained, detailed technical handoff — where the two
@@ -67,7 +72,7 @@ trash:     {id, type: chapter|scene|document, deletedAt, ...soft-deleted payload
 actLabels: { "bookIndex-actNumber": "custom label" }
 chapterWordTargets: [[min,max], ...]  // per-book, applies to every chapter in that book
 aiEnabled: boolean       // global gate for the two AI-powered features
-viewMode:  'map' | 'list'
+viewMode:  'list'        // map view removed 2026-08-23; column kept for older clients
 nextId:    shared auto-increment counter across all entity types
 ```
 
@@ -80,8 +85,8 @@ handoff doc §12.2). Read/write via `supabase.auth.getUser()`/
 `supabase.auth.updateUser({data:{...}})`.
 
 `chapters.annotations[]` items: `{id, type: plant|reveal|note|highlight, text,
-label, pairId?, pairLabel?, sceneId?, linkedPlant?: {chapterId, annotationId},
-thread?: string}`. `text` is the exact flagged substring from the chapter's
+label, pairs?: [{id, label}], sceneId?, thread?, characterId?,
+linkedPlant?: {chapterId, annotationId}}`. `text` is the exact flagged substring from the chapter's
 prose — annotations re-locate themselves by searching for that substring on
 render, they do **not** track a fixed character offset. If the surrounding
 prose is edited enough that the substring no longer matches, the annotation
@@ -90,20 +95,28 @@ positioned). This is a known limitation; see "Still deferred" below.
 
 The four types are not four flavours of one thing:
 
-- `plant` / `reveal` are two ends of a setup and its payoff. `pairId` is what
-  ties them together and `pairLabel` carries the pair's title on both ends, so
-  the character web can group them without a second query. A pair with no
-  reveal is an **unpaid plant** — a real state, not a fault.
-- `note` is a remark on a line of prose. It has no far end and never carries a
-  `pairId`. `sceneId` optionally narrows it from the whole chapter to one scene.
+- `plant` / `reveal` are the two ends of a setup and its payoff, and the
+  relationship is **many-to-many in both directions**: several plants can
+  converge on one reveal, one plant can spawn several, and a single flag can
+  belong to more than one grouping because a line can do two jobs at once.
+  `pairs` is a list of the groupings it takes part in, each carrying that
+  grouping's own title. A grouping with no reveal is an **unpaid plant** — a
+  real state, not a fault. (`pairId`/`pairLabel`, singular, are the superseded
+  shape; the RPC promotes them to a one-element list so old annotations keep
+  working.)
+- `note` is a remark on a line of prose. It has no far end and belongs to no
+  grouping. `sceneId` optionally narrows it from the whole chapter to one scene.
+  A note carrying `thread` is a **mythic thread** — the subset the writer has
+  marked as echoing a known mythological arc — and `characterId` says whose arc
+  it echoes.
 - `highlight` is a **reading mark, not a story flag** — no label, no place in
   the Flags list or its count, and it exists only to tint the text in the
   Reader. The distinction matters: the Reader can make highlights and cannot
   make flags.
 
-`pairId`/`pairLabel` are currently written only by the demo pack's build script
-(`scripts/demo-plants-reveals.mjs`); the editor's own Plant/Reveal buttons still
-write an unpaired flag. See "Still deferred".
+Groupings and threads are both authored from the Editor's Flags list — pairing
+on plant and reveal rows, threads on note rows. The demo pack's build script
+(`scripts/demo-plants-reveals.mjs`) writes its own as fixture data.
 
 ## Hierarchy
 
@@ -309,12 +322,18 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
 - **Pairing across chapters from the editor.** The pairing sheet offers groupings
   already used in *that chapter*, because the editor holds one chapter. A reveal
   several chapters later has to be joined from its own side.
-- **Two graph migrations are unrun.** `20260822_graph_flags.sql` and
-  `20260822b_graph_structure.sql` — the second supersedes the first, so running
-  only the newer one against the live project is enough. Until then the
-  Plants & Reveals and Structure layers return nothing. Nothing else breaks,
-  because the client defaults each key of the RPC payload independently rather
-  than assuming the whole shape.
+- **Every font weight ships, and eleven are used.** Inter, Spectral, JetBrains
+  Mono and Cinzel are bundled complete — around 90 files, several MB — while
+  `theme.ts` names eleven. Trimming `useAppFonts` to what is actually used would
+  cut both the OTA payload and the APK. Spotted while reading an `eas update`
+  asset list; not urgent.
+- **The Pages workflow is not where it needs to run.** It sits in `deploy/`
+  because the credential this repo pushes with lacks GitHub's `workflow` scope,
+  which makes any push touching `.github/workflows/` fail outright. It has to be
+  moved there by hand through GitHub's web UI, which the token scope does not
+  restrict. Until then the PWA does not auto-publish.
+- **The PWA is not installed anywhere yet.** It builds and runs, and the workflow
+  above is what would host it; nobody has enabled Pages on the repo.
 - **Attaching a note to a scene from the app.** `sceneId` on a note annotation is
   read everywhere it matters and written only by the demo pack's build. Nothing in
   the UI offers the choice.
