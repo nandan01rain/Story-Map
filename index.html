@@ -18,6 +18,8 @@
   /* List-view redesign: aged-parchment cards need a light surface + dark ink,
      distinct from the rest of the app's dark-panel palette above. */
   --leaf:#3d4a2b; --leaf-edge:#4d5c36; --leaf-hi:#4a5a34;
+  --quill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23c69a3a' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 20c6-1 10-4 13-9 1.6-2.7 2.2-5 2.4-7-2 .2-4.3.8-7 2.4-5 3-8 7-9 13z'/%3E%3Cpath d='M4 20l6-6'/%3E%3C/g%3E%3C/svg%3E");
+  --sprig: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23c69a3a' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M12 21V6'/%3E%3Cpath d='M12 10c-3 0-5-2-5-4 3 0 5 2 5 4zM12 10c3 0 5-2 5-4-3 0-5 2-5 4zM12 16c-3 0-5-2-5-4 3 0 5 2 5 4zM12 16c3 0 5-2 5-4-3 0-5 2-5 4z'/%3E%3C/g%3E%3C/svg%3E");
   --parchment:#cfbb8c; --parchment-dark:#b7a173; --ink:#2c2011; --brass:#8a6a35;
   --plate-dark:#170f08;
 }
@@ -708,13 +710,40 @@ button.btn.primary#add-chapter-btn:hover{
     grid-template-rows:auto minmax(0,1fr);
     height:100vh; overflow:hidden;
   }
-  #app > header{grid-column:1 / -1;}
+  /* The rail runs the full height and owns the top-left corner; the bar begins beside it.
+     In the reference the project's name sits inside the dark rail rather than in a band
+     across the top, and that is a layout difference, not a colour one. */
+  #app > header{grid-column:2; grid-row:1;}
 
   #sidebar{
-    grid-column:1; grid-row:2; overflow-y:auto;
+    grid-column:1; grid-row:1 / -1; overflow-y:auto;
     border-right:1px solid var(--border);
-    padding:16px 12px 20px; display:flex; flex-direction:column; gap:2px;
+    padding:0 12px 20px; display:flex; flex-direction:column; gap:2px;
     background:var(--panel);
+  }
+
+  /* The title block, moved into the rail as a real node so every existing update to the
+     project name keeps working. Three lines, as the reference has them: the name, the
+     moment, and the app's own mark. */
+  #sidebar > h1{
+    font-family:var(--font-display); font-size:16.5px; font-weight:600; line-height:1.3;
+    margin:0; padding:20px 8px 4px; color:var(--text); letter-spacing:.01em; text-shadow:none;
+  }
+  #sidebar .title-meta{
+    display:block; padding:0 8px; font-family:var(--font-mono); font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); margin-top:5px;
+  }
+  #sidebar .header-tagline{
+    display:flex; align-items:center; gap:6px; padding:0 8px;
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--text-dim); margin-top:9px;
+  }
+  #sidebar .header-tagline::after{
+    content:""; width:11px; height:11px; flex:none; opacity:.8;
+    background:var(--quill) center/contain no-repeat;
+  }
+  #sidebar-rule{
+    height:1px; margin:16px 8px 6px; background:var(--border);
   }
   .sb-group{
     font-family:var(--font-mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase;
@@ -727,12 +756,19 @@ button.btn.primary#add-chapter-btn:hover{
     color:var(--text); font:14px/1.2 var(--font-body); cursor:pointer;
   }
   .sb-item:hover{background:var(--bg-alt);}
-  .sb-item.on{background:var(--panel-2); color:var(--gold);}
+  .sb-item.on{background:rgba(198,154,58,0.10); color:var(--gold);}
   .sb-item .nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.85;}
   .sb-epigraph{
-    margin-top:auto; padding:14px 10px 0; border-top:1px solid var(--border);
+    position:relative;
+    margin-top:auto; padding:16px 10px 0; border-top:1px solid var(--border);
     font-family:var(--font-literary); font-style:italic; font-size:12.5px;
     color:var(--text-dim); line-height:1.5;
+  }
+  /* The small lozenge centred on the rule, as the reference has it. */
+  .sb-epigraph::before{
+    content:""; position:absolute; top:-4px; left:50%; width:7px; height:7px;
+    transform:translateX(-50%) rotate(45deg);
+    background:var(--panel); border:1px solid var(--gold); opacity:.75;
   }
 
   #workspace{
@@ -768,10 +804,10 @@ button.btn.primary#add-chapter-btn:hover{
      the same parchment vocabulary the rest of the app uses, rather than a plain box. */
   #dock-book{position:relative; padding-left:30px;}
   #dock-book::before{
-    content:""; position:absolute; left:12px; top:-1px; width:14px; height:56px;
-    background:linear-gradient(180deg, var(--gold), rgba(198,154,58,0.55));
-    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
-    opacity:.85;
+    content:""; position:absolute; left:10px; top:-1px; width:22px; height:74px;
+    background:#2a2418 var(--sprig) center 60%/14px 14px no-repeat;
+    border:1px solid rgba(198,154,58,0.5); border-top:0;
+    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
   }
   #dock-book::after{
     content:""; position:absolute; right:14px; bottom:12px; width:26px; height:26px;
@@ -1549,6 +1585,13 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <symbol id="icon-list" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM8 10h8M8 14h8M8 18h5"/></g></symbol>
     <symbol id="icon-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><path d="M15 15l5 5"/></g></symbol>
     <symbol id="icon-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+    <!-- Drawn for the rail, to the reference sheet. The generic link/books glyphs that were
+         here read as the wrong things: a chain for a braid, a shelf for a document. -->
+    <symbol id="icon-braid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="12" r="4.2"/><circle cx="15.5" cy="12" r="4.2"/><path d="M8.5 7.8c2.6 1.4 4.4 4 4.4 4.2M15.5 16.2c-2.6-1.4-4.4-4-4.4-4.2"/></g></symbol>
+    <symbol id="icon-outline" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="5" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="17" r="1.1" fill="currentColor" stroke="none"/><path d="M9 7h10M9 12h10M9 17h7"/></g></symbol>
+    <symbol id="icon-page" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1.6 1.6 0 00-1.6 1.6v14.8A1.6 1.6 0 007 21h10a1.6 1.6 0 001.6-1.6V7.6z"/><path d="M14 3v4.6h4.6M9 12h6M9 16h6"/></g></symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.4"/><path d="M3.6 12h16.8M12 3.6c2.4 2.4 3.4 5.4 3.4 8.4s-1 6-3.4 8.4c-2.4-2.4-3.4-5.4-3.4-8.4s1-6 3.4-8.4z"/></g></symbol>
+    <symbol id="icon-chain" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10.5 13.5l3-3"/><path d="M13.2 7.6l1.6-1.6a3.4 3.4 0 014.8 4.8l-1.6 1.6"/><path d="M10.8 16.4l-1.6 1.6a3.4 3.4 0 01-4.8-4.8l1.6-1.6"/></g></symbol>
     <symbol id="icon-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l-2 2a3 3 0 004 4l3-3M16 12l2-2a3 3 0 00-4-4l-3 3M9 15l6-6"/></g></symbol>
     <symbol id="icon-book-open" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5c3-1 6-1 9 1 3-2 6-2 9-1v13c-3-1-6-1-9 1-3-2-6-2-9-1z"/><path d="M12 6v13"/></g></symbol>
     <symbol id="icon-compass" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6z"/></g></symbol>
@@ -1805,20 +1848,20 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   </div>
   <nav id="sidebar" aria-label="Sections">
     <div class="sb-group">Story</div>
-    <button class="sb-item on" data-pane="braid"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Braid</button>
-    <button class="sb-item" data-pane="list"><svg class="nav-icon"><use href="#icon-books"></use></svg> Outline</button>
+    <button class="sb-item on" data-pane="braid"><svg class="nav-icon"><use href="#icon-braid"></use></svg> The Braid</button>
+    <button class="sb-item" data-pane="list"><svg class="nav-icon"><use href="#icon-outline"></use></svg> Outline</button>
     <button class="sb-item" data-click="reader-open-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Read</button>
 
     <div class="sb-group">Library</div>
-    <button class="sb-item" data-click="documents-btn"><svg class="nav-icon"><use href="#icon-books"></use></svg> Documents</button>
+    <button class="sb-item" data-click="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
     <button class="sb-item" data-click="notes-board-btn"><svg class="nav-icon"><use href="#icon-pin"></use></svg> The Margin</button>
     <button class="sb-item" data-click="trash-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Trash</button>
 
     <div class="sb-group">Analysis</div>
-    <button class="sb-item" data-click="continuity-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Continuity</button>
+    <button class="sb-item" data-click="continuity-btn"><svg class="nav-icon"><use href="#icon-chain"></use></svg> Continuity</button>
     <button class="sb-item" data-click="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Plant Ledger</button>
-    <button class="sb-item" data-click="mythic-index-btn"><svg class="nav-icon"><use href="#icon-compass"></use></svg> Mythic Threads</button>
-    <button class="sb-item" data-click="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> Point of view</button>
+    <button class="sb-item" data-click="mythic-index-btn"><svg class="nav-icon"><use href="#icon-globe"></use></svg> Mythic Threads</button>
+    <button class="sb-item" data-click="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> Point of View</button>
     <button class="sb-item" data-click="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
 
     <div class="sb-epigraph">Every thread tells a story.<br>Weave them well.</div>
@@ -3279,6 +3322,44 @@ function shellActive(){ return DESKTOP_SHELL.matches; }
 // The braid moves INTO the workspace rather than being cloned there: it is the same node,
 // so the same iframe, which must never be loaded twice -- a second copy would run a second
 // handshake and hold a second copy of the graph.
+// The title moves into the rail, and the project name splits at its middot so the moment
+// gets a line of its own, as the reference has it. The h1 is MOVED, not copied: every
+// existing update to #app-project-name keeps working because it is the same node.
+let railTitled = false;
+function titleTheRail(){
+  if(railTitled || !shellActive()) return;
+  const rail = document.getElementById('sidebar');
+  const h1 = document.querySelector('#app > header h1');
+  if(!rail || !h1) return;
+  const rule = document.createElement('div');
+  rule.id = 'sidebar-rule';
+  rail.insertBefore(rule, rail.firstChild);
+  rail.insertBefore(h1, rail.firstChild);
+  railTitled = true;
+  splitRailTitle();
+}
+
+function splitRailTitle(){
+  const nameEl = document.getElementById('app-project-name');
+  const h1 = nameEl && nameEl.parentElement;
+  if(!h1 || h1.parentElement.id !== 'sidebar') return;
+  const full = (currentProjectName || nameEl.textContent || '').trim();
+  const cut = full.indexOf('·');
+  let meta = h1.querySelector('.title-meta');
+  if(cut === -1){
+    nameEl.textContent = full;
+    if(meta) meta.remove();
+    return;
+  }
+  nameEl.textContent = full.slice(0, cut).trim();
+  if(!meta){
+    meta = document.createElement('span');
+    meta.className = 'title-meta';
+    h1.insertBefore(meta, h1.querySelector('.header-tagline'));
+  }
+  meta.textContent = full.slice(cut + 1).trim();
+}
+
 let braidHomed = false;
 function homeTheBraid(){
   const main = document.getElementById('main');
@@ -7301,7 +7382,7 @@ function requestGeoRefresh(){
     appRoot.style.display = shellActive() ? 'grid' : 'flex';
     // The app opens to the braid. It is the thing the writer came to look at, and every
     // other view is one click from here.
-    if(shellActive()) setPane('braid');
+    if(shellActive()){ titleTheRail(); setPane('braid'); }
     signOutBtn.style.display = '';
     switchProjectBtn.style.display = '';
     appSettingsBtn.style.display = '';
@@ -7324,6 +7405,7 @@ function requestGeoRefresh(){
     const { data, error } = await sbClient.from('projects').select('name, project_type').eq('id', projectId).single();
     if(!error && data){
       nameEl.textContent = data.name; currentProjectName = data.name;
+      try{ splitRailTitle(); }catch(err){}
       if(menuTitleEl) menuTitleEl.textContent = data.name;
     }
     return !error && data ? data : null;

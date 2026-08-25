@@ -160,7 +160,7 @@ const HTML = String.raw`<!doctype html>
     padding: 0 16px; gap: 16px; }
   #legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10.5px; color: var(--quiet); }
   #legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-  #legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; flex: none; }
+  #legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
 
   #scrub { width: 260px; text-align: center; }
   #scrub input { width: 100%; accent-color: #f2b93c; background: none; }
@@ -229,10 +229,10 @@ const HTML = String.raw`<!doctype html>
        locations and documents; none of those exist here, and a legend for absent things
        is worse than no legend. -->
   <div id="legend">
-    <span><i style="background:#6f74c4"></i>Subplots</span>
-    <span><i style="background:#86c46a"></i>Still open</span>
-    <span><i style="background:#3fb3a8"></i>Mythic threads</span>
     <span><i style="background:#6f7ad0"></i>Characters</span>
+    <span><i style="background:#6f74c4"></i>Subplots</span>
+    <span><i style="background:#3fb3a8"></i>Mythic threads</span>
+    <span><i style="background:#86c46a"></i>Still open</span>
     <span><i style="background:#74b45f"></i>Plants</span>
     <span><i style="background:#c4483c"></i>Reveals</span>
     <span><i style="background:#d39a4a"></i>Notes</span>
