@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { WebView } from 'react-native-webview';
 
 import Icon from '../components/Icon';
@@ -26,6 +27,25 @@ const KIND_OPTIONS = ['confrontation', 'alliance', 'betrayal', 'mentorship', 'ro
 // over postMessage.
 export default function CharacterWebScreen({ route, navigation }: Props) {
   const { projectId, focusNodeId } = route.params;
+
+  // The braid reads along a long horizontal axis, so this one screen turns the device
+  // rather than asking the reader to. Locked on entry, released on the way out, so the
+  // rest of the app keeps the portrait it is designed for.
+  //
+  // This needs app.json's orientation to be "default": with it set to "portrait" the OS
+  // refuses every rotation and the lock below silently does nothing.
+  useEffect(() => {
+    let cancelled = false;
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {
+      // A device that will not rotate is not a reason to fail to draw the braid; it just
+      // shows a narrower slice of the axis, which pans like any other view.
+    });
+    return () => {
+      cancelled = true;
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      void cancelled;
+    };
+  }, []);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const webRef = useRef<WebView>(null);
