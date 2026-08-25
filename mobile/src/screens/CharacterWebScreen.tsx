@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 import { WebView } from 'react-native-webview';
 
 import Icon from '../components/Icon';
-import { CHARACTER_WEB_HTML } from '../lib/characterWebHtml';
+import { BRAID_HTML } from '../lib/braidHtml';
 import type { SignedInStackParamList } from '../navigation/types';
 import {
   type GraphData,
@@ -155,7 +155,7 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
             ref={webRef}
             style={styles.web}
             originWhitelist={['*']}
-            source={{ html: CHARACTER_WEB_HTML }}
+            source={{ html: BRAID_HTML }}
             onMessage={(e) => handleMessage(e.nativeEvent.data)}
             javaScriptEnabled
             domStorageEnabled

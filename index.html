@@ -1902,7 +1902,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">&#128376; Character Web</div>
     <button class="btn small btn-x" id="web-close" title="Close">&#215;</button>
   </div>
-  <iframe id="web-frame" title="Character Web" src="character-web.html"></iframe>
+  <iframe id="web-frame" title="The Braid" src="braid.html"></iframe>
   <div class="web-note" id="web-note" style="display:none;"></div>
 </div>
 
@@ -5225,8 +5225,8 @@ document.querySelectorAll('[data-theme-choice]').forEach(el => {
   el.addEventListener('click', () => setThemePreference(el.dataset.themeChoice));
 });
 
-/* ---------- CHARACTER WEB ----------
-   The renderer is character-web.html, the same document the phone runs in a WebView, loaded
+/* ---------- THE BRAID ----------
+   The renderer is braid.html, the same document the phone runs in a WebView, loaded
    here in an iframe. Nothing about the graph is implemented twice: this end fetches the data
    and hands it over, exactly as CharacterWebScreen does.
 

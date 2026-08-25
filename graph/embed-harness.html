@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Braid embed harness</title>
+<!--
+  Drives braid.html the way the two real hosts do: wait for {type:'ready'}, post
+  {type:'data', payload}, then {type:'focus', id}. It exists so the handshake can be
+  exercised without signing into anything -- the payload is the demo pack, read back out of
+  the baked page, so what is posted here is the same shape character_graph() returns.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #03060d; color: #a8813a;
+    font: 12px system-ui, sans-serif; }
+  iframe { position: fixed; inset: 28px 0 0 0; width: 100%; height: calc(100% - 28px); border: 0; }
+  #log { position: fixed; top: 0; left: 0; right: 0; height: 28px; line-height: 28px;
+    padding: 0 10px; font-family: ui-monospace, monospace; }
+</style>
+<div id="log">harness: loading&hellip;</div>
+<iframe id="frame" src="../braid.html"></iframe>
+<script>
+const log = document.getElementById('log');
+const frame = document.getElementById('frame');
+const steps = [];
+let payload = null;
+
+fetch('character-web-demo.html')
+  .then((r) => r.text())
+  .then((t) => {
+    const at = t.indexOf('window.__GRAPH__ = ');
+    const open = t.indexOf('{', at);
+    payload = JSON.parse(t.slice(open, t.indexOf('};', open) + 1));
+    steps.push('payload ' + payload.chapters.length + 'ch/' + payload.flags.length + 'flags');
+    log.textContent = 'harness: ' + steps.join(' · ');
+    flush();
+  });
+
+// Hold the data until BOTH the payload has loaded and the frame has said it is ready --
+// the same flush the PWA host does. The first version of this posted whichever came first,
+// which meant posting a null payload; the braid correctly ignored it and sat waiting,
+// which is the right behaviour on its side and a bug on this one.
+let ready = false;
+function flush() {
+  if (!ready || !payload || steps.includes('data posted')) return;
+  frame.contentWindow.postMessage(JSON.stringify({ type: 'data', payload }), '*');
+  steps.push('data posted');
+  log.textContent = 'harness: ' + steps.join(' · ');
+  setTimeout(() => {
+    const flag = (payload.flags || [])[0];
+    if (!flag) return;
+    frame.contentWindow.postMessage(JSON.stringify({ type: 'focus', id: flag.id }), '*');
+    steps.push('focus ' + flag.id);
+    log.textContent = 'harness: ' + steps.join(' · ');
+  }, 1500);
+}
+
+window.addEventListener('message', (e) => {
+  if (e.source !== frame.contentWindow) return;
+  let msg;
+  try { msg = JSON.parse(e.data); } catch (err) { return; }
+  if (msg.type !== 'ready') return;
+  steps.push('ready received');
+  ready = true;
+  flush();
+  log.textContent = 'harness: ' + steps.join(' · ');
+});
+
+window.__HARNESS__ = { steps, frame };
+</script>

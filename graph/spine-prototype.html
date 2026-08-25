@@ -690,7 +690,7 @@ function buildThreads(flags, axis) {
 // and the far view are one number. Each carries its own reliability, in the data, not in a
 // comment -- the renderer must be able to tell a hard signal from a guess.
 //
-// Dismissals are read from the annotation itself -- `health_dismissed` on the flag, in the
+// Dismissals are read from the annotation itself -- health_dismissed on the flag, in the
 // chapters.annotations jsonb the editor already writes. Not view state and not device
 // state: this is a multi-device app over one Supabase project, and a dismissal that lives
 // on the laptop means the same signal reappears on the phone, which is precisely the

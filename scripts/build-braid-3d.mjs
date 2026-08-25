@@ -32,11 +32,23 @@ const DEMO = path.join(ROOT, 'graph', 'character-web-demo.html');
 const LAYOUT = path.join(ROOT, 'graph', 'spine-layout.mjs');
 const LOCAL = path.join(ROOT, 'graph', '.local-project.json');
 
+// Three outputs from one renderer:
+//   (default)  graph/braid-3d.html         demo pack baked in, for looking at
+//   --local    graph/.local-braid-3d.html  a real project baked in, gitignored
+//   --embed    braid.html + mobile/src/lib/braidHtml.ts, NO data -- the host posts it,
+//              which is how both apps consume it
 const useLocal = process.argv.includes('--local');
-const OUT = path.join(ROOT, 'graph', useLocal ? '.local-braid-3d.html' : 'braid-3d.html');
+const useEmbed = process.argv.includes('--embed');
+const OUT = useEmbed
+  ? path.join(ROOT, 'braid.html')
+  : path.join(ROOT, 'graph', useLocal ? '.local-braid-3d.html' : 'braid-3d.html');
+const OUT_TS = path.join(ROOT, 'mobile', 'src', 'lib', 'braidHtml.ts');
 
 let payload, sourceName;
-if (useLocal) {
+if (useEmbed) {
+  payload = null;
+  sourceName = '';
+} else if (useLocal) {
   if (!fs.existsSync(LOCAL)) {
     throw new Error('graph/.local-project.json is missing. Run: node scripts/dump-project-structure.mjs <projectId>');
   }
@@ -51,7 +63,7 @@ if (useLocal) {
   payload = JSON.parse(demo.slice(open, demo.indexOf('};', open) + 1));
   sourceName = 'The Southern Wing (demo pack)';
 }
-for (const k of ['chapters', 'scenes', 'flags', 'events']) payload[k] = payload[k] || [];
+if (payload) for (const k of ['chapters', 'scenes', 'flags', 'events']) payload[k] = payload[k] || [];
 
 const layout = fs.readFileSync(LAYOUT, 'utf8')
   .replace(/^export (const|function) /gm, '$1 ')
@@ -237,7 +249,41 @@ try {
   throw err;
 }
 
-const raw = window.__GRAPH__;
+// The host handshake, identical to the one the character web already uses, because both
+// documents are consumed the same two ways: an iframe in the PWA and a WebView on the
+// phone. With data baked in (the demo and local builds) this resolves immediately; without
+// it, the page says it is listening and waits. Top-level await keeps the rest of the file
+// unchanged -- nothing below needs to know the data arrived late.
+function postHost(msg) {
+  const payload = JSON.stringify(msg);
+  if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(payload);
+  else if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+}
+
+function waitForGraph() {
+  return new Promise((resolve) => {
+    function receive(e) {
+      let msg;
+      try { msg = JSON.parse(e.data); } catch (err) { return; }
+      if (!msg || msg.type !== 'data' || !msg.payload) return;
+      window.removeEventListener('message', receive);
+      document.removeEventListener('message', receive);
+      resolve(msg.payload);
+    }
+    // Both targets: a WebView delivers to document, a browser to window.
+    window.addEventListener('message', receive);
+    document.addEventListener('message', receive);
+    postHost({ type: 'ready' });
+  });
+}
+
+const raw = window.__GRAPH__ || await waitForGraph();
+// Defaulted key by key rather than only when the payload is missing entirely: a database
+// without the newer migrations returns an older shape, and one absent key should cost one
+// layer rather than the whole view.
+['chapters', 'scenes', 'flags', 'events', 'presence', 'nodes', 'links'].forEach((k) => {
+  if (!Array.isArray(raw[k])) raw[k] = [];
+});
 const spine = computeSpine(raw, {
   order: new URLSearchParams(location.search).get('order') === 'story' ? 'story' : 'read',
 });
@@ -1818,10 +1864,58 @@ function updateLabels() {
 // Inspection handle. The same reasoning as the flat prototype's: the claims this makes --
 // that a flag sits on its own ribbon, that selecting one end draws connectors to the other
 // -- are only checkable from outside if the selection path is reachable from outside.
+// Focus at any granularity, the same contract the character web answers: one id, which may
+// be a chapter, a scene or a single flagged line. No translation is needed at either end
+// because all three are keyed by their own database id here too.
+function focusNode(id) {
+  // Searched across the collections the braid actually keeps rather than through a single
+  // lookup table: a chapter, a scene, a flagged line, a subplot and a thread live in
+  // different groups here, and all five are addressed by their own database id.
+  const chapter = chapterMesh[id];
+  if (chapter) { focusOn(X(chapter.userData.ord)); select(chapter.userData); return; }
+
+  const flag = flagMeshes.find((m) => m.userData.id === id);
+  if (flag) {
+    shown.flags = true; syncLayers();
+    focusOn(X(flag.userData.ord)); select(flag.userData); return;
+  }
+
+  const scene = groups.scenes.children.find((m) => m.userData && m.userData.id === id);
+  if (scene) {
+    shown.scene = true; groups.scenes.visible = true;
+    focusOn(X(scene.userData.ord)); select(scene.userData); return;
+  }
+
+  const ribbon = ribbonObjs.find((g) => g.userData.data.id === id);
+  if (ribbon) {
+    shown.ribbons = true; syncLayers();
+    const r = ribbon.userData.data;
+    focusOn(X(r.start)); select({ kind: 'ribbon', data: r, ord: r.start }); return;
+  }
+
+  const thread = threadObjs.find((g) => g.userData.data.id === id);
+  if (thread) {
+    shown.threads = true; syncLayers();
+    const t = thread.userData.data;
+    focusOn(X(t.start)); select({ kind: 'thread-arc', data: t, ord: t.start }); return;
+  }
+  // Anything else has been deleted since the caller opened the view; ignoring it is the
+  // right answer, and the same one the character web gave.
+}
+
+function hostMessage(e) {
+  let msg;
+  try { msg = JSON.parse(e.data); } catch (err) { return; }
+  if (msg && msg.type === 'focus' && msg.id) focusNode(msg.id);
+}
+window.addEventListener('message', hostMessage);
+document.addEventListener('message', hostMessage);
+
 window.__BRAID__ = {
   spine, scene, camera, groups, links, flagMeshes, counterparts,
   select, drawLinks, shown,
   flatten: () => flatten,
+  focusNode,
   // Peak additive glow opacity summed across every thread overlapping one chapter. This is
   // the number the density guard exists to hold down, and it is reachable so the guard can
   // be checked instead of trusted.
@@ -1844,17 +1938,40 @@ window.__BRAID__ = {
 if (HTML.indexOf('`') !== -1) throw new Error('backtick in the braid markup');
 
 const out = HTML
-  .replace('/*__PAYLOAD__*/',
-    'window.__GRAPH__ = ' + JSON.stringify(payload) + ';\n' +
-    'window.__SOURCE__ = ' + JSON.stringify(sourceName) + ';')
+  .replace('/*__PAYLOAD__*/', payload
+    ? ('window.__GRAPH__ = ' + JSON.stringify(payload) + ';\n' +
+       'window.__SOURCE__ = ' + JSON.stringify(sourceName) + ';')
+    : 'window.__SOURCE__ = "";')
   .replace('/*__LAYOUT__*/', layout);
 
-fs.writeFileSync(OUT,
-  '<!-- GENERATED FILE - do not edit by hand.\n' +
+const banner = '<!-- GENERATED FILE - do not edit by hand.\n' +
   '     Geometry from graph/spine-layout.mjs. Rebuild: node scripts/build-braid-3d.mjs' +
-  (useLocal ? ' --local' : '') + ' -->\n' + out, 'utf8');
+  (useLocal ? ' --local' : useEmbed ? ' --embed' : '') + ' -->\n';
 
-console.log(path.relative(ROOT, OUT).replace(/\\/g, '/') + '  ' +
-  (fs.statSync(OUT).size / 1024).toFixed(0) + ' KB  ' +
-  payload.chapters.length + ' chapters, ' + payload.flags.length + ' flags, ' +
-  'source: ' + sourceName);
+fs.writeFileSync(OUT, banner + out, 'utf8');
+
+const describe = (f) => path.relative(ROOT, f).replace(/\\/g, '/') + '  ' +
+  (fs.statSync(f).size / 1024).toFixed(0) + ' KB';
+
+if (useEmbed) {
+  // The phone loads the document as a string rather than fetching a file, so the same
+  // markup is emitted as a TypeScript module. A backtick anywhere inside would end the
+  // String.raw template and break the module while still producing a page that looks fine
+  // -- the same trap build-graph-demo.mjs guards, for the same reason.
+  if (out.includes('`')) {
+    throw new Error('The braid markup contains a backtick, which would terminate its String.raw template.');
+  }
+  const ts = '// GENERATED FILE - do not edit by hand.\n' +
+    '// Rebuild with: node scripts/build-braid-3d.mjs --embed\n' +
+    '//\n' +
+    '// The braid, as one document. The PWA loads braid.html in an iframe; the phone loads\n' +
+    '// this string in a WebView. Neither carries data: both post it in after the page says\n' +
+    '// it is ready, which is the handshake the character web used before it.\n' +
+    'export const BRAID_HTML = String.raw`' + out + '`;\n';
+  fs.writeFileSync(OUT_TS, ts, 'utf8');
+  console.log(describe(OUT) + '   (no data; the host posts it)');
+  console.log(describe(OUT_TS));
+} else {
+  console.log(describe(OUT) + '  ' + payload.chapters.length + ' chapters, ' +
+    payload.flags.length + ' flags, source: ' + sourceName);
+}
