@@ -5521,7 +5521,12 @@ function applyTheme(){
     const want = 'braid.html?theme=' + resolved;
     const have = (frame.getAttribute('src') || '');
     if(have !== want){
-      webFrameReady = false;      // the new document has to say ready before it is sent data
+      // Deliberately touching nothing but the attribute. applyTheme runs during script
+      // evaluation, before the character-web block further down has initialised its
+      // bindings, so reading one of them here threw in its temporal dead zone -- which
+      // aborted the rest of the script and left the braid waiting for data that could never
+      // be fetched. The reload posts ready by itself, and the ready handler is what marks
+      // the frame live; nothing needs to be reset from this side.
       frame.setAttribute('src', want);
     }
   }
