@@ -1672,6 +1672,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <symbol id="icon-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></g></symbol>
     <!-- Drawn for the rail, to the reference sheet. The generic link/books glyphs that were
          here read as the wrong things: a chain for a braid, a shelf for a document. -->
+    <!-- Header glyphs drawn to the reference: a nib for continuity, two figures for the
+         character web, a power ring for signing out. -->
+    <symbol id="icon-nib" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3.2-.7L19 7.5a2.1 2.1 0 00-3-3L4.7 16.8z"/><path d="M14.5 6l3.5 3.5"/></g></symbol>
+    <symbol id="icon-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19.4a5.8 5.8 0 0111.6 0"/><path d="M16.4 5.2a3.2 3.2 0 010 5.9M18 19.4a5.6 5.6 0 00-2.2-4.3"/></g></symbol>
+    <symbol id="icon-power" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3.4v7.4"/><path d="M7.3 6.6a7.2 7.2 0 109.4 0"/></g></symbol>
     <symbol id="icon-braid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="12" r="4.2"/><circle cx="15.5" cy="12" r="4.2"/><path d="M8.5 7.8c2.6 1.4 4.4 4 4.4 4.2M15.5 16.2c-2.6-1.4-4.4-4-4.4-4.2"/></g></symbol>
     <symbol id="icon-outline" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="5" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="17" r="1.1" fill="currentColor" stroke="none"/><path d="M9 7h10M9 12h10M9 17h7"/></g></symbol>
     <symbol id="icon-page" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1.6 1.6 0 00-1.6 1.6v14.8A1.6 1.6 0 007 21h10a1.6 1.6 0 001.6-1.6V7.6z"/><path d="M14 3v4.6h4.6M9 12h6M9 16h6"/></g></symbol>
@@ -1874,11 +1879,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <div class="hdr-section-label" data-toggle-section="discover"><span class="hdr-section-label-text">Discover</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
         <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
         <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
-        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Continuity Check</button>
-        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> Character Web</button>
+        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-nib"></use></svg> Continuity Check</button>
+        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> Character Web</button>
         <button class="btn hdr-collapsible" id="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Ledger</button>
-        <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-compass"></use></svg> Mythic Threads</button>
-        <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-books"></use></svg> Documents</button>
+        <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-globe"></use></svg> Mythic Threads</button>
+        <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
       </div>
 
       <div class="hdr-section" data-section="manage">
@@ -1891,8 +1896,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="export-btn"><svg class="nav-icon"><use href="#icon-download"></use></svg> Export</button>
         <button class="btn hdr-collapsible" id="export-epub-btn"><svg class="nav-icon"><use href="#icon-book-closed"></use></svg> Export as eBook</button>
         <button class="btn hdr-collapsible" id="import-btn"><svg class="nav-icon"><use href="#icon-upload"></use></svg> Import</button>
-        <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Read</button>
-        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-pin"></use></svg> Notes <span id="notes-count-badge">0</span></button>
+        <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Read</button>
+        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Notes <span id="notes-count-badge">0</span></button>
         <button class="btn hdr-collapsible" id="trash-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Trash <span id="trash-count-badge" class="zero">0</span></button>
       </div>
 
@@ -1909,7 +1914,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn primary hdr-collapsible" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
         <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-swap"></use></svg> Switch Project</button>
         <button class="btn hdr-collapsible" id="app-settings-btn" style="display:none;">⚙ Settings</button>
-        <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-exit"></use></svg> Sign out</button>
+        <button class="btn hdr-collapsible" id="sign-out-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-power"></use></svg> Sign out</button>
       </div>
 
       <div class="hdr-menu-epigraph"><div class="hdr-menu-epigraph-box">Chart the past.<br>Shape the future.<br>Leave your legend.</div></div>
