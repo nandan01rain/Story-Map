@@ -21,6 +21,7 @@
   --texture-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --texture-parchment: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%238a7355' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7'/%3E%3C/g%3E%3C/svg%3E");
+  --moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23c69a3a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z'/%3E%3C/svg%3E");
   --ink-knob:#1c211c;
   --rail:#1c211c; --rail-edge:rgba(198,154,58,0.24);
   --rail-ink:#e9e2ce; --rail-dim:#9ba093; --rail-hover:rgba(198,154,58,0.09);
@@ -830,17 +831,44 @@ button.btn.primary#add-chapter-btn:hover{
     padding:12px 20px;
     align-items:flex-start;
   }
+  /* Outlined, not filled. I had read the reference as having no boxes at all and stripped
+     the borders; it has them -- a hairline and a soft radius on a cream ground, with the
+     fill removed. That is a different thing from no chrome. */
   #app > header .header-actions button.btn{
-    background:none; border:0; border-radius:0; padding:7px 10px;
-    color:var(--text); font-size:13px; min-height:34px;
+    background:none;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 14px;
+    color:var(--text); font-size:13px; min-height:36px;
   }
   #app > header .header-actions button.btn:hover{
-    color:var(--gold); background:rgba(198,154,58,0.08); border-radius:6px;
+    color:var(--gold); border-color:var(--gold); background:rgba(198,154,58,0.06);
   }
-  /* The one exception, and the only boxed thing in the row. */
-  #app > header button.btn.primary#add-chapter-btn{
-    border-radius:8px; padding:8px 16px; min-height:36px;
+
+  /* The primary keeps its olive fill. The rule above is more specific than the one that
+     paints it, so without this exception the button loses its background entirely and reads
+     as an outline like everything else. */
+  #app > header .header-actions button.btn.primary#add-chapter-btn{
+    background-color:var(--leaf);
+    background-image: var(--texture-parchment), linear-gradient(180deg, var(--leaf-edge), var(--leaf));
+    background-repeat: repeat, no-repeat;
+    background-size: 180px 180px, 100% 100%;
+    background-blend-mode: overlay, normal;
+    color:#f2ecd9; border:1px solid var(--leaf-edge);
+    border-radius:8px; padding:8px 18px; min-height:36px;
   }
+  #app > header .header-actions button.btn.primary#add-chapter-btn:hover{
+    background-color:var(--leaf-hi); border-color:var(--leaf-hi); color:#f7f2e2;
+  }
+
+  /* Both rows start at the same left edge, and the one action that creates something is
+     pushed to the far right. The row was centring itself, so the second line floated. */
+  #app > header .header-actions{
+    justify-content:flex-start;
+    align-items:center;
+    gap:8px; row-gap:8px;
+  }
+  #app > header .header-actions #add-chapter-btn{margin-left:auto;}
   #app > header .nav-icon{color:currentColor; opacity:.75; margin-right:6px;}
   #app > header button.btn:hover .nav-icon{opacity:1;}
 
@@ -873,15 +901,31 @@ button.btn.primary#add-chapter-btn:hover{
     content:""; position:absolute; left:7px; top:50%; transform:translateY(-50%);
     width:13px; height:13px; background:var(--sun) center/contain no-repeat; opacity:.8;
   }
-  #app > header .theme-row::after{
-    content:""; position:absolute; top:3px; right:3px; width:22px; height:22px;
-    border-radius:50%; background:var(--ink-knob);
-    transition:transform .18s ease, background .18s ease;
+  /* The knob MOVES. It was pinned to the right in every state, so the switch looked
+     identical at midnight and at noon -- which is the one thing a switch must never do.
+     Day sits right, night sits left over the sun, auto rests between them in gold. */
+  #app > header .theme-row{width:64px;}
+  /* A real element, not a pseudo-element. Three attempts to move ::after failed in ways I
+     could not inspect -- the rule matched, the custom property changed, and the computed
+     transform did not follow -- so the knob is now a node whose style is set directly. It
+     is also the only version of this that can be checked from outside. */
+  #app > header .theme-knob{
+    position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%;
+    background:var(--ink-knob); pointer-events:none;
+    transition:transform .2s cubic-bezier(.4,0,.2,1), background .2s ease;
   }
-  html[data-theme="day"] #app > header .theme-row::after{transform:translateX(0);}
-  #app > header .theme-row[data-state="night"]::after{background:#0f0b06;}
-  #app > header .theme-row[data-state="auto"]::after{
-    background:var(--gold);
+  /* Driven by a custom property the script sets on the row, not by attribute selectors.
+     Three attribute rules were written, matched the element, and did not reach the
+     pseudo-element -- and rather than keep guessing at a cascade I could not inspect, the
+     position and colour are now set where they cannot be overridden. */
+  /* The sun sits under the knob's day position; a moon marks the other end, so the track
+     itself says which way is which rather than relying on the knob alone. */
+  #app > header .theme-row::before{
+    content:""; position:absolute; left:8px; top:50%; transform:translateY(-50%);
+    width:12px; height:12px; background:var(--sun) center/contain no-repeat; opacity:.85;
+  }
+  #app > header .theme-row[data-state="night"]::before{
+    background:var(--moon) center/contain no-repeat; left:auto; right:8px;
   }
 
   #dock{display:grid; grid-template-columns:1fr 1.25fr 1fr; gap:14px; min-height:0;}
@@ -5788,7 +5832,25 @@ function applyTheme(){
   });
   // The switch draws from the PREFERENCE, not the resolved value: a reader who chose auto
   // should see that they chose auto, not whichever side of six o'clock it happens to be.
-  document.querySelectorAll('.theme-row').forEach(row => { row.dataset.state = themePreference; });
+  // Position and colour, set on the row itself. The knob has to differ between states --
+  // a switch that looks the same at midnight and noon is not a switch.
+  const KNOB = {
+    day:   { x: '34px', bg: 'var(--ink-knob)' },
+    night: { x: '0px',  bg: '#0f0b06' },
+    auto:  { x: '17px', bg: 'var(--gold)' },
+  };
+  const knob = KNOB[themePreference] || KNOB.day;
+  document.querySelectorAll('.theme-row').forEach(row => {
+    row.dataset.state = themePreference;
+    let el = row.querySelector('.theme-knob');
+    if(!el){
+      el = document.createElement('span');
+      el.className = 'theme-knob';
+      row.appendChild(el);
+    }
+    el.style.transform = 'translateX(' + knob.x + ')';
+    el.style.background = knob.bg;
+  });
 
   // The braid is a separate document with its own palette, so it has to be told. It reads
   // the theme once at load -- the labels are baked into canvas textures, so switching in

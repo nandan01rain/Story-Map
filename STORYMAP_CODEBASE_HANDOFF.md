@@ -8,14 +8,24 @@ now **stale in several places** — where it conflicts with this document or wit
 the actual code, this document and the code win. Do not re-derive decisions this
 document already settles; do not blindly trust `CLAUDE.md`'s roadmap either.
 
-**As of 2026-08-23 the app is deployed and every migration is run.** The graph migrations
-superseded one another four times over; `20260824_graph_pairs.sql` is the survivor and **has
-been applied** — verified by calling the RPC and seeing `flags`, `chapters` and `scenes` come
-back in the payload. Nothing about the database is outstanding.
+**As of 2026-08-26 the character web has been replaced by THE BRAID in both apps.** Read
+**§22 first** — it supersedes §17 wherever the two disagree, and §17 is kept only for the
+schema and the extraction pipeline, which are unchanged. Relationships was dropped by
+decision; `characterWebHtml.ts` still builds and nothing imports it.
+
+**One migration is outstanding.** `20260824_graph_pairs.sql` is applied, verified by calling
+the RPC. **`20260825_spine_support.sql` is written and NOT run** — until it is, saving a
+chapter with a story time fails on an unknown column. It is the only database work pending.
+
+**The PWA is still not deployed.** `https://nandan01rain.github.io/Story-Map/` returns 404:
+the workflow is in `deploy/` because this repo's credential lacks GitHub's `workflow` scope,
+so it has to be created through the web UI, and Pages has never been enabled. Everything runs
+locally (`python -m http.server 8080`, or `deploy/storymap-local.bat`), against the same
+Supabase project, with no loss of capability.
 
 The Android app is a standalone APK built with EAS, installed on the writer's phone, and
-takes JavaScript changes over the air. The PWA publishes to GitHub Pages. **Read §20 before
-shipping anything.**
+takes JavaScript changes over the air — **except the braid's landscape lock, which is native
+and needs a new build.** **Read §20 before shipping anything.**
 
 **The two apps are now at parity**, and further work is meant to land on both. Map view is
 gone from the PWA; the character web is in it. Trash and EPUB export are in mobile. See §19.
@@ -3045,3 +3055,189 @@ the input's real width.
 Measurement is taken from a wrapper `View`, not the `ScrollView`: React Native does not
 declare `measureInWindow` on `ScrollView` even though the host component has it, and a
 wrapper is honest where a cast would only silence the compiler.
+
+---
+
+## 22. THE BRAID (2026-08-25/26) — replaces the character web in both apps
+
+**Status: shipped in both apps. The migration it half-depends on is written and NOT run.**
+
+The character web's force layout drew a different picture every run, so nothing about it
+could be learned. The braid replaces it with a fixed axis: chapters ranked 1..N over
+`(book, act, order)`, and every other coordinate derived from that ordinal. Same data, same
+RPC, same handshake, same two consumers.
+
+### 22.1 What replaced what
+
+| | before | now |
+|---|---|---|
+| PWA | `character-web.html` in an iframe | `braid.html?theme=…` in the same iframe |
+| Mobile | `CHARACTER_WEB_HTML` in a WebView | `BRAID_HTML` in the same WebView |
+| Layers | Relationships, Progression, Plants & Reveals, Structure | Structure, Subplots, Mythic threads, Characters |
+
+**Relationships was dropped by decision**, not by omission. It is the one layer with no
+position on a reading-order axis — who knows whom has no place in chapter order — and the
+force layout that suited it is exactly what made the web unreadable. `characterWebHtml.ts`
+is still in the tree and still builds; nothing imports it.
+
+### 22.2 Files
+
+- **`graph/spine-layout.mjs`** — the geometry. Pure: no DOM, no canvas, no fetch. The
+  prototypes inline it and the tests import it, so what is tested is what renders.
+- **`scripts/build-braid-3d.mjs`** — the renderer. `--embed` emits `braid.html` (no data,
+  for the iframe) and `mobile/src/lib/braidHtml.ts` (the same markup as a string, for the
+  WebView). Default emits `graph/braid-3d.html` with the demo pack baked in; `--local`
+  emits a gitignored copy from `graph/.local-project.json`.
+- **`scripts/test-spine-layout.mjs`** — forty-odd assertions over the layout core.
+- **`scripts/build-spine-prototype.mjs`** — the flat 2D prototype, kept for comparison.
+- **`scripts/dump-project-structure.mjs`**, **`scripts/spine-report.mjs`**,
+  **`scripts/report-real-graph-stats.mjs`** — read-only, token-gated, for looking at real
+  projects. They need a signed-in session token; the anon key sees `[]` for everything.
+- **`graph/embed-harness.html`** — drives the host handshake without signing in.
+
+### 22.3 The rules that hold the layout together
+
+- **Nothing may depend on payload array order.** Every sort carries an id tiebreak; every
+  map is walked through a sorted key list. Tested by shuffling five arrays and comparing
+  ordinals, lanes, angles, open counts and the health set.
+- **Lane allocation never sees a filter.** Greedy interval packing is unstable under
+  removal — hiding one subplot would repack 24 of 27 — so allocation runs over the
+  unfiltered set and filtering only sets visibility.
+- **Allocation is incremental.** A chapter reorder moves one subplot instead of seventeen.
+  The angular denominator only ever grows; it comes back down on an explicit repack and
+  never silently. `repackAdvised()` is a pure predicate for a "tidy up" control.
+- **Incremental allocation is path-dependent**, by construction. 160 of 315 edit-path pairs
+  diverge. X stays path-independent; lanes do not. Reported, not asserted away.
+- **A reveal may be read before its plant.** That is what a flashback is. An earlier version
+  clamped the span and collapsed such a grouping to a point; spans now cover every member
+  whichever way round they fall, and the grouping is marked `reversed`.
+
+### 22.4 story_time — a sparse second ordering
+
+`chapters.story_time` and `scenes.story_time`, nullable numeric. **Mark the chapter where the
+story jumps and the one where it returns; everything between carries forward.** An unmarked
+chapter inherits the last marked one before it in reading order, ties broken by reading
+order, and chapters before any mark stay at the front rather than being flung to the end.
+
+`computeSpine(payload, {order: 'story'})` switches the axis; the braid reads `?order=story`.
+With no times set the two orderings are identical and the control says so rather than
+offering a view that does not exist.
+
+Written from the chapter drawer ("When this happens", optional). **Blank means null, not
+zero** — zero would place the chapter at the dawn of the timeline. Guarded in three places.
+
+### 22.5 pairs is canonical; linkedPlant is gone
+
+The PWA's Plant Ledger resolved paid/open through `linkedPlant`; the graph resolved it
+through `pairs`. On the demo pack they disagreed **4 open versus 28**, which is two different
+answers to one question inside one app.
+
+`pairs` won: many-to-many where `linkedPlant` is one-to-one, and already what
+`character_graph()` returns. `findRevealForPlant` resolves through groupings and reports the
+earliest claimant in saga order; the editor writes a shared grouping;
+`normalizeLegacyPlantLinks()` converts on load and on import and is idempotent. The import
+remap survives on purpose — an imported file carries old chapter ids, and the remap keeps
+`linkedPlant` resolvable just long enough to be converted.
+
+### 22.6 Health overlays — built, held
+
+`open-plant` and `flag-density` are the only reliable signals emitted. `long-absence` and
+`late-arc` sit behind a strand-density gate (0.5) because they depend on the event-anchored
+presence predicate and would otherwise accuse the writer of dropping a character who simply
+has no logged events.
+
+**Withdrawn deliberately:** `unresolved-at-book-end` (subplots are expected to span books; it
+would have fired on nearly every deliberate long-range setup) and `subplot-collision`
+(several reveals landing in one chapter is a climax, not a defect).
+
+**Overlays stay off until pairing is actually used.** On Saga-01 they emit 8 of 8 — with no
+pairing authored, every plant is open and every reveal unlinked *by definition*, so the
+overlay reports the absence of a workflow rather than anything about the writing.
+
+### 22.7 What real data said, and why the granularity question is still open
+
+Saga-01: **52 chapters across 5 books, 9 annotations, zero `pairs`, zero `linkedPlant`.**
+0.17 flags per chapter against the demo pack's 4.6. Five of seven projects are empty.
+
+So the fork — is a pair grouping a subplot, or a single setup? — **has no evidence either
+way** and stays open. The demo pack's 27 groupings at peak concurrency 21 is a property of
+`scripts/demo-plants-reveals.mjs`, not of anyone's writing. Do not add a grouping entity, a
+parent-of-groupings, or a rollup dimension for ribbons until real material says so.
+
+The angular ceiling is recorded as a constraint, recomputed against the real target (a
+laptop, 1440x900, 760px usable): **35 concurrent**, separation 17px at the demo's peak of 21.
+40 concurrent would need a 1113px window. It grows with the square of concurrency, so
+wrapping buys a little and then stops.
+
+### 22.8 Traps recorded
+
+- **`applyPresentationConfig` writes the preset palette INLINE on `<html>`.** Inline beats a
+  stylesheet, so `html[data-theme="day"]` could never win once a project loaded — the day
+  toggle appeared to work only on the braid, which is a separate document and the only
+  surface the inline palette could not reach. Nine surface tokens are now the theme's;
+  accents stay the preset's. The same applies to typography: changing a font in the
+  stylesheet alone looks fixed until a project loads.
+- **`applyTheme` runs during script evaluation.** Reading a `let` declared further down threw
+  in its temporal dead zone and aborted the remainder of the script — no `loadCharacterWeb`,
+  no handshake, and the braid sat on "loading the braid…" forever. Anything `applyTheme`
+  touches must be hoisted or live on `window`.
+- **Texture tokens lived only inside `html[data-theme="day"]`**, so night had no grain at all.
+- **`:empty` does not match an element containing whitespace.**
+- **The braid's markup must contain no backtick** — it is emitted into a `String.raw`
+  template for the WebView. The guard fired on a comment in `spine-layout.mjs`.
+- **A wider tube does not make a casing.** In 2D a casing is a wider stroke under the line;
+  in 3D it surrounds and hides it. The 3D equivalent is an inverted hull — back faces only.
+  The real fix underneath was removing transparency: transparent surfaces do not write depth,
+  which is what defeated the over-under reading in the first place.
+- **Additive glow bleaches.** Stacking a desaturated hue drives every channel up and trends
+  white. The glow is the thread's own hue pushed UP in saturation and DOWN in value.
+- **Additive glow does nothing on white**, so the day palette drops it entirely rather than
+  inverting the night one.
+- **Detail must be gated on device pixels, not camera distance.** Distance ignores field of
+  view, viewport and density. Grain appears above 40 device px (36 bands, ~18 visible, two
+  pixels each); the large texture swaps in above 64, where the 128px map starts being
+  magnified.
+- **Selection must not drain the picture.** Dropping unselected threads to a tenth of their
+  saturation turned the whole braid grey on one click. Contrast comes from lifting the
+  selected thread, not from bleaching the rest.
+
+### 22.9 The PWA shell (2026-08-26)
+
+The app opens to the braid. Wide viewports (min-width 1000px) get a grid shell: a dark
+grey-green rail running the full height and owning the top-left corner, the braid filling the
+middle, and a dock of three cards beneath it (the book's progress, a tabbed list, open
+threads). The rail carries the project title, split at the middot so the moment gets its own
+line.
+
+The rail is dark in **both** themes and therefore has its own ink tokens (`--rail`,
+`--rail-ink`, `--rail-dim`, `--rail-edge`, `--rail-hover`). It took `--text` at first, which
+in day mode is dark ink on a dark rail.
+
+The sidebar's non-pane entries **press the button that already opens their view** rather than
+reimplementing it. The braid is **moved** into the workspace, not cloned — same node, same
+iframe; a second copy would run a second handshake and hold a second copy of the graph.
+
+Below 1000px the phone layout is exactly what it was.
+
+### 22.10 Open, and honest about it
+
+- **The migration `supabase/migrations/20260825_spine_support.sql` is NOT run.** Until it is,
+  saving a chapter with a story time fails on an unknown column, `unanchorable` is not
+  returned, and scene requires/provides/deferredRequires do not reach the graph.
+- **`project_settings.complexity` does not exist.** The table does (verified live: six
+  columns, no `user_id`); the column does not. The preset resolver reads
+  `payload.settings.complexity` until it does.
+- **Deferrals and dismissals are two values, one store** (`health_marks`, written not run).
+  A defer is time-bounded; a dismissal is permanent. They must not collapse into one flag.
+- **A grouping has no row**, so it cannot carry a dismissal. Held with the granularity fork.
+- **The braid's threads are lit tubes, not pigment.** Matching the reference's dry-stroke look
+  needs a shader or normal maps, not another canvas texture. Not started.
+- **The theme switch's knob may not move.** The code sets a real element's transform and
+  background directly; three separate measurements in the browser pane contradicted each
+  other and the pane could not composite a screenshot. Unverified — check it by eye.
+- **The icon set was drawn from a reference image**, not from its source. It matches shape and
+  weight; it is not the original file.
+- **Mobile's landscape lock needs a new native build.** `expo-screen-orientation` plus
+  `app.json` orientation `portrait` → `default`; neither ships over the air.
+- **Multi-book rendering has been exercised only on Saga-01's structure** (52 chapters, five
+  books, no flags) and on a synthetic three-book remap of the demo pack.

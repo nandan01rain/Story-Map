@@ -10,8 +10,19 @@ root); this repo is the migration of that sandbox into a real, independent app.
 
 > **As of 2026-08-23 this is no longer a sandbox project.** The Android app is
 > a standalone APK installed on the writer's phone, taking JavaScript changes
-> over the air; the PWA publishes to GitHub Pages. Every database migration is
-> run. `deploy/README.md` has the commands; handoff §20 has the reasoning.
+> over the air. `deploy/README.md` has the commands; handoff §20 has the
+> reasoning.
+>
+> **Two corrections to what this file used to claim.** The PWA does *not*
+> publish to GitHub Pages — the URL 404s, because the workflow sits in
+> `deploy/` (this repo's credential lacks GitHub's `workflow` scope) and Pages
+> was never enabled. It runs locally against the same Supabase project with no
+> loss of capability. And one migration *is* outstanding:
+> `20260825_spine_support.sql`, written and not run.
+>
+> **As of 2026-08-26 the character web has been replaced by THE BRAID** in both
+> apps — a fixed saga axis rather than a force layout. Handoff §22 is the
+> authority; the "character web" described below is history.
 >
 > **This file is the original project brief and is now stale in several
 > places it hasn't been updated for.** `STORYMAP_CODEBASE_HANDOFF.md` in this
@@ -63,7 +74,7 @@ upserts).
 
 ```
 chapters:  {id, book, act, order, title, status, content, wordMin, wordMax,
-            notes, annotations[], versions[]}
+            notes, annotations[], versions[], storyTime}   // storyTime nullable
 scenes:    {id, chapterId, order, title, status, summary, requires[],
             provides[], deferredRequires[], notes, pov}
 documents: {id, title, type, content}            // Master Bible, character bibles, etc.
@@ -95,7 +106,10 @@ positioned). This is a known limitation; see "Still deferred" below.
 
 The four types are not four flavours of one thing:
 
-- `plant` / `reveal` are the two ends of a setup and its payoff, and the
+- `plant` / `reveal` are the two ends of a setup and its payoff. **`pairs` is now
+  the only model of that relationship — `linkedPlant` is gone** (2026-08-26): the
+  Plant Ledger resolved through one and the graph through the other, and on the
+  demo pack they disagreed 4 open versus 28. Legacy links convert on load. The
   relationship is **many-to-many in both directions**: several plants can
   converge on one reveal, one plant can spawn several, and a single flag can
   belong to more than one grouping because a line can do two jobs at once.
@@ -211,7 +225,18 @@ chapter boundaries for pacing).
   diverged — it shows plants/reveals/notes behind a toggle and cannot create
   flags at all. See the Native mobile app section under Roadmap, and handoff
   §14.10.)
-- **🕸 Character web (mobile)**: a force-directed graph of the cast, with four
+- **🧵 The Braid** (both apps, 2026-08-26) — replaced the character web. Chapters
+  rank 1..N over (book, act, order) and every other coordinate derives from that
+  ordinal, so the picture is the same on every run and can be learned. Subplots
+  are groupings drawn as arcs that leave the spine at their first plant and
+  return at their last reveal — an unpaid one frays instead of returning.
+  Mythic threads arc symmetrically because they recur rather than resolve.
+  Characters are strands of presence beads. Day and night palettes, a time
+  scrubber, and an optional second ordering by `story_time` for flashbacks.
+  **Relationships was dropped by decision** — it has no position on a
+  reading-order axis. See handoff §22 for the rules, the traps and what is still
+  open. The bullet below describes the web it replaced, kept for background.
+- **🕸 Character web (mobile, superseded)**: a force-directed graph of the cast, with four
   switchable layers — **Relationships** between characters; **Progression**, a
   character's arc through the events they appear in, in chapter order, with
   everyone else in those events lit alongside; **Plants & Reveals**, every
@@ -314,11 +339,9 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   these relationships change across five books. Not built. Nor is automatic
   faction/location extraction, or the PWA's own embedding of the renderer (the
   document is written to be shared; the PWA just doesn't serve it yet).
-- **The PWA's own `linkedPlant` shape** — `{chapterId, annotationId}` on the reveal —
-  is a second, incompatible model of the plant/reveal relationship and is not read by
-  the character web. Whichever survives, the two halves of the app should not keep
-  both. (Pairing itself is no longer a gap: it is many-to-many, authored from the
-  Editor's Flags list — see handoff §17.)
+- ~~**The PWA's own `linkedPlant` shape**~~ — **RESOLVED 2026-08-26.** `pairs` won;
+  `linkedPlant` is deleted and legacy links convert on load. The Plant Ledger and the
+  braid now answer "is this paid?" with one rule. Handoff §22.5.
 - **Pairing across chapters from the editor.** The pairing sheet offers groupings
   already used in *that chapter*, because the editor holds one chapter. A reveal
   several chapters later has to be joined from its own side.
@@ -327,13 +350,14 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   `theme.ts` names eleven. Trimming `useAppFonts` to what is actually used would
   cut both the OTA payload and the APK. Spotted while reading an `eas update`
   asset list; not urgent.
-- **The Pages workflow is not where it needs to run.** It sits in `deploy/`
-  because the credential this repo pushes with lacks GitHub's `workflow` scope,
-  which makes any push touching `.github/workflows/` fail outright. It has to be
-  moved there by hand through GitHub's web UI, which the token scope does not
-  restrict. Until then the PWA does not auto-publish.
-- **The PWA is not installed anywhere yet.** It builds and runs, and the workflow
-  above is what would host it; nobody has enabled Pages on the repo.
+- **The Pages workflow is still not where it needs to run, and the PWA is still not
+  hosted.** `https://nandan01rain.github.io/Story-Map/` returns 404. The workflow sits
+  in `deploy/` because this repo's credential lacks GitHub's `workflow` scope, so any
+  push touching `.github/workflows/` is rejected; it has to be created through GitHub's
+  web UI, and Pages has never been enabled. Nothing is blocked by this: the app runs
+  locally (`python -m http.server 8080`, or `deploy/storymap-local.bat`) against the
+  same Supabase project, installs from localhost, and loses no capability. Deploying
+  buys a URL on other devices and not running a server — nothing else.
 - **Attaching a note to a scene from the app.** `sceneId` on a note annotation is
   read everywhere it matters and written only by the demo pack's build. Nothing in
   the UI offers the choice.
