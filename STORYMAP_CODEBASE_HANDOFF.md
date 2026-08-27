@@ -3603,22 +3603,41 @@ rather than about the file:
   `chapter`; only chapter is wired.
 
 
-## 24. ARACHNE (2026-08-27) — the loom, and what it is not
+## 24. ARACHNE (2026-08-27) — a tool and a module, not an agent
 
-### 24.1 Tool or agent
+### 24.1 Tool or agent — decided: TOOL
 
-A third agent, by all five of §16's tests — its own tools (the only writes in the system that
-reach the manuscript's metadata), its own permission, its own contract (`plan`), and a
-retrieval strategy that is not semantic at all.
+It was configured as a third agent first, and that was wrong. Recorded with the reversal
+intact rather than tidied away, because the reasoning that produced the wrong answer was sound
+and will recur.
 
-**Specifically not tools bolted onto Daedalus.** Daedalus is trustworthy because it proposes
-and never inscribes; its single write is `propose_document_edit`, against documents. Give it
-annotation-write tools and a craft-judgment agent can author the manuscript's structure as a
-side effect of discussing it.
+**The argument for a third agent** was that the thing which DECIDES must not be the thing which
+INSCRIBES: Daedalus is trustworthy because it proposes and never writes, and giving a
+craft-judgment agent annotation-write tools lets it author structure as a side effect of
+discussing it.
 
-**Arachne's entire licence to write is that it exercises no judgment.** It transcribes
-recognitions the writer already made in a stage-three session. A transcriber that infers is a
-forger, and its system prompt says so in those terms.
+**Why that does not require a second speaker.** Split the work into what needs a model and what
+does not, and nothing is left for one:
+
+| the work | needs a model? |
+| --- | --- |
+| deciding what is a plant, what pays it, what is a motif | yes — **Daedalus** |
+| turning a loose quote into an exact, unique, stable anchor | no — `graph/arachne.mjs` |
+| minting grouping ids, joining many-to-many, staying idempotent | no — same module |
+| writing the rows | no — a database call |
+| accept or reject before anything lands | no — a queue |
+
+The decide/inscribe boundary is held by **the proposal queue and the deterministic applier**,
+which are the parts that are not models. Daedalus already works exactly this way for canon
+documents via `propose_document_edit`; annotations are the same mechanism aimed at a different
+target.
+
+The cost argument dissolved too. Arachne was given Haiku so bulk transcription would not run on
+Opus — but if transcription is code, no model runs at all.
+
+**So: `arachne` is one more tool on Daedalus.** The model's whole contribution is choosing WHICH
+line and naming the grouping; it never decides HOW a line is anchored. The name survives where
+it is real — the module and the Loom. Arachne is the loom, not a speaker.
 
 ### 24.2 What Arachne does NOT own: the braid
 
@@ -3635,16 +3654,13 @@ It does not, and should not:
 **Arachne owns what the braid draws. It does not own the drawing.** The braid has been
 finished for weeks; what is missing is not a view, it is the data.
 
-### 24.2b Lifecycle: bound to a surface, not selected from a list
+### 24.2b Lifecycle: available when the braid is open
 
-Icarus and Daedalus are conversations. You open the assistant panel, choose one, and ask it
-something. **Arachne is not selectable and has no on/off of its own.** It comes online when
-the braid is open and `aiEnabled` is on, and is otherwise simply not there. That is a fifth
-kind of difference on top of §16's four, and it follows from what it is for: it has nothing to
-say about a chapter you are reading or a document you are editing. Its only subject is the
-structure the braid draws.
+Arachne has no on/off of its own and is not selectable. It is reachable when the braid is open
+and `aiEnabled` is on, and otherwise simply is not offered — which as a tool is the natural
+shape anyway: a tool is available in the context where it applies.
 
-**Online means available, not active.** This is the same rule that governs Pages (§23.5) and it
+**Available, not active.** This is the same rule that governs Pages (§23.5) and it
 matters more here, because the braid is a surface the writer is supposed to want to open.
 Arachne must not begin proposing transcriptions because the braid was opened, must not
 accumulate pending proposals, and must not be counted anywhere. The moment the braid carries
@@ -3725,6 +3741,10 @@ was not before.
 
 ### 24.6 Open
 
+- **The tool has no handler.** `arachne` exists as a name in the tool union, a contract, and a
+  described discipline. The implementation is not written, deliberately: there is nothing to
+  transcribe until stages two and three exist, and the deterministic half it would call is
+  already built and tested.
 - **Two implementations of the same rules.** `graph/arachne.mjs` is the specified, tested one;
   `index.html` carries older equivalents in `pairsOf()`/`joinIntoGrouping()`. They agree today
   (§24.4 checks exactly that), and converging them is deliberately deferred: the inline ones
@@ -3732,11 +3752,7 @@ was not before.
   deferred execution racing that conversion would corrupt groupings on load. It deserves its
   own change, not a rider on a UI one.
 - **The Loom is PWA-only.** Mobile has its own pairing sheet with the same one-chapter limit.
-- **The agent is dormant**, like the other two, and additionally blocked on stages two and
-  three existing at all.
-- **Its four tools are declared, not implemented** — `read_chapter_exact`, `list_flags`,
-  `list_groupings`, `propose_transcription` exist as names and a contract. The handler side is
-  not written, deliberately: there is nothing to transcribe yet.
+- **Daedalus is dormant**, like Icarus, so the tool cannot run regardless.
 
 
 ## 25. INGESTING A FINISHED BOOK (2026-08-27) — SCOPED, NOT BUILT

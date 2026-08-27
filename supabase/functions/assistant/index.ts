@@ -174,7 +174,7 @@ async function handleAsk(req: Request, supabase: ReturnType<typeof createClient>
     await req.json();
   // Validated against the roster rather than trusted, same reasoning as the model lookup
   // below: an unknown name falls back to the read-only agent, never to one that can write.
-  const name: AgentName = agent === 'daedalus' || agent === 'arachne' ? agent : 'icarus';
+  const name: AgentName = agent === 'daedalus' ? 'daedalus' : 'icarus';
   const config = AGENTS[name];
 
   if (!projectId || !question) return json({ error: 'projectId and question are required.' }, 400);

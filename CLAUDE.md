@@ -620,12 +620,15 @@ continuity checker, which is Icarus's job now. See handoff §19.
   plant in one chapter to its reveal in another, which **the editor structurally
   cannot do** (it holds one chapter, so it can only offer what is in front of it).
   Many-to-many both ways, paid/open by the same rule the Ledger and braid use.
-  Arachne is the agent half — a third agent, not tools on Daedalus, because its
-  licence to write is that it exercises no judgment: it transcribes recognitions
-  made in a stage-three session. Its rules live in `graph/arachne.mjs`
-  (`scripts/test-arachne.mjs`, 34 assertions). It owns what the braid draws, **not
-  the drawing** — layout, zoom, labels and find stay deterministic and keep working
-  with every assistant off. Dormant, and blocked on stages two/three. Handoff §24.
+  `arachne` is **a tool on Daedalus, not a third agent** — briefly configured as one,
+  and reversed: split the work into what needs a model and what does not, and nothing
+  is left for a third speaker. Deciding what is a plant is craft judgment (Daedalus);
+  anchoring, grouping and idempotency are deterministic (`graph/arachne.mjs`,
+  `scripts/test-arachne.mjs`, 34 assertions). The decide/inscribe boundary is held by
+  the proposal queue and that module, not by a second speaker. It concerns what the
+  braid draws, **not the drawing** — layout, zoom, labels and find stay deterministic
+  and keep working with every assistant off. Handler unwritten, and blocked on stages
+  two/three. Handoff §24.
 
 ## Design principles worth preserving
 
