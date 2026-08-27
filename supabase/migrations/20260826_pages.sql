@@ -1,4 +1,4 @@
--- Pages: stage-one raw capture. NOT APPLIED -- written for review.
+-- Pages: stage-one raw capture. APPLIED to the live project 2026-08-27.
 --
 -- This extends sticky_notes rather than creating a table. sticky_notes is already
 -- project-scoped and already holds exactly the thing being generalised: text the writer

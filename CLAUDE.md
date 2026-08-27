@@ -26,8 +26,9 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > plants and reveals are not knowable at drafting time, so annotation is a
 > recognition pass on a rare deliberate day, not a daily burden. Handoff §23 is the
 > authority, including why neither live-schema question could be answered directly
-> and how the migration settles both by design. `20260826_pages.sql` is **written
-> and not run**, and both apps degrade rather than break until it is.
+> and how the migration settles both by design. `20260826_pages.sql` **was applied
+> to the live project on 2026-08-27** and verified by REST probe; the degraded
+> path both apps carry is still live code for older databases.
 >
 > **As of 2026-08-26 the character web has been replaced by THE BRAID** in both
 > apps — a fixed saga axis rather than a force layout. Handoff §22 is the
@@ -389,10 +390,6 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   half (the SQL checks that should run before any model call) and the
   proposal/review queue so canon-document edits arrive as a diff to accept
   rather than a silent write. Handoff doc §15.
-- **`20260826_pages.sql` is written and not run**, and is now the second unapplied
-  migration alongside `20260825_spine_support.sql`. Until it runs, pages save their
-  text but not type, status or history, and search stays on the substring scan.
-  Both apps detect this and say so once, inside the page.
 - **Stages two to four of the capture pipeline** — Daedalus in recall mode, then in
   SME mode, then Arachne weaving recognised structure into chapters and pairings.
   Deliberately not started: nothing downstream should begin before stage one is in

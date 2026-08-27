@@ -3318,7 +3318,7 @@ So both questions are settled by design instead of by inspection:
 RLS". `project_id` scoping is real; the RLS half is **not established** — see §4. The migration
 reports the state with `raise notice` rather than enabling anything blind.
 
-### 23.4 Schema — `supabase/migrations/20260826_pages.sql` (WRITTEN, NOT RUN)
+### 23.4 Schema — `supabase/migrations/20260826_pages.sql` (APPLIED 2026-08-27)
 
 Extends `sticky_notes` rather than adding a table: it is already project-scoped and already
 holds the thing being generalised. **A page IS a sticky note that got long.** The table is not
@@ -3337,11 +3337,18 @@ Plus `search_everything(p_project_id, p_query)` — one ranked query across all 
 invoker` so RLS applies as the caller, `websearch_to_tsquery` so a nonsense query returns `[]`
 rather than raising.
 
-**Until it is run**, both apps degrade rather than break: the mobile store retries the base
-column list on `42703` and sets `legacySchema`; the PWA detects the shape from a loaded row (it
-already reads `select('*')`) and omits the new columns from its upsert; and search falls back
-to the substring scan it used before. Type, status and history are unavailable in that state
-and both apps say so, once, inside the page.
+**It failed on the first run** and the fix is worth keeping: `42703: column "rank" does not
+exist` on `create function`. `ORDER BY` after a `UNION ALL` resolves against the union's output
+column names, and those come from the **first branch's select list** — which was unaliased, so
+its columns were named `text`, `id`, `uuid`, `nullif`, `ts_headline`, `ts_rank`, `coalesce`. The
+`RETURNS TABLE` names never reach that far. Branch one is now aliased and the `ORDER BY` uses
+ordinal positions, which additionally cannot be shadowed by the OUT parameter names.
+
+**The degraded path is still live code and still matters** — the demo project, any project on an
+older database, and the PWA's `select('*')` read path all exercise it. The mobile store retries
+the base column list on `42703` and sets `legacySchema`; the PWA detects the shape from a loaded
+row and omits the new columns from its upsert; search falls back to the substring scan. Type,
+status and history are unavailable in that state and both apps say so, once, inside the page.
 
 ### 23.5 Loss-proofing, which outranks everything else here
 
@@ -3383,7 +3390,23 @@ and documents. The PWA's snippet path re-escapes `ts_headline` output and restor
 `<mark>` pair — server output into `innerHTML` otherwise. Documents are now searchable on mobile
 for the first time (they previously had nowhere to open).
 
-### 23.7 Verified this session
+### 23.7 Verified against the live database (2026-08-27, post-migration)
+
+Probed directly over REST after the migration ran, so these are facts about the running project
+rather than about the file:
+
+- All seven new `sticky_notes` columns are present, plus the generated `search` tsvector on
+  `sticky_notes`, `chapters`, `scenes` and `documents`.
+- `search_everything()` exists and is callable.
+- **A malformed query returns `[]` rather than raising** — tested with `"unclosed -and- or`.
+  This was a claim in the migration's own comments and is now a tested fact; it is the property
+  the search box depends on, because a search box that throws on a half-typed quote is worse
+  than one that finds nothing.
+- Every column the migration reads was probed *before* the re-run (`chapters.title/content/
+  notes/updated_at`, `scenes.title/summary/notes/updated_at/chapter_id`, `documents.title/
+  content/updated_at`), so the `rank` failure was the only one.
+
+### 23.7b Verified before that, in code
 
 - PWA inline JS parses (`node --check` over all five script blocks, exit 0); mobile `tsc
   --noEmit` clean.
