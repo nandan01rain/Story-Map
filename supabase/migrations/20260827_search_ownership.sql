@@ -1,31 +1,28 @@
 -- search_everything(): make the function safe on its own terms. NOT APPLIED -- for review.
 --
--- SINCE VERIFIED: chapters, scenes, documents, projects and sticky_notes all have RLS on with
--- one policy each, so the exposure described below did not exist. This file is belt-and-braces,
--- not a fix. It is still worth running: it makes the function correct by construction rather
--- than correct given four policy definitions nobody has read.
+-- BELT-AND-BRACES, NOT A FIX. Read that first, so this file is not mistaken for a patch to a
+-- live hole. There was no hole.
 --
--- The function takes a project id from the caller and is security invoker, so what stops
--- someone passing a project id that is not theirs is entirely whatever RLS the four
--- underlying tables happen to have. That is a real dependency and it was never checked.
+-- The concern that produced it was real, though. search_everything() takes a project id from
+-- the caller and is security invoker, so the only thing stopping someone passing a project id
+-- that is not theirs is whatever RLS the four underlying tables happen to have -- and when the
+-- function shipped, none of chapters, scenes or documents had ever been read. If any had been
+-- missing RLS, the function would have been a way to read another account's prose by guessing
+-- a uuid: a narrower door than a bare select, but a door, and one 20260826_pages.sql opened.
 --
--- What is now known: sticky_notes has RLS on with exactly one policy, `auth.uid() = user_id`
--- for ALL, on both qual and with_check. Cross-user isolation is correct there. But note what
--- that policy is NOT: it is user-scoped, not project-scoped. Project separation across this
--- whole app is a client-side .eq('project_id', ...) convention, not a database boundary
--- (handoff §4 says as much about the manual filters, and this is the proof).
+-- They were then read. All five of chapters, scenes, documents, projects and sticky_notes have
+-- RLS enabled with one policy each, so the exposure never existed. Handoff §4 and §23.3.
 --
--- chapters, scenes and documents have not been read at all. If any of them is missing RLS,
--- this function is a way to read another account's prose by guessing a uuid -- a narrower
--- door than a bare select, but a door, and one this migration opened.
+-- What IS true, and is the more useful finding: sticky_notes' policy is `auth.uid() = user_id`
+-- for ALL, on both qual and with_check -- user-scoped, NOT project-scoped. Project separation
+-- across this whole app is a client-side .eq('project_id', ...) convention with no database
+-- boundary behind it. Harmless at one writer and one account. It is the assumption to revisit
+-- before anything is ever shared.
 --
--- So: stop depending on the answer. One ownership test, evaluated once, before any of the
--- four branches run. If the project is not the caller's, the function returns nothing, and
--- that holds whether or not the other tables are protected.
---
--- This is deliberately belt-and-braces. Where RLS is correct the test is redundant; where it
--- is absent the test is the only thing there. A search function should not be the most
--- privileged path into the data, and after this one it is the least.
+-- So this file is still worth running: one ownership test, evaluated once, gating all four
+-- branches. It makes the function correct BY CONSTRUCTION rather than correct given four policy
+-- definitions nobody has read and nobody will remember to re-check. A search function should
+-- not be the most privileged path into the data, and after this it is the least.
 --
 -- Everything else about the function is byte-for-byte 20260826_pages.sql. This file was made
 -- by adding the `owns` CTE and one `where exists` per branch, not by retyping the body.
