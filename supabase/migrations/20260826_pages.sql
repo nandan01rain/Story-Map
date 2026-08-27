@@ -112,14 +112,17 @@ security invoker
 set search_path = public
 as $fn$
   with q as (select websearch_to_tsquery('english', p_query) as ts)
-  select 'page'::text, n.id, null::uuid,
+  -- The first branch's aliases name the whole union's output columns, and the ORDER BY at the
+  -- bottom can see nothing else -- not the RETURNS TABLE names, which do not reach that far.
+  -- Hence the aliases here and the ordinal positions there.
+  select 'page'::text as kind, n.id as id, null::uuid as parent_id,
          -- A page has no title field. Its first non-empty line is its de facto title, here
          -- and in the list, so search and the stack agree about what a page is called.
-         nullif(trim(split_part(regexp_replace(coalesce(n.content, ''), '^\s+', ''), E'\n', 1)), ''),
+         nullif(trim(split_part(regexp_replace(coalesce(n.content, ''), '^\s+', ''), E'\n', 1)), '') as title,
          ts_headline('english', coalesce(n.content, ''), q.ts,
-                     'MaxFragments=2,MinWords=8,MaxWords=22,StartSel=<mark>,StopSel=</mark>'),
-         ts_rank(n.search, q.ts),
-         coalesce(n.updated_at, n.created_at)
+                     'MaxFragments=2,MinWords=8,MaxWords=22,StartSel=<mark>,StopSel=</mark>') as snippet,
+         ts_rank(n.search, q.ts) as rank,
+         coalesce(n.updated_at, n.created_at) as at
     from public.sticky_notes n, q
    where n.project_id = p_project_id and n.search @@ q.ts
 
@@ -147,7 +150,7 @@ as $fn$
     from public.documents d, q
    where d.project_id = p_project_id and d.search @@ q.ts
 
-  order by rank desc, at desc nulls last
+  order by 6 desc, 7 desc nulls last   -- rank, then recency. Positions, per the note above.
   limit 200;
 $fn$;
 
