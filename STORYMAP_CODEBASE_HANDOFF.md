@@ -3348,7 +3348,11 @@ with one policy each (§4). The function was never exposed. Recording this becau
 was sound and the conclusion was wrong, and the next person is better served by knowing which
 was which than by only seeing the fix.
 
-`20260827_search_ownership.sql` (written, not run) is therefore **belt-and-braces, not a fix**.
+`20260827_search_ownership.sql` (**applied 2026-08-27**) is therefore **belt-and-braces, not a
+fix**. Unlike the pages migration, this one is recorded on the report of the run rather than
+verified by probe: it replaces a function body, and a function body is not readable with the
+anon key. `select pg_get_functiondef('public.search_everything(uuid,text)'::regprocedure) like
+'%owns%';` would settle it from the dashboard if it ever matters.
 It stops the function depending on that answer at all.
 One `owns` CTE — `projects.id = p_project_id and projects.user_id = auth.uid()` — evaluated
 once, with every branch gated on it. On today's database the test is redundant. It is

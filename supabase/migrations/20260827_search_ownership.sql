@@ -1,4 +1,4 @@
--- search_everything(): make the function safe on its own terms. NOT APPLIED -- for review.
+-- search_everything(): make the function safe on its own terms. APPLIED 2026-08-27.
 --
 -- BELT-AND-BRACES, NOT A FIX. Read that first, so this file is not mistaken for a patch to a
 -- live hole. There was no hole.
