@@ -236,6 +236,18 @@ export const AGENTS: Record<AgentName, AgentConfig> = {
     system: DAEDALUS_SYSTEM,
   },
 
+  // LIFECYCLE, and the one way Arachne differs beyond §16's four tests: it is not selectable.
+  // Icarus and Daedalus are conversations the writer opens and chooses between. Arachne is
+  // bound to a surface -- it comes online when the braid is open and aiEnabled is on, and is
+  // otherwise not there at all, because it has nothing to say about a chapter being read or a
+  // document being edited. Its only subject is the structure the braid draws.
+  //
+  // Online means AVAILABLE, not active. It must not start proposing because the braid was
+  // opened, must not accumulate pending proposals, and must not be counted anywhere. The
+  // braid is a surface the writer is meant to want to open; the moment it carries work
+  // outstanding it becomes one to avoid, which is the exact failure this line of work exists
+  // to undo.
+  //
   // Dormant like the other two, and additionally blocked on stage two and three existing:
   // Arachne transcribes decisions made in a stage-three session, and there are no such
   // sessions until there are pages to sort. Configured now because the design was settled

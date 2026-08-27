@@ -3635,6 +3635,34 @@ It does not, and should not:
 **Arachne owns what the braid draws. It does not own the drawing.** The braid has been
 finished for weeks; what is missing is not a view, it is the data.
 
+### 24.2b Lifecycle: bound to a surface, not selected from a list
+
+Icarus and Daedalus are conversations. You open the assistant panel, choose one, and ask it
+something. **Arachne is not selectable and has no on/off of its own.** It comes online when
+the braid is open and `aiEnabled` is on, and is otherwise simply not there. That is a fifth
+kind of difference on top of §16's four, and it follows from what it is for: it has nothing to
+say about a chapter you are reading or a document you are editing. Its only subject is the
+structure the braid draws.
+
+**Online means available, not active.** This is the same rule that governs Pages (§23.5) and it
+matters more here, because the braid is a surface the writer is supposed to want to open.
+Arachne must not begin proposing transcriptions because the braid was opened, must not
+accumulate pending proposals, and must not be counted anywhere. The moment the braid carries
+work outstanding, it becomes a thing to avoid opening — which is precisely the failure this
+whole line of work exists to undo.
+
+### 24.2c The braid needs no AI to draw itself
+
+Worth stating flatly, because the two are easy to conflate. Once plants, reveals and pairings
+exist as rows, the braid is deterministic geometry: chapters rank 1..N over `(book, act,
+order)` and every other coordinate derives from that ordinal (§22). Same input, same picture,
+every run. `graph/braid-3d.html` proves it — it renders the demo pack's 79 flags and 27
+subplots with no key, no network and no assistant.
+
+**There is a complete no-AI path from prose to a fully drawn braid**: flag in the editor, pair
+in the Loom, and it draws. Arachne buys speed on a day when forty things were recognised at
+once — not capability. Nothing in the braid is gated on a model, and nothing should become so.
+
 ### 24.3 The two halves
 
 **The core** — `graph/arachne.mjs`, pure functions, no I/O, 34 assertions in
