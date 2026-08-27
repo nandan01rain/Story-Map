@@ -3284,7 +3284,7 @@ read-only, quote required.
 
 **Only stage one is built.** Nothing downstream should start before this is in daily use.
 
-### 23.3 The two schema questions, and why neither got a direct answer
+### 23.3 The two schema questions — ANSWERED 2026-08-27
 
 The brief asked for both to be verified against the live schema before anything was built.
 Neither is readable with the access this repo has:
@@ -3304,19 +3304,27 @@ What the anon key *can* establish, and did:
 - Anon selects return `[]` rather than an error, consistent with RLS being on and correct, and
   equally consistent with a table anon was never granted.
 
-So both questions are settled by design instead of by inspection:
+So both were settled by design rather than by inspection, and then **read directly from
+`information_schema` once the dashboard was open**. Both designs held, and one of them mattered
+more than it looked:
 
-- **Long-form content** — `20260826_pages.sql` runs `alter column content type text`
-  unconditionally. `text → text` is a no-op; `varchar(n) → text` is binary-coercible and
-  rewrites nothing. Running it costs less than knowing.
-- **`user_id` NOT NULL** — the migration does *not* touch it. Every insert path in both apps
-  already sets `user_id` from the session, and the pages surfaces do the same, so the
-  constraint cannot be reached whichever way it is declared. Relaxing a NOT NULL on a live
-  ownership column to dodge a question that never fires is the wrong trade.
+| question | answer | consequence |
+| --- | --- | --- |
+| `content` type | **`text`**, `character_maximum_length` null | The unconditional `alter column content type text` was a no-op, as intended. No length cap; a drafted scene of any size is safe. |
+| `content` nullability | **NOT NULL** — not a question anyone thought to ask | The migration's `set default ''` is load-bearing, not cosmetic. An insert omitting content would fail without it. |
+| `user_id` nullability | **still NOT NULL** | The open question from the multi-project migration was **live, not theoretical**. An insert omitting `user_id` fails. Both apps set it from the session, which is exactly why the migration left the constraint alone instead of relaxing it. |
+
+**RLS on `sticky_notes`: enabled, one policy** (`relrowsecurity = true`, one row in
+`pg_policies`). This closes a question §4 has carried as open since before this build — for
+this table. The policy's *definition* has not been read, so "a policy exists and RLS is on" is
+the established fact; "the policy is correct" is not. §4's broader warning stands for the other
+tables.
 
 **Correction to the brief:** it stated `sticky_notes` is "already project-scoped with correct
-RLS". `project_id` scoping is real; the RLS half is **not established** — see §4. The migration
-reports the state with `raise notice` rather than enabling anything blind.
+RLS". That turned out to be right on both halves, but it was **not established at the time it
+was asserted** — no policy definition exists anywhere in this repo, and it was verified only
+after the fact. The migration reports the state with `raise notice` rather than enabling
+anything blind, which is still the correct posture for a file that ships to an unknown database.
 
 ### 23.4 Schema — `supabase/migrations/20260826_pages.sql` (APPLIED 2026-08-27)
 

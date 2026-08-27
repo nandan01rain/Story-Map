@@ -5,21 +5,20 @@
 -- deposited without deciding what it was. A page IS a sticky note that got long. Nothing
 -- here renames the table, because renaming it would break two shipped apps for no gain.
 --
--- Two facts about the live table this file has to cope with, neither of which the anon key
--- can read (see the report accompanying this migration):
+-- Two facts about the live table this file was written blind against, because the anon key
+-- cannot read either one. Both have since been read from information_schema and both held:
 --
---   * content's declared type. Column probes confirm content exists and is a string type,
---     not jsonb -- but text vs varchar(n) is invisible over PostgREST. A drafted scene runs
---     thousands of words, so a length cap would silently truncate the single most valuable
---     thing this build exists to protect. Rather than ask, statement 1 below settles it:
---     text -> text is a no-op, varchar(n) -> text is binary-coercible and rewrites nothing.
---     Running it is cheaper than knowing.
+--   * content is text, with no length cap, so statement 1 was a no-op as intended. It stays
+--     unconditional: this file has to be correct on a database it cannot inspect, and
+--     varchar(n) -> text is binary-coercible and rewrites nothing anyway.
 --
---   * whether user_id is still NOT NULL after the multi-project migration. This file does
---     NOT relax it. Every insert path in both apps already sets user_id from the session,
---     and the pages surface does the same, so the constraint cannot be reached whichever
---     way it is declared. Dropping a NOT NULL on a live ownership column to sidestep a
---     question that never fires is the wrong trade.
+--     content is also NOT NULL, which nobody thought to ask. That makes the default below
+--     load-bearing rather than tidy -- an insert omitting content fails without it.
+--
+--   * user_id is STILL NOT NULL after the multi-project migration, so that was a live
+--     hazard and not a theoretical one. This file does not relax it. Every insert path in
+--     both apps sets user_id from the session, so the constraint is never reached; dropping
+--     a NOT NULL on a live ownership column to dodge that would have been the wrong trade.
 --
 -- Nothing here deletes, consumes or moves a row. Promotion copies; status is a marker.
 
@@ -160,14 +159,10 @@ comment on function public.search_everything(uuid, text) is
   'words, "quoted phrases", or -excluded -- and get [] rather than an exception when the '
   'query is nonsense, which is what a search box wants.';
 
--- 5. RLS. The handoff doc lists sticky_notes policies as UNVERIFIED -- no policy definition
---    for it exists anywhere in this repo, and the anon key cannot read pg_policy. Anon
---    selects do come back empty rather than erroring, which is consistent with RLS being on
---    and correct, and equally consistent with a table anon was simply never granted.
---
---    So this block only reports. Enabling RLS here would be the one statement in this file
---    that changes who can read existing rows, and that is not a thing to do blind inside a
---    migration about note-taking.
+-- 5. RLS. Since verified on this project: relrowsecurity is true and one policy exists. The
+--    block stays, because this file has to be correct on a database it cannot inspect, and
+--    enabling RLS blind would be the one statement here that changes who can read existing
+--    rows -- not a thing to do inside a migration about note-taking. It only reports.
 do $$
 begin
   if not exists (
