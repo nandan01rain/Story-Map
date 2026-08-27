@@ -1,5 +1,10 @@
 -- search_everything(): make the function safe on its own terms. NOT APPLIED -- for review.
 --
+-- SINCE VERIFIED: chapters, scenes, documents, projects and sticky_notes all have RLS on with
+-- one policy each, so the exposure described below did not exist. This file is belt-and-braces,
+-- not a fix. It is still worth running: it makes the function correct by construction rather
+-- than correct given four policy definitions nobody has read.
+--
 -- The function takes a project id from the caller and is security invoker, so what stops
 -- someone passing a project id that is not theirs is entirely whatever RLS the four
 -- underlying tables happen to have. That is a real dependency and it was never checked.

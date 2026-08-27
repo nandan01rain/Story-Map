@@ -296,14 +296,27 @@ live database rather than inferred from client code.
 ### Authentication **[VERIFIED from code]**
 Supabase Auth, email+password, no third-party providers wired up in the client.
 
-### RLS policies **[UNVERIFIED / hosted-only]**
-Every query in the client filters by `user_id`/`project_id` manually, which
-strongly implies RLS is expected to enforce the same boundary server-side, but
-**no policy definitions exist anywhere in this repo** to confirm what's
-actually enforced versus merely assumed by client-side filtering. **Treat this
-as a real security question to verify, not a settled fact** — if RLS is
-missing or misconfigured on the live project, the manual `.eq('user_id', ...)`
-filters are the *only* thing preventing cross-account data access.
+### RLS policies **[VERIFIED 2026-08-27 for five tables — see §23.3]**
+Every query in the client filters by `user_id`/`project_id` manually, and **no
+policy definitions exist anywhere in this repo**, so what follows was read off
+the live project rather than from source.
+
+`chapters`, `scenes`, `documents`, `projects` and `sticky_notes` **all have RLS
+enabled with exactly one policy each**. The one policy read in full is
+`sticky_notes`': `auth.uid() = user_id`, `ALL`, on both `qual` and `with_check`.
+The other four match it in shape (one policy, `ALL`) but their definitions have
+not been read.
+
+So the old warning here — that the manual filters might be the *only* thing
+preventing cross-account access — is **resolved for these five tables**.
+Cross-account isolation is enforced server-side.
+
+**What is not resolved**: that policy is **user-scoped, not project-scoped**.
+Project separation really is a client-side convention with no database boundary
+behind it, exactly as the sentence above feared for *accounts*. It is harmless
+today (one writer, one account) and it is the assumption to revisit before
+anything is ever shared or multi-user. Tables outside this five — the graph
+tables, `project_settings`, `trash`, `health_marks` — remain unread.
 
 ### Migrations / schema changes known from session history **[SESSION]**
 - `bookmarks` column added to `project_settings` via a manual `ALTER TABLE`
@@ -3325,18 +3338,23 @@ database boundary — §4 says the manual filters "strongly imply" RLS enforces 
 server-side, and this is the proof that it does not. Harmless with one writer and one account;
 it is the assumption to remember before anything is ever shared.
 
-**Which turned out to matter for `search_everything()`.** The function takes a project id from
+**Which raised a question about `search_everything()`.** The function takes a project id from
 the caller and is `security invoker`, so the only thing stopping a caller passing a project id
-that is not theirs is whatever RLS the four underlying tables happen to have — and `chapters`,
-`scenes` and `documents` have never been read at all. If any of them lacks RLS, the function is
-a way to read another account's prose by guessing a uuid: a narrower door than a bare select,
-but a door, and one this build opened.
+that is not theirs is whatever RLS the four underlying tables happen to have — and at the time
+the function shipped, `chapters`, `scenes` and `documents` had never been read at all.
 
-`20260827_search_ownership.sql` (written, not run) stops the function depending on that answer.
+**They were then read, and the worry did not materialise**: all four tables have RLS enabled
+with one policy each (§4). The function was never exposed. Recording this because the reasoning
+was sound and the conclusion was wrong, and the next person is better served by knowing which
+was which than by only seeing the fix.
+
+`20260827_search_ownership.sql` (written, not run) is therefore **belt-and-braces, not a fix**.
+It stops the function depending on that answer at all.
 One `owns` CTE — `projects.id = p_project_id and projects.user_id = auth.uid()` — evaluated
-once, with every branch gated on it. Where the tables' RLS is correct the test is redundant;
-where it is absent the test is the only thing there. A search function should not be the most
-privileged path into the data. The function body is otherwise byte-for-byte the applied version;
+once, with every branch gated on it. On today's database the test is redundant. It is
+kept because a search function should not be the most privileged path into the data, and because
+"redundant given four policies nobody has read the definitions of" is a weaker guarantee than
+one `where exists` that is true by construction. The function body is otherwise byte-for-byte the applied version;
 the diff is the CTE plus one `and exists (select 1 from owns)` per branch, and was checked as
 such rather than asserted.
 
