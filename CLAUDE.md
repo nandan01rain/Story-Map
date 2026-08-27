@@ -183,16 +183,20 @@ chapter boundaries for pacing).
   requirements (with deferred-state support — mark a requirement "not due
   yet" to silence its flag without deleting it) and orphan plants (sown,
   never claimed).
-- **📖 Plant Ledger**: every Plant annotation, saga-ordered, each showing
-  paid/open status via the hard-link system.
+- ~~**📖 Plant Ledger**~~ — **removed 2026-08-27.** The braid's Subplots layer
+  draws every grouping and its "Still open" layer draws the unpaid ones, off the
+  same `pairs` data and the same paid/open rule. A saga-ordered list of the same
+  thing was a second window onto one dataset.
 - **🧵 Thread view** (per-chapter): one level up (what this chapter depends
   on, and where that's satisfied) and one level down (what this chapter
   plants, and who downstream claims it). Uses the scene requires/provides
   system, not the annotation-link system — broader net, fuzzier match.
-- **🧭 Mythic Threads**: Notes tagged with a free-text thread name (e.g.
-  "Sita–Zia") gather into a browsable, saga-ordered list of "touches" —
-  built for parallels that recur many-to-many across the whole saga rather
-  than a single plant/reveal pair.
+- **🧭 Mythic threads**: Notes tagged with a free-text thread name (e.g.
+  "Sita–Zia"), for parallels that recur many-to-many across the saga rather than
+  as a single plant/reveal pair. **Tagging still happens in the editor** — that is
+  how a thread is created at all, and the thread-name datalist is unchanged. The
+  separate browser was **removed 2026-08-27**: the braid has a Mythic threads
+  layer, and arcs a thread symmetrically because it recurs rather than resolves.
 - **👁 POV tracker**: free-text POV field per scene, autocomplete from
   existing names, index of all POV characters with scene counts, full-screen
   browser of every scene in a given POV across the saga.

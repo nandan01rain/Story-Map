@@ -3808,3 +3808,41 @@ coordinate falls out of one ordinal; a tree would cost that.
   dormant (§15).
 - **Plants, reveals and pairings: never automatic.** That is the thesis (§23.1): presence is in
   the text, structure is not.
+
+
+## 26. PRUNING THE PWA'S DRAWER (2026-08-27)
+
+The braid subsumed several surfaces when it landed and none of them were taken out at the
+time, so the drawer carried three ways to look at one dataset.
+
+**Removed** — buttons, panels, CSS and now-unreachable functions:
+
+| gone | what covers it |
+| --- | --- |
+| Plant Ledger (`ledger-btn`, `#ledger-view`, `renderLedger`, `allPlantAnnotationsInOrder`) | the braid's **Subplots** layer, plus **Still open** for unpaid plants — same `pairs` data, same rule |
+| Mythic Threads browser (`mythic-index-btn`, `#mythic-index-modal`, `#mythic-browser`, `renderMythicIndex`, `openMythicBrowser`, `threadIndex`) | the braid's **Mythic threads** layer |
+
+~10.7 KB out of `index.html`.
+
+**Renamed**: `web-btn` and its panel said "Character Web". The web was replaced by the braid
+on 2026-08-26 and that button has opened `braid.html` ever since — only the label was left
+behind.
+
+**Deliberately kept, and why the tempting deletions were not made:**
+
+- **Mythic thread *creation* is untouched.** `allThreadTouches()` and
+  `refreshThreadSuggestions()` stay, along with the `thread-suggestions` datalist: tagging a
+  note with a thread name in the editor is how a thread comes to exist at all. Only the
+  browser went. Removing viewing must never remove authoring.
+- **Continuity Check stays.** CLAUDE.md says it is "Icarus's job now" — but Icarus is dormant
+  and undeployed, so deleting the checker would remove a capability that works today in favour
+  of one that does not run. It goes when Icarus runs, not before.
+- **POV stays.** The braid shows a scene's POV in its detail panel (`told by`), but has no POV
+  *index* — no list of POV characters with scene counts, no browser of every scene in one POV
+  across the saga. That is not covered, so it is not redundant.
+
+**Verified**: the app boots; a scan for `getElementById` calls naming elements that no longer
+exist returns none; `node --check` clean on all five script blocks; the drawer and sidebar read
+correctly. That scan mattered — the first pass left
+`getElementById('mythic-browser-close').addEventListener(...)` behind, which runs at top level
+and would have thrown on load, taking the whole app with it.

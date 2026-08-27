@@ -268,29 +268,14 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 }
 .theme-choice.active{border-color:var(--gold);color:var(--gold);background:rgba(198,154,58,0.14);}
 
-#ledger-view, #thread-view, #web-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
-#ledger-view.show, #thread-view.show, #web-view.show{display:flex;}
+#thread-view, #web-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
+#thread-view.show, #web-view.show{display:flex;}
 /* The renderer is one shared document (character-web.html), embedded rather than
    reimplemented -- the phone loads the same markup into a WebView. Its own dark canvas is
    #0d1110, deliberately a shade off the app's --bg, so the graph reads as a surface rather
    than as a hole in the page. */
 #web-frame{flex:1;border:0;width:100%;background:#0d1110;}
 #web-view .web-note{padding:10px 14px;color:var(--text-dim);font:12px/1.5 var(--font-body);border-top:1px solid var(--border);}
-#ledger-body{flex:1;overflow-y:auto;padding:20px 24px 60px;}
-.ledger-row{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-top:1px solid rgba(255,255,255,0.06);width:100%;max-width:720px;margin:0 auto;}
-.ledger-row:first-child{border-top:none;}
-.ledger-plant{flex:1;cursor:pointer;}
-.ledger-plant:hover .ledger-snippet{color:var(--gold);}
-.ledger-snippet{font-family:var(--font-literary);font-style:italic;font-size:14.5px;color:var(--text);}
-.ledger-loc{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:4px;}
-.ledger-status{flex-shrink:0;width:220px;text-align:right;}
-.ledger-status.paid{color:#7ab35f;}
-.ledger-status.open{color:var(--gold);}
-.ledger-status .ls-jump{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;}
-.ledger-status .ls-jump:hover{color:var(--text);}
-.ledger-edit-btn{background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;padding:2px 4px;align-self:center;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;}
-.ledger-edit-btn:hover{color:var(--gold);}
-
 #thread-view-body{flex:1;overflow-y:auto;padding:24px;}
 .thread-section{max-width:700px;margin:0 auto 32px;}
 .thread-section-head{font-family:var(--font-heading);font-size:14px;color:var(--gold);letter-spacing:.03em;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
@@ -301,23 +286,6 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .thread-item-mark.ok{color:#7ab35f;} .thread-item-mark.bad{color:var(--text-dim);}
 .thread-item-text{font-size:13px;line-height:1.5;}
 .thread-item-loc{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:3px;}
-
-.mythic-index-row{padding:12px 22px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px;box-sizing:border-box;}
-.mythic-index-row:hover{background:rgba(255,255,255,0.02);}
-.mythic-index-row .mir-name{flex:1;font-family:var(--font-literary);font-size:14.5px;color:#c68a5a;}
-.mythic-index-row .mir-count{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);background:var(--panel-2);border-radius:9px;padding:2px 9px;}
-#mythic-browser{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
-#mythic-browser.show{display:flex;}
-#mythic-browser-body{flex:1;overflow-y:auto;padding:20px 24px 60px;}
-.mythic-touch{display:flex;gap:14px;padding:18px 0;border-top:1px solid rgba(255,255,255,0.06);width:100%;max-width:680px;margin:0 auto;cursor:pointer;}
-.mythic-touch:first-child{border-top:none;}
-.mythic-touch:hover .mythic-touch-snippet{color:#c68a5a;}
-.mythic-touch-num{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);flex-shrink:0;width:24px;padding-top:2px;}
-.mythic-touch-snippet{font-family:var(--font-literary);font-style:italic;font-size:14.5px;color:var(--text-dim);}
-.mythic-touch-note{font-size:13px;color:var(--text);margin-top:6px;}
-.mythic-touch-loc{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:6px;}
-.mythic-touch-edit{background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;padding:2px 4px;align-self:flex-start;margin-top:2px;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;}
-.mythic-touch-edit:hover{color:var(--gold);}
 
 #trash-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
 #trash-view.show{display:flex;}
@@ -1965,10 +1933,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
         <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
         <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-nib"></use></svg> Continuity Check</button>
-        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> Character Web</button>
-        <button class="btn hdr-collapsible" id="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Ledger</button>
+        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> The Braid</button>
         <button class="btn hdr-collapsible" id="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
-        <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-globe"></use></svg> Mythic Threads</button>
         <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
       </div>
 
@@ -2035,9 +2001,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
     <div class="sb-group">Analysis</div>
     <button class="sb-item" data-click="continuity-btn"><svg class="nav-icon"><use href="#icon-chain"></use></svg> Continuity</button>
-    <button class="sb-item" data-click="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Plant Ledger</button>
     <button class="sb-item" data-click="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
-    <button class="sb-item" data-click="mythic-index-btn"><svg class="nav-icon"><use href="#icon-globe"></use></svg> Mythic Threads</button>
     <button class="sb-item" data-click="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> Point of View</button>
     <button class="sb-item" data-click="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
 
@@ -2304,14 +2268,6 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   <div id="pov-browser-body"></div>
 </div>
 
-<div id="ledger-view">
-  <div class="editor-head-style">
-    <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">📖 The Plant Ledger — every plant, saga-wide</div>
-    <button class="btn small btn-x" id="ledger-close" title="Close">&#215;</button>
-  </div>
-  <div id="ledger-body"></div>
-</div>
-
 <div id="thread-view">
   <div class="editor-head-style">
     <div class="et" id="thread-view-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
@@ -2322,27 +2278,11 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
 <div id="web-view">
   <div class="editor-head-style">
-    <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">&#128376; Character Web</div>
+    <div class="et" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;">&#129525; The Braid</div>
     <button class="btn small btn-x" id="web-close" title="Close">&#215;</button>
   </div>
   <iframe id="web-frame" title="The Braid" src="braid.html"></iframe>
   <div class="web-note" id="web-note" style="display:none;"></div>
-</div>
-
-<div class="modal" id="mythic-index-modal">
-  <div class="modal-panel" style="max-width:460px;width:min(95vw,460px);">
-    <h2>Mythic Threads <button id="mythic-index-modal-close">×</button></h2>
-    <div style="padding:8px 22px 4px;font-size:12px;color:var(--text-dim);">Recurring parallels and echoes — tag any Note with a thread name and it gathers here, across every book.</div>
-    <div class="modal-list" id="mythic-index-list" style="margin-top:8px;"></div>
-  </div>
-</div>
-
-<div id="mythic-browser">
-  <div class="editor-head-style">
-    <div class="et" id="mythic-browser-title" style="font-family:var(--font-heading);font-size:16px;letter-spacing:.02em;flex:1;"></div>
-    <button class="btn small btn-x" id="mythic-browser-close" title="Close">&#215;</button>
-  </div>
-  <div id="mythic-browser-body"></div>
 </div>
 
 <div id="trash-view">
@@ -6237,14 +6177,6 @@ document.getElementById('pov-browser-close').addEventListener('click', () => {
 });
 
 /* ---------- PLANT LEDGER ---------- */
-function allPlantAnnotationsInOrder(){
-  const list = allPlantAnnotations();
-  return list.sort((a,b) =>
-    (a.chapter.book - b.chapter.book) ||
-    (a.chapter.act - b.chapter.act) ||
-    (a.chapter.order - b.chapter.order)
-  );
-}
 function findRevealForPlant(chapterId, annotationId){
   /* Through groupings, which is what the character web already reads -- so the Ledger and
      the web now answer "is this paid?" with one rule instead of two. A plant may be claimed
@@ -6264,38 +6196,6 @@ function findRevealForPlant(chapterId, annotationId){
     (x.chapter.order - y.chapter.order)
   );
   return claims[0];
-}
-function renderLedger(){
-  const body = document.getElementById('ledger-body');
-  const plants = allPlantAnnotationsInOrder();
-  if(plants.length === 0){
-    body.innerHTML = '<div class="anno-empty" style="padding:60px 20px;text-align:center;font-size:14px;">No plants flagged yet. Select text in any chapter\'s editor and use the 🌱 Plant button.</div>';
-    return;
-  }
-  body.innerHTML = plants.map(p => {
-    const reveal = findRevealForPlant(p.chapter.id, p.annotation.id);
-    const statusHtml = reveal
-      ? `<span class="ls-jump" data-jump-chapter="${reveal.chapter.id}" data-jump-anno="${reveal.annotation.id}">✓ paid off in ${escapeHtml(reveal.chapter.title)}</span>`
-      : `— still open`;
-    return `
-    <div class="ledger-row">
-      <div class="ledger-plant" data-jump-chapter="${p.chapter.id}" data-jump-anno="${p.annotation.id}">
-        <div class="ledger-snippet">"${escapeHtml(truncate(p.annotation.text, 100))}"</div>
-        <div class="ledger-loc">${BOOKS[p.chapter.book]} · ${escapeHtml(chapterLabel(p.chapter.book,p.chapter.act))} · ${escapeHtml(p.chapter.title)}<span class="ledger-label-wrap" data-label-container>${p.annotation.label?' — '+escapeHtml(p.annotation.label):''}</span></div>
-      </div>
-      <button class="ledger-edit-btn" data-edit-annotation="${p.annotation.id}" data-edit-chapter="${p.chapter.id}" title="Edit label">✎</button>
-      <div class="ledger-status ${reveal?'paid':'open'}">${statusHtml}</div>
-    </div>`;
-  }).join('');
-  body.querySelectorAll('[data-jump-chapter]').forEach(el => {
-    el.addEventListener('click', () => {
-      document.getElementById('ledger-view').classList.remove('show');
-      jumpToAnnotationInEditor(el.dataset.jumpChapter, parseInt(el.dataset.jumpAnno));
-    });
-  });
-  body.querySelectorAll('[data-edit-annotation]').forEach(el => {
-    wireLabelEditButton(el, el.closest('.ledger-row'), el.dataset.editChapter, parseInt(el.dataset.editAnnotation), renderLedger);
-  });
 }
 /* ---------- DAY / NIGHT ----------
    Three preferences, one resolved value. 'auto' follows the DEVICE CLOCK -- 6am to 6pm reads
@@ -6473,14 +6373,6 @@ document.getElementById('web-close').addEventListener('click', () => {
   document.getElementById('web-view').classList.remove('show');
 });
 
-document.getElementById('ledger-btn').addEventListener('click', () => {
-  renderLedger();
-  document.getElementById('ledger-view').classList.add('show');
-});
-document.getElementById('ledger-close').addEventListener('click', () => {
-  document.getElementById('ledger-view').classList.remove('show');
-});
-
 /* ---------- THREAD VIEW (per-chapter, one level up/down) ---------- */
 function findProvidersFor(requireText){
   const reqWords = new Set(normalize(requireText));
@@ -6587,79 +6479,6 @@ function refreshThreadSuggestions(){
   const names = [...new Set(allThreadTouches().map(t=>t.annotation.thread.trim()))].sort();
   document.getElementById('thread-suggestions').innerHTML = names.map(n=>`<option value="${escapeAttr(n)}">`).join('');
 }
-function threadIndex(){
-  const counts = {};
-  allThreadTouches().forEach(t => {
-    const name = t.annotation.thread.trim();
-    counts[name] = (counts[name]||0) + 1;
-  });
-  return Object.entries(counts).sort((a,b) => b[1]-a[1]);
-}
-function renderMythicIndex(){
-  const list = document.getElementById('mythic-index-list');
-  const idx = threadIndex();
-  if(idx.length === 0){
-    list.innerHTML = '<div class="modal-empty">No threads yet. Flag a Note in the editor and give it a thread name to start one.</div>';
-    return;
-  }
-  list.innerHTML = idx.map(([name, count]) => `
-    <div class="mythic-index-row" data-thread="${escapeAttr(name)}">
-      <span class="mir-name">${escapeHtml(name)}</span>
-      <span class="mir-count">${count} touch${count===1?'':'es'}</span>
-    </div>`).join('');
-  list.querySelectorAll('[data-thread]').forEach(el => {
-    el.addEventListener('click', () => {
-      document.getElementById('mythic-index-modal').classList.remove('show');
-      openMythicBrowser(el.dataset.thread);
-    });
-  });
-}
-document.getElementById('mythic-index-btn').addEventListener('click', () => {
-  renderMythicIndex();
-  document.getElementById('mythic-index-modal').classList.add('show');
-});
-document.getElementById('mythic-index-modal-close').addEventListener('click', () => {
-  document.getElementById('mythic-index-modal').classList.remove('show');
-});
-document.getElementById('mythic-index-modal').addEventListener('click', e => {
-  if(e.target.id === 'mythic-index-modal') e.target.classList.remove('show');
-});
-
-function openMythicBrowser(threadName){
-  const target = threadName.trim().toLowerCase();
-  document.getElementById('mythic-browser-title').textContent = `🧭 ${threadName} — every touch, saga order`;
-  const touches = allThreadTouches()
-    .filter(t => t.annotation.thread.trim().toLowerCase() === target)
-    .sort((a,b) => (a.chapter.book-b.chapter.book) || (a.chapter.act-b.chapter.act) || (a.chapter.order-b.chapter.order));
-
-  const body = document.getElementById('mythic-browser-body');
-  body.innerHTML = touches.length === 0
-    ? `<div class="anno-empty" style="padding:60px 20px;text-align:center;font-size:14px;">No touches found for this thread.</div>`
-    : touches.map((t,i) => `
-      <div class="mythic-touch" data-jump-chapter="${t.chapter.id}" data-jump-anno="${t.annotation.id}">
-        <div class="mythic-touch-num">${i+1}.</div>
-        <div>
-          <div class="mythic-touch-snippet">${t.annotation.text ? `"${escapeHtml(t.annotation.text)}"` : '🌐 General note — whole chapter'}</div>
-          <div class="mythic-touch-note-wrap" data-label-container>${t.annotation.label ? `<div class="mythic-touch-note">${escapeHtml(t.annotation.label)}</div>` : ''}</div>
-          <div class="mythic-touch-loc">${BOOKS[t.chapter.book]} · ${escapeHtml(chapterLabel(t.chapter.book,t.chapter.act))} · ${escapeHtml(t.chapter.title)}</div>
-        </div>
-        <button class="mythic-touch-edit" data-edit-annotation="${t.annotation.id}" data-edit-chapter="${t.chapter.id}" title="Edit label">✎</button>
-      </div>`).join('');
-  body.querySelectorAll('[data-jump-chapter]').forEach(el => {
-    el.addEventListener('click', () => {
-      document.getElementById('mythic-browser').classList.remove('show');
-      jumpToAnnotationInEditor(el.dataset.jumpChapter, parseInt(el.dataset.jumpAnno));
-    });
-  });
-  body.querySelectorAll('[data-edit-annotation]').forEach(el => {
-    wireLabelEditButton(el, el.closest('.mythic-touch'), el.dataset.editChapter, parseInt(el.dataset.editAnnotation), () => openMythicBrowser(threadName));
-  });
-  document.getElementById('mythic-browser').classList.add('show');
-}
-document.getElementById('mythic-browser-close').addEventListener('click', () => {
-  document.getElementById('mythic-browser').classList.remove('show');
-});
-
 /* ---------- BOOK COMPILER (shared by the Reader and the eBook export) ---------- */
 function compileBook(bookIndices){
   const title = currentProjectName || 'Untitled Project';
