@@ -3439,7 +3439,32 @@ and documents. The PWA's snippet path re-escapes `ts_headline` output and restor
 `<mark>` pair — server output into `innerHTML` otherwise. Documents are now searchable on mobile
 for the first time (they previously had nowhere to open).
 
-### 23.7 Verified against the live database (2026-08-27, post-migration)
+### 23.7 Verified end to end, signed in, against real data (2026-08-27)
+
+The PWA, running locally against the live Supabase project, with a real account. This is the
+path every earlier check could not reach: everything before this ran as anon, which RLS
+correctly shows nothing to, so no write had ever actually executed.
+
+Walked and confirmed:
+
+1. **Existing sticky notes appear as pages.** The old Margin rows read straight out as a stack,
+   titled by first line — no migration of data, no conversion step, because they were always
+   the same rows.
+2. **A blank page opens with the cursor in it**, no title field and no save button.
+3. **The page appears in the stack**, top of the list, titled by its first line.
+4. **Reopening it returns the text exactly** — the round trip that had never run.
+5. **The actions sheet is live**: type chips, promote, status. It did **not** show the
+   `20260826_pages.sql` warning, which independently confirms the client's schema detection
+   agrees with the migrated database.
+6. **Search found the page by a word that existed only inside it**, labelled `Page`, highlighted.
+   That is `search_everything()` executing for the first time against real content.
+
+**Still not exercised live: promotion.** Deliberately — it creates a real chapter and a real
+scene in whichever book is picked, and the first run of that belongs in a scratch project, not
+in Saga-01. Its data behaviour *was* asserted in a browser against stubbed persistence (§23.7b),
+so what is unverified is the Supabase write, not the copy-not-move logic.
+
+### 23.7b Verified against the live database (2026-08-27, post-migration)
 
 Probed directly over REST after the migration ran, so these are facts about the running project
 rather than about the file:
@@ -3455,7 +3480,7 @@ rather than about the file:
   notes/updated_at`, `scenes.title/summary/notes/updated_at/chapter_id`, `documents.title/
   content/updated_at`), so the `rank` failure was the only one.
 
-### 23.7b Verified before that, in code
+### 23.7c Verified before any of that, in code
 
 - PWA inline JS parses (`node --check` over all five script blocks, exit 0); mobile `tsc
   --noEmit` clean.
