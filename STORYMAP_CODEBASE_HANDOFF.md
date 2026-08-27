@@ -3297,6 +3297,96 @@ read-only, quote required.
 
 **Only stage one is built.** Nothing downstream should start before this is in daily use.
 
+### 23.2b Stage two, designed 2026-08-27 — NOT BUILT
+
+Recorded now because the decisions were made now, and because the reason stage two is not
+being built today is that it would repeat the exact mistake that produced the empty braid:
+tooling ahead of the material it operates on. **Do not start this until there is a pile of
+pages to sort.**
+
+#### What Daedalus reads
+
+**The prose, not just the bibles — and this is already true.** `content_chunks.source_type` is
+`check (source_type in ('chapter', 'document'))`, and `match_chunks()` takes an optional
+`p_source_type` filter rather than being scoped to documents. Chapters are already in the
+retrieval corpus. This is a constraint to preserve as the corpus grows, not a gap to fill.
+
+It matters most for contradiction checking, where **the bible is usually the stale one**. The
+prose is what actually happened; a character bible is a summary of intent that drifts behind it.
+Any check that treats the bible as the authority and the prose as the candidate has it backwards.
+
+**The gap this build created**: that `check` has exactly two values, so **pages cannot be indexed
+at all**. Stage two *is* Daedalus reading a month of pages. Widening `source_type` to admit
+`page` is the first prerequisite of stage two — before the recall mode, before anything.
+
+#### Append-and-tidy for canon documents
+
+The workflow: a new arc or development occurs for a character, you open their bible and **type
+the point in raw** — no patch format, no placement, no organisation. Later, it gets cleaned and
+merged in properly.
+
+**This is Pages for canon.** Identical shape: deposit with no structure, recognise on a
+deliberate day. It should therefore inherit §23.5's rules rather than inventing new ones —
+nothing deleted, prior text kept, and no nagging.
+
+**The split is not a choice; the existing contract already decides it** (§15, §16):
+
+- **Icarus detects.** Does this addition contradict the prose or the existing bible? Read-only,
+  claim-and-evidence, quote required for every finding. Icarus **cannot write prose at all** —
+  that is constitutive, not a limitation to work around — so it cannot own the append.
+- **Daedalus writes.** Cleaning the raw text, choosing where in the document it belongs, merging
+  it into the existing structure. It is already the agent permitted to propose document edits.
+- **The writer accepts.** This is §15's already-scoped, still-unbuilt **proposal/review queue**:
+  canon edits arrive as a diff to accept, never as a silent write. What is described here is the
+  missing half of that, not a new mechanism. A silent tidy of a canon document is the single
+  write in this system that could quietly corrupt the thing everything else is checked against.
+
+#### Forks
+
+When a contradiction cannot be resolved, it is **not** resolved. The addition and the existing
+canon coexist as A and B, both live, neither chosen, to be decided later on what serves the plot.
+**An unresolved fork is a legitimate resting state, not an outstanding task.**
+
+Two traps to design against before anyone builds this:
+
+1. **Extraction will eat both branches as fact.** PRESENT_AT / KNOWS_ABOUT / fact nodes read
+   canon documents as truth. A fork holding "he never knew" and "he knew all along" would emit
+   both into the graph — and Icarus would then cite the poisoned graph as evidence in its *next*
+   contradiction check. **An unresolved fork is explicitly not canon yet** and extraction must
+   refuse to ingest it, rather than merely down-weighting it.
+2. **Anchoring.** Inline markers in document text would inherit the annotation system's
+   relocation-by-substring fragility (§3.5) — edit the surrounding text enough and the marker
+   silently detaches. A fork is more load-bearing than an annotation and must not be stored more
+   fragilely than one.
+
+**And forks must never be counted.** The moment a badge appears saying "3 unresolved forks", the
+rule that makes this whole design work has been broken. See §23.5 and the closing rule of §23.2.
+
+#### Recording what became of a page
+
+Once a page has been read, sorted, or **used in the prose**, that has to be recorded, and such
+pages want to be separable from the ones nothing has happened to yet.
+
+What already exists after this build:
+
+- `status` — `raw | reviewed`. Covers *read through*.
+- `became_type` / `became_id` / `became_at` — covers *promoted into a chapter*, one landing.
+
+**What is missing is the common case.** Material usually reaches the prose without promotion:
+you read a page, and you rewrite its idea by hand into a chapter that already exists. Nothing
+records that today. `became_*` is singular and promotion-shaped, and it cannot express "this
+page's material ended up in chapters 12 and 31, neither created from it".
+
+The shape that fits is an additive `used_in` list — `[{type, id, at, note}]`, jsonb, alongside
+`became_*` rather than replacing it (which is live and populated). Consistent with `versions` and
+`annotations`. Filling it is stage four's job — Arachne transcribing decisions made in a session
+— though a manual "this one's in the prose already" is cheap and could come sooner.
+
+**Archived means filtered, never deleted.** §23.5 holds without exception: a used or sorted page
+stays exactly where it is and stays searchable. Hiding it from the default stack is a view. And
+the stack must not grow a count of what is left — the pile is not a queue, however tempting it
+becomes once pages start having states.
+
 ### 23.3 The two schema questions — ANSWERED 2026-08-27
 
 The brief asked for both to be verified against the live schema before anything was built.
