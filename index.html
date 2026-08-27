@@ -1154,6 +1154,46 @@ button.btn.primary#add-chapter-btn:hover{
   .node circle.halo{ pointer-events: all; }
 }
 
+/* ---------- THE LOOM (Arachne's manual half) ---------- */
+#loom{position:fixed;inset:0;background:var(--bg);z-index:89;display:none;flex-direction:column;}
+#loom.show{display:flex;}
+#loom-head{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+#loom-head h2{font-family:var(--font-heading);font-size:17px;margin:0;flex:1;color:var(--text);}
+#loom-body{flex:1;overflow-y:auto;padding:20px 24px 140px;max-width:860px;margin:0 auto;width:100%;}
+#loom .loom-section{font-family:var(--font-heading);font-size:13px;color:var(--gold);margin:22px 0 10px;}
+#loom .loom-section:first-child{margin-top:0;}
+#loom .loom-hint{font-family:var(--font-literary);font-style:italic;font-size:12.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;}
+#loom .grouping{border:1px solid var(--border);border-radius:6px;margin-bottom:10px;overflow:hidden;}
+#loom .grouping-head{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;background:var(--bg-alt);}
+#loom .grouping-head:hover{background:rgba(198,154,58,0.07);}
+#loom .g-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+#loom .g-dot.paid{background:#7ab35f;}
+#loom .g-dot.open{background:#c8913a;box-shadow:0 0 0 1px rgba(200,145,58,0.4);}
+#loom .g-label{flex:1;font-family:var(--font-literary);font-size:14px;color:var(--text);}
+#loom .g-label.unnamed{font-style:italic;color:var(--text-dim);}
+#loom .g-count{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);}
+#loom .grouping-body{display:none;padding:4px 13px 12px;}
+#loom .grouping.open-body .grouping-body{display:block;}
+#loom .flag{display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border-dim,rgba(74,58,34,0.3));}
+#loom .flag:last-child{border-bottom:none;}
+#loom .flag input{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--gold);}
+#loom .flag-text{flex:1;min-width:0;}
+#loom .flag-quote{font-family:var(--font-literary);font-style:italic;font-size:13px;color:var(--text);line-height:1.5;}
+#loom .flag-loc{font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);margin-top:3px;}
+#loom .flag-kind{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;padding:2px 6px;border-radius:3px;flex:none;margin-top:2px;}
+#loom .flag-kind.plant{color:#7ab35f;border:1px solid rgba(122,179,95,0.45);}
+#loom .flag-kind.reveal{color:#c9603f;border:1px solid rgba(201,96,63,0.45);}
+#loom .g-leave{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;flex:none;padding:0 4px;}
+#loom .g-leave:hover{color:#a52d1c;}
+#loom-actions{position:fixed;left:0;right:0;bottom:0;background:var(--bg-alt);border-top:1px solid var(--border);
+  padding:14px 24px;display:none;gap:10px;align-items:center;flex-wrap:wrap;z-index:1;}
+#loom-actions.show{display:flex;}
+#loom-actions .la-count{font-family:var(--font-mono);font-size:11px;color:var(--gold);}
+#loom-actions input[type=text]{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);border-radius:5px;padding:8px 10px;font-size:14px;}
+#loom-actions select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:8px;font-size:13px;}
+#loom-empty{color:var(--text-dim);font-family:var(--font-literary);font-style:italic;text-align:center;margin-top:50px;}
+
 /* ---------- PAGES (stage-one raw capture) ----------
    Formerly "The Margin", a board of tilted sticky cards. Same rows, same table; a
    different shape, because the same list now holds four-thousand-word drafted scenes
@@ -1927,6 +1967,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-nib"></use></svg> Continuity Check</button>
         <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> Character Web</button>
         <button class="btn hdr-collapsible" id="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Ledger</button>
+        <button class="btn hdr-collapsible" id="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
         <button class="btn hdr-collapsible" id="mythic-index-btn"><svg class="nav-icon"><use href="#icon-globe"></use></svg> Mythic Threads</button>
         <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
       </div>
@@ -1995,6 +2036,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="sb-group">Analysis</div>
     <button class="sb-item" data-click="continuity-btn"><svg class="nav-icon"><use href="#icon-chain"></use></svg> Continuity</button>
     <button class="sb-item" data-click="ledger-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Plant Ledger</button>
+    <button class="sb-item" data-click="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
     <button class="sb-item" data-click="mythic-index-btn"><svg class="nav-icon"><use href="#icon-globe"></use></svg> Mythic Threads</button>
     <button class="sb-item" data-click="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> Point of View</button>
     <button class="sb-item" data-click="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
@@ -2404,6 +2446,26 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
 <datalist id="pov-suggestions"></datalist>
 <datalist id="thread-suggestions"></datalist>
+
+<!-- The Loom. Arachne's deterministic half: joining flags that already exist into
+     setup-and-payoff groupings, ACROSS CHAPTERS -- which the editor structurally cannot do,
+     because it holds one chapter and can only offer what is in front of it. A plant in
+     chapter 4 and its reveal in chapter 31 have never been joinable from either side. -->
+<div id="loom">
+  <div id="loom-head">
+    <h2>The Loom</h2>
+    <button class="btn small btn-x" id="loom-close" title="Close">&#215;</button>
+  </div>
+  <div id="loom-body"></div>
+  <div id="loom-actions">
+    <span class="la-count" id="loom-count"></span>
+    <input type="text" id="loom-label" placeholder="Name this setup and its payoff…">
+    <button class="btn small" id="loom-join">Join into a grouping</button>
+    <select id="loom-existing"></select>
+    <button class="btn small" id="loom-add">Add to it</button>
+    <button class="btn small" id="loom-clear">Clear</button>
+  </div>
+</div>
 
 <div id="notes-board">
   <div id="notes-board-head">
@@ -5631,6 +5693,201 @@ document.getElementById('conflict-modal-close').addEventListener('click', () => 
 });
 document.getElementById('conflict-modal').addEventListener('click', e => {
   if(e.target.id === 'conflict-modal') e.target.classList.remove('show');
+});
+
+/* ---------- THE LOOM ----------
+   Arachne has two halves. This is the one that needs no model, no key and no network: the
+   writer joining flags that already exist into groupings, by hand, across chapters.
+
+   It exists because the editor cannot do it. The editor holds ONE chapter, so when a reveal
+   is flagged it can offer the plants it can see -- and a plant sown twenty chapters earlier
+   has never been joinable from its own side at all. That is not a missing button, it is the
+   shape of the surface, which is why this is a separate one.
+
+   The rules it applies (anchoring, grouping identity, idempotency) are specified and tested
+   in graph/arachne.mjs. This file carries its own older equivalents in pairsOf() and
+   joinIntoGrouping() above, which predate that module and are load-bearing on the legacy
+   conversion path; converging the two is deferred rather than done here, because a race on
+   normalizeLegacyPlantLinks() would corrupt groupings on load and that is not a risk worth
+   taking inside a UI change. */
+let loomSelected = new Set();
+
+function loomKey(chapterId, annotationId){ return chapterId + ':' + annotationId; }
+
+/* Every grouping in the saga with its members, saga-ordered by where each member sits.
+   Mirrors groupingIndex() in graph/arachne.mjs. */
+function loomGroupings(){
+  const byId = new Map();
+  sagaOrderedChapters().forEach(ch => (ch.annotations||[]).forEach(a => {
+    if(a.type !== 'plant' && a.type !== 'reveal') return;
+    pairsOf(a).forEach(p => {
+      let g = byId.get(p.id);
+      if(!g){ g = {id:p.id, label:p.label||'', plants:[], reveals:[]}; byId.set(p.id, g); }
+      if(!g.label && p.label) g.label = p.label;
+      (a.type === 'plant' ? g.plants : g.reveals).push({annotation:a, chapter:ch});
+    });
+  }));
+  return [...byId.values()].map(g => ({...g, paid: g.reveals.length > 0}));
+}
+
+function sagaOrderedChapters(){
+  return [...chapters].sort((a,b) => (a.book-b.book) || (a.act-b.act) || (a.order-b.order));
+}
+
+/* Plants and reveals in no grouping at all. Not a to-do list -- a flag can sit here forever
+   and nothing about that is wrong. It is simply where the unjoined ends are, so joining one
+   does not mean hunting through every chapter for it. */
+function loomLooseFlags(){
+  const out = [];
+  sagaOrderedChapters().forEach(ch => (ch.annotations||[]).forEach(a => {
+    if(a.type !== 'plant' && a.type !== 'reveal') return;
+    if(pairsOf(a).length) return;
+    out.push({annotation:a, chapter:ch});
+  }));
+  return out;
+}
+
+function loomFlagRow(entry, selectable){
+  const {annotation:a, chapter:ch} = entry;
+  const key = loomKey(ch.id, a.id);
+  const box = selectable
+    ? `<input type="checkbox" data-flag="${escapeAttr(key)}" ${loomSelected.has(key)?'checked':''}>`
+    : '';
+  return `<div class="flag">
+    ${box}
+    <span class="flag-kind ${a.type}">${a.type}</span>
+    <div class="flag-text">
+      <div class="flag-quote">"${escapeHtml(truncate(a.text || a.label || '(whole chapter)', 130))}"</div>
+      <div class="flag-loc">${escapeHtml(BOOKS[ch.book]||'')} · ${escapeHtml(ch.title)}${a.label?' — '+escapeHtml(truncate(a.label,60)):''}</div>
+    </div>
+  </div>`;
+}
+
+function renderLoom(){
+  const body = document.getElementById('loom-body');
+  const groupings = loomGroupings();
+  const loose = loomLooseFlags();
+
+  if(groupings.length === 0 && loose.length === 0){
+    body.innerHTML = `<div id="loom-empty">Nothing flagged yet. Plants and reveals show up here once the prose has some.</div>`;
+    renderLoomActions(groupings);
+    return;
+  }
+
+  let html = '';
+  if(groupings.length){
+    html += `<div class="loom-section">Groupings</div>
+      <div class="loom-hint">A grouping with no reveal is an unpaid plant — a real state, not a fault.</div>`;
+    html += groupings.map(g => {
+      const members = g.plants.concat(g.reveals);
+      return `<div class="grouping" data-grouping="${escapeAttr(g.id)}">
+        <div class="grouping-head" data-toggle-grouping="${escapeAttr(g.id)}">
+          <span class="g-dot ${g.paid?'paid':'open'}"></span>
+          <span class="g-label ${g.label?'':'unnamed'}">${escapeHtml(g.label || 'Unnamed grouping')}</span>
+          <span class="g-count">${g.plants.length}P · ${g.reveals.length}R${g.paid?'':' · open'}</span>
+        </div>
+        <div class="grouping-body">
+          ${members.map(m => `<div class="flag">
+            <span class="flag-kind ${m.annotation.type}">${m.annotation.type}</span>
+            <div class="flag-text">
+              <div class="flag-quote">"${escapeHtml(truncate(m.annotation.text || m.annotation.label || '', 130))}"</div>
+              <div class="flag-loc">${escapeHtml(BOOKS[m.chapter.book]||'')} · ${escapeHtml(m.chapter.title)}</div>
+            </div>
+            <button class="g-leave" data-leave-grouping="${escapeAttr(g.id)}" data-leave-chapter="${escapeAttr(m.chapter.id)}" data-leave-anno="${m.annotation.id}" title="Take this flag out of the grouping">&#215;</button>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if(loose.length){
+    html += `<div class="loom-section">Not joined to anything</div>
+      <div class="loom-hint">Tick a plant and the reveal that pays it — in any two chapters — and join them.</div>`;
+    html += loose.map(e => loomFlagRow(e, true)).join('');
+  }
+
+  body.innerHTML = html;
+
+  body.querySelectorAll('[data-toggle-grouping]').forEach(el => el.addEventListener('click', () => {
+    el.closest('.grouping').classList.toggle('open-body');
+  }));
+  body.querySelectorAll('[data-flag]').forEach(el => el.addEventListener('change', () => {
+    if(el.checked) loomSelected.add(el.dataset.flag); else loomSelected.delete(el.dataset.flag);
+    renderLoomActions(groupings);
+  }));
+  body.querySelectorAll('[data-leave-grouping]').forEach(el => el.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const found = findAnnotationById(el.dataset.leaveChapter, parseInt(el.dataset.leaveAnno));
+    if(!found) return;
+    found.annotation.pairs = pairsOf(found.annotation).filter(p => p.id !== el.dataset.leaveGrouping);
+    delete found.annotation.pairId; delete found.annotation.pairLabel;
+    await saveData();
+    renderLoom();
+  }));
+
+  renderLoomActions(groupings);
+}
+
+function renderLoomActions(groupings){
+  const bar = document.getElementById('loom-actions');
+  bar.classList.toggle('show', loomSelected.size > 0);
+  document.getElementById('loom-count').textContent =
+    loomSelected.size + ' selected';
+  const sel = document.getElementById('loom-existing');
+  sel.innerHTML = (groupings||loomGroupings()).map(g =>
+    `<option value="${escapeAttr(g.id)}">${escapeHtml(g.label || 'Unnamed grouping')}</option>`).join('');
+  // Joining needs two ends; adding to an existing grouping needs only one.
+  document.getElementById('loom-join').disabled = loomSelected.size < 2;
+  document.getElementById('loom-add').disabled = sel.options.length === 0;
+}
+
+function loomSelectedAnnotations(){
+  return [...loomSelected].map(key => {
+    const at = key.lastIndexOf(':');
+    return findAnnotationById(key.slice(0, at), parseInt(key.slice(at+1)));
+  }).filter(Boolean);
+}
+
+/* Joining does not move, copy or rewrite a flag -- it adds a grouping to each end's `pairs`.
+   A flag can be in several groupings at once, because a line can do two jobs at once. */
+async function loomJoin(groupingId, label){
+  const members = loomSelectedAnnotations().map(f => f.annotation);
+  if(!members.length) return;
+  const anchor = members.find(a => a.type === 'plant') || members[0];
+  const id = groupingId || ('pair:' + anchor.id);
+  members.forEach(a => {
+    const current = pairsOf(a);
+    if(current.some(p => p.id === id)){
+      if(label) a.pairs = current.map(p => p.id === id ? {id, label} : p);
+      return;
+    }
+    a.pairs = current.concat([{id, label: label || ''}]);
+    delete a.pairId; delete a.pairLabel;
+  });
+  loomSelected.clear();
+  document.getElementById('loom-label').value = '';
+  await saveData();
+  renderLoom();
+}
+
+document.getElementById('loom-btn').addEventListener('click', () => {
+  loomSelected.clear();
+  renderLoom();
+  document.getElementById('loom').classList.add('show');
+});
+document.getElementById('loom-close').addEventListener('click', () => {
+  document.getElementById('loom').classList.remove('show');
+});
+document.getElementById('loom-join').addEventListener('click', () => {
+  loomJoin(null, document.getElementById('loom-label').value.trim());
+});
+document.getElementById('loom-add').addEventListener('click', () => {
+  const sel = document.getElementById('loom-existing');
+  if(sel.value) loomJoin(sel.value, document.getElementById('loom-label').value.trim());
+});
+document.getElementById('loom-clear').addEventListener('click', () => {
+  loomSelected.clear();
+  renderLoom();
 });
 
 /* ---------- PAGES (stage-one raw capture) ----------

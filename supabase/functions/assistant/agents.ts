@@ -1,6 +1,6 @@
 import type { ProviderId } from './models.ts';
 
-// Icarus and Daedalus.
+// Icarus, Daedalus and Arachne.
 //
 // The model is the least important thing that separates them, and is now writer-selectable
 // per agent (see models.ts) precisely so nothing about an agent's identity rides on it.
@@ -22,8 +22,25 @@ import type { ProviderId } from './models.ts';
 //
 // A cheap model running Icarus is still Icarus. A frontier model given Icarus's tools and
 // contract is still doing validation, not craft advice.
+//
+// ARACHNE is a third agent by all five tests, and specifically NOT tools bolted onto
+// Daedalus. Daedalus is trustworthy because it proposes and never inscribes -- its single
+// write is propose_document_edit, against documents. Give it annotation-write tools and a
+// craft-judgment agent can author the manuscript's structure as a side effect of discussing
+// it. Arachne's whole licence to write is that it exercises no judgment at all: it
+// transcribes recognitions the writer already made, and a transcriber that infers is a
+// forger. Hence its own contract ('plan'), its own permission, and a retrieval strategy that
+// is not semantic at all -- it needs one chapter's exact characters, because an annotation
+// anchors by exact substring and a paraphrase silently fails to render.
+//
+// Note what Arachne is NOT given: the braid itself. Layout, labels, zoom tiers, find and
+// rendering are graph/spine-layout.mjs and the renderer -- deterministic, offline, and
+// working today with every assistant switched off. Routing a hover through a model would
+// make the braid slow, billable and dependent on an API key, and would break the rule that
+// AI stays behind aiEnabled and is never required for core functionality. Arachne owns what
+// the braid DRAWS. It does not own the drawing.
 
-export type AgentName = 'icarus' | 'daedalus';
+export type AgentName = 'icarus' | 'daedalus' | 'arachne';
 
 export type AgentTool =
   // --- Icarus: deterministic queries over story structure. These are SQL, not inference;
@@ -40,7 +57,15 @@ export type AgentTool =
   | 'read_document'
   | 'outline'
   | 'web_search'
-  | 'propose_document_edit';
+  | 'propose_document_edit'
+  // --- Arachne: the loom. The only write tools in the system that reach the manuscript's
+  // own metadata, and the reason the proposal queue is not optional for this agent.
+  // Anchoring, grouping and idempotency rules all live in graph/arachne.mjs, tested by
+  // scripts/test-arachne.mjs -- the model chooses WHICH line, never HOW it is anchored.
+  | 'read_chapter_exact'      // one chapter's prose verbatim; no chunking, no paraphrase
+  | 'list_flags'              // what is already flagged, so a re-run adds nothing
+  | 'list_groupings'          // existing setup/payoff groupings, paid and open
+  | 'propose_transcription';  // emit a plan of annotations and joins -- never a write
 
 export type AgentConfig = {
   displayName: string;
@@ -54,8 +79,11 @@ export type AgentConfig = {
   matchCount: number;
   useDigest: boolean;
   tools: AgentTool[];
-  /** 'findings' renders as an evidence checklist; 'prose' renders as a reply. */
-  contract: 'findings' | 'prose';
+  /**
+   * 'findings' renders as an evidence checklist; 'prose' renders as a reply; 'plan' renders
+   * as an accept/reject diff of rows to be written, and writes nothing until accepted.
+   */
+  contract: 'findings' | 'prose' | 'plan';
   /** Read-only agents may never write, and are told so. */
   readOnly: boolean;
   system: string;
@@ -123,6 +151,51 @@ How you answer:
 
 You are looking at one author's own manuscript and notes, at their request.`;
 
+const ARACHNE_SYSTEM = `You are Arachne, the loom inside StoryMap, a tool for writing a
+five-book mythological saga.
+
+You write down what the writer has already recognised. You do not decide what is a plant,
+what pays it off, or what recurs often enough to be a motif — those judgments were made in a
+session with the writer present, and your only job is to record them accurately in the
+manuscript's metadata.
+
+This is the whole basis on which you are permitted to write at all. A transcriber that
+infers is a forger. If you are unsure what the writer meant, say so and transcribe nothing:
+an omission is visible and correctable, an invention is neither.
+
+## What you produce
+
+A plan, never a write. Every annotation and every grouping you propose is inert until the
+writer accepts it. Do not describe a plan as done.
+
+## Anchors — the part that actually matters
+
+An annotation does not store a position. It stores the exact flagged substring and finds
+itself again by searching the chapter for that substring every time it renders. So:
+
+- Quote the prose EXACTLY. Character for character, from read_chapter_exact. Never from
+  memory, never tidied, never with a typo silently fixed, never re-punctuated.
+- A quote that does not appear verbatim in the chapter produces an annotation that is not
+  wrong but INVISIBLE — stored, unplaceable, and drawing nothing. Nobody will notice.
+- If the line you want appears more than once in the chapter, say so rather than picking
+  one. The anchoring rules will widen it; guessing is not your job.
+- Never paraphrase to make a quote read better.
+
+## Scope
+
+- You write annotations: plants, reveals, notes, groupings, threads.
+- You NEVER write chapter prose. Not a word, not a fix, not a typo.
+- You never delete an annotation the writer made.
+
+## What you are not
+
+You are not the braid. The braid draws — its layout, labels, zoom and search are ordinary
+code that runs offline with every assistant switched off, and none of it is yours. You
+decide what there is to draw; you do not draw it.
+
+You are not Daedalus. If the writer starts asking whether a parallel is earned or where a
+subplot should land, that is a craft conversation and not yours — say so and stop.`;
+
 export const AGENTS: Record<AgentName, AgentConfig> = {
   icarus: {
     displayName: 'Icarus',
@@ -161,6 +234,33 @@ export const AGENTS: Record<AgentName, AgentConfig> = {
     contract: 'prose',
     readOnly: false,
     system: DAEDALUS_SYSTEM,
+  },
+
+  // Dormant like the other two, and additionally blocked on stage two and three existing:
+  // Arachne transcribes decisions made in a stage-three session, and there are no such
+  // sessions until there are pages to sort. Configured now because the design was settled
+  // now; building the transcriber before there is anything to transcribe is the same
+  // inversion that left the braid empty.
+  arachne: {
+    displayName: 'Arachne',
+    tagline: 'Writes down what you recognised, exactly where you said it was.',
+    // Anchoring is string work, not judgment -- the expensive part of this job is being
+    // literal. A larger model does not choose a better substring.
+    defaultModel: 'claude-haiku-4-5',
+    defaultProvider: 'anthropic',
+    maxTokens: 8000,
+    preferThinking: false,
+    // Retrieval is by exact chapter, not by similarity: a semantic match returns a passage
+    // that MEANS the right thing, and an anchor needs the passage that IS it.
+    matchCount: 0,
+    useDigest: false,
+    tools: ['read_chapter_exact', 'list_flags', 'list_groupings', 'propose_transcription'],
+    contract: 'plan',
+    // Not read-only -- but every write goes through the plan, and a plan is inert until the
+    // writer accepts it. Nothing here reaches chapters.content, ever: Arachne writes
+    // annotations, never prose.
+    readOnly: false,
+    system: ARACHNE_SYSTEM,
   },
 };
 

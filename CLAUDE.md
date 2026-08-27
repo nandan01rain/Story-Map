@@ -606,6 +606,18 @@ Deliberately not ported: the PWA's POV tracker and Mythic Threads (superseded
 by Progression's POV marks and by thread-flagged notes respectively), and the
 continuity checker, which is Icarus's job now. See handoff §19.
 
+- **🧵 The Loom + Arachne (2026-08-27)** — the write side of the braid. The braid
+  renders; nothing in it ever created a flag. The Loom is the manual half: join a
+  plant in one chapter to its reveal in another, which **the editor structurally
+  cannot do** (it holds one chapter, so it can only offer what is in front of it).
+  Many-to-many both ways, paid/open by the same rule the Ledger and braid use.
+  Arachne is the agent half — a third agent, not tools on Daedalus, because its
+  licence to write is that it exercises no judgment: it transcribes recognitions
+  made in a stage-three session. Its rules live in `graph/arachne.mjs`
+  (`scripts/test-arachne.mjs`, 34 assertions). It owns what the braid draws, **not
+  the drawing** — layout, zoom, labels and find stay deterministic and keep working
+  with every assistant off. Dormant, and blocked on stages two/three. Handoff §24.
+
 ## Design principles worth preserving
 
 - Every AI feature must stay behind the `aiEnabled` toggle and must never be

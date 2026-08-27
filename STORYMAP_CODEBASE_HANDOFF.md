@@ -3601,3 +3601,111 @@ rather than about the file:
   writes per page and does not have this problem.
 - **Attaching a page to anything but a new chapter.** `became_type` is deliberately wider than
   `chapter`; only chapter is wired.
+
+
+## 24. ARACHNE (2026-08-27) — the loom, and what it is not
+
+### 24.1 Tool or agent
+
+A third agent, by all five of §16's tests — its own tools (the only writes in the system that
+reach the manuscript's metadata), its own permission, its own contract (`plan`), and a
+retrieval strategy that is not semantic at all.
+
+**Specifically not tools bolted onto Daedalus.** Daedalus is trustworthy because it proposes
+and never inscribes; its single write is `propose_document_edit`, against documents. Give it
+annotation-write tools and a craft-judgment agent can author the manuscript's structure as a
+side effect of discussing it.
+
+**Arachne's entire licence to write is that it exercises no judgment.** It transcribes
+recognitions the writer already made in a stage-three session. A transcriber that infers is a
+forger, and its system prompt says so in those terms.
+
+### 24.2 What Arachne does NOT own: the braid
+
+The request was that Arachne own everything braid-related — labels, zoom, finding chapters.
+It does not, and should not:
+
+- Layout, label thresholds and zoom tiers are `graph/spine-layout.mjs`; drawing and the Find
+  panel are the renderer. All deterministic, all working today **with every assistant switched
+  off**, which is their current state.
+- Routing a hover or a zoom through a model would make the braid slow, non-deterministic,
+  billable and dependent on an API key — and would break the project's own first design
+  principle, that AI stays behind `aiEnabled` and is never required for core functionality.
+
+**Arachne owns what the braid draws. It does not own the drawing.** The braid has been
+finished for weeks; what is missing is not a view, it is the data.
+
+### 24.3 The two halves
+
+**The core** — `graph/arachne.mjs`, pure functions, no I/O, 34 assertions in
+`scripts/test-arachne.mjs`.
+
+*Anchoring* is the consequential part. An annotation stores no position: it stores the exact
+flagged substring and relocates by searching for it on every render (§3.5). A bad anchor does
+not throw and does not show up as a wrong number anywhere — **the annotation is not wrong, it
+is invisible**, and the braid draws one thread fewer with nothing to say it should have drawn
+more. `chooseAnchor` therefore: takes an exact unique quote as-is; recovers a quote whose
+whitespace was flattened by a round trip through a chat window; **widens by whole words, never
+characters, and never across a paragraph break** when a quote is ambiguous; and **fails loudly**
+on a paraphrase or an unanchorable refrain rather than binding to whichever line came first.
+
+*Idempotency* is by construction, not by bookkeeping: a grouping id is **derived** from the
+anchor annotation's own id, so re-running an interrupted transcription computes the same id
+and joins nothing twice. The flag and the grouping are recognised as already-done
+independently, or resuming would re-join.
+
+*Plans, not writes.* `planTranscription` returns `{creates, joins, skipped, failures}` — every
+row inspectable before anything is written, and a second run of the same plan is empty.
+
+**The surface** — "The Loom" in the PWA (drawer → The Loom). Needs no model, no key, no
+network.
+
+It exists because **the editor structurally cannot do this.** The editor holds one chapter, so
+when a reveal is flagged it can only offer the plants it can see; a plant sown twenty chapters
+earlier has never been joinable from its own side at all. That is the shape of the surface,
+not a missing button, which is why the Loom is a separate one.
+
+Groupings with members and paid/open state; loose flags in no grouping; tick two ends in any
+two chapters and join; add to an existing grouping; take a flag back out. Many-to-many in both
+directions, because a line can do two jobs at once.
+
+### 24.4 Verified this session
+
+- 34 assertions in `scripts/test-arachne.mjs`, all passing.
+- Driven in a real browser: a plant in chapter 4 joined to a reveal in chapter 31 — **the join
+  the editor cannot make** — one shared grouping, prose untouched, selection cleared, the pair
+  leaving the loose list and appearing as `1P · 1R`.
+- Many-to-many: a second plant added to the same grouping (`2P · 1R`), then removed, with the
+  other member intact and the flag back among the loose ones.
+- **The Loom, the Ledger and the braid all name the same open grouping.** That one-model-of-
+  paid/open property is what `pairs` was introduced to guarantee (§22.5) and it now holds for
+  a fourth consumer.
+
+### 24.5 Found while doing this: the Edge Function has never parsed
+
+`supabase/functions/assistant/index.ts` contained a single-quoted string literal spanning raw
+newlines — a hard syntax error, committed in `525da5b`, present ever since. **No typecheck has
+ever run on the assistant codebase**, because it could not get past the parser, and nothing
+caught it because the function has never been deployed.
+
+Fixed (backticks). With it fixed, `deno check` reports **42 type errors, all pre-existing** —
+verified by checking a copy of the pre-change tree with only that one line patched, which gives
+the same 42. They are almost entirely `Property 'x' does not exist on type 'never'` from an
+untyped Supabase client, plus one Anthropic SDK `thinking` param shape. Arachne's additions
+introduce **zero** new errors. None of this is fixed here; it is now merely *known*, which it
+was not before.
+
+### 24.6 Open
+
+- **Two implementations of the same rules.** `graph/arachne.mjs` is the specified, tested one;
+  `index.html` carries older equivalents in `pairsOf()`/`joinIntoGrouping()`. They agree today
+  (§24.4 checks exactly that), and converging them is deliberately deferred: the inline ones
+  are load-bearing on `normalizeLegacyPlantLinks()`, which runs at load time, and a module's
+  deferred execution racing that conversion would corrupt groupings on load. It deserves its
+  own change, not a rider on a UI one.
+- **The Loom is PWA-only.** Mobile has its own pairing sheet with the same one-chapter limit.
+- **The agent is dormant**, like the other two, and additionally blocked on stages two and
+  three existing at all.
+- **Its four tools are declared, not implemented** — `read_chapter_exact`, `list_flags`,
+  `list_groupings`, `propose_transcription` exist as names and a contract. The handler side is
+  not written, deliberately: there is nothing to transcribe yet.

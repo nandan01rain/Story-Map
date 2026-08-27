@@ -172,7 +172,9 @@ async function embedQuery(text: string): Promise<number[]> {
 async function handleAsk(req: Request, supabase: ReturnType<typeof createClient>) {
   const { projectId, agent, question, history, currentChapter, model: requestedModel } =
     await req.json();
-  const name: AgentName = agent === 'daedalus' ? 'daedalus' : 'icarus';
+  // Validated against the roster rather than trusted, same reasoning as the model lookup
+  // below: an unknown name falls back to the read-only agent, never to one that can write.
+  const name: AgentName = agent === 'daedalus' || agent === 'arachne' ? agent : 'icarus';
   const config = AGENTS[name];
 
   if (!projectId || !question) return json({ error: 'projectId and question are required.' }, 400);
@@ -197,11 +199,15 @@ async function handleAsk(req: Request, supabase: ReturnType<typeof createClient>
         `[${i + 1}] ${m.source_type === 'chapter' ? 'Chapter' : 'Document'}: ${m.source_title}
 ${m.content}`,
     )
-    .join('
+    // Backticks, not quotes: a single-quoted literal cannot span raw newlines, and this one
+    // did -- so the function has never parsed, which nothing caught because it has never
+    // been deployed. Kept as a multi-line literal rather than an escaped one-liner so the
+    // shape of what lands between two passages stays visible in the source.
+    .join(`
 
 ---
 
-');
+`);
 
   const stableContext: string[] = [];
   if (config.useDigest) {
