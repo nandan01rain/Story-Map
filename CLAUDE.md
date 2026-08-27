@@ -394,6 +394,15 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   SME mode, then Arachne weaving recognised structure into chapters and pairings.
   Deliberately not started: nothing downstream should begin before stage one is in
   daily use, because all of it depends on there being pages. Handoff §23.2.
+- **Ingesting a finished book someone else wrote.** Scoped 2026-08-27, not built.
+  The braid needs no change at all -- `spine-layout.mjs` never reads `BOOKS` and
+  already adapts its banding -- but `BOOKS` is a five-element constant used 28
+  times in `index.html` and 23 in `mobile/src`, so seven books do not fit the UI.
+  Three steps: labels become data (`project_settings.book_labels`, same precedent
+  as `act_labels`), levels become declared per project rather than fixed at
+  Book/Act, and an importer that maps a manuscript's own divisions onto rows --
+  the bulk of it, since nothing parses a manuscript today. Three levels above the
+  chapter (LOTR, Malazan) is a deliberate collapse, not variable depth. Handoff §25.
 - **Cross-project search ("Explore" tab)** on the landing page — the tab
   exists as a styled placeholder, the actual search-across-all-projects
   feature was never built.

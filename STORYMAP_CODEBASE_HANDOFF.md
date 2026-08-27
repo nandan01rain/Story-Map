@@ -3737,3 +3737,58 @@ was not before.
 - **Its four tools are declared, not implemented** — `read_chapter_exact`, `list_flags`,
   `list_groupings`, `propose_transcription` exist as names and a contract. The handler side is
   not written, deliberately: there is nothing to transcribe yet.
+
+
+## 25. INGESTING A FINISHED BOOK (2026-08-27) — SCOPED, NOT BUILT
+
+Deferred by decision the moment it was scoped. Recorded because the sizing is done and the
+one surprising finding in it should not have to be rediscovered.
+
+### 25.1 The braid already does not care
+
+`graph/spine-layout.mjs` **never reads `BOOKS`**. It builds its own band labels
+(`rollup((c) => String(c.book), (c) => 'Book ' + (c.book + 1))`), hardcodes no count, and
+`chooseFarTier` already adapts — banding by books when they divide the axis usefully and
+falling back to acts when they do not. **A seven-book project would draw correctly today.**
+
+The hardcoding is entirely in the two apps' UI: `BOOKS` is a five-element constant used 28
+times in `index.html` and 23 times in `mobile/src`, almost always as `BOOKS[ch.book]` for a
+label or as the array to iterate when building a picker.
+
+### 25.2 The three steps
+
+1. **Labels become data.** `project_settings` already stores `act_labels`, so the precedent
+   exists: add `book_labels`, replace the constant with a `bookLabel(i)` resolver falling back
+   to "Book N", and derive the count from the data (`max(book) + 1`) rather than an array
+   length. Mechanical, ~50 call sites, one migration column, no behaviour change for Saga-01.
+
+2. **Levels become declared, not assumed.** The hierarchy is fixed at Book → Act → Chapter →
+   Scene, but `act` is just an integer and nothing in the data model requires it to *mean* an
+   act. Let a project name its own levels and say how many it uses: Harry Potter is `['Book']`,
+   Dune is `['Book', 'Part']`, Saga-01 is `['Book', 'Act']`. With level two unused, everything
+   takes `act = 1`, the act pickers hide, and the braid bands by book without being told.
+
+3. **An importer, which is the actual bulk of the work.** Nothing today parses a manuscript
+   into chapter rows — Drive import brings documents, JSON import expects the app's own export
+   shape. Split a text on its own division markers, map them onto (level1, level2, order),
+   write the rows.
+
+### 25.3 The limit to decide up front
+
+Steps 1 and 2 buy **two levels above the chapter**. *The Lord of the Rings* has three (volume,
+internal book, chapter) and so does Malazan. Those need either genuine variable depth — a path
+array on the chapter, touching list view, the drawer, exports and the braid's rollups — or a
+deliberate collapse of two levels into one at import time.
+
+**Collapse.** Variable depth is invasive, and the braid's whole strength is that every
+coordinate falls out of one ordinal; a tree would cost that.
+
+### 25.4 What ingestion does and does not give you
+
+- **Spine: immediate and deterministic.** Chapters with `book`/`act`/`order` draw at once, no
+  model, nothing to run.
+- **Character strands: derivable, not automatic.** The extraction pipeline reads presence out
+  of prose, but it is a billable model call that runs when it is run — not on open. And it is
+  dormant (§15).
+- **Plants, reveals and pairings: never automatic.** That is the thesis (§23.1): presence is in
+  the text, structure is not.
