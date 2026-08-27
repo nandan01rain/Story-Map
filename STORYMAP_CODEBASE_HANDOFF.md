@@ -3314,11 +3314,34 @@ more than it looked:
 | `content` nullability | **NOT NULL** — not a question anyone thought to ask | The migration's `set default ''` is load-bearing, not cosmetic. An insert omitting content would fail without it. |
 | `user_id` nullability | **still NOT NULL** | The open question from the multi-project migration was **live, not theoretical**. An insert omitting `user_id` fails. Both apps set it from the session, which is exactly why the migration left the constraint alone instead of relaxing it. |
 
-**RLS on `sticky_notes`: enabled, one policy** (`relrowsecurity = true`, one row in
-`pg_policies`). This closes a question §4 has carried as open since before this build — for
-this table. The policy's *definition* has not been read, so "a policy exists and RLS is on" is
-the established fact; "the policy is correct" is not. §4's broader warning stands for the other
-tables.
+**RLS on `sticky_notes`: enabled, one policy — `auth.uid() = user_id`, ALL, on both `qual`
+and `with_check`.** Read in full, not inferred. Cross-user isolation is correct: nobody reads
+another account's pages. This closes a question §4 has carried as open since before this build,
+for this table.
+
+But note what that policy is **not**. It is **user-scoped, not project-scoped**. Project
+separation across this whole app is a client-side `.eq('project_id', ...)` convention and not a
+database boundary — §4 says the manual filters "strongly imply" RLS enforces the same boundary
+server-side, and this is the proof that it does not. Harmless with one writer and one account;
+it is the assumption to remember before anything is ever shared.
+
+**Which turned out to matter for `search_everything()`.** The function takes a project id from
+the caller and is `security invoker`, so the only thing stopping a caller passing a project id
+that is not theirs is whatever RLS the four underlying tables happen to have — and `chapters`,
+`scenes` and `documents` have never been read at all. If any of them lacks RLS, the function is
+a way to read another account's prose by guessing a uuid: a narrower door than a bare select,
+but a door, and one this build opened.
+
+`20260827_search_ownership.sql` (written, not run) stops the function depending on that answer.
+One `owns` CTE — `projects.id = p_project_id and projects.user_id = auth.uid()` — evaluated
+once, with every branch gated on it. Where the tables' RLS is correct the test is redundant;
+where it is absent the test is the only thing there. A search function should not be the most
+privileged path into the data. The function body is otherwise byte-for-byte the applied version;
+the diff is the CTE plus one `and exists (select 1 from owns)` per branch, and was checked as
+such rather than asserted.
+
+A CTE rather than a join on purpose: a join has to be repeated correctly in four places and
+stops protecting anything the first time a fifth branch is added without it.
 
 **Correction to the brief:** it stated `sticky_notes` is "already project-scoped with correct
 RLS". That turned out to be right on both halves, but it was **not established at the time it
