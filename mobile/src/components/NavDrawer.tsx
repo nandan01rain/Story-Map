@@ -42,7 +42,7 @@ const MANAGE: DrawerItem[] = [
   { key: 'export-epub', icon: 'book-closed', label: 'Export as eBook' },
   { key: 'import', icon: 'upload', label: 'Import' },
   { key: 'read', icon: 'bookmark', label: 'Read' },
-  { key: 'notes', icon: 'pin', label: 'Notes' },
+  { key: 'notes', icon: 'pin', label: 'Pages' },
   { key: 'trash', icon: 'trash', label: 'Trash' },
 ];
 

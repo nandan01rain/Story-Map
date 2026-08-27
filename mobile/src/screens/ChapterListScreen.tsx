@@ -177,7 +177,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onSignOut={() => navigateFromDrawer(signOut)}
       onOpenReader={() => navigateFromDrawer(() => navigation.navigate('Reader', { projectId, projectName }))}
       onOpenSettings={() => navigateFromDrawer(() => navigation.navigate('Settings'))}
-      onOpenNotes={() => navigateFromDrawer(() => navigation.navigate('StickyNotes', { projectId }))}
+      onOpenNotes={() => navigateFromDrawer(() => navigation.navigate('Pages', { projectId }))}
       onOpenDocuments={() => navigateFromDrawer(() => navigation.navigate('Documents', { projectId }))}
       onOpenAssistant={() => navigateFromDrawer(() => navigation.navigate('Assistant', { projectId }))}
       onOpenCharacterWeb={() => navigateFromDrawer(() => navigation.navigate('CharacterWeb', { projectId }))}

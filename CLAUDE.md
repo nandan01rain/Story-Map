@@ -20,6 +20,15 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > loss of capability. And one migration *is* outstanding:
 > `20260825_spine_support.sql`, written and not run.
 >
+> **As of 2026-08-27 stage-one raw capture ("Pages") exists in both apps**, and
+> **The Margin is gone as a view** — same `sticky_notes` rows, a stack instead of a
+> board. It is the answer to the braid drawing almost nothing on the real project:
+> plants and reveals are not knowable at drafting time, so annotation is a
+> recognition pass on a rare deliberate day, not a daily burden. Handoff §23 is the
+> authority, including why neither live-schema question could be answered directly
+> and how the migration settles both by design. `20260826_pages.sql` is **written
+> and not run**, and both apps degrade rather than break until it is.
+>
 > **As of 2026-08-26 the character web has been replaced by THE BRAID** in both
 > apps — a fixed saga axis rather than a force layout. Handoff §22 is the
 > authority; the "character web" described below is history.
@@ -188,11 +197,21 @@ chapter boundaries for pacing).
   browser of every scene in a given POV across the saga.
 - **📚 Documents library**: Master Bible / character bibles / scene
   references / timelines, each a free-text document in its own editor.
-- **📌 Sticky notes ("The Margin")**: quick, unstructured idea capture —
-  parchment-styled cards, autosave, badge count doubling as the closest
-  thing to a "reminder" this environment can honestly offer.
-- **🔍 Search**: full-text across chapters, scenes, documents, and sticky
-  notes, with highlighted match snippets.
+- **📄 Pages (both apps, 2026-08-27)** — stage one of the capture pipeline, and
+  the replacement for "The Margin". Same `sticky_notes` rows; a stack of pages
+  rather than a board of tilted cards, because the same list now holds drafted
+  scenes as well as one-line jottings. One blank field with the cursor already
+  in it: no title, no type picker, no save button, autosave, and everything else
+  behind a single dot. Reverse chronological, first line as the title, a date,
+  nothing else — no badges, no counts, no nagging. **Nothing is ever deleted**:
+  promotion to a chapter copies and leaves the page untouched, edits snapshot
+  the prior text, and the delete controls the board used to have are gone.
+  Handoff §23.
+- **🔍 Search**: Postgres full-text (GIN-indexed, ranked, `search_everything()`)
+  across pages, chapters, scenes and documents, with highlighted match snippets.
+  Falls back to the old substring scan where `20260826_pages.sql` has not been
+  run. Part of the pages build rather than a follow-up: a page nobody can find
+  again in three seconds was lost the moment it was written.
 - **🗑 Trash**: chapters/scenes/documents soft-delete into a recoverable bin
   (restore or permanently delete) instead of hard-deleting.
 - **⬇⬆ Export/Import**: full-state JSON download/upload.
@@ -370,6 +389,14 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   half (the SQL checks that should run before any model call) and the
   proposal/review queue so canon-document edits arrive as a diff to accept
   rather than a silent write. Handoff doc §15.
+- **`20260826_pages.sql` is written and not run**, and is now the second unapplied
+  migration alongside `20260825_spine_support.sql`. Until it runs, pages save their
+  text but not type, status or history, and search stays on the substring scan.
+  Both apps detect this and say so once, inside the page.
+- **Stages two to four of the capture pipeline** — Daedalus in recall mode, then in
+  SME mode, then Arachne weaving recognised structure into chapters and pairings.
+  Deliberately not started: nothing downstream should begin before stage one is in
+  daily use, because all of it depends on there being pages. Handoff §23.2.
 - **Cross-project search ("Explore" tab)** on the landing page — the tab
   exists as a styled placeholder, the actual search-across-all-projects
   feature was never built.

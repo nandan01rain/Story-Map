@@ -3241,3 +3241,172 @@ Below 1000px the phone layout is exactly what it was.
   `app.json` orientation `portrait` → `default`; neither ships over the air.
 - **Multi-book rendering has been exercised only on Saga-01's structure** (52 chapters, five
   books, no flags) and on a synthetic three-book remap of the demo pack.
+
+## 23. PAGES — STAGE ONE, RAW CAPTURE (2026-08-27, both apps)
+
+### 23.1 Why this exists
+
+The braid was built, corrected and stress-tested, and on the real project it draws almost
+nothing: 52 chapters, five books, 9 annotations, **zero pairings**. The diagnosis is not that
+the writer failed to keep up with the tool. It is that the tool assumed the wrong workflow.
+
+Every plotting feature in StoryMap — flag a plant while drafting, link it to its reveal,
+maintain the ledger, defer a requirement — asks for a small recurring action. This writer can
+do a large occasional pass reliably and a small daily one not at all. That is a stable trait,
+not a discipline problem, and it is the specification the software has to meet.
+
+The deeper error: **plants and reveals are not knowable at drafting time.** You do not know a
+thing is a plant when you write it. You know later, looking at the shape of what has
+accumulated. Annotation is therefore a *recognition* step performed on a rare deliberate day,
+not a flagging burden carried through every writing session. That single reframe is what makes
+the braid fillable.
+
+### 23.2 The pipeline this is stage one of
+
+1. **Raw capture** — this build. Anything, any time, no decisions. The only requirement is
+   that it lands inside StoryMap; material drafted elsewhere is material that gets lost.
+2. **Sorting, Daedalus in recall mode** — orientation, not generation. What is in this pile,
+   what belongs together, what contradicts what. Every statement cited to a page and passage;
+   no suggestions at all, so every line can be trusted as something the writer actually wrote.
+   Resumable, not a batch job.
+3. **Daedalus in SME mode** — terminology, prior art, standard counterarguments. Names what the
+   writer has made; never proposes what he should have made. Web search matters here because a
+   model recalling a philosopher from memory is where confabulation appears. Structural
+   annotations surface at this stage.
+4. **Arachne weaves** — transcribes the recognised structure into chapters, scenes, plants,
+   reveals, pairings, threads. Transcribes decisions; does not infer them.
+
+Running separately and continuously: the existing extraction pipeline (PRESENT_AT,
+INTERACTS_WITH, KNOWS_ABOUT, fact nodes) machine-read from finished prose. **Character presence
+is derivable from text; plants and reveals are not.** Those are the two halves that fill the
+braid and only one is automatic. Icarus is unchanged: correctness against supplied evidence,
+read-only, quote required.
+
+**Only stage one is built.** Nothing downstream should start before this is in daily use.
+
+### 23.3 The two schema questions, and why neither got a direct answer
+
+The brief asked for both to be verified against the live schema before anything was built.
+Neither is readable with the access this repo has:
+
+- Supabase refuses the PostgREST OpenAPI endpoint to anything but `service_role`.
+- `supabase/.env` is empty and the CLI is not linked, so there is no DDL-capable credential.
+- The base tables were created by hand in the dashboard and have **no DDL in this repo** —
+  §4's column list is inferred from client code, and says so.
+
+What the anon key *can* establish, and did:
+
+- The live `sticky_notes` column set is exactly `id, user_id, project_id, content, created_at,
+  rotation`. `updated_at`, `type`, `status`, `title`, `became_*` all return `42703`.
+- `content` is a string type, not `jsonb`: `?select=content::date` plans cleanly, which `jsonb`
+  would reject at plan time with `42846`. **`text` vs `varchar(n)` is invisible over REST** —
+  there is no read-only probe for a length cap.
+- Anon selects return `[]` rather than an error, consistent with RLS being on and correct, and
+  equally consistent with a table anon was never granted.
+
+So both questions are settled by design instead of by inspection:
+
+- **Long-form content** — `20260826_pages.sql` runs `alter column content type text`
+  unconditionally. `text → text` is a no-op; `varchar(n) → text` is binary-coercible and
+  rewrites nothing. Running it costs less than knowing.
+- **`user_id` NOT NULL** — the migration does *not* touch it. Every insert path in both apps
+  already sets `user_id` from the session, and the pages surfaces do the same, so the
+  constraint cannot be reached whichever way it is declared. Relaxing a NOT NULL on a live
+  ownership column to dodge a question that never fires is the wrong trade.
+
+**Correction to the brief:** it stated `sticky_notes` is "already project-scoped with correct
+RLS". `project_id` scoping is real; the RLS half is **not established** — see §4. The migration
+reports the state with `raise notice` rather than enabling anything blind.
+
+### 23.4 Schema — `supabase/migrations/20260826_pages.sql` (WRITTEN, NOT RUN)
+
+Extends `sticky_notes` rather than adding a table: it is already project-scoped and already
+holds the thing being generalised. **A page IS a sticky note that got long.** The table is not
+renamed, because renaming it would break two shipped apps for no gain.
+
+| column | why |
+| --- | --- |
+| `type` | `prose\|note\|reference\|canon\|filler`, nullable. **Deliberately unconstrained** — a CHECK would turn a hint into a gate the first time a sixth word is wanted. |
+| `status` | `raw\|reviewed`. A marker, never a location. |
+| `updated_at` | the stack sorts on it. |
+| `versions` | jsonb, same shape as `chapters.versions`. |
+| `became_type` / `became_id` / `became_at` | where a page's words went. |
+| `search` | generated `tsvector`, added to `sticky_notes`, `chapters`, `scenes` and `documents`, each with a GIN index. Generated rather than trigger-maintained: `to_tsvector` with a literal regconfig is immutable, so there is no application code to forget to call. |
+
+Plus `search_everything(p_project_id, p_query)` — one ranked query across all four, `security
+invoker` so RLS applies as the caller, `websearch_to_tsquery` so a nonsense query returns `[]`
+rather than raising.
+
+**Until it is run**, both apps degrade rather than break: the mobile store retries the base
+column list on `42703` and sets `legacySchema`; the PWA detects the shape from a loaded row (it
+already reads `select('*')`) and omits the new columns from its upsert; and search falls back
+to the substring scan it used before. Type, status and history are unavailable in that state
+and both apps say so, once, inside the page.
+
+### 23.5 Loss-proofing, which outranks everything else here
+
+- **Nothing is ever deleted.** The delete controls are *gone* — the PWA's board had one on every
+  card and one in the editor; neither survives. Mobile's stack has no swipe-to-delete.
+- **Promotion copies.** The chapter gets the text, the page stays exactly as written and only
+  learns where its words went. Deliberately not a move: the chapter will be rewritten, and the
+  page is the record of what it first said.
+- **Edits keep prior text.** `pushVersion`/`pushPageVersion`, one snapshot per 3 minutes of
+  writing rather than one per autosave tick, capped at 20 — and **the oldest is never dropped**:
+  the first thing a page ever said is the version most worth having, so the discard comes from
+  the middle.
+- **A row is created on the first keystroke, not when the blank page opens.** This is the only
+  way "never delete a page" and "no empty clutter" hold at the same time — an abandoned blank
+  leaves nothing behind, so nothing ever has to be cleaned up.
+
+### 23.6 The surfaces
+
+**The writing page** (`mobile/src/screens/PageScreen.tsx`, the PWA's `#note-editor`). One field.
+No title, no type picker, no project or chapter selector, no save button. Spectral at 18/30 with
+printed-page margins. Two low-contrast glyphs of chrome: back, and one dot. Everything else —
+type, status, promote, history — lives behind that dot and is never visible while writing.
+
+Note the tension deliberately: **the feel is casual and disposable, the storage is not.** The
+interface must never imply a page might be thrown away.
+
+**The stack** (`PagesScreen.tsx`, the PWA's `#pages-stack`). Reverse chronological, first line as
+the de facto title, a date, nothing else. No status badges, no type chips, no counts. The PWA's
+old "You have N ideas sitting here, unplaced. Worth a look before they go stale." line is
+deleted — it was the one nag, and anything that reads as a queue with work outstanding is a
+thing the writer stops opening.
+
+**The Margin is gone as a view**, by decision this session. Board and stack over one table would
+have meant two places to look for the same thing, and a 4,000-word scene rendered as a 210px
+tilted card. No data was touched: every existing note is already a page.
+
+**Search** (`SearchScreen.tsx`, the PWA's `runSearch`). Full-text over pages, chapters, scenes
+and documents. The PWA's snippet path re-escapes `ts_headline` output and restores only the
+`<mark>` pair — server output into `innerHTML` otherwise. Documents are now searchable on mobile
+for the first time (they previously had nowhere to open).
+
+### 23.7 Verified this session
+
+- PWA inline JS parses (`node --check` over all five script blocks, exit 0); mobile `tsc
+  --noEmit` clean.
+- The stack renders titles/dates/blank-page correctly and in the right order, in a real browser.
+- **The junction, end to end**: promoting a page created one chapter carrying a copy of the text,
+  the page stayed in the stack with its text unchanged, and its `became_*` pointed at the new
+  chapter. Asserted, not eyeballed.
+- **The version rules**: rapid edits produce one snapshot not many; the oldest survives the cap;
+  a blank page never snapshots.
+- The headline sanitizer keeps `<mark>` and escapes everything else, including an `onerror`
+  payload.
+
+### 23.8 Not verified, and open
+
+- **Nothing has been exercised against the live database**, because the migration is unrun and
+  this session has no credential that could run it. Every store call is code-reviewed, not
+  round-tripped.
+- **Mobile has not run on a device this session** — typecheck only.
+- **`created_at` on the PWA's upsert.** `saveData()` has always written `created_at` back on
+  every save; it is preserved from the in-memory value, so it is stable, but it remains a
+  column the client rewrites for no reason.
+- **The PWA still saves pages through the whole-table upsert** (§7's non-granular writes). With
+  long pages that is now a materially bigger write than it was with one-line notes. Mobile
+  writes per page and does not have this problem.
+- **Attaching a page to anything but a new chapter.** `became_type` is deliberately wider than
+  `chapter`; only chapter is wired.

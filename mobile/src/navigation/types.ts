@@ -6,7 +6,13 @@ export type SignedInStackParamList = {
   Editor: { chapterId: string; jumpToText?: string };
   Reader: { projectId: string; projectName?: string; chapterId?: string; jumpToText?: string };
   Settings: undefined;
-  StickyNotes: { projectId: string; noteId?: string };
+  /** The stack of raw-capture pages. Replaces the old sticky-note board. */
+  Pages: { projectId: string };
+  /**
+   * One page, open for writing. No `pageId` means a blank one -- and no database row is
+   * created until the first character is typed, so opening a blank page costs nothing.
+   */
+  Page: { projectId: string; pageId?: string };
   Search: { projectId: string };
   Documents: { projectId: string };
   DriveImport: { projectId: string };

@@ -16,7 +16,8 @@ import ReaderScreen from '../screens/ReaderScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
-import StickyNotesScreen from '../screens/StickyNotesScreen';
+import PageScreen from '../screens/PageScreen';
+import PagesScreen from '../screens/PagesScreen';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, useTheme } from '../theme';
 import type { SignedInStackParamList } from './types';
@@ -68,7 +69,8 @@ export default function RootNavigator() {
           <Stack.Screen name="CharacterWeb" component={CharacterWebScreen} />
           <Stack.Screen name="Trash" component={TrashScreen} />
           <Stack.Screen name="GraphReview" component={GraphReviewScreen} />
-          <Stack.Screen name="StickyNotes" component={StickyNotesScreen} options={{ title: '' }} />
+          <Stack.Screen name="Pages" component={PagesScreen} options={{ title: 'Pages' }} />
+          <Stack.Screen name="Page" component={PageScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Search" component={SearchScreen} />
         </Stack.Navigator>
       ) : (

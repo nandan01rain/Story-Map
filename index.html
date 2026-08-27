@@ -1154,7 +1154,13 @@ button.btn.primary#add-chapter-btn:hover{
   .node circle.halo{ pointer-events: all; }
 }
 
-/* ---------- NOTES BOARD (sticky-note idea capture) ---------- */
+/* ---------- PAGES (stage-one raw capture) ----------
+   Formerly "The Margin", a board of tilted sticky cards. Same rows, same table; a
+   different shape, because the same list now holds four-thousand-word drafted scenes
+   as well as one-line jottings, and a 210px card was only ever right for the second.
+   A stack of pages: first line as the title, a date, nothing else. No badges, no
+   counts, no "unplaced ideas" prompt — anything that reads as a queue with work
+   outstanding is a thing the writer stops opening. */
 #notes-board{position:fixed;inset:0;background:
   radial-gradient(ellipse at 30% 20%, rgba(198,154,58,0.06), transparent 55%),
   linear-gradient(160deg, #1c150d, #100b06);
@@ -1163,48 +1169,25 @@ button.btn.primary#add-chapter-btn:hover{
 #notes-board-head{padding:18px 28px;border-bottom:1px solid var(--border);background:rgba(10,7,4,0.5);}
 #notes-board-head-row{display:flex;align-items:center;gap:14px;}
 #notes-board-head h2{font-family:var(--font-heading);font-size:18px;margin:0;letter-spacing:.03em;color:var(--text);flex:1;}
-#notes-reminder{font-family:var(--font-literary);font-style:italic;font-size:13px;color:var(--gold);margin-top:8px;}
-#notes-board-grid{flex:1;overflow-y:auto;padding:40px;display:flex;flex-wrap:wrap;gap:28px;align-content:flex-start;}
-#notes-empty-hint{color:var(--text-dim);font-family:var(--font-literary);font-style:italic;font-size:14px;margin:auto;}
-
-.sticky-note{
-  width:210px;min-height:180px;padding:20px 18px 16px;
-  background:linear-gradient(160deg, #f2e6c8, #e6d5a8);
-  color:#3a2c18;border-radius:2px;
-  box-shadow:0 6px 16px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(0,0,0,0.05);
-  cursor:pointer;position:relative;display:flex;flex-direction:column;
-  transition:transform .15s, box-shadow .15s;
+#pages-stack{flex:1;overflow-y:auto;padding:8px 0 80px;}
+#pages-stack .page-row{
+  display:block;width:100%;max-width:680px;margin:0 auto;padding:16px 28px;
+  border:none;border-bottom:1px solid var(--border-dim, rgba(74,58,34,0.35));
+  background:none;text-align:left;cursor:pointer;
 }
-.sticky-note:hover{transform:translateY(-4px) rotate(0deg) !important;box-shadow:0 12px 24px rgba(0,0,0,0.5);}
-.sticky-note::before{
-  content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
-  width:16px;height:16px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, #e0503a, #a52d1c);
-  box-shadow:0 2px 4px rgba(0,0,0,0.5);
+#pages-stack .page-row:hover{background:rgba(198,154,58,0.05);}
+#pages-stack .pr-title{
+  font-family:var(--font-literary);font-size:16.5px;line-height:1.5;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.sticky-note .sn-preview{
-  font-family:var(--font-literary);font-size:13.5px;line-height:1.55;flex:1;
-  display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden;
-  white-space:pre-wrap;
+#pages-stack .pr-title.blank{font-style:italic;color:var(--text-dim);}
+#pages-stack .pr-date{font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);margin-top:5px;}
+#pages-empty{color:var(--text-dim);font-family:var(--font-literary);font-style:italic;font-size:14px;text-align:center;margin-top:60px;}
+#new-page-btn{
+  position:fixed;right:28px;bottom:28px;width:54px;height:54px;border-radius:50%;
+  border:none;background:var(--gold);color:#2b1a05;font-size:22px;cursor:pointer;
+  box-shadow:0 6px 16px rgba(0,0,0,0.45);z-index:2;
 }
-.sticky-note .sn-empty{color:rgba(58,44,24,0.5);font-style:italic;}
-.sticky-note .sn-date{font-family:var(--font-mono);font-size:9.5px;color:rgba(58,44,24,0.55);margin-top:10px;}
-.sticky-note .sn-remove{
-  position:absolute;top:6px;right:8px;background:none;border:none;
-  color:rgba(58,44,24,0.35);font-size:16px;cursor:pointer;line-height:1;
-  opacity:0;transition:opacity .15s;
-}
-.sticky-note:hover .sn-remove{opacity:1;}
-.sticky-note .sn-remove:hover{color:#a52d1c;}
-
-.new-note-tile{
-  width:210px;min-height:180px;border:2px dashed rgba(198,154,58,0.35);border-radius:2px;
-  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;
-  color:var(--text-dim);cursor:pointer;background:rgba(255,255,255,0.02);
-}
-.new-note-tile:hover{border-color:var(--gold);color:var(--gold);}
-.new-note-tile .plus{font-size:28px;font-family:var(--font-literary);}
-.new-note-tile .label{font-family:var(--font-mono);font-size:11px;}
 
 #note-editor{position:fixed;inset:0;background:var(--bg);z-index:92;display:none;flex-direction:column;}
 #note-editor.show{display:flex;}
@@ -1212,6 +1195,24 @@ button.btn.primary#add-chapter-btn:hover{
 #note-editor-textarea{width:100%;max-width:640px;min-height:100%;background:none;border:none;color:var(--text);font-family:var(--font-literary);font-size:16px;line-height:1.8;resize:none;outline:none;}
 #note-editor-foot{display:flex;align-items:center;gap:14px;padding:12px 24px;border-top:1px solid var(--border);background:var(--bg-alt);}
 #note-editor-status{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
+#note-editor-textarea{padding:0 4px;}
+#page-actions{display:none;border-top:1px solid var(--border);background:var(--bg-alt);padding:16px 24px;max-height:45vh;overflow-y:auto;}
+#page-actions.show{display:block;}
+#page-actions .pa-label{font-family:var(--font-heading);font-size:13px;color:var(--gold);margin-bottom:9px;}
+#page-actions .pa-note{font-family:var(--font-literary);font-style:italic;font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.6;}
+#page-actions .pa-rule{height:1px;background:var(--border);margin:16px 0;}
+#page-actions .pa-chips{display:flex;flex-wrap:wrap;gap:8px;}
+#page-actions .pa-chip{
+  border:1px solid var(--border);border-radius:999px;padding:5px 12px;background:none;
+  color:var(--text-dim);font-family:var(--font-mono);font-size:11px;cursor:pointer;
+}
+#page-actions .pa-chip.on{background:rgba(198,154,58,0.22);border-color:var(--gold);color:var(--text);}
+#page-actions .pa-action{display:block;background:none;border:none;color:var(--text);font-size:14px;padding:10px 0;cursor:pointer;text-align:left;}
+#page-actions .pa-action:hover{color:var(--gold);}
+#page-actions .pa-version{border-left:2px solid var(--border);padding-left:10px;margin-top:10px;}
+#page-actions .pa-version .v-when{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);}
+#page-actions .pa-version .v-text{font-family:var(--font-literary);font-size:13px;line-height:1.6;color:var(--text-dim);margin-top:4px;white-space:pre-wrap;max-height:7.5em;overflow:hidden;}
+#page-schema-warn{color:var(--danger, #b8542e);font-size:12px;line-height:1.6;margin-bottom:12px;}
 
 /* mark toolbar */
 .mark-toolbar{display:flex;gap:6px;}
@@ -1941,7 +1942,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="export-epub-btn"><svg class="nav-icon"><use href="#icon-book-closed"></use></svg> Export as eBook</button>
         <button class="btn hdr-collapsible" id="import-btn"><svg class="nav-icon"><use href="#icon-upload"></use></svg> Import</button>
         <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Read</button>
-        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Notes <span id="notes-count-badge">0</span></button>
+        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Pages <span id="notes-count-badge">0</span></button>
         <button class="btn hdr-collapsible" id="trash-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Trash <span id="trash-count-badge" class="zero">0</span></button>
       </div>
 
@@ -1988,7 +1989,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
     <div class="sb-group">Library</div>
     <button class="sb-item" data-click="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
-    <button class="sb-item" data-click="notes-board-btn"><svg class="nav-icon"><use href="#icon-pin"></use></svg> The Margin</button>
+    <button class="sb-item" data-click="notes-board-btn"><svg class="nav-icon"><use href="#icon-pin"></use></svg> Pages</button>
     <button class="sb-item" data-click="trash-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Trash</button>
 
     <div class="sb-group">Analysis</div>
@@ -2240,7 +2241,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   <div class="modal-panel" style="max-width:600px;width:min(95vw,600px);">
     <h2>Search everything <button id="search-modal-close">×</button></h2>
     <div style="padding:14px 22px;border-bottom:1px solid var(--border);">
-      <input type="text" id="search-input" placeholder="Search chapters, scenes, documents…" style="width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:16px;">
+      <input type="text" id="search-input" placeholder="Search pages, chapters, scenes, documents…" style="width:100%;background:var(--bg-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-size:16px;">
     </div>
     <div class="modal-list" id="search-results"></div>
   </div>
@@ -2407,12 +2408,12 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 <div id="notes-board">
   <div id="notes-board-head">
     <div id="notes-board-head-row">
-      <h2>The Margin — random ideas, not yet placed anywhere</h2>
+      <h2>Pages</h2>
       <button class="btn small btn-x" id="notes-board-close" title="Close">&#215;</button>
     </div>
-    <div id="notes-reminder"></div>
   </div>
-  <div id="notes-board-grid"></div>
+  <div id="pages-stack"></div>
+  <button id="new-page-btn" title="New page">&#9998;</button>
 </div>
 
 <div id="annotation-browser">
@@ -2425,13 +2426,17 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 
 <div id="note-editor">
   <div class="editor-head-style">
-    <div class="et" style="font-family:var(--font-heading);font-size:15px;letter-spacing:.02em;">A loose idea</div>
-    <button class="btn small danger" id="note-editor-delete">Delete</button>
+    <div class="et" style="flex:1;"></div>
+    <button class="btn small" id="page-actions-btn" title="This page">&#183;</button>
     <button class="btn small btn-x" id="note-editor-close" title="Close">&#215;</button>
   </div>
   <div id="note-editor-body">
-    <textarea id="note-editor-textarea" spellcheck="false" placeholder="What's the idea? Doesn't need to be tidy — just don't lose it."></textarea>
+    <textarea id="note-editor-textarea" spellcheck="false" placeholder=""></textarea>
   </div>
+  <!-- Everything that is not writing lives behind the single dot above: what this page is,
+       whether it has been read through, what it became, what it used to say. None of it is
+       visible while writing, and none of it deletes anything. -->
+  <div id="page-actions"></div>
   <div id="note-editor-foot">
     <div id="note-editor-status"></div>
   </div>
@@ -3178,10 +3183,17 @@ function loadData(){
         id: row.id, projectId: row.project_id, title: row.title, type: row.type, content: row.content
       }));
 
+      // select('*') above, so a pre-migration table simply returns fewer keys and every
+      // page field defaults here rather than the read failing.
+      detectPagesSchema(stickyNotesRes.data);
       stickyNotes = stickyNotesRes.data.map(row => ({
         id: row.id, projectId: row.project_id, content: row.content,
         createdAt: new Date(row.created_at).getTime(),
-        rotation: Number(row.rotation)
+        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : new Date(row.created_at).getTime(),
+        rotation: Number(row.rotation),
+        type: row.type || null, status: row.status || 'raw', versions: row.versions || [],
+        becameType: row.became_type || null, becameId: row.became_id || null,
+        becameAt: row.became_at || null
       }));
 
       trash = trashRes.data.map(row => ({
@@ -3270,11 +3282,25 @@ function saveData(){
         updated_at: new Date().toISOString()
       }));
 
-      const stickyNoteRows = stickyNotes.map(n => ({
-        id: n.id, user_id: userId, project_id: currentProjectId, content: n.content || '',
-        created_at: new Date(n.createdAt || Date.now()).toISOString(),
-        rotation: Number(n.rotation) || 0
-      }));
+      const stickyNoteRows = stickyNotes.map(n => {
+        const row = {
+          id: n.id, user_id: userId, project_id: currentProjectId, content: n.content || '',
+          created_at: new Date(n.createdAt || Date.now()).toISOString(),
+          rotation: Number(n.rotation) || 0
+        };
+        // Left off entirely when the pages migration has not been run, so an old table
+        // keeps saving prose instead of failing the whole upsert on a missing column.
+        if(pagesSchemaReady){
+          row.updated_at = new Date(n.updatedAt || n.createdAt || Date.now()).toISOString();
+          row.type = n.type || null;
+          row.status = n.status || 'raw';
+          row.versions = n.versions || [];
+          row.became_type = n.becameType || null;
+          row.became_id = n.becameId || null;
+          row.became_at = n.becameAt || null;
+        }
+        return row;
+      });
 
       const trashRows = trash.map(t => {
         const { id, type, deletedAt, projectId, ...payload } = t;
@@ -4475,6 +4501,76 @@ function snippetAround(text, query, pad){
   const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'ig');
   return escapeHtml(snippet).replace(re, m => `<mark>${m}</mark>`);
 }
+/* Search is not a convenience here, it is what makes the pile safe to deposit into: a page
+   nobody can find again in three seconds was lost the moment it was written. Two engines,
+   one results shape.
+
+   search_everything() (20260826_pages.sql) is Postgres full-text — GIN-indexed, ranked,
+   stemmed, with server-side snippets, and it does not drag the whole saga into the browser
+   to filter it. The substring scan below it is what this function used to be, kept only for
+   projects where that migration has not been run: search breaking while a SQL file sits
+   unapplied is worse than search being naive. */
+let searchFullText = true, searchRunId = 0;
+
+function renderSearchHits(hits, q){
+  const results = document.getElementById('search-results');
+  if(hits.length === 0){
+    results.innerHTML = '<div class="modal-empty">Nothing found for "' + escapeHtml(q) + '".</div>';
+    return;
+  }
+  results.innerHTML = hits.map((h, i) =>
+    '<div class="search-result" data-hit="' + i + '">' +
+      '<div class="sr-type">' + escapeHtml(h.type) + (h.meta ? ' — ' + escapeHtml(h.meta) : '') + '</div>' +
+      '<div class="sr-title">' + escapeHtml(h.title) + '</div>' +
+      '<div class="sr-snippet">' + h.snippet + '</div>' +
+    '</div>').join('');
+  results.querySelectorAll('[data-hit]').forEach(el => {
+    el.addEventListener('click', () => {
+      const hit = hits[parseInt(el.dataset.hit)];
+      document.getElementById('search-modal').classList.remove('show');
+      hit.open();
+    });
+  });
+}
+
+/* ts_headline returns <mark>-wrapped HTML built from escaped text, which is exactly the
+   markup the snippet slot wants — but it is still server output going into innerHTML, so
+   everything except the <mark> pair is re-escaped here. */
+function sanitizeHeadline(html){
+  return escapeHtml(html || '').replace(/&lt;(\/?)mark&gt;/g, '<$1mark>');
+}
+
+async function runSearchFullText(q){
+  const runId = ++searchRunId;
+  const { data, error } = await window.sbClient.rpc('search_everything',
+    { p_project_id: currentProjectId, p_query: q });
+  if(runId !== searchRunId) return;          // a later keystroke already owns the results
+  if(error){
+    // The function is not on this project yet. Switch engines for the rest of the session
+    // rather than retrying on every keystroke.
+    searchFullText = false;
+    runSearch(document.getElementById('search-input').value);
+    return;
+  }
+  const hits = (data || []).map(r => {
+    const openers = {
+      page: () => { document.getElementById('notes-board').classList.add('show'); renderPagesStack(); openNoteEditor(r.id); },
+      chapter: () => openEditor(r.id),
+      scene: () => { if(r.parent_id) openDrawer(r.parent_id); },
+      document: () => openDocEditor(r.id)
+    };
+    const ch = r.kind === 'scene' ? chapters.find(c => c.id === r.parent_id) : null;
+    return {
+      type: r.kind.charAt(0).toUpperCase() + r.kind.slice(1),
+      title: (r.title || '').trim() || (r.kind === 'page' ? 'Untitled page' : 'Untitled'),
+      meta: r.kind === 'page' ? pageWhen(Date.parse(r.at)) : (ch ? BOOKS[ch.book] + ' · ' + ch.title : ''),
+      snippet: sanitizeHeadline(r.snippet),
+      open: openers[r.kind] || (() => {})
+    };
+  });
+  renderSearchHits(hits, q);
+}
+
 function runSearch(query){
   const results = document.getElementById('search-results');
   if(!query || query.trim().length < 2){
@@ -4482,6 +4578,7 @@ function runSearch(query){
     return;
   }
   const q = query.trim();
+  if(searchFullText){ runSearchFullText(q); return; }
   const hits = [];
   chapters.forEach(ch => {
     const hay = ch.title + ' ' + (ch.content||'');
@@ -4504,28 +4601,11 @@ function runSearch(query){
   });
   stickyNotes.forEach(n => {
     if((n.content||'').toLowerCase().includes(q.toLowerCase())){
-      hits.push({type:'Note', title:'Margin note', meta: timeAgo(n.createdAt), snippet: snippetAround(n.content, q, 50), open:()=>{ document.getElementById('search-modal').classList.remove('show'); document.getElementById('notes-board').classList.add('show'); openNoteEditor(n.id); }});
+      hits.push({type:'Page', title: pageTitle(n) || 'Untitled page', meta: pageWhen(pageStamp(n)), snippet: snippetAround(n.content, q, 50), open:()=>{ document.getElementById('notes-board').classList.add('show'); renderPagesStack(); openNoteEditor(n.id); }});
     }
   });
 
-  if(hits.length === 0){
-    results.innerHTML = `<div class="modal-empty">Nothing found for "${escapeHtml(q)}".</div>`;
-    return;
-  }
-  results.innerHTML = hits.map((h, i) => `
-    <div class="search-result" data-hit="${i}">
-      <div class="sr-type">${h.type} — ${escapeHtml(h.meta)}</div>
-      <div class="sr-title">${escapeHtml(h.title)}</div>
-      <div class="sr-snippet">${h.snippet}</div>
-    </div>
-  `).join('');
-  results.querySelectorAll('[data-hit]').forEach(el => {
-    el.addEventListener('click', () => {
-      const hit = hits[parseInt(el.dataset.hit)];
-      document.getElementById('search-modal').classList.remove('show');
-      hit.open();
-    });
-  });
+  renderSearchHits(hits, q);
 }
 document.getElementById('header-menu-btn').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -5553,7 +5633,32 @@ document.getElementById('conflict-modal').addEventListener('click', e => {
   if(e.target.id === 'conflict-modal') e.target.classList.remove('show');
 });
 
-/* ---------- STICKY NOTES / "THE MARGIN" ---------- */
+/* ---------- PAGES (stage-one raw capture) ----------
+   Same `sticky_notes` rows the Margin board always used, widened by
+   supabase/migrations/20260826_pages.sql. A page IS a sticky note that got long: text
+   deposited without first deciding what it was.
+
+   The rule this whole section enforces: NOTHING HERE DELETES OR CONSUMES A PAGE. There is
+   no delete control any more — the board used to carry one on every card and one in the
+   editor. Promotion copies. Status is a marker, never a location. An edit snapshots the
+   text it is about to overwrite. The surface is meant to feel casual and disposable; the
+   storage underneath it must never actually be. */
+
+// False when the live table predates the pages migration. Content still saves; the extra
+// columns are left out of the upsert so nothing 42703s. Detected from a loaded row, which
+// costs nothing, and probed only when the project has no pages to look at.
+let pagesSchemaReady = true;
+const PAGE_TYPES = ['prose','note','reference','canon','filler'];
+const PAGE_SNAPSHOT_INTERVAL_MS = 3 * 60 * 1000;
+const PAGE_MAX_VERSIONS = 20;
+let pagePromoteOpen = false, pagePromoteBook = 0, pageHistoryOpen = false;
+
+async function detectPagesSchema(rows){
+  if(rows && rows.length){ pagesSchemaReady = ('status' in rows[0]); return; }
+  const probe = await window.sbClient.from('sticky_notes').select('id, status').limit(1);
+  pagesSchemaReady = !(probe.error && probe.error.code === '42703');
+}
+
 function updateNotesBadge(){
   const badge = document.getElementById('notes-count-badge');
   badge.textContent = stickyNotes.length;
@@ -5570,79 +5675,222 @@ function timeAgo(ts){
   const days = Math.floor(hrs/24);
   return days + 'd ago';
 }
-function renderNotesBoard(){
-  const grid = document.getElementById('notes-board-grid');
-  const reminder = document.getElementById('notes-reminder');
-  if(stickyNotes.length === 0){
-    reminder.textContent = '';
-  } else {
-    reminder.textContent = `You have ${stickyNotes.length} idea${stickyNotes.length===1?'':'s'} sitting here, unplaced. Worth a look before they go stale.`;
-  }
-  const cards = stickyNotes.map(n => {
-    const preview = (n.content||'').trim();
-    return `
-    <div class="sticky-note" style="transform:rotate(${n.rotation||0}deg);" data-open="${n.id}">
-      <button class="sn-remove" data-remove="${n.id}" title="Delete this note">×</button>
-      <div class="sn-preview ${preview?'':'sn-empty'}">${preview ? escapeHtml(truncate(preview, 260)) : 'Empty note — click to write.'}</div>
-      <div class="sn-date">${timeAgo(n.createdAt)}</div>
-    </div>`;
-  }).join('');
-  const newTile = `
-    <div class="new-note-tile" id="new-note-tile">
-      <div class="plus">+</div>
-      <div class="label">new idea</div>
-    </div>`;
-  grid.innerHTML = cards + newTile;
+// A date, not a timestamp. Today by clock, yesterday by name, this year without it.
+function pageWhen(ts){
+  const d = new Date(ts || Date.now()), now = new Date();
+  const sameDay = (a,b) => a.toDateString() === b.toDateString();
+  if(sameDay(d, now)) return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  const yest = new Date(now); yest.setDate(now.getDate()-1);
+  if(sameDay(d, yest)) return 'Yesterday';
+  if(d.getFullYear() === now.getFullYear()) return d.toLocaleDateString([], {month:'short', day:'numeric'});
+  return d.toLocaleDateString([], {year:'numeric', month:'short', day:'numeric'});
+}
+/* The first non-empty line, which is the only name a page ever has — here and in search. */
+function pageTitle(note){
+  const line = (note.content||'').split('\n').map(l=>l.trim()).find(l=>l.length);
+  return line || '';
+}
+function pageStamp(note){ return note.updatedAt || note.createdAt || Date.now(); }
 
-  grid.querySelectorAll('[data-open]').forEach(el => {
-    el.addEventListener('click', (e) => {
-      if(e.target.dataset.remove) return; // handled separately
-      openNoteEditor(el.dataset.open);
-    });
-  });
-  grid.querySelectorAll('[data-remove]').forEach(el => {
-    el.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const id = el.dataset.remove;
-      stickyNotes = stickyNotes.filter(n => n.id !== id);
-      renderNotesBoard();
-      updateNotesBadge();
-      await saveData();
-    });
-  });
-  document.getElementById('new-note-tile').addEventListener('click', async () => {
-    const note = {id: crypto.randomUUID(), projectId: currentProjectId, content: '', createdAt: Date.now(), rotation: (Math.random()*6-3).toFixed(1)};
-    stickyNotes.push(note);
-    updateNotesBadge();
-    await saveData();
-    openNoteEditor(note.id);
+/* Snapshot the text about to be overwritten — but not once per autosave tick, which would
+   be a snapshot every half-second of typing and no history worth reading. And when the list
+   is full the OLDEST IS NEVER DROPPED: the first thing a page ever said is the version most
+   worth having, so the discard comes from the middle. */
+function pushPageVersion(note){
+  const prev = note.content || '';
+  if(!prev.trim()) return;
+  const versions = note.versions || (note.versions = []);
+  if(versions[0] && versions[0].content === prev) return;
+  const lastAt = versions[0] ? Date.parse(versions[0].savedAt) : 0;
+  if(Date.now() - lastAt < PAGE_SNAPSHOT_INTERVAL_MS) return;
+  versions.unshift({savedAt: new Date().toISOString(), content: prev});
+  if(versions.length > PAGE_MAX_VERSIONS){
+    note.versions = versions.slice(0, PAGE_MAX_VERSIONS - 1).concat([versions[versions.length-1]]);
+  }
+}
+
+function renderPagesStack(){
+  const stack = document.getElementById('pages-stack');
+  if(stickyNotes.length === 0){
+    stack.innerHTML = '<div id="pages-empty">Nothing here yet. Tap the pen and write something down.</div>';
+    return;
+  }
+  const ordered = [...stickyNotes].sort((a,b) => pageStamp(b) - pageStamp(a));
+  stack.innerHTML = ordered.map(n => {
+    const title = pageTitle(n);
+    return '<button class="page-row" data-open="' + n.id + '">' +
+      '<div class="pr-title' + (title ? '' : ' blank') + '">' + escapeHtml(title || 'Blank page') + '</div>' +
+      '<div class="pr-date">' + pageWhen(pageStamp(n)) + '</div>' +
+    '</button>';
+  }).join('');
+  stack.querySelectorAll('[data-open]').forEach(el => {
+    el.addEventListener('click', () => openNoteEditor(el.dataset.open));
   });
 }
+
+async function newPage(){
+  const note = {
+    id: crypto.randomUUID(), projectId: currentProjectId, content: '',
+    createdAt: Date.now(), updatedAt: Date.now(), rotation: (Math.random()*6-3).toFixed(1),
+    type: null, status: 'raw', versions: [], becameType: null, becameId: null, becameAt: null
+  };
+  stickyNotes.push(note);
+  updateNotesBadge();
+  await saveData();
+  openNoteEditor(note.id);
+}
+
 document.getElementById('notes-board-btn').addEventListener('click', () => {
-  renderNotesBoard();
+  renderPagesStack();
   document.getElementById('notes-board').classList.add('show');
 });
 document.getElementById('notes-board-close').addEventListener('click', () => {
   document.getElementById('notes-board').classList.remove('show');
 });
+document.getElementById('new-page-btn').addEventListener('click', newPage);
 
 function openNoteEditor(id){
   noteEditorId = id;
   const note = stickyNotes.find(n => n.id === id);
+  if(!note) return;
   document.getElementById('note-editor-textarea').value = note.content || '';
   document.getElementById('note-editor-status').textContent = '';
+  document.getElementById('page-actions').classList.remove('show');
+  renderPageActions();
   document.getElementById('note-editor').classList.add('show');
   document.getElementById('note-editor-textarea').focus();
 }
 function closeNoteEditor(){
   document.getElementById('note-editor').classList.remove('show');
+  document.getElementById('page-actions').classList.remove('show');
   noteEditorId = null;
-  renderNotesBoard(); // reflect latest preview text on the board underneath
+  renderPagesStack();
 }
+
+/* The panel behind the dot. Rebuilt on every state change rather than patched — it is small
+   and only ever open while the writer is not writing. */
+function renderPageActions(){
+  const el = document.getElementById('page-actions');
+  const note = stickyNotes.find(n => n.id === noteEditorId);
+  if(!note){ el.innerHTML = ''; return; }
+
+  const warn = pagesSchemaReady ? '' :
+    '<div id="page-schema-warn">This project&rsquo;s database predates 20260826_pages.sql. ' +
+    'Your text saves normally; type, status and history do not.</div>';
+
+  const chips = PAGE_TYPES.map(t =>
+    '<button class="pa-chip' + (note.type===t?' on':'') + '" data-type="' + t + '">' + t + '</button>').join('');
+
+  let junction;
+  if(note.becameType && note.becameId){
+    junction = '<button class="pa-action" data-open-became="1">Became a ' +
+      escapeHtml(note.becameType) + ' &mdash; open it</button>';
+  } else if(pagePromoteOpen){
+    const acts = [...new Set(chapters.filter(c=>c.book===pagePromoteBook).map(c=>c.act))].sort((a,b)=>a-b);
+    const actList = acts.length ? acts : [1];
+    junction = '<div class="pa-label">Make this a chapter</div>' +
+      '<div class="pa-chips">' + BOOKS.map((b,i) =>
+        '<button class="pa-chip' + (pagePromoteBook===i?' on':'') + '" data-book="' + i + '">' +
+        escapeHtml(b) + '</button>').join('') + '</div>' +
+      '<div class="pa-chips" style="margin-top:8px;">' + actList.map(a =>
+        '<button class="pa-chip" data-act="' + a + '">' + escapeHtml(chapterLabel(pagePromoteBook, a)) +
+        '</button>').join('') + '</div>' +
+      '<div class="pa-note">The chapter gets a copy. This page stays exactly as it is, and ' +
+      'remembers where its words went.</div>';
+  } else {
+    junction = '<button class="pa-action" data-promote="1">Make this a chapter</button>';
+  }
+
+  const versions = note.versions || [];
+  let history = '';
+  if(versions.length){
+    history = '<button class="pa-action" data-history="1">' + versions.length +
+      ' earlier draft' + (versions.length===1?'':'s') + '</button>';
+    if(pageHistoryOpen){
+      history += versions.map(v => '<div class="pa-version">' +
+        '<div class="v-when">' + escapeHtml(new Date(v.savedAt).toLocaleString()) + '</div>' +
+        '<div class="v-text">' + escapeHtml(v.content) + '</div></div>').join('');
+    }
+  }
+
+  el.innerHTML = warn +
+    '<div class="pa-label">What is this?</div>' +
+    '<div class="pa-chips">' + chips + '</div>' +
+    '<div class="pa-note">Optional, and never asked for. Leave it blank.</div>' +
+    '<div class="pa-rule"></div>' + junction + '<div class="pa-rule"></div>' +
+    '<button class="pa-action" data-status="1">' +
+      (note.status==='reviewed' ? 'Mark as unread again' : 'Mark as read through') + '</button>' +
+    history;
+
+  el.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', async () => {
+    note.type = note.type === b.dataset.type ? null : b.dataset.type;
+    renderPageActions();
+    await saveData();
+  }));
+  el.querySelectorAll('[data-status]').forEach(b => b.addEventListener('click', async () => {
+    note.status = note.status === 'reviewed' ? 'raw' : 'reviewed';
+    renderPageActions();
+    await saveData();
+  }));
+  el.querySelectorAll('[data-history]').forEach(b => b.addEventListener('click', () => {
+    pageHistoryOpen = !pageHistoryOpen; renderPageActions();
+  }));
+  el.querySelectorAll('[data-promote]').forEach(b => b.addEventListener('click', () => {
+    pagePromoteOpen = true; renderPageActions();
+  }));
+  el.querySelectorAll('[data-book]').forEach(b => b.addEventListener('click', () => {
+    pagePromoteBook = parseInt(b.dataset.book); renderPageActions();
+  }));
+  el.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+    promotePageToChapter(note, pagePromoteBook, parseInt(b.dataset.act));
+  }));
+  el.querySelectorAll('[data-open-became]').forEach(b => b.addEventListener('click', () => {
+    const target = note.becameId;
+    closeNoteEditor();
+    document.getElementById('notes-board').classList.remove('show');
+    if(chapters.some(c => c.id === target)) openEditor(target);
+  }));
+}
+
+/* One junction, one action. The page's text is COPIED into a new chapter; the page itself is
+   untouched — same text, same place in the stack — and only learns where its words went.
+   Deliberately not a move: the chapter will be rewritten, and the page is the record of what
+   it first said. */
+async function promotePageToChapter(note, book, act){
+  const text = document.getElementById('note-editor-textarea').value;
+  note.content = text;
+  note.updatedAt = Date.now();
+  const maxOrder = Math.max(0, ...chapters.filter(c=>c.book===book && c.act===act).map(c=>c.order));
+  const id = crypto.randomUUID();
+  chapters.push({id, projectId: currentProjectId, book, act, order: maxOrder+1,
+    title: (pageTitle(note) || 'Untitled chapter').slice(0,120), status:'idea', content: text,
+    wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
+  scenes.push({id: crypto.randomUUID(), projectId: currentProjectId, chapterId:id, order:1,
+    title:'New chapter', status:'idea', summary:'', requires:[], provides:[], notes:'',
+    deferredRequires:[], pov:''});
+  note.becameType = 'chapter'; note.becameId = id; note.becameAt = new Date().toISOString();
+  pagePromoteOpen = false;
+  await saveData();
+  closeNoteEditor();
+  document.getElementById('notes-board').classList.remove('show');
+  render();
+  openEditor(id);
+}
+
+document.getElementById('page-actions-btn').addEventListener('click', () => {
+  const panel = document.getElementById('page-actions');
+  const opening = !panel.classList.contains('show');
+  if(opening){ pagePromoteOpen = false; pageHistoryOpen = false; renderPageActions(); }
+  panel.classList.toggle('show', opening);
+});
+
 document.getElementById('note-editor-textarea').addEventListener('input', () => {
   const note = stickyNotes.find(n => n.id === noteEditorId);
   if(!note) return;
-  note.content = document.getElementById('note-editor-textarea').value;
+  const next = document.getElementById('note-editor-textarea').value;
+  if(next !== note.content) pushPageVersion(note);
+  note.content = next;
+  note.updatedAt = Date.now();
   document.getElementById('note-editor-status').textContent = 'Saving…';
   clearTimeout(noteSaveTimer);
   noteSaveTimer = setTimeout(async () => {
@@ -5652,13 +5900,6 @@ document.getElementById('note-editor-textarea').addEventListener('input', () => 
 });
 document.getElementById('note-editor-close').addEventListener('click', async () => {
   clearTimeout(noteSaveTimer);
-  await saveData();
-  closeNoteEditor();
-});
-document.getElementById('note-editor-delete').addEventListener('click', async () => {
-  if(!confirm('Delete this idea for good?')) return;
-  stickyNotes = stickyNotes.filter(n => n.id !== noteEditorId);
-  updateNotesBadge();
   await saveData();
   closeNoteEditor();
 });
@@ -6965,7 +7206,10 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
       nextId = parsed.nextId || 1;
       documents = parsed.documents || [];
       aiEnabled = parsed.aiEnabled || false;
-      stickyNotes = parsed.stickyNotes || [];
+      stickyNotes = (parsed.stickyNotes || []).map(n => ({
+        type: null, status: 'raw', versions: [], becameType: null, becameId: null,
+        becameAt: null, updatedAt: n.createdAt, ...n
+      }));
       chapterWordTargets = parsed.chapterWordTargets || [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
       trash = parsed.trash || [];
       await saveData();
