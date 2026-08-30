@@ -107,6 +107,21 @@ export default function BraidScreen({ route, navigation }: Props) {
     try {
       const msg = JSON.parse(raw);
       if (msg.type === 'ready') setWebReady(true);
+      // The return leg. The braid could always be reached FROM the Reader and the Editor at
+      // any granularity, and could never send anyone back -- it was the one surface in the
+      // app that was a dead end. The renderer asks; this decides what "open" means.
+      //
+      // The Reader rather than the Editor, deliberately: arriving from a structural view,
+      // the question is almost always "what does this actually say", and the Reader can hand
+      // over to the Editor itself. `jumpToText` is the flag's own anchored substring, so it
+      // lands on the line rather than the top of the chapter.
+      if (msg.type === 'open' && msg.chapterId) {
+        navigation.navigate('Reader', {
+          projectId,
+          chapterId: msg.chapterId,
+          jumpToText: msg.text || undefined,
+        });
+      }
     } catch {
       // A malformed message from the page is not worth surfacing.
     }

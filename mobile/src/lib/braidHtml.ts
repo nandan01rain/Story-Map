@@ -55,6 +55,10 @@ export const BRAID_HTML = String.raw`<!doctype html>
   .jump:hover { color: var(--ink); }
   .jump em { font-style: normal; color: var(--accent); opacity: .8; }
   .jump.here { color: var(--ink); cursor: default; }
+  /* The way out. Distinguished from the camera jumps above it because it does something
+     categorically different -- it leaves the braid. */
+  .jump.out { color: var(--accent); margin-top: 6px; }
+  .jump.out:hover { color: var(--ink); }
   dd .jump:first-child { padding-top: 0; }
   .dd[open] > summary { color: var(--accent); }
   .pop { position: absolute; right: 0; top: 26px; min-width: 168px; padding: 10px 12px;
@@ -2277,6 +2281,31 @@ function goToRibbon(id) {
   focusOn(X(r.start));
   select({ kind: 'ribbon', data: r, ord: r.start });
 }
+// Whether anything is listening. Standalone (graph/braid-3d.html, opened directly) there is
+// no host, and offering to open a chapter that nothing can open would be a dead control.
+const EMBEDDED = !!(window.ReactNativeWebView || (window.parent && window.parent !== window));
+
+// The way back out. The braid has always been a dead end: the Reader and the Editor can send
+// you here at any granularity, and nothing could send you back. This is the return leg --
+// the braid asks its host to open a chapter, optionally at an exact line, and the host
+// decides what "open" means (the Reader on mobile, the Editor in the PWA).
+//
+// It ASKS. It does not navigate: a document inside a WebView has no business deciding what
+// the app around it shows, and the two hosts answer this differently.
+function openInHost(chapterId, text) {
+  if (!chapterId) return;
+  postHost({ type: 'open', chapterId, text: text || '' });
+}
+
+// Rendered only when embedded, and only where there is prose to land in. A subplot spans
+// chapters and a character spans the saga, so neither gets one -- their own rows already
+// jump to the flags that do.
+function readRow(chapterId, text, label) {
+  if (!EMBEDDED || !chapterId) return '';
+  return '<button class="jump out" data-go="open" data-chapter="' + esc(chapterId)
+    + '" data-text="' + esc(text || '') + '">' + esc(label) + ' &rarr;</button>';
+}
+
 function goToChapter(id) {
   const ord = axis.ordinal[id];
   if (ord == null) return;
@@ -2290,7 +2319,8 @@ document.getElementById('dbody').addEventListener('click', (e) => {
   const b = e.target.closest('.jump');
   if (!b || b.classList.contains('here')) return;
   const id = b.dataset.id;
-  if (b.dataset.go === 'flag') goToFlag(id);
+  if (b.dataset.go === 'open') openInHost(b.dataset.chapter, b.dataset.text);
+  else if (b.dataset.go === 'flag') goToFlag(id);
   else if (b.dataset.go === 'ribbon') goToRibbon(id);
   else if (b.dataset.go === 'chapter') goToChapter(id);
 });
@@ -2457,9 +2487,11 @@ function select(u) {
     if (present.length) {
       body += row('present', present.map((st) => st.label).join(', '));
     }
+    body += rowHtml('', readRow(d.id, '', 'read this chapter'));
   } else if (u.kind === 'scene') {
     head = d.title || 'Untitled scene'; sub = 'Scene';
-    body = row('told by', d.pov) + row('summary', clip(d.summary, 190));
+    body = row('told by', d.pov) + row('summary', clip(d.summary, 190))
+      + rowHtml('', readRow(d.chapterId, '', 'read this chapter'));
   } else if (u.kind === 'ribbon') {
     head = d.label; sub = 'Subplot';
     body = row('opens', 'chapter ' + d.start)
@@ -2501,6 +2533,10 @@ function select(u) {
       body += others.length ? rowHtml('planted in', farEnds())
                             : row('planted in', 'not joined to a plant');
     }
+    // d.text is the anchored substring itself, so the host can land on the exact line
+    // rather than on the top of the chapter -- the same contract the Reader and the Editor
+    // already use between themselves.
+    body += rowHtml('', readRow(d.chapterId, d.text, 'read this line in place'));
   }
   document.getElementById('dbody').innerHTML =
     '<h2>' + esc(head) + '</h2><div class="sub">' + esc(sub) + '</div><dl>' + body + '</dl>';

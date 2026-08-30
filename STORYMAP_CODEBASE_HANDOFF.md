@@ -3949,3 +3949,78 @@ Ranked as the wishlist ranked them, minus what is above: a **structural-density 
 the chapter axis** (data exists, medium build), **narrative queries in Find** (`reveals in act 2`,
 `subplots involving X` — the index already has tabs to hang this off), and a **hover tooltip** so
 a marker can be read without selecting it.
+
+
+## 29. THE BRAID, BOTH WAYS (2026-08-30)
+
+### 29.1 What was actually there
+
+Asked whether navigation between the braid and the prose was two-way. Checked rather than
+assumed, and the answer was **half of one direction**:
+
+| | mobile | PWA |
+| --- | --- | --- |
+| Reader/Editor → braid, at any granularity | **yes** | **no** |
+| braid → Reader/Editor | **no** | **no** |
+
+`focusNode(id)` in the renderer has always resolved a chapter, a scene, a flag, a subplot or a
+mythic thread — five granularities, each by its own database id, switching the relevant layer on
+before it focuses. Mobile used it from the Reader and the Editor. **The PWA never sent a single
+`focus` message**: the capability sat there unused.
+
+And the braid posted exactly one message in its entire lifetime — `{type:'ready'}`. It was the
+one surface in either app that was a dead end: you could get *to* a flag's place in the braid
+and never back to the flag.
+
+Which was pointed, because the Reader and the Editor have had exactly this two-way between
+themselves for months.
+
+### 29.2 Built
+
+**Outbound, in the renderer.** A card for a chapter, a scene or a flag now carries one row that
+leaves the braid: *read this chapter →* / *read this line in place →*. It posts
+`{type:'open', chapterId, text}` and **asks** — a document inside a WebView has no business
+deciding what the app around it shows, and the two hosts answer differently. `text` is the
+flag's own anchored substring, so the host lands on the line rather than the top of the chapter,
+which is the same contract the Reader and Editor already use with each other.
+
+Guarded by `EMBEDDED`: opened standalone (`graph/braid-3d.html`) there is no host, and the row
+is not rendered at all rather than being a dead control.
+
+**Mobile answers with the Reader.** Deliberately: arriving from a structural view, the question
+is almost always "what does this actually say", and the Reader can hand on to the Editor itself.
+
+**The PWA answers with the Editor.** Also deliberately: this is the writing app, and someone who
+followed a plant here is one step from changing it. An unknown chapter id is ignored rather than
+opening something wrong.
+
+**The PWA gained the inbound direction it never had** — `openBraidAt(nodeId)`, wired to a 🧵
+control on every row of the editor's flag panel. The focus is **held until the frame reports
+ready**: a focus posted into a document that has not finished booting is silently dropped and
+reads as a broken button.
+
+### 29.3 Verified
+
+Driven in a browser, through the real embed harness and the real iframe rather than by calling
+functions directly:
+
+- The braid emits `{type:'open', chapterId, text}` with the **exact anchored substring**, not
+  just a chapter id.
+- Standalone, the way-out row is absent while the camera jumps remain.
+- The PWA's handler, posted **as the frame itself** so the `e.source` guard was satisfied
+  honestly: with text → `jumpToTextInEditor(chapterId, text)`; without → `openEditor(chapterId)`;
+  unknown chapter → nothing at all. The braid view closes in the cases that navigate.
+- The inbound queue: focus held while booting, sent exactly once on ready, **not re-sent** on a
+  second flush.
+- `tsc --noEmit` clean on mobile; all three braid builds regenerated from the one renderer.
+
+**Not verified**: the mobile leg has not run on a device — `handleMessage` → `navigate('Reader')`
+is typechecked only.
+
+### 29.4 Open
+
+- **The PWA's Reader has no braid control.** The Editor's flag panel has one; the Reader does
+  not, so on the PWA the inbound direction is editor-only. Mobile has both.
+- **Subplots and threads have no way out**, by design — a subplot spans chapters and a character
+  spans the saga, so neither has one place to open. Their own rows already jump to the flags that
+  do.

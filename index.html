@@ -5342,13 +5342,21 @@ function renderEditorAnnoPanel(){
           <div class="anno-panel-label-wrap" data-label-container>${a.label ? `<div class="anno-panel-label">${escapeHtml(a.label)}</div>` : ''}</div>
         </div>
         <div class="anno-panel-actions">
+          <button class="anno-panel-edit" data-braid-annotation="${a.id}" title="See this in the braid">🧵</button>
           <button class="anno-panel-edit" data-edit-annotation="${a.id}" title="Edit label">✎</button>
           <button class="anno-panel-remove" data-remove-annotation="${a.id}" title="Delete this flag">×</button>
         </div>
       </div>`).join('');
+  body.querySelectorAll('[data-braid-annotation]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openBraidAt(parseInt(el.dataset.braidAnnotation));
+    });
+  });
   body.querySelectorAll('[data-jump-annotation]').forEach(el => {
     el.addEventListener('click', (e) => {
-      if(e.target.closest('[data-remove-annotation]') || e.target.closest('[data-edit-annotation]')) return;
+      if(e.target.closest('[data-remove-annotation]') || e.target.closest('[data-edit-annotation]')
+         || e.target.closest('[data-braid-annotation]')) return;
       jumpToAnnotationInline(parseInt(el.dataset.jumpAnnotation));
     });
   });
@@ -6322,6 +6330,27 @@ function postToWeb(msg){
 
 function flushWebGraph(){
   if(webFrameReady && webGraphData) postToWeb({type:'data', payload:webGraphData});
+  if(webFrameReady && pendingBraidFocus){
+    postToWeb({type:'focus', id: pendingBraidFocus});
+    pendingBraidFocus = null;
+  }
+}
+
+/* ---------- THE BRAID, BOTH WAYS ----------
+   The renderer has always accepted a focus at any granularity -- a chapter, a scene, a
+   flagged line, a subplot, a thread, each by its own database id -- and the PWA has never
+   sent one. The capability sat there unused while the mobile app used it from the Reader and
+   the Editor. This is that gap closed, and the return leg below it.
+
+   Held until the frame reports ready, because a focus posted into a document that has not
+   finished booting is silently dropped and reads as a broken button. */
+let pendingBraidFocus = null;
+
+function openBraidAt(nodeId){
+  pendingBraidFocus = nodeId || null;
+  document.getElementById('web-view').classList.add('show');
+  loadCharacterWeb();
+  if(webFrameReady) flushWebGraph();
 }
 
 window.addEventListener('message', (e) => {
@@ -6331,6 +6360,20 @@ window.addEventListener('message', (e) => {
   let msg;
   try{ msg = JSON.parse(e.data); }catch(err){ return; }
   if(msg.type === 'ready'){ webFrameReady = true; flushWebGraph(); }
+
+  /* The return leg. The braid asks to open a chapter; the host decides what that means, and
+     in the PWA it means the Editor -- this is the writing app, and someone who followed a
+     plant here is one step from changing it. The Reader is a tap away from there.
+
+     `text` is the flag's own anchored substring, so this lands on the exact line rather than
+     the top of the chapter -- the same contract the Reader and the Editor already use with
+     each other. */
+  if(msg.type === 'open' && msg.chapterId){
+    if(!chapters.some(c => c.id === msg.chapterId)) return;
+    document.getElementById('web-view').classList.remove('show');
+    if(msg.text) jumpToTextInEditor(msg.chapterId, msg.text);
+    else openEditor(msg.chapterId);
+  }
 });
 
 async function loadCharacterWeb(){
