@@ -2351,6 +2351,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <button type="button" id="reader-sel-highlight-btn">✏ Highlight</button>
     <button type="button" id="reader-sel-remove-highlight-btn" style="display:none;">🗑 Remove Highlight</button>
     <button type="button" id="reader-sel-editor-btn">📝 Editor</button>
+    <button type="button" id="reader-sel-braid-btn">🧵 Braid</button>
   </div>
   <div id="reader-page-area">
     <div id="reader-page-viewport">
@@ -7104,6 +7105,36 @@ function handleReaderSelection(){
 document.addEventListener('selectionchange', () => {
   if(document.getElementById('reader-view').classList.contains('show')) handleReaderSelection();
 });
+/* The Reader's way into the braid, so the two surfaces face each other the way the Reader
+   and the Editor already do. The Editor reaches the braid from its flag panel, where every
+   row IS a flag; the Reader has no flag list, so the selection stands in for one.
+
+   Granularity follows the selection rather than being fixed: land on the flag if the writer
+   selected one, and on the chapter otherwise. A selection that is not a flag is the ordinary
+   case in a reader, and answering it with "the chapter, then" is more useful than refusing. */
+function findFlagIdForSelection(chapterId, text){
+  const ch = chapters.find(c => c.id === chapterId);
+  if(!ch || !text) return null;
+  const needle = text.trim().toLowerCase();
+  if(!needle) return null;
+  // A highlight is a reading mark, not a story flag, and the braid does not draw one --
+  // matching against them would send the writer somewhere that does not exist.
+  const flags = (ch.annotations || []).filter(a => a.type === 'plant' || a.type === 'reveal' || a.type === 'note');
+  const hit = flags.find(a => {
+    const t = (a.text || '').trim().toLowerCase();
+    return t && (t.includes(needle) || needle.includes(t));
+  });
+  return hit ? hit.id : null;
+}
+
+document.getElementById('reader-sel-braid-btn').addEventListener('click', () => {
+  if(!readerSelection) return;
+  const { text, chapterId } = readerSelection;
+  document.getElementById('reader-selection-popup').classList.remove('show');
+  document.getElementById('reader-view').classList.remove('show');
+  openBraidAt(findFlagIdForSelection(chapterId, text) || chapterId);
+});
+
 document.getElementById('reader-sel-highlight-btn').addEventListener('click', () => {
   if(!readerSelection) return;
   const { text, chapterId } = readerSelection;

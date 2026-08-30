@@ -4019,8 +4019,17 @@ is typechecked only.
 
 ### 29.4 Open
 
-- **The PWA's Reader has no braid control.** The Editor's flag panel has one; the Reader does
-  not, so on the PWA the inbound direction is editor-only. Mobile has both.
+- ~~The PWA's Reader has no braid control.~~ **Closed the same day.** The Reader's selection
+  popup already held the cross-surface jump (“📝 Editor”), so “🧵 Braid” sits beside it. The Editor
+  reaches the braid from its flag panel, where every row is a flag; the Reader has no flag list,
+  so **the selection stands in for one** and granularity follows it: land on the flag if one was
+  selected, on the chapter otherwise. A selection that is not a flag is the ordinary case in a
+  reader, and answering it with “the chapter, then” beats refusing.
+
+  Highlights are excluded from the match on purpose — a highlight is a reading mark, not a story
+  flag, and the braid does not draw one, so matching against it would send the writer to
+  something that does not exist. Verified: a selection inside a plant focuses that flag, one
+  matching a highlight falls back to the chapter, and one matching nothing does too.
 - **Subplots and threads have no way out**, by design — a subplot spans chapters and a character
   spans the saga, so neither has one place to open. Their own rows already jump to the flags that
   do.
