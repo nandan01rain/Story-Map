@@ -18,14 +18,14 @@ import { useAuthStore } from '../store/authStore';
 import { useAssistantStore } from '../store/assistantStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
-type Props = NativeStackScreenProps<SignedInStackParamList, 'CharacterWeb'>;
+type Props = NativeStackScreenProps<SignedInStackParamList, 'Braid'>;
 
 const KIND_OPTIONS = ['confrontation', 'alliance', 'betrayal', 'mentorship', 'romantic', 'other'];
 
-// The character web. The renderer is one HTML document shared with the PWA rather than a
+// The braid. The renderer is one HTML document shared with the PWA rather than a
 // second native implementation (spec §6) -- it runs here inside a WebView and talks back
 // over postMessage.
-export default function CharacterWebScreen({ route, navigation }: Props) {
+export default function BraidScreen({ route, navigation }: Props) {
   const { projectId, focusNodeId } = route.params;
 
   // The braid reads along a long horizontal axis, so this one screen turns the device
@@ -66,7 +66,7 @@ export default function CharacterWebScreen({ route, navigation }: Props) {
   // filters are showing -- and anything native pinned near the top lands on top of it.
   useEffect(() => {
     navigation.setOptions({
-      title: 'Character Web',
+      title: 'The Braid',
       headerRight: () => (
         <Pressable
           onPress={() => setAdding('character')}

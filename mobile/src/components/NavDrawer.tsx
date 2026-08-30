@@ -32,7 +32,7 @@ const DISCOVER: DrawerItem[] = [
   { key: 'mythic', icon: 'compass', label: 'Mythic Threads' },
   { key: 'documents', icon: 'books', label: 'Documents' },
   { key: 'assistant', icon: 'sparkle', label: 'Assistant' },
-  { key: 'character-web', icon: 'link', label: 'Character Web' },
+  { key: 'braid', icon: 'link', label: 'The Braid' },
 ];
 
 const MANAGE: DrawerItem[] = [
@@ -72,7 +72,7 @@ export default function NavDrawer({
   onOpenNotes,
   onOpenDocuments,
   onOpenAssistant,
-  onOpenCharacterWeb,
+  onOpenBraid,
   onOpenTrash,
   onExportEpub,
 }: {
@@ -87,7 +87,7 @@ export default function NavDrawer({
   onOpenNotes: () => void;
   onOpenDocuments: () => void;
   onOpenAssistant: () => void;
-  onOpenCharacterWeb: () => void;
+  onOpenBraid: () => void;
   onOpenTrash: () => void;
   onExportEpub: () => void;
 }) {
@@ -109,7 +109,7 @@ export default function NavDrawer({
     if (item.key === 'search') return { ...item, onPress: onSearch };
     if (item.key === 'documents') return { ...item, onPress: onOpenDocuments };
     if (item.key === 'assistant') return { ...item, onPress: onOpenAssistant };
-    if (item.key === 'character-web') return { ...item, onPress: onOpenCharacterWeb };
+    if (item.key === 'braid') return { ...item, onPress: onOpenBraid };
     if (item.key === 'trash') return { ...item, onPress: onOpenTrash };
     if (item.key === 'epub') return { ...item, onPress: onExportEpub };
     return item;

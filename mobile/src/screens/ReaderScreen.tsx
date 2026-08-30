@@ -984,7 +984,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
           <Pressable
             style={[styles.iconBtn, styles.iconBtnBordered]}
             onPress={() =>
-              navigation.navigate('CharacterWeb', {
+              navigation.navigate('Braid', {
                 projectId,
                 // The chapter node itself, which in Structure carries its scenes, its flags
                 // and its moment -- everything hanging off the chapter being read.
@@ -1023,7 +1023,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
             <Pressable
               key={flag.id}
               style={styles.flagCaptionRow}
-              onPress={() => navigation.navigate('CharacterWeb', { projectId, focusNodeId: flag.id })}
+              onPress={() => navigation.navigate('Braid', { projectId, focusNodeId: flag.id })}
             >
               <Text
                 style={[

@@ -260,7 +260,9 @@ chapter boundaries for pacing).
   **Relationships was dropped by decision** — it has no position on a
   reading-order axis. See handoff §22 for the rules, the traps and what is still
   open. The bullet below describes the web it replaced, kept for background.
-- **🕸 Character web (mobile, superseded)**: a force-directed graph of the cast, with four
+- ~~**🕸 Character web**~~ — **gone from both apps.** The braid replaced it in
+  August; mobile's last traces (the dead 82 KB renderer, the `CharacterWeb` route
+  and its labels) were removed 2026-08-30. Kept below for background only: a force-directed graph of the cast, with four
   switchable layers — **Relationships** between characters; **Progression**, a
   character's arc through the events they appear in, in chapter order, with
   everyone else in those events lit alongside; **Plants & Reveals**, every

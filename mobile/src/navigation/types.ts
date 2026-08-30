@@ -24,7 +24,7 @@ export type SignedInStackParamList = {
    * and an annotation are all nodes in the graph under their own database ids, so the Reader
    * can hand over the flag the writer just selected and the web will land on it.
    */
-  CharacterWeb: { projectId: string; focusNodeId?: string };
+  Braid: { projectId: string; focusNodeId?: string };
   Trash: { projectId: string };
   GraphReview: { projectId: string };
 };

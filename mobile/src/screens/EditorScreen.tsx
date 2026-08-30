@@ -515,7 +515,7 @@ export default function EditorScreen({ route, navigation }: Props) {
         </Pressable>
         <Pressable
           onPress={() =>
-            navigation.navigate('CharacterWeb', {
+            navigation.navigate('Braid', {
               projectId: chapter.project_id,
               // The chapter node, which carries its scenes, its flags and its moment.
               focusNodeId: chapterId,
@@ -728,7 +728,7 @@ export default function EditorScreen({ route, navigation }: Props) {
                     <Pressable
                       onPress={() => {
                         setFlagsVisible(false);
-                        navigation.navigate('CharacterWeb', {
+                        navigation.navigate('Braid', {
                           projectId: chapter.project_id,
                           focusNodeId: a.id,
                         });

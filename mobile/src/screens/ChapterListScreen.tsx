@@ -180,7 +180,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onOpenNotes={() => navigateFromDrawer(() => navigation.navigate('Pages', { projectId }))}
       onOpenDocuments={() => navigateFromDrawer(() => navigation.navigate('Documents', { projectId }))}
       onOpenAssistant={() => navigateFromDrawer(() => navigation.navigate('Assistant', { projectId }))}
-      onOpenCharacterWeb={() => navigateFromDrawer(() => navigation.navigate('CharacterWeb', { projectId }))}
+      onOpenBraid={() => navigateFromDrawer(() => navigation.navigate('Braid', { projectId }))}
       onOpenTrash={() => navigateFromDrawer(() => navigation.navigate('Trash', { projectId }))}
       onExportEpub={() => navigateFromDrawer(() => setEpubOpen(true))}
       />

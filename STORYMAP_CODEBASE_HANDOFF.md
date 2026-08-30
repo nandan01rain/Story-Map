@@ -3846,3 +3846,33 @@ exist returns none; `node --check` clean on all five script blocks; the drawer a
 correctly. That scan mattered — the first pass left
 `getElementById('mythic-browser-close').addEventListener(...)` behind, which runs at top level
 and would have thrown on load, taking the whole app with it.
+
+
+## 27. THE BRAID ON MOBILE (2026-08-30)
+
+The ask was to add the braid to the mobile app and retire the character web there. **The braid
+was already the thing mobile rendered** — `CharacterWebScreen.tsx` has loaded `BRAID_HTML` into
+its WebView since the August swap. What was left was leftovers, and one of them was heavy.
+
+- **`mobile/src/lib/characterWebHtml.ts` deleted — 82 KB of dead renderer**, imported by
+  nothing, shipped in every OTA payload since the braid replaced it.
+- **`CharacterWebScreen.tsx` → `BraidScreen.tsx`**, route `CharacterWeb` → `Braid`, prop
+  `onOpenCharacterWeb` → `onOpenBraid`, drawer key `character-web` → `braid`, and the two
+  user-facing labels ("Character Web") → "The Braid". Six call sites across the editor, the
+  reader, the chapter list, the drawer, the navigator and the types.
+- Renamed with `git mv`, so history reads as a rename rather than a delete plus an add.
+
+**Verified:**
+
+- `node scripts/build-braid-3d.mjs --embed` regenerates `braid.html` and
+  `mobile/src/lib/braidHtml.ts` from the shared renderer and produces **no diff** — mobile's
+  embedded braid was already current, not stale.
+- `tsc --noEmit` clean; no `CharacterWeb` references remain outside the renderer's own prose.
+- **The host handshake, end to end**, through `graph/embed-harness.html`, which drives
+  `braid.html` exactly the way the WebView does: `ready` received → `{type:'data', payload}`
+  posted → `{type:'focus', id}` → canvas rendering *17 chapters · 79 flagged · 27 subplots ·
+  3 still open*. That is the same document, byte for byte, that `braidHtml.ts` ships, so the
+  path is proven even though the RN app was not run this session.
+
+**Not verified**: nothing has run on a device. This is a rename plus a deletion, both
+typechecked, but the app itself has not been launched since.
