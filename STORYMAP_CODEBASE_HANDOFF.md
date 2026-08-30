@@ -3876,3 +3876,76 @@ its WebView since the August swap. What was left was leftovers, and one of them 
 
 **Not verified**: nothing has run on a device. This is a rename plus a deletion, both
 typechecked, but the app itself has not been launched since.
+
+
+## 28. THE BRAID'S DETAIL PANEL (2026-08-30) — reviewed against a ten-item wishlist
+
+A list of ten improvements was put to the braid. Assessed against the code rather than
+against a screenshot; **three were already built, two are not derivable from the data, and the
+rest were mostly present.** Two were implemented. Recorded in full because the same list will
+be produced again by anyone looking at a picture of this surface.
+
+### 28.1 Already built
+
+- **"Isolate the selected subplot; dim everything else to 10–20%."** `applyEmphasis()` already
+  raises the selected thread in saturation *and* glow while dropping every other one — and the
+  specific number suggested was already tried and rejected, with the reason in the code: an
+  earlier version bleached unselected threads and "one click turned the entire picture grey and
+  the braid stopped looking like dyed thread at all." The contrast comes from lifting the
+  selection, not from draining the rest. The known cost is documented too — dimmed threads go
+  transparent, and transparent surfaces do not write depth, so the over-under interlacing
+  degrades while a selection is active.
+- **"Make markers interactive."** They are picked and selected on click already.
+- **"Make zoom semantically intelligent."** `spine-layout.mjs` has three LOD tiers, `tierFor`,
+  `tierForSlotPx` and `chooseFarTier`, which already rolls up to books or acts depending on
+  which divides the axis usefully.
+- **"Only open" filtering** exists as both a layer and an index tab.
+
+### 28.2 Not derivable, and deliberately not invented
+
+- **"Plant → Open → Active → Escalation → Reveal → Resolution."** The data knows where a thing
+  was planted and where it was paid. It knows nothing about *escalation*. Naming that stage
+  would be the software asserting a reading of the story.
+- **"Distinguish active from dormant stretches."** Same objection. A subplot planted in ch2 and
+  paid in ch14 records nothing about ch3–13; drawing a dormancy would be an assertion, not a
+  fact. The chapter card therefore says **"subplots crossing"**, which is true, rather than
+  "active", which would not be.
+
+This is the line the wishlist itself drew and is worth keeping: surface structural facts that
+are hard to perceive from an outline; do not declare ⚠️ BAD PACING.
+
+### 28.3 Built
+
+**The detail panel became navigable.** Previously it printed `planted 1 / revealed 1` — counts
+that were true and useless, because finding the far end was still left to the eye.
+
+- **A subplot now lists its whole run**: every plant and reveal in reading order, each a jump to
+  that flag. No invented stages; just the events, in the order they occur.
+- **A flag's counterpart is a jump**, not a sentence to read and then hunt for. An unpaid plant
+  still reports "nothing claims this yet" and offers nothing to click, because that is a real
+  state and not an empty list.
+- **A chapter card now shows what is structurally happening there**: every flag in it, every
+  subplot crossing it (labelled *opens here* / *resolves here* / *running through* / *open,
+  running through*), and which characters are present. All of it was already in the payload and
+  none of it was reachable without leaving the chapter and hunting.
+
+One delegated listener on `#dbody` rather than one per row, since the panel is rebuilt on every
+selection. Styling stays marginalia — a `.jump` is a text row, not a button; the restraint of
+the surface was explicitly to be preserved.
+
+### 28.4 Verified
+
+Driven in a browser against the demo pack: selecting a resolved subplot lists its plant (ch 1)
+and its payoff (ch 10) as jumps; clicking the payoff lands on that exact reveal; a chapter card
+renders six flags plus its crossing subplots with the right *opens here* labelling; a paid plant
+offers one jump that lands on its reveal, and an unpaid one offers none. `braid.html`,
+`graph/braid-3d.html` and `mobile/src/lib/braidHtml.ts` all regenerated from the one renderer;
+`scripts/test-spine-layout.mjs` still passes; the embed harness still completes the full
+handshake, so the WebView path mobile uses is unaffected.
+
+### 28.5 Not done, and worth doing
+
+Ranked as the wishlist ranked them, minus what is above: a **structural-density indicator under
+the chapter axis** (data exists, medium build), **narrative queries in Find** (`reveals in act 2`,
+`subplots involving X` — the index already has tabs to hang this off), and a **hover tooltip** so
+a marker can be read without selecting it.

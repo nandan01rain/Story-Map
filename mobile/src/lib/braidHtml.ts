@@ -48,6 +48,14 @@ export const BRAID_HTML = String.raw`<!doctype html>
     padding: 4px 0; white-space: nowrap; }
   .dd > summary::-webkit-details-marker { display: none; }
   .dd > summary:hover { color: var(--ink); }
+  /* A jump, not a button. The panel is marginalia; a row of controls in it would make the
+     braid look like an instrument panel, which is the one thing this surface is not. */
+  .jump { display: block; width: 100%; text-align: left; background: none; border: 0;
+    padding: 3px 0; color: var(--quiet); font: inherit; cursor: pointer; line-height: 1.45; }
+  .jump:hover { color: var(--ink); }
+  .jump em { font-style: normal; color: var(--accent); opacity: .8; }
+  .jump.here { color: var(--ink); cursor: default; }
+  dd .jump:first-child { padding-top: 0; }
   .dd[open] > summary { color: var(--accent); }
   .pop { position: absolute; right: 0; top: 26px; min-width: 168px; padding: 10px 12px;
     background: var(--pop); border: 1px solid var(--rule); border-radius: 4px; }
@@ -2240,6 +2248,73 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 const row = (k, v) => '<dt>' + k + '</dt><dd>' + esc(v) + '</dd>';
+// Same, but the value is already markup -- used for the jump lists below, which must not be
+// escaped a second time.
+const rowHtml = (k, html) => '<dt>' + k + '</dt><dd>' + html + '</dd>';
+
+// A flag, a subplot or a chapter, rendered as somewhere to go. The detail panel used to
+// print "planted 1 / revealed 1" and leave finding the far end to the eye; the counts were
+// true and useless. Naming the chapter and making it a jump is the whole improvement.
+function jump(kind, id, ord, text, here) {
+  return '<button class="jump' + (here ? ' here' : '') + '" data-go="' + kind + '" data-id="'
+    + esc(id) + '"><em>ch ' + ord + '</em> — ' + esc(text) + '</button>';
+}
+
+function goToFlag(id) {
+  const f = flagById[id];
+  if (!f) return;
+  const ord = axis.ordinal[f.chapterId];
+  const mesh = flagMeshes.find((m) => m.userData.id === id);
+  focusOn(X(ord));
+  // Prefer the mesh's own userData: it carries the ribbon the marker was drawn on, which the
+  // raw flag does not, and selecting without it loses the "which subplot" half of the card.
+  select(mesh ? mesh.userData : { kind: f.type, data: f, ord });
+}
+function goToRibbon(id) {
+  const r = spine.ribbons.find((x) => x.id === id);
+  if (!r) return;
+  shown.ribbons = true; syncLayers();
+  focusOn(X(r.start));
+  select({ kind: 'ribbon', data: r, ord: r.start });
+}
+function goToChapter(id) {
+  const ord = axis.ordinal[id];
+  if (ord == null) return;
+  focusOn(X(ord));
+  if (chapterMesh[id]) select(chapterMesh[id].userData);
+}
+
+// One delegated listener rather than one per row: the panel is rebuilt on every selection,
+// and re-binding a dozen handlers each time is how a leak starts.
+document.getElementById('dbody').addEventListener('click', (e) => {
+  const b = e.target.closest('.jump');
+  if (!b || b.classList.contains('here')) return;
+  const id = b.dataset.id;
+  if (b.dataset.go === 'flag') goToFlag(id);
+  else if (b.dataset.go === 'ribbon') goToRibbon(id);
+  else if (b.dataset.go === 'chapter') goToChapter(id);
+});
+
+// Every flag in a subplot, in reading order, as jumps. This is the "lifecycle" the panel was
+// missing -- with one deliberate omission: no invented stages. The data knows where a thing
+// was planted and where it was paid, and it does NOT know what is "active", "escalating" or
+// "dormant" in between. Naming those would be the software asserting a reading of the story,
+// which is exactly the judgment this tool exists to leave with the writer.
+function lifecycleRows(r, currentId) {
+  const events = []
+    .concat(r.plants.map((id) => ({ id, kind: 'plant' })))
+    .concat(r.reveals.map((id) => ({ id, kind: 'reveal' })))
+    .map((e) => {
+      const f = flagById[e.id];
+      return f ? { ...e, f, ord: axis.ordinal[f.chapterId] } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.ord - b.ord);
+  if (!events.length) return '<span class="note">nothing flagged yet</span>';
+  return events.map((e) =>
+    jump('flag', e.id, e.ord, (e.kind === 'plant' ? 'planted · ' : 'paid · ')
+      + clip(e.f.label || e.f.text, 40), e.id === currentId)).join('');
+}
 
 // Selection contrast, in BOTH directions. Raising the chosen thread alone does not read at
 // twenty-one concurrent: it is one bright line among twenty bright lines. So the chosen
@@ -2353,6 +2428,35 @@ function select(u) {
     body = row('position', 'chapter ' + u.ord + ' of ' + N)
       + row('words', d.words) + row('scenes', (scenesByChapter[d.id] || []).length)
       + row('status', d.status);
+
+    // What is structurally happening here. All of it was already in the payload and none of
+    // it was reachable without leaving the chapter and hunting -- which is the difference
+    // between a map you can inspect and one you can only look at.
+    const here = raw.flags.filter((f) => f.chapterId === d.id);
+    if (here.length) {
+      body += rowHtml('flagged here', here.map((f) =>
+        jump('flag', f.id, u.ord, f.type + ' · ' + clip(f.label || f.text, 40), false)).join(''));
+    }
+
+    // Crossing, not "active": the data knows a subplot opens at one chapter and is paid at
+    // another, and says nothing whatever about what happens in between. An open subplot has
+    // no end, so it crosses everything after its first plant.
+    const crossing = spine.ribbons.filter((r) =>
+      r.start <= u.ord && (r.open || u.ord <= r.end));
+    if (crossing.length) {
+      body += rowHtml('subplots crossing', crossing.map((r) => {
+        const where = r.start === u.ord ? 'opens here'
+          : (!r.open && r.end === u.ord) ? 'resolves here'
+          : r.open ? 'open, running through' : 'running through';
+        return '<button class="jump" data-go="ribbon" data-id="' + esc(r.id) + '"><em>'
+          + esc(where) + '</em> — ' + esc(clip(r.label, 38)) + '</button>';
+      }).join(''));
+    }
+
+    const present = spine.strands.filter((st) => st.beads.some((b) => b.ord === u.ord));
+    if (present.length) {
+      body += row('present', present.map((st) => st.label).join(', '));
+    }
   } else if (u.kind === 'scene') {
     head = d.title || 'Untitled scene'; sub = 'Scene';
     body = row('told by', d.pov) + row('summary', clip(d.summary, 190));
@@ -2360,8 +2464,8 @@ function select(u) {
     head = d.label; sub = 'Subplot';
     body = row('opens', 'chapter ' + d.start)
       + row(d.open ? 'status' : 'resolves', d.open ? 'still open — nothing claims it' : 'chapter ' + d.end)
-      + row('planted', d.plants.length) + row('revealed', d.reveals.length)
-      + row('spans', d.spansBooks + (d.spansBooks === 1 ? ' book' : ' books'));
+      + row('spans', d.spansBooks + (d.spansBooks === 1 ? ' book' : ' books'))
+      + rowHtml('the whole run', lifecycleRows(d, null));
   } else if (u.kind === 'thread-arc') {
     head = d.label; sub = 'Mythic thread';
     body = row('first touch', 'chapter ' + d.start) + row('last touch', 'chapter ' + d.end)
@@ -2383,21 +2487,19 @@ function select(u) {
     // The far end, in words. The ribbon draws it, but "where is this answered" should be
     // readable without following a curve across the screen -- and for an unpaid plant the
     // answer is a real state to report, not an empty list.
+    // The far end, as somewhere to go rather than as a sentence to read and then hunt for.
     const others = counterparts[d.id] || [];
+    const farEnds = () => others.map((o) => {
+      const g = flagById[o.id];
+      return g ? jump('flag', o.id, axis.ordinal[g.chapterId], clip(g.label || g.text, 38), false)
+               : '<span class="note">a flag that no longer exists</span>';
+    }).join('');
     if (u.kind === 'plant') {
-      body += others.length
-        ? row('paid off in', others.map((o) => {
-            const g = flagById[o.id];
-            return g ? 'chapter ' + axis.ordinal[g.chapterId] + ' — ' + clip(g.label || g.text, 34) : '?';
-          }).join('; '))
-        : row('paid off in', 'nothing claims this yet');
+      body += others.length ? rowHtml('paid off in', farEnds())
+                            : row('paid off in', 'nothing claims this yet');
     } else if (u.kind === 'reveal') {
-      body += others.length
-        ? row('planted in', others.map((o) => {
-            const g = flagById[o.id];
-            return g ? 'chapter ' + axis.ordinal[g.chapterId] + ' — ' + clip(g.label || g.text, 34) : '?';
-          }).join('; '))
-        : row('planted in', 'not joined to a plant');
+      body += others.length ? rowHtml('planted in', farEnds())
+                            : row('planted in', 'not joined to a plant');
     }
   }
   document.getElementById('dbody').innerHTML =
