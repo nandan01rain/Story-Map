@@ -89,7 +89,13 @@ export const BRAID_HTML = String.raw`<!doctype html>
   .item span { opacity: .55; }
 
   .panel { position: fixed; background: none; border: 0; padding: 0; }
-  #detail { left: 20px; bottom: 20px; width: 300px; display: none; }
+  /* Bounded, because the panel grew. The lifecycle rows made a subplot's card as tall as its
+     flag count, which on a well-worked subplot ran off the bottom of the viewport and into
+     the legend. A cap plus its own scroll keeps the panel marginalia instead of letting it
+     take over the picture it is annotating. 46vh leaves the spine visible above it. */
+  #detail { left: 20px; bottom: 46px; width: 300px; display: none;
+    max-height: 46vh; overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
   #detail.on { display: block; }
   #detail h2 { margin: 0 0 3px; font-family: var(--book); font-size: 16px; font-weight: 400;
     color: var(--ink); line-height: 1.25; }

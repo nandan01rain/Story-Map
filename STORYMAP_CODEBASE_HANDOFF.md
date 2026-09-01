@@ -3929,6 +3929,11 @@ that were true and useless, because finding the far end was still left to the ey
   running through*), and which characters are present. All of it was already in the payload and
   none of it was reachable without leaving the chapter and hunting.
 
+The panel is **bounded** — `max-height: 46vh` with its own scroll. Caught by looking at it
+rather than by a test: the lifecycle rows make a subplot's card as tall as its flag count, and on
+a short viewport a well-worked subplot ran off the bottom edge and into the legend. Worst case in
+the demo pack is six events; it now fits and scrolls itself.
+
 One delegated listener on `#dbody` rather than one per row, since the panel is rebuilt on every
 selection. Styling stays marginalia — a `.jump` is a text row, not a button; the restraint of
 the surface was explicitly to be preserved.
