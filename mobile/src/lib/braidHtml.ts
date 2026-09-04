@@ -1127,7 +1127,13 @@ const PALETTES = {
   },
 };
 
-const THEME = (new URLSearchParams(location.search).get('theme') === 'day') ? 'day' : 'night';
+// The host decides day or night. The query string is how the PWA says so, because it sets
+// the iframe's src; a WebView loading raw HTML has no URL and therefore no query string,
+// so mobile could never be anything but night -- the app would sit in day mode with a
+// black braid inside it. window.__THEME__ is the second door, injected before this file
+// runs, and it is checked first because a host that bothered to set it means it.
+const THEME = ((typeof window !== 'undefined' && window.__THEME__) ||
+  new URLSearchParams(location.search).get('theme')) === 'day' ? 'day' : 'night';
 const C = PALETTES[THEME];
 
 // The chrome follows the same choice, through the variables the stylesheet already reads.

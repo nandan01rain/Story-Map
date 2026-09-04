@@ -4222,3 +4222,38 @@ Reported on the new build, not yet diagnosed:
 
   Port from the PWA's live `:root` block, which is the source of truth -- not from the
   reference images, which the PWA has already interpreted.
+
+
+### 30.4 The braid on a real phone: three faults found by looking at it (2026-08-30)
+
+All three were invisible in a browser and obvious in one screenshot of the device.
+
+**The braid could never be in day mode on mobile.** `THEME` was read from
+`new URLSearchParams(location.search)` -- which is how the PWA says so, because it sets the
+iframe's `src` to `braid.html?theme=day`. **A WebView loading raw HTML has no URL and
+therefore no query string**, so the expression always fell through to `night`: the app sat in
+day mode, cream chrome and all, with a black braid inside it. That is why the olive-green day
+palette had never once been seen on the phone.
+
+Fixed with a second door: `window.__THEME__`, set by `injectedJavaScriptBeforeContentLoaded`
+so it exists before the document's own scripts run, and checked FIRST because a host that
+bothered to set it means it. The `<WebView>` is keyed on the theme, since the renderer decides
+`THEME` once at module scope and a change has to remount the document rather than be posted
+into a running one. Verified by injecting the same global into a fresh document: ground
+`#faf7f0` instead of `#03060d`, olive threads on parchment.
+
+**The native header cost about a fifth of the screen.** The braid is read in landscape, and a
+header band there repeated a title the renderer already draws in its own top line. Removed
+(`headerShown: false`); its two controls became corner glyphs over the canvas.
+
+**The review bar broke the project's own rule.** It read "9 extractions to confirm" across the
+bottom, over the renderer's legend and scrubber. Two faults: it spent scarce landscape height
+on chrome, and it displayed **a count of pending work on a surface the writer is supposed to
+want to open** -- the one thing §23 forbids outright, because it is what turns a map into a
+queue and a queue into something avoided. Now a single unlabelled flag glyph beside the other
+corner controls: reachable, not insistent.
+
+**Still open**: the olive/leaf, rail and parchment-grain tokens exist only in the PWA's CSS.
+The braid carries its own day palette (which is where the olive in that screenshot comes
+from), but the mobile app's chrome around it has no equivalent, and those are structural
+additions rather than token swaps -- see the design-parity note in §30.3.

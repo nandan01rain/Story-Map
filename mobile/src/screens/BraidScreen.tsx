@@ -46,7 +46,7 @@ export default function BraidScreen({ route, navigation }: Props) {
       void cancelled;
     };
   }, []);
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const webRef = useRef<WebView>(null);
 
@@ -61,23 +61,13 @@ export default function BraidScreen({ route, navigation }: Props) {
   const [kind, setKind] = useState('alliance');
   const [saving, setSaving] = useState(false);
 
-  // The add controls live in the header rather than floating over the graph. The renderer's
-  // own chip row wraps to two lines on a narrow phone -- three when the Plants & Reveals
-  // filters are showing -- and anything native pinned near the top lands on top of it.
+  // NO native header. The braid is read in landscape, where a header bar cost about a fifth
+  // of the screen to repeat a title the renderer already draws in its own top line -- and the
+  // picture is the entire point of the screen. The two controls it carried become glyphs
+  // overlaid on the canvas instead, in the corners the renderer leaves empty.
   useEffect(() => {
-    navigation.setOptions({
-      title: 'The Braid',
-      headerRight: () => (
-        <Pressable
-          onPress={() => setAdding('character')}
-          hitSlop={10}
-          style={{ paddingHorizontal: 6 }}
-        >
-          <Text style={{ color: colors.gold, fontSize: 24, lineHeight: 26 }}>+</Text>
-        </Pressable>
-      ),
-    });
-  }, [navigation, colors.gold]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const load = useCallback(async () => {
     const { data, error: err } = await fetchCharacterGraph(projectId);
@@ -187,10 +177,15 @@ export default function BraidScreen({ route, navigation }: Props) {
       {graph && (
         <>
           <WebView
+            // Keyed on the theme: the renderer reads it once at module scope, so a change has
+            // to remount the document rather than be posted into a running one.
+            key={mode}
             ref={webRef}
             style={styles.web}
             originWhitelist={['*']}
             source={{ html: BRAID_HTML }}
+            // Before the document's own scripts run, so THEME is already decided when they do.
+            injectedJavaScriptBeforeContentLoaded={`window.__THEME__=${JSON.stringify(mode)};true;`}
             onMessage={(e) => handleMessage(e.nativeEvent.data)}
             javaScriptEnabled
             domStorageEnabled
@@ -198,16 +193,27 @@ export default function BraidScreen({ route, navigation }: Props) {
             onShouldStartLoadWithRequest={(r) => r.url === 'about:blank' || r.url.startsWith('data:')}
           />
 
+          {/* The two native controls, as glyphs over the canvas rather than a header band. */}
+          <Pressable style={[styles.corner, styles.cornerLeft]} onPress={() => navigation.goBack()} hitSlop={12}>
+            <Text style={styles.cornerGlyph}>‹</Text>
+          </Pressable>
+          <Pressable style={[styles.corner, styles.cornerRight]} onPress={() => setAdding('character')} hitSlop={12}>
+            <Text style={styles.cornerGlyph}>+</Text>
+          </Pressable>
+
+          {/* Was a bar reading "N extractions to confirm", pinned across the bottom over the
+              renderer's own legend and scrubber. Two faults: it spent scarce landscape height
+              on chrome, and it displayed A COUNT OF PENDING WORK on a surface the writer is
+              supposed to want to open -- which is exactly the thing that turns a map into a
+              queue and a queue into something avoided. Now a single unlabelled flag beside
+              the other corner glyphs: reachable, not insistent. */}
           {review.nodes + review.links > 0 && (
             <Pressable
-              style={styles.reviewBar}
+              style={[styles.corner, styles.cornerFlag]}
               onPress={() => navigation.navigate('GraphReview', { projectId })}
+              hitSlop={12}
             >
-              <Icon name="flag" size={14} color={colors.gold} />
-              <Text style={styles.reviewText}>
-                {review.nodes + review.links} extraction{review.nodes + review.links === 1 ? '' : 's'} to confirm
-              </Text>
-              <Text style={styles.reviewChevron}>›</Text>
+              <Icon name="flag" size={15} color={colors.gold} />
             </Pressable>
           )}
 
@@ -357,6 +363,20 @@ function makeStyles(colors: ThemeColors) {
     error: { color: '#e0764a', fontSize: 13.5, textAlign: 'center', lineHeight: 20 },
     retry: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 18 },
     retryText: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 13.5 },
+    // Corner glyphs, deliberately low-contrast and small: the picture is the screen, and
+    // chrome over it should be findable without competing with a thread.
+    corner: {
+      position: 'absolute',
+      top: 6,
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cornerLeft: { left: 4 },
+    cornerRight: { right: 4 },
+    cornerFlag: { right: 46 },
+    cornerGlyph: { color: colors.gold, fontSize: 26, lineHeight: 28, opacity: 0.85 },
     reviewBar: {
       position: 'absolute',
       left: 12,
