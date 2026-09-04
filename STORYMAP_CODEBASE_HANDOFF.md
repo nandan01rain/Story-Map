@@ -4192,31 +4192,33 @@ Reported on the new build, not yet diagnosed:
   when the Browser pane is HIDDEN the tab reports zero height, so aspect is NaN and every
   camera value downstream is NaN. That looks exactly like a broken camera and is not one --
   emulate a viewport before concluding anything about this renderer.
-- **The two apps do not look alike, and they are meant to.** Settled by the author: the intent
-  is ONE design across the PWA and the native app. The report -- "still brown" at night, "all
-  cream/beige" by day -- is mobile still wearing the pre-redesign palette.
+- ~~The two apps do not look alike.~~ **Diagnosed, and the first diagnosis was WRONG. Fixed
+  2026-08-30.**
 
-  Confirmed by inspection rather than assumed: every commit in the visual pass
-  (`25933a7` serif/olive/parchment, `b35eb93` the rail, `697591f` the bar, `61c808e` the drawn
-  icons) touched **`index.html` only**. The two that also show `mobile/` in their stat
-  (`3925af2`, `6b8373e`) did so solely because they regenerate `braidHtml.ts` -- the braid
-  renderer, not the app's own chrome. So the braid inside mobile DID get the new look, and
-  everything around it did not, which is why the mismatch reads as it does.
+  It was recorded here that mobile was "still wearing the pre-redesign palette". **It was
+  not.** Diffed role by role: `bg`, `border`, `text`, `text-dim`, `gold` and `error` are
+  identical to the byte in BOTH day and night. The brown and the cream are the shared design,
+  not a mobile-only leftover. Kept as a correction rather than tidied away, because the wrong
+  answer was arrived at by reading commit *file lists* -- every redesign commit touched
+  `index.html` alone, which is true and does not imply what it seemed to.
 
-  **The port is `mobile/src/theme.ts`**, whose `NIGHT_COLORS`/`DAY_COLORS` are the originals:
-  night `bg #120d08`, `panel #1a130b`, `text #e9dcb8`; day `bg #faf3e0`, `panel #f1e6c8`,
-  `text #2c2011`. The PWA's tokens now include a fuller set the mobile theme has no equivalent
-  for -- `--rail #1c211c` with `--rail-ink #e9e2ce` and `--rail-dim #9ba093`, `--leaf #3d4a2b`,
-  `--parchment #cfbb8c`, `--ink #2c2011`, `--brass #8a6a35`, plus two SVG noise textures
-  (leather and parchment) applied as backgrounds.
+  **The divergence was entirely typography.** The visual pass moved the PWA's `--font-body` to
+  **Spectral, a serif**, and `--font-display` from Cinzel Decorative to Cinzel. Mobile's
+  `FONTS.body` was still Inter, and since `App.tsx` sets a global `<Text>` default from that
+  one token, the whole app read as sans while the PWA read as serif. Identical colours,
+  different face -- which is exactly what "it still looks like the old design" feels like.
 
-  Three things that will not port one-for-one and want deciding, not guessing:
-  the **grain textures** are CSS `background-image` data URIs with no React Native equivalent
-  (an `ImageBackground` with a bundled asset, or drop them on mobile); the **serif interface
-  face** means `theme.ts`'s `FONTS.body` moving off Inter, which touches every screen through
-  the global `<Text>` default in `App.tsx`; and the **drawn icons** are inline SVG `<symbol>`s
-  in `index.html` that `Icon.tsx` re-renders by hand, so new ones must be re-drawn rather than
+  Ported: `body`/`bodyMedium`/`bodySemiBold` to Spectral, `display` to `Cinzel_700Bold`, and
+  `Spectral_600SemiBold` registered in `useAppFonts` -- the family is already bundled, so it
+  ships over the air rather than needing a build. One palette role had genuinely drifted:
+  night `panel` was `#1a130b`, which is the PWA's `--bg-alt`, one step too dark; now `#221a10`.
+
+  **Still not ported, and these are structure rather than tokens**: the rail (`--rail #1c211c`
+  with its own ink), the leaf-green list cards, the parchment ornaments, and the two SVG grain
+  textures -- CSS `background-image` data URIs with no React Native equivalent, so they need an
+  `ImageBackground` with a bundled asset or a decision to drop them. The drawn icons are inline
+  SVG `<symbol>`s that `Icon.tsx` re-renders by hand, so new ones must be redrawn, not
   imported.
 
-  Do the port from the PWA's live `:root` block, which is the source of truth -- not from the
+  Port from the PWA's live `:root` block, which is the source of truth -- not from the
   reference images, which the PWA has already interpreted.
