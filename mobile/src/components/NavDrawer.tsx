@@ -4,6 +4,8 @@ import { Circle, Path, Svg } from 'react-native-svg';
 
 import type { SlidePanelController } from '../lib/useSlidePanel';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
+import { Chevron, CompassRose, CornerFlourish, Flourish, OrnamentRule, SectionGlyph,
+  type SectionGlyphName } from './DrawerOrnaments';
 import Icon from './Icon';
 import SlidePanel from './SlidePanel';
 
@@ -15,6 +17,13 @@ import SlidePanel from './SlidePanel';
 // -- those render disabled with a "coming soon" tap response rather than being hidden,
 // so the menu's shape matches the PWA today and items switch on as their screens land.
 type SectionKey = 'discover' | 'manage' | 'assist';
+
+// The reference sets a drawn mark beside each group -- a compass, stacked books, a quill.
+const SECTION_GLYPH: Record<SectionKey, SectionGlyphName> = {
+  discover: 'discover',
+  manage: 'manage',
+  assist: 'assist',
+};
 
 type DrawerItem = {
   key: string;
@@ -137,13 +146,24 @@ export default function NavDrawer({
         <Text style={styles.closeBtnText}>✕</Text>
       </Pressable>
 
+      <View pointerEvents="none" style={styles.cornerTL}>
+        <CornerFlourish corner="tl" color={colors.railInk} />
+      </View>
+      <View pointerEvents="none" style={styles.cornerTR}>
+        <CornerFlourish corner="tr" color={colors.railInk} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
         <View style={styles.brand}>
-          <CompassIcon color={colors.gold} />
+          {/* The full rose, not the small nav glyph: in the reference this is the panel's
+              one large drawn object and everything below is deliberately quieter than it. */}
+          <CompassRose size={92} color={colors.railInk} />
           <Text style={styles.brandTitle}>{projectName}</Text>
           <Text style={styles.brandSubtitle}>STORYMAP</Text>
         </View>
-        <View style={styles.divider} />
+        <View style={styles.dividerWrap}>
+          <OrnamentRule color={colors.railDim} />
+        </View>
 
         <Section
           title="Discover"
@@ -173,9 +193,22 @@ export default function NavDrawer({
           styles={styles}
         />
 
+        {/* Double-ruled frame with a star at top and bottom, as in the reference. */}
         <View style={styles.epigraphBox}>
-          <Text style={styles.epigraphText}>Chart the past.{'\n'}Shape the future.{'\n'}Leave your legend.</Text>
+          <View style={styles.epigraphInner}>
+            <Text style={styles.epigraphText}>Chart the past.{'\n'}Shape the future.{'\n'}Leave your legend.</Text>
+          </View>
+          <View style={styles.epigraphStar}>
+            <Flourish size={13} color={colors.railInk} />
+          </View>
         </View>
+
+        {/* The illustrated city belongs here. It is the one part of the reference that cannot
+            be drawn from a description -- real artwork, which has to arrive as a file. Until
+            it does this renders nothing at all rather than a placeholder, because an empty
+            parchment foot looks deliberate and a grey box looks broken. Drop a PNG or WEBP at
+            mobile/assets/drawer-city.png and give this the <Image>. */}
+        <View style={styles.artSlot} />
       </ScrollView>
     </SlidePanel>
   );
@@ -201,9 +234,14 @@ function Section({
   return (
     <View style={styles.section}>
       <Pressable style={styles.sectionLabel} onPress={() => onToggle(sectionKey)}>
+        <View style={styles.sectionGlyph}>
+          <SectionGlyph name={SECTION_GLYPH[sectionKey]} color={colors.railInk} size={26} />
+        </View>
         <Text style={styles.sectionLabelText}>{title.toUpperCase()}</Text>
-        <View style={styles.sectionRule} />
-        <Text style={[styles.sectionArrow, expanded && styles.sectionArrowOpen]}>▸</Text>
+        <View style={styles.sectionRuleWrap}>
+          <OrnamentRule color={colors.railDim} />
+        </View>
+        <Chevron color={colors.railInk} size={15} open={expanded} />
       </Pressable>
 
       {expanded &&
@@ -250,6 +288,23 @@ function makeStyles(colors: ThemeColors) {
     brandTitle: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 20, letterSpacing: 1.5, marginTop: 8 },
     brandSubtitle: { color: colors.railDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 3, marginTop: 4 },
     divider: { height: 1, backgroundColor: colors.railDim, marginBottom: 20 },
+    dividerWrap: { marginBottom: 18, paddingHorizontal: 4 },
+    cornerTL: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
+    cornerTR: { position: 'absolute', top: 10, right: 10, zIndex: 2 },
+    sectionGlyph: { width: 30, alignItems: 'center', marginRight: 6 },
+    sectionRuleWrap: { flex: 1, marginHorizontal: 10, justifyContent: 'center' },
+    // The epigraph is double-ruled with a star hung below it, so the outer view carries the
+    // second rule and the inner one the first.
+    epigraphInner: {
+      borderWidth: 1,
+      borderColor: colors.railDim,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+    },
+    epigraphStar: { alignItems: 'center', marginTop: -7, backgroundColor: 'transparent' },
+    // Reserved for the illustrated city. Nothing renders until the artwork exists -- an
+    // empty parchment foot reads as deliberate, a grey placeholder reads as broken.
+    artSlot: { height: 0 },
     section: { marginBottom: 4 },
     sectionLabel: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },
     sectionLabelText: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 12, letterSpacing: 2 },
@@ -271,12 +326,14 @@ function makeStyles(colors: ThemeColors) {
       justifyContent: 'center',
     },
     badgeText: { color: colors.bg, fontFamily: FONTS.monoMedium, fontSize: 10.5 },
+    // Two rules, not one: the outer box draws the first and epigraphInner the second, with
+    // 4px between them. A single border with a thicker stroke reads as a heavier box; two
+    // hairlines read as an engraved frame, which is what the reference is doing.
     epigraphBox: {
       marginTop: 28,
       borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 4,
-      padding: 18,
+      borderColor: colors.railDim,
+      padding: 4,
     },
     epigraphText: { color: colors.railDim, fontFamily: FONTS.literaryItalic, fontSize: 12.5, textAlign: 'center', lineHeight: 20 },
   });
