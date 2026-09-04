@@ -4137,12 +4137,41 @@ not yet been attempted.
 
 Reported on the new build, not yet diagnosed:
 
-- **The braid's camera is over-constrained.** Rotation is limited to a small arc rather than
-  free, zoom-out does not go far enough to fit the whole saga on screen, and at default framing
-  the picture is larger than the viewport. The limits live in the renderer's camera clamps
-  (`framingDistance()`, the zoom bounds and the orbit constraints in
-  `scripts/build-braid-3d.mjs`) — deliberate at the time and evidently wrong on a real phone.
-  **This is the top item for the next session.**
+- ~~The braid's camera is over-constrained.~~ **Zoom fixed 2026-08-30; rotation is a design
+  question, not a bug — see below.**
+
+  **The zoom ceiling was a hard-coded 1400**, picked against a 17-chapter demo in landscape.
+  It is arithmetic, not taste: the distance that frames a saga is
+  `(width/2) / tan(hFov/2)`, and for 52 chapters in portrait that is **~3601** — unreachable.
+  Worse, the initial `dist = framingDistance()` was itself unclamped, so the first zoom-out
+  press jumped *inward* to 1400 with no way back out. Replaced with `maxDist()` derived from
+  the content (`framingDistance() * 1.35`), and `clampDist()` applied everywhere the distance
+  moves, including on resize — portrait and landscape differ by a factor of four, so turning
+  the device used to leave the view stranded far inside the new maximum.
+
+  **The far plane followed.** It was fixed at 4000, which a 52-chapter saga sits right against
+  at its own framing distance: the far half of the spine would have clipped away exactly when
+  the writer finally zoomed out far enough to see it. Now `max(4000, dist * 2.4)`.
+
+  **There was no pinch gesture at all** — zoom was the wheel and the two buttons, and a phone
+  has neither. Added on pointer events rather than touch events, so it shares one stream with
+  the orbit instead of two handlers fighting over one gesture. Lifting out of a pinch is
+  suppressed as a tap, or ending a zoom would select whatever was under the finger.
+  `touch-action: none` on the canvas, without which the WebView claims vertical drags for
+  scrolling.
+
+  Verified in a browser at a 375x812 portrait viewport: initial framing 1150, zoom-out now
+  reaches 1552 (= 1150 x 1.35, past the old ceiling), spread-to-zoom-in and pinch-to-zoom-out
+  both move the camera the right way, and a lift out of a pinch selects nothing.
+
+  **Rotation is NOT a bug and was not "fixed".** The camera orbits about the X axis only:
+  there is no azimuth, and elevation is clamped to +/-1.35 rad (+/-77 degrees). That is
+  deliberate and load-bearing -- X keeps a fixed screen direction so chapters always read
+  left-to-right, and the braid's legibility depends on it. What WAS wrong is drag sensitivity:
+  at a fixed 0.006/px the full arc needed ~450px of vertical drag, which a phone in landscape
+  does not have, so the rotation ran out under the thumb. Now relative to viewport height. If
+  free rotation is genuinely wanted, that is a change to what the braid IS and needs its own
+  decision, not a widened clamp.
 - **The two apps do not look alike, and they are meant to.** Settled by the author: the intent
   is ONE design across the PWA and the native app. The report -- "still brown" at night, "all
   cream/beige" by day -- is mobile still wearing the pre-redesign palette.

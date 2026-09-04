@@ -91,7 +91,9 @@ const HTML = String.raw`<!doctype html>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ground);
     font: 12px/1.5 var(--ui); color: var(--ink); }
-  canvas { display: block; }
+  /* The braid owns every gesture on it. Without this the WebView claims vertical drags
+     for scrolling and the orbit stutters or never starts. */
+  canvas { display: block; touch-action: none; }
   #stage { position: fixed; inset: 0; }
 
   /* Marginalia, not a control room: no panel borders, no fills, no switches. */
@@ -1416,6 +1418,20 @@ function framingDistance() {
   return Math.max(120, (width / 2) / Math.tan(hFov / 2));
 }
 
+// How far out the camera may go. NOT a constant, which is what it used to be: 1400 was
+// picked against a 17-chapter demo in landscape and is simply unreachable for a real saga.
+// 52 chapters in portrait need a distance of ~3600 to fit, so the fixed ceiling made the
+// whole-saga view impossible to reach AND made the first zoom-out press jump inward from the
+// initial framing, with no way back. Derived from the content, with headroom past the exact
+// fit so the saga does not sit edge-to-edge against the glass.
+function maxDist() {
+  return Math.max(1400, framingDistance() * 1.35);
+}
+const MIN_DIST = 45;
+function clampDist(d) {
+  return Math.max(MIN_DIST, Math.min(maxDist(), d));
+}
+
 // theta is ELEVATION above the spine. The offset is a true spherical one, so dist is
 // really the distance; the earlier version scaled y and z differently and put the camera
 // a third of the way in from where it claimed to be.
@@ -1427,12 +1443,41 @@ function updateCamera() {
     target.z + Math.cos(theta) * dist,
   );
   camera.up.set(0, 1, 0);          // no roll, ever: X keeps a fixed screen direction
+  // The far plane has to follow the camera out. It was fixed at 4000, which a 52-chapter
+  // saga viewed from its own framing distance sits right against -- the far half of the
+  // spine would clip away exactly when the writer finally zoomed out far enough to see it.
+  const wantFar = Math.max(4000, dist * 2.4);
+  if (camera.far !== wantFar) {
+    camera.far = wantFar;
+    camera.updateProjectionMatrix();
+  }
   camera.lookAt(target);
   groups.books.rotation.x = -theta;
 }
 
 let drag = null;
+
+// Pinch. There was no touch zoom at all: zoom was the wheel and the two buttons, and a phone
+// has neither. Built on pointer events rather than touch events so it shares the same stream
+// as the orbit -- two handlers competing for one gesture is how a drag ends up fighting a
+// zoom.
+const pointers = new Map();
+let pinch = null;
+function pinchGap() {
+  const [a, b] = [...pointers.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 renderer.domElement.addEventListener('pointerdown', (e) => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) {
+    // A second finger converts the gesture: orbiting stops, and the drag is abandoned rather
+    // than resumed on lift, so the view does not lurch when the pinch ends.
+    drag = null;
+    pinch = { gap: Math.max(1, pinchGap()), dist };
+    return;
+  }
+  if (pointers.size > 2) return;
   drag = { x: e.clientX, y: e.clientY, theta, tx: target.x, ty: target.y, moved: false,
            pan: e.button === 2 || e.shiftKey };
   renderer.domElement.setPointerCapture(e.pointerId);
@@ -1454,6 +1499,12 @@ renderer.domElement.addEventListener('pointermove', (e) => {
       applyEmphasis(id ? new Set([id]) : new Set(), 0.45);
     }
   }
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size >= 2) {
+    dist = clampDist(pinch.dist * (pinch.gap / Math.max(1, pinchGap())));
+    updateCamera();
+    return;
+  }
   if (!drag) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
@@ -1461,20 +1512,37 @@ renderer.domElement.addEventListener('pointermove', (e) => {
     target.x = drag.tx - dx * dist * 0.0016;
     target.y = drag.ty + dy * dist * 0.0016;
   } else {
-    theta = Math.max(-1.35, Math.min(1.35, drag.theta - dy * 0.006));
+    // Sensitivity relative to the viewport, not a fixed 0.006/px: at that rate the full
+    // elevation range needs ~450px of vertical drag, which a phone in landscape does not
+    // have, so the arc simply ran out under the thumb. Now a full-height drag covers it
+    // whatever the screen.
+    const perPx = 2.9 / Math.max(320, innerHeight);
+    theta = Math.max(-1.35, Math.min(1.35, drag.theta - dy * perPx));
     target.x = drag.tx - dx * dist * 0.0016;
   }
   updateCamera();
 });
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+}
 renderer.domElement.addEventListener('pointerup', (e) => {
+  const wasPinch = !!pinch || pointers.size > 1;
+  endPointer(e);
   const wasDrag = drag && drag.moved;
   drag = null;
-  if (!wasDrag) pick(e.clientX, e.clientY);
+  // A finger lifted out of a pinch must not read as a tap, or ending a zoom selects whatever
+  // happened to be under it.
+  if (!wasDrag && !wasPinch) pick(e.clientX, e.clientY);
+});
+renderer.domElement.addEventListener('pointercancel', (e) => {
+  endPointer(e);
+  drag = null;
 });
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
-  dist = Math.max(45, Math.min(1400, dist * (e.deltaY < 0 ? 0.9 : 1.11)));
+  dist = clampDist(dist * (e.deltaY < 0 ? 0.9 : 1.11));
   updateCamera();
 }, { passive: false });
 
@@ -1875,7 +1943,7 @@ orderSw.addEventListener('click', () => {
 
 // Zoom by the same dolly the wheel uses, so the buttons and the wheel cannot disagree.
 function dolly(factor){
-  dist = Math.max(45, Math.min(1400, dist * factor));
+  dist = clampDist(dist * factor);
   updateCamera();
 }
 document.getElementById('zoom-in').addEventListener('click', () => dolly(0.78));
@@ -1949,6 +2017,10 @@ updateCamera();
 // for them -- chapter titles as the camera comes in, a subplot's name when it is open (there
 // are few of those and they are the ones worth naming) or when it is the thing selected.
 function updateLabels() {
+  // Rotating the device changes the aspect and therefore the distance that fits -- by a
+  // factor of four between portrait and landscape. Without re-clamping, a view framed in
+  // landscape is left far inside the new maximum after a turn.
+  dist = clampDist(dist);
   const frame = framingDistance();
   const near = dist < frame * 0.55;
 
