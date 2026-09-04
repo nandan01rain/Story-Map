@@ -4164,14 +4164,34 @@ Reported on the new build, not yet diagnosed:
   reaches 1552 (= 1150 x 1.35, past the old ceiling), spread-to-zoom-in and pinch-to-zoom-out
   both move the camera the right way, and a lift out of a pinch selects nothing.
 
-  **Rotation is NOT a bug and was not "fixed".** The camera orbits about the X axis only:
-  there is no azimuth, and elevation is clamped to +/-1.35 rad (+/-77 degrees). That is
-  deliberate and load-bearing -- X keeps a fixed screen direction so chapters always read
-  left-to-right, and the braid's legibility depends on it. What WAS wrong is drag sensitivity:
-  at a fixed 0.006/px the full arc needed ~450px of vertical drag, which a phone in landscape
-  does not have, so the rotation ran out under the thumb. Now relative to viewport height. If
-  free rotation is genuinely wanted, that is a change to what the braid IS and needs its own
-  decision, not a widened clamp.
+  **Rotation: the azimuth lock was raised as a design question and the author chose free
+  rotation.** Built the same day. `phi` is now a real orbit angle with no clamp at all;
+  elevation keeps its +/-1.35 rad limit, and the camera still never ROLLS -- `up` stays
+  (0,1,0), so the horizon is level at every angle. The canonical side-on view is one tap away
+  on the square button, which now resets phi along with theta and distance.
+
+  Two consequences that had to be handled rather than left:
+
+  * **Panning became camera-relative.** While the view was locked to one side, "drag right"
+    and "move along +X" were the same thing. Once the camera can be anywhere, moving the
+    target along world X sends the picture sideways at an angle to the gesture, which reads as
+    a broken control rather than a rotated one. `panBy()` now extracts the camera's own basis.
+  * **A one-finger drag no longer pans**, since it orbits. On touch that would have left no
+    way to travel along the saga, so the two-finger gesture does BOTH jobs: the gap zooms, the
+    centroid pans.
+
+  Drag sensitivity is relative to the viewport in both axes (a full-height drag covers the
+  elevation arc, a full-width drag turns it roughly once around) rather than a fixed rate per
+  pixel, at which the arc needed ~450px of travel that a phone in landscape does not have.
+
+  Verified at 840x420: starts at azimuth 0, one full-width drag turns ~1.14 rad, a second
+  continues to ~2.28 with no clamp, `up` stays level throughout, and the reset returns exactly
+  to azimuth 0.
+
+  **A harness note worth keeping**: the braid computes its framing from `camera.aspect`, and
+  when the Browser pane is HIDDEN the tab reports zero height, so aspect is NaN and every
+  camera value downstream is NaN. That looks exactly like a broken camera and is not one --
+  emulate a viewport before concluding anything about this renderer.
 - **The two apps do not look alike, and they are meant to.** Settled by the author: the intent
   is ONE design across the PWA and the native app. The report -- "still brown" at night, "all
   cream/beige" by day -- is mobile still wearing the pre-redesign palette.
