@@ -104,7 +104,7 @@ export default function NavDrawer({
   onExportEpub: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const onClose = controller.close;
 
@@ -208,7 +208,9 @@ export default function NavDrawer({
             so every row of sky in the file would have been payload spent on nothing.
             `cover` rather than `contain`: the picture is a foot to the panel, not a framed
             plate, and it should run off the edges the way it does in the reference. */}
-        <Image source={require('../../assets/drawer-city.webp')} style={styles.art} resizeMode="cover" />
+        {mode === 'night' && (
+          <Image source={require('../../assets/drawer-city.webp')} style={styles.art} resizeMode="cover" />
+        )}
       </ScrollView>
     </SlidePanel>
   );
@@ -306,13 +308,18 @@ function makeStyles(colors: ThemeColors) {
     // the edges. Its own top edge is the same cream as the rail, so no fade is needed --
     // they meet exactly, which is why the rail took the artwork's colour rather than the
     // artwork taking the rail's.
+    // The slot's aspect ratio is FIXED at 3:2 and the supplied art must match it, or `cover`
+    // will crop one axis to fill the other. Full drawer width is 360dp, so the picture is
+    // 360 x 240dp -- 1080 x 720px at 3x. Negative margins cancel the panel's 24dp padding so
+    // it reaches the edges; -26 rather than -24 because a hairline of parchment at the very
+    // edge reads as a border and the whole point is that it does not have one.
     art: {
       width: undefined,
-      height: 230,
-      marginTop: 26,
-      marginHorizontal: -22,
-      marginBottom: -28,
       alignSelf: 'stretch',
+      aspectRatio: 3 / 2,
+      marginTop: 26,
+      marginHorizontal: -26,
+      marginBottom: -42,
     },
     section: { marginBottom: 4 },
     sectionLabel: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },
