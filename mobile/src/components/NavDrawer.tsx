@@ -146,24 +146,43 @@ export default function NavDrawer({
         <Text style={styles.closeBtnText}>✕</Text>
       </Pressable>
 
-      <View pointerEvents="none" style={styles.cornerTL}>
-        <CornerFlourish corner="tl" color={colors.railInk} />
-      </View>
-      <View pointerEvents="none" style={styles.cornerTR}>
-        <CornerFlourish corner="tr" color={colors.railInk} />
-      </View>
+      {/* Drawn corners are for DAY only. At night they are already in the header artwork,
+          and drawing them again would double every line. */}
+      {mode === 'day' && (
+        <>
+          <View pointerEvents="none" style={styles.cornerTL}>
+            <CornerFlourish corner="tl" color={colors.railInk} />
+          </View>
+          <View pointerEvents="none" style={styles.cornerTR}>
+            <CornerFlourish corner="tr" color={colors.railInk} />
+          </View>
+        </>
+      )}
 
       <ScrollView contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.brand}>
-          {/* The full rose, not the small nav glyph: in the reference this is the panel's
-              one large drawn object and everything below is deliberately quieter than it. */}
-          <CompassRose size={92} color={colors.railInk} />
-          <Text style={styles.brandTitle}>{projectName}</Text>
-          <Text style={styles.brandSubtitle}>STORYMAP</Text>
-        </View>
-        <View style={styles.dividerWrap}>
-          <OrnamentRule color={colors.railDim} />
-        </View>
+        {/* Night wears one supplied image: corners, rose, moon phases, title, subtitle and
+            the rule beneath them. Full bleed to the top and both sides -- the negative
+            margins cancel the panel's own padding -- and its own alpha ramp does the
+            blending at the foot, which is why nothing here draws a gradient. Day has no such
+            artwork and keeps the drawn assembly. */}
+        {mode === 'night' ? (
+          <Image
+            source={require('../../assets/drawer-header.webp')}
+            style={styles.headerArt}
+            resizeMode="cover"
+          />
+        ) : (
+          <>
+            <View style={styles.brand}>
+              <CompassRose size={92} color={colors.railInk} />
+              <Text style={styles.brandTitle}>{projectName}</Text>
+              <Text style={styles.brandSubtitle}>STORYMAP</Text>
+            </View>
+            <View style={styles.dividerWrap}>
+              <OrnamentRule color={colors.railDim} />
+            </View>
+          </>
+        )}
 
         <Section
           title="Discover"
@@ -270,10 +289,12 @@ function Section({
 
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
+    // Inset to clear the header artwork's own top-right flourish rather than sitting across
+    // it. 26/26 puts the button inside the ornament instead of on its corner.
     closeBtn: {
       position: 'absolute',
-      top: 14,
-      right: 14,
+      top: 26,
+      right: 26,
       zIndex: 1,
       width: 34,
       height: 34,
@@ -285,12 +306,23 @@ function makeStyles(colors: ThemeColors) {
       justifyContent: 'center',
     },
     closeBtnText: { color: colors.railInk, fontSize: 15 },
+    // Inset so it sits INSIDE the header artwork's corner flourish rather than across it.
     panelContent: { padding: 24, paddingTop: 32, paddingBottom: 40, flexGrow: 1 },
     brand: { alignItems: 'center', marginBottom: 16 },
     brandTitle: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 20, letterSpacing: 1.5, marginTop: 8 },
     brandSubtitle: { color: colors.railDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 3, marginTop: 4 },
     divider: { height: 1, backgroundColor: colors.railDim, marginBottom: 20 },
     dividerWrap: { marginBottom: 18, paddingHorizontal: 4 },
+    // 1080x675 supplied, so 8:5. Pinned by ratio rather than height: a fixed height would
+    // crop or letterbox the moment the panel is a different width on another phone.
+    headerArt: {
+      width: undefined,
+      alignSelf: 'stretch',
+      aspectRatio: 8 / 5,
+      marginTop: -32,
+      marginHorizontal: -26,
+      marginBottom: 4,
+    },
     cornerTL: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
     cornerTR: { position: 'absolute', top: 10, right: 10, zIndex: 2 },
     sectionGlyph: { width: 30, alignItems: 'center', marginRight: 6 },
