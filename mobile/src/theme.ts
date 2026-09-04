@@ -50,6 +50,15 @@ export type ThemeColors = {
   textFaint: string;
   gold: string;
   error: string;
+  /**
+   * The nav drawer, which is the one surface that changes MATERIAL rather than shade.
+   * At night it is cream paper laid on a blue page; by day it is olive with gold lettering
+   * on cream. The inversion is the same in both directions, which is what makes them read
+   * as one design at two hours rather than as two designs.
+   */
+  rail: string;
+  railInk: string;
+  railDim: string;
 };
 
 // Night is the app's original, still-default look: dark brown/leather with gold
@@ -58,28 +67,42 @@ export type ThemeColors = {
 // explicit instruction; gold/error and every icon color stay identical in both palettes,
 // also per instruction -- nothing consumes a raw gold/error hex anymore except this file,
 // so "keep gold as-is" is enforced by construction, not by convention.
+// Night is ROYAL BLUE, not brown (2026-08-30), matching the PWA token for token. The
+// leather-and-lamplight reading was one note all the way down and gave the gold nothing to
+// sit against; it also fought the sign-in artwork, which has always been a blue night. The
+// braid is drawn on this same midnight, so opening it no longer changes the temperature of
+// the whole screen.
 export const NIGHT_COLORS: ThemeColors = {
-  bg: '#120d08',
-  panel: '#221a10',   // PWA --panel. Was #1a130b, which is --bg-alt: one step too dark.
-  border: '#4a3a22',
-  borderDim: '#2a2013',
-  text: '#e9dcb8',
-  textDim: '#a8926a',
-  textFaint: '#8a7355',
+  bg: '#0d1533',
+  panel: '#17224c',
+  border: '#33447c',
+  borderDim: '#1e2b5c',
+  text: '#e9e2ce',
+  textDim: '#9dabcd',
+  textFaint: '#7c88a8',
   gold: '#c69a3a',
   error: '#b8542e',
+  rail: '#efe6d0',    // cream paper against the blue
+  railInk: '#2c2011',
+  railDim: '#6b5d42',
 };
 
+// Day is parchment: a cream page with OLIVE chrome and GOLD lettering on it. Body ink stays
+// dark on the cream, because gold text at reading size on cream is a legibility problem
+// dressed up as a decision -- the gold belongs on the olive, where it has something to hold.
 export const DAY_COLORS: ThemeColors = {
   bg: '#faf3e0',
-  panel: '#f1e6c8',
-  border: '#d9c896',
-  borderDim: '#ecdfb8',
+  panel: '#efe4c6',
+  border: '#cdbb8e',
+  borderDim: '#e4d6ab',
   text: '#2c2011',
   textDim: '#6b5d42',
   textFaint: '#8a7355',
   gold: '#c69a3a',
   error: '#b8542e',
+  rail: '#3c4a2a',    // olive
+  railInk: '#e3c274', // gold
+  railDim: '#a9b48f',
 };
 
 export type ThemeMode = 'day' | 'night';

@@ -4257,3 +4257,46 @@ corner controls: reachable, not insistent.
 The braid carries its own day palette (which is where the olive in that screenshot comes
 from), but the mobile app's chrome around it has no equivalent, and those are structural
 additions rather than token swaps -- see the design-parity note in §30.3.
+
+
+### 30.5 One design, two hours: royal blue nights, olive days (2026-08-30)
+
+Three decisions by the author, applied to both apps token for token.
+
+**The braid is always dark.** Its ground stays midnight in every mode, in the PWA and on the
+phone. That settles more than a background colour, so it is spelled out in the renderer: the
+day palette is not "night on a pale ground", it is a different design -- thread on paper, dark
+pigment, glow switched off, because adding light to white produces nothing. Pin the ground to
+midnight while keeping those colours and you get dark green on near-black with nothing to
+rescue it. So the braid takes the night palette entire. `HOST_THEME` still resolves, and
+`THEME` is now fixed at `'night'`; the day palette is KEPT rather than deleted, because it is
+a complete working design for a light ground and is the thing to reach for if the braid is
+ever printed, exported, or embedded in a light document.
+
+**Night is royal blue.** `--bg` moves from `#120d08` to `#0d1533`, with cream ink. The brown
+was one note all the way down -- brown page, brown panels, brown rail -- so the gold had
+nothing to sit against; it also fought the sign-in artwork, which has always been a blue
+night. And because the braid is drawn on that same midnight, opening it no longer changes the
+temperature of the whole screen.
+
+**The drawer changes MATERIAL, not shade** -- the one inversion that makes the two modes read
+as one design at two hours rather than as two designs:
+
+| | page | drawer | drawer ink |
+| --- | --- | --- | --- |
+| night | royal blue `#0d1533` | cream `#efe6d0` | dark `#2c2011` |
+| day | cream `#faf3e0` | olive `#3c4a2a` | gold `#e3c274` |
+
+Mobile needed three new roles for this -- `rail`, `railInk`, `railDim` on `ThemeColors` -- since
+its drawer had been painting itself from `bg`/`panel`/`text` and therefore could only ever be
+a darker version of the page. `SlidePanel` now takes `rail`; `NavDrawer`'s ink, rules and
+labels take `railInk`/`railDim`.
+
+**Body ink stays dark on the cream in day mode.** "Gold letters upon cream" is right for the
+chrome and wrong at reading size: gold text on cream at 14px is a legibility problem dressed
+as a decision. The gold goes where it has something to hold -- on the olive rail, and on
+headings.
+
+**Unverified, and worth a look on the device**: the drawer's icons are drawn in `colors.gold`,
+which sat on a dark rail before and now sits on cream at night. Gold on cream is the thinnest
+contrast anywhere in the new palette. If it reads weakly, `railInk` is the correction.

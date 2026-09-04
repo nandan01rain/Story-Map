@@ -1132,8 +1132,22 @@ const PALETTES = {
 // so mobile could never be anything but night -- the app would sit in day mode with a
 // black braid inside it. window.__THEME__ is the second door, injected before this file
 // runs, and it is checked first because a host that bothered to set it means it.
-const THEME = ((typeof window !== 'undefined' && window.__THEME__) ||
+// THE BRAID IS ALWAYS DARK, in both apps and both app themes. Decided 2026-08-30: the
+// ground stays midnight whatever the hour.
+//
+// Which settles more than the background colour, so it is worth being explicit. The day
+// palette below is not "the night palette on a pale ground" -- it is a different design,
+// thread on paper: dark pigment, glow switched off, because adding light to white produces
+// nothing. Pin the ground to midnight and keep those colours and you get dark green on
+// near-black with no luminosity to rescue it. So the braid takes the night palette entire.
+//
+// The day palette is KEPT rather than deleted. It is a complete, working design for a light
+// ground, and if the braid is ever wanted on paper -- printed, exported, embedded in a light
+// document -- it is the thing to reach for. The host handshake is kept for the same reason:
+// the theme still arrives, it simply does not change this.
+const HOST_THEME = ((typeof window !== 'undefined' && window.__THEME__) ||
   new URLSearchParams(location.search).get('theme')) === 'day' ? 'day' : 'night';
+const THEME = 'night';
 const C = PALETTES[THEME];
 
 // The chrome follows the same choice, through the variables the stylesheet already reads.

@@ -12,8 +12,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root{
-  --bg:#120d08; --bg-alt:#1a130b; --panel:#221a10; --panel-2:#2a2013;
-  --border:#4a3a22; --text:#e9dcb8; --text-dim:#a8926a;
+  /* Night is ROYAL BLUE, not brown (2026-08-30). The leather-and-lamplight reading was
+     one note all the way down -- brown page, brown panels, brown rail -- and the app had no
+     contrast of material anywhere in it. Blue gives the gold something to sit against, and
+     it is the same night the braid has always been drawn on, so opening the braid no longer
+     changes the temperature of the whole screen.
+     Cream ink on blue, and the drawer inverts to cream paper below. */
+  --bg:#0d1533; --bg-alt:#121c40; --panel:#17224c; --panel-2:#1e2b5c;
+  --border:#33447c; --text:#e9e2ce; --text-dim:#9dabcd;
   --gold:#c69a3a; --ember:#b8542e; --teal:#2f9d8a; --gray:#6b5d42; --danger:#b8542e;
   /* List-view redesign: aged-parchment cards need a light surface + dark ink,
      distinct from the rest of the app's dark-panel palette above. */
@@ -22,9 +28,13 @@
   --texture-parchment: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%238a7355' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7'/%3E%3C/g%3E%3C/svg%3E");
   --moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23c69a3a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z'/%3E%3C/svg%3E");
-  --ink-knob:#1c211c;
-  --rail:#1c211c; --rail-edge:rgba(198,154,58,0.24);
-  --rail-ink:#e9e2ce; --rail-dim:#9ba093; --rail-hover:rgba(198,154,58,0.09);
+  /* The hamburger rail is CREAM PAPER against the blue page -- the one place in night mode
+     where the material changes rather than the shade. Its ink is the page's ink inverted, so
+     the drawer reads as a sheet laid on the desk rather than a darker panel of the same
+     thing. */
+  --ink-knob:#efe6d0;
+  --rail:#efe6d0; --rail-edge:rgba(44,32,17,0.22);
+  --rail-ink:#2c2011; --rail-dim:#6b5d42; --rail-hover:rgba(44,32,17,0.07);
   --quill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23c69a3a' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 20c6-1 10-4 13-9 1.6-2.7 2.2-5 2.4-7-2 .2-4.3.8-7 2.4-5 3-8 7-9 13z'/%3E%3Cpath d='M4 20l6-6'/%3E%3C/g%3E%3C/svg%3E");
   --sprig: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23c69a3a' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M12 21V6'/%3E%3Cpath d='M12 10c-3 0-5-2-5-4 3 0 5 2 5 4zM12 10c3 0 5-2 5-4-3 0-5 2-5 4zM12 16c-3 0-5-2-5-4 3 0 5 2 5 4zM12 16c3 0 5-2 5-4-3 0-5 2-5 4z'/%3E%3C/g%3E%3C/svg%3E");
   --parchment:#cfbb8c; --parchment-dark:#b7a173; --ink:#2c2011; --brass:#8a6a35;
@@ -45,11 +55,22 @@
    Applied by a data-theme attribute on <html> rather than by prefers-color-scheme: this
    follows the clock, not the OS appearance setting, and those are different questions. */
 html[data-theme="day"]{
-  --bg:#faf3e0; --bg-alt:#f4ead0; --panel:#f1e6c8; --panel-2:#ecdfb8;
-  --border:#d9c896; --text:#2c2011; --text-dim:#6b5d42;
+  /* Day is parchment: a cream page, OLIVE GREEN chrome, and GOLD lettering on it. The olive
+     was already here as --leaf, used only for the list cards; it is the day palette's
+     structural colour now, and the rail wears it. Gold on olive is the inverse of gold on
+     blue at night, so the two modes are one design seen at two hours rather than two designs.
+     Body ink stays dark on the cream, because gold text at reading size on cream is a
+     legibility problem dressed as a decision. */
+  --bg:#faf3e0; --bg-alt:#f4ead0; --panel:#efe4c6; --panel-2:#e9dcb8;
+  --border:#cdbb8e; --text:#2c2011; --text-dim:#6b5d42;
   --gray:#8a7355;
   --plate-dark:#efe3c2;
   --leaf:#3c4a2a; --leaf-edge:#55663c; --leaf-hi:#48592f;
+  /* Olive rail, gold ink. */
+  --ink-knob:#3c4a2a;
+  --rail:#3c4a2a; --rail-edge:rgba(198,154,58,0.35);
+  --rail-ink:#e3c274; --rail-dim:#a9b48f; --rail-hover:rgba(227,194,116,0.12);
+  --parchment:#e8dcb4; --parchment-dark:#cdbb8e; --ink:#2c2011; --brass:#8a6a35;
   /* Typography tokens — default values reproduce the app's current, already-shipping
      fonts exactly (Cinzel Decorative / Cinzel / Spectral / Inter / JetBrains Mono),
      one role per distinct font previously hardcoded throughout the stylesheet:

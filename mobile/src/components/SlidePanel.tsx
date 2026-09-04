@@ -41,7 +41,7 @@ export default function SlidePanel({
         <Animated.View
           style={[
             styles.panel,
-            { width, backgroundColor: colors.bg, borderRightColor: colors.gold },
+            { width, backgroundColor: colors.rail, borderRightColor: colors.gold },
             controller.panelStyle,
           ]}
         >
