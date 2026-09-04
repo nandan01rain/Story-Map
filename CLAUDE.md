@@ -20,6 +20,13 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > loss of capability. And one migration *is* outstanding:
 > `20260825_spine_support.sql`, written and not run.
 >
+> **As of 2026-08-30, §20's claim that the phone takes changes over the air was
+> false for the installed binary and had never been true.** Three separate faults,
+> the decisive one being that the APK was built before `updates.url` existed in
+> `app.json`, so it never knew where to ask. A week of work never reached the
+> device. Fixed by a rebuild; handoff §30.2 has the full diagnosis and the order to
+> check things in next time — a successful publish proves nothing about delivery.
+>
 > **As of 2026-08-27 stage-one raw capture ("Pages") exists in both apps**, and
 > **The Margin is gone as a view** — same `sticky_notes` rows, a stack instead of a
 > board. It is the answer to the braid drawing almost nothing on the real project:
@@ -202,6 +209,14 @@ chapter boundaries for pacing).
   browser of every scene in a given POV across the saga.
 - **📚 Documents library**: Master Bible / character bibles / scene
   references / timelines, each a free-text document in its own editor.
+- **🎬 Treatments (mobile, 2026-08-30)** — one scene described at plot-summary
+  granularity, dialogue unwritten: the layer between a page and a chapter. Ordered
+  **saga-wide by dragging**, never by date, and deliberately carrying no book, act or
+  chapter — scenes get written before anyone knows where they go. Several versions
+  can be `live` at once, which is a way of holding two readings of a scene open, not
+  a conflict to resolve; setting one aside filters it and nothing more. Page →
+  treatment → chapter, each step copying rather than moving. `treatments` +
+  `treatment_versions`, both applied. PWA surface not built. Handoff §30.
 - **📄 Pages (both apps, 2026-08-27)** — stage one of the capture pipeline, and
   the replacement for "The Margin". Same `sticky_notes` rows; a stack of pages
   rather than a board of tilted cards, because the same list now holds drafted

@@ -4038,3 +4038,112 @@ is typechecked only.
 - **Subplots and threads have no way out**, by design — a subplot spans chapters and a character
   spans the saga, so neither has one place to open. Their own rows already jump to the flags that
   do.
+
+
+## 30. TREATMENTS, AND WHY OTA HAD NEVER WORKED (2026-08-30)
+
+### 30.1 The treatment layer — stages one to three of the treatment brief
+
+**Stage one, applied.** `content_chunks.source_type` admitted only `('chapter', 'document')`,
+so **pages could not be indexed at all** — every downstream thing (recall, contradiction
+checking, both assistants) was blocked on that one predicate, and had been since pages
+shipped. Widened to admit `page` and `treatment` (`20260830_index_pages_and_treatments.sql`).
+
+Verified rather than assumed, because the brief asked: the function is `match_content_chunks`,
+not `match_chunks`; its `p_source_type` is a nullable `text` compared with `=`, so a new value
+needs no signature change; and its only caller doesn't pass it. **Widening the constraint was
+sufficient on its own.** The constraint is dropped by *discovered* name — it was written
+inline, so guessing what PostgreSQL called it would fail silently. Limitation recorded, not
+fixed: a single-value filter cannot express "pages and treatments but not chapters".
+
+**Stage two, applied** (`20260830b_treatments.sql`, `20260830c_treatment_history.sql`).
+
+A treatment is a prose description of ONE scene at plot-summary granularity, dialogue
+unwritten — the layer between pages (undated, unplaced) and chapters (finished prose). About
+twenty scenes for Book One had lived only in chat transcripts because nothing in the database
+could hold a finished description of an unwritten scene.
+
+- **No `chapter_id`, no `book`, no `act`, and it must not acquire any.** Ordered saga-wide,
+  because scenes are written before anyone knows which chapter they belong to. Nothing here
+  touches `scenes`, `chapters`, `spine-layout.mjs` or the braid.
+- **`position` is sparse numeric.** A drag writes one row. Numeric rather than int so a value
+  always exists between two neighbours, however tight the gap.
+- **Versions are rows, not jsonb** — the reason is recall: a version has to be independently
+  rankable and addressable, or search answers "this treatment matches" and leaves ten versions
+  to read, which is the complaint the layer exists to answer.
+- **`search_everything()` gained a fifth branch and a `status` column**, so it DROPs before it
+  creates (create-or-replace cannot change a return type). Additive for existing callers.
+
+**One conflation in the brief, pulled apart** (`20260830c`). The brief asked for both
+`treatment_versions` rows where several may be live at once *and* autosave on the pages
+cadence. Those are different objects: a version is an authorial act, a snapshot is text about
+to be overwritten. Had the cadence written rows, an afternoon's work would leave forty and the
+one property `status` exists to express would be unfindable — and `status` would come to mean
+both "an autosave" and "a draft I set aside". So rows stay authorial and the overwrite trail
+lives in `treatment_versions.history`, same shape and cadence as `sticky_notes.versions`. The
+rejected alternative (auto-marking snapshots stale) needs no migration and destroys the
+distinction the column was added for.
+
+**Stage three, built on MOBILE ONLY.** `TreatmentsScreen` (drag-ordered list),
+`TreatmentScreen` (editor, versions behind one dot), `treatmentStore.ts`, both junctions —
+page → treatment listed *above* page → chapter, since most of what gets deposited is
+scene-level. `became_type` on `sticky_notes` was already wider than `chapter`; only `chapter`
+had been wired.
+
+Drag reuses `useSortableList` + `useSortablePositions`. **`SortableItem.onDrop` is
+`(id, position)`, not `(from, to)`**, and the working pattern keeps a *local* reordered list
+that `onMove` mutates and `onDrop` reads — a `useMemo` off the store is reset under the drag by
+every store update. Matched to `ChapterListScreen` rather than invented.
+
+**A bug fixed on the way**: mobile's `SearchScreen` routed any unrecognised `kind` through a
+ternary to `openers.chapter(r.id)`, so a treatment hit would have opened the Editor with a
+version id as its chapter. Treatment hits now also display live/set-aside, because a stale
+version shown unlabelled above its replacement is the failure most likely to make recall feel
+untrustworthy on first use.
+
+**Not built**: the PWA's treatment surfaces, Stage Four (recall) and Stage Five (the version
+diff). Stage Four's deterministic prerequisites are now all in place.
+
+### 30.2 §20 IS WRONG: OTA delivery had never once worked
+
+§20 records that the phone takes JavaScript changes over the air. **For the binary actually
+installed, that was never true**, and a week of shipped work never reached the device.
+
+Three faults, discovered in this order, each of which alone was sufficient:
+
+1. **The `preview` channel had no branch pointed at it.** Builds ask for a *channel*; updates
+   publish to a *branch*; nothing linked them. The server correctly answered "no update
+   available" every time. Fixed: `eas channel:edit preview --branch preview`.
+2. **`production` was pointed at branch `production`**, which has never had a publish.
+3. **The decisive one: the installed APK had no update URL compiled into it.** The preview APK
+   was built 2026-08-23 from `0883737`, where `app.json` read
+   `updates: {enabled, checkAutomatically, fallbackToCacheTimeout}` — **no `url`**. The real
+   `https://u.expo.dev/e9da412f…` was only recorded two days later in `77361dd`. That value is
+   baked in at build time, so the binary never knew where to ask. **No publish could ever have
+   reached it.**
+
+**Why none of this was visible**: `useOtaUpdate`'s catch swallows a failed check on purpose —
+"offline, or the update server is unreachable... neither is worth interrupting writing over."
+Correct for a writing app, and it makes exactly this class of misconfiguration silent. If OTA
+appears not to work again, **check the channel-to-branch mapping and the build's baked-in URL
+before republishing anything**; a publish that succeeds proves nothing about delivery.
+
+**Resolved by a rebuild** (`eas build --platform android --profile preview`, 2026-08-30), which
+compiled the URL in. From that build onward `eas update --branch preview` should reach the
+device with no rebuild. **That claim is unverified** — the first OTA onto the new binary has
+not yet been attempted.
+
+### 30.3 Open, from the first real-device session in a week
+
+Reported on the new build, not yet diagnosed:
+
+- **The braid's camera is over-constrained.** Rotation is limited to a small arc rather than
+  free, zoom-out does not go far enough to fit the whole saga on screen, and at default framing
+  the picture is larger than the viewport. The limits live in the renderer's camera clamps
+  (`framingDistance()`, the zoom bounds and the orbit constraints in
+  `scripts/build-braid-3d.mjs`) — deliberate at the time and evidently wrong on a real phone.
+  **This is the top item for the next session.**
+- **Palette reported as "still brown" at night and "all cream/beige" by day.** Recorded as
+  reported; whether this is the intended parchment/leather language reading as monotonous, or
+  the newer serif/olive pass not reaching the mobile app, has not been established. Do not act
+  on it without settling that question first.
