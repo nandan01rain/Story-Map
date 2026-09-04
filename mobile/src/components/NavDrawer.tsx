@@ -278,9 +278,10 @@ function Section({
           <SectionGlyph name={SECTION_GLYPH[sectionKey]} color={colors.railInk} size={26} />
         </View>
         <Text style={styles.sectionLabelText}>{title.toUpperCase()}</Text>
-        <View style={styles.sectionRuleWrap}>
-          <OrnamentRule color={colors.railDim} />
-        </View>
+        {/* A plain gold rule, as in the reference. The diamond-centred ornament reads as
+            decoration competing with the section label; the reference lets the label carry
+            the weight and the rule simply reach across to the chevron. */}
+        <View style={styles.sectionRule} />
         <Chevron color={colors.railInk} size={15} open={expanded} />
       </Pressable>
 
@@ -348,7 +349,7 @@ function makeStyles(colors: ThemeColors) {
     cornerTL: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
     cornerTR: { position: 'absolute', top: 10, right: 10, zIndex: 2 },
     sectionGlyph: { width: 30, alignItems: 'center', marginRight: 6 },
-    sectionRuleWrap: { flex: 1, marginHorizontal: 10, justifyContent: 'center' },
+    sectionRuleWrap: { flex: 1, marginHorizontal: 10, justifyContent: 'center' },   // unused; kept for the day header rule
     // The epigraph is double-ruled with a star hung below it, so the outer view carries the
     // second rule and the inner one the first.
     epigraphInner: {
@@ -378,7 +379,7 @@ function makeStyles(colors: ThemeColors) {
     section: { marginBottom: 4 },
     sectionLabel: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },
     sectionLabelText: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 12, letterSpacing: 2 },
-    sectionRule: { flex: 1, height: 1, backgroundColor: colors.railDim },
+    sectionRule: { flex: 1, height: 1, backgroundColor: colors.railInk, opacity: 0.55, marginHorizontal: 14 },
     sectionArrow: { color: colors.gold, fontSize: 12, transform: [{ rotate: '0deg' }] },
     sectionArrowOpen: { transform: [{ rotate: '90deg' }] },
     item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingLeft: 8, gap: 14 },
