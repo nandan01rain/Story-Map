@@ -168,7 +168,10 @@ export default function NavDrawer({
         {mode === 'night' ? (
           <Image
             source={require('../../assets/drawer-header.webp')}
-            style={styles.headerArt}
+            style={[styles.headerArt, {
+              width: panelWidth,
+              height: panelWidth / (8 / 5),
+            }]}
             resizeMode="cover"
           />
         ) : (
@@ -228,7 +231,11 @@ export default function NavDrawer({
             `cover` rather than `contain`: the picture is a foot to the panel, not a framed
             plate, and it should run off the edges the way it does in the reference. */}
         {mode === 'night' && (
-          <Image source={require('../../assets/drawer-city.webp')} style={styles.art} resizeMode="cover" />
+          <Image
+            source={require('../../assets/drawer-city.webp')}
+            style={[styles.art, { width: panelWidth, height: panelWidth / (3 / 2) }]}
+            resizeMode="cover"
+          />
         )}
       </ScrollView>
     </SlidePanel>
@@ -313,14 +320,15 @@ function makeStyles(colors: ThemeColors) {
     brandSubtitle: { color: colors.railDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 3, marginTop: 4 },
     divider: { height: 1, backgroundColor: colors.railDim, marginBottom: 20 },
     dividerWrap: { marginBottom: 18, paddingHorizontal: 4 },
-    // 1080x675 supplied, so 8:5. Pinned by ratio rather than height: a fixed height would
-    // crop or letterbox the moment the panel is a different width on another phone.
+    // Width and height are set AT THE CALL SITE from panelWidth, not here.
+    //
+    // `width: undefined` with an aspectRatio was the bug: React Native falls back to an
+    // Image's INTRINSIC size when width is undefined, so a 1080px-wide file laid itself out
+    // as 1080 DP -- three screens tall -- and aspectRatio never got a look in. Deriving both
+    // dimensions from the panel's own width is deterministic and cannot do that.
     headerArt: {
-      width: undefined,
-      alignSelf: 'stretch',
-      aspectRatio: 8 / 5,
       marginTop: -32,
-      marginHorizontal: -26,
+      marginLeft: -24,
       marginBottom: 4,
     },
     cornerTL: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
@@ -345,12 +353,11 @@ function makeStyles(colors: ThemeColors) {
     // 360 x 240dp -- 1080 x 720px at 3x. Negative margins cancel the panel's 24dp padding so
     // it reaches the edges; -26 rather than -24 because a hairline of parchment at the very
     // edge reads as a border and the whole point is that it does not have one.
+    // As headerArt: sized at the call site from panelWidth. -24 cancels the panel's padding
+    // exactly, so the picture reaches both edges without overhanging them.
     art: {
-      width: undefined,
-      alignSelf: 'stretch',
-      aspectRatio: 3 / 2,
       marginTop: 26,
-      marginHorizontal: -26,
+      marginLeft: -24,
       marginBottom: -42,
     },
     section: { marginBottom: 4 },
