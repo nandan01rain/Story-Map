@@ -16,6 +16,7 @@ import {
   Spectral_400Regular,
   Spectral_400Regular_Italic,
   Spectral_500Medium,
+  Spectral_600SemiBold,
 } from '@expo-google-fonts/spectral';
 import { useFonts } from 'expo-font';
 
@@ -32,6 +33,7 @@ export function useAppFonts() {
     Spectral_400Regular,
     Spectral_400Regular_Italic,
     Spectral_500Medium,
+  Spectral_600SemiBold,
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
   });

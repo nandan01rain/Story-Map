@@ -7,19 +7,28 @@ import { createElement } from 'react';
 // Font roles mirror the PWA's --font-* tokens (index.html:22-34) one-for-one:
 //   display  = the single large app-title use
 //   heading  = section headings, act/book labels, brand text, modal titles
-//   body     = default UI text, buttons, form inputs
+//   body     = default UI text, buttons, form inputs -- SERIF, matching the PWA
 //   literary = chapter/scene titles, prose-adjacent text (node labels, ledger, POV)
 //   mono     = badges, counts, meta/label text
 // Loaded via @expo-google-fonts/* in App.tsx (useFonts) -- these string keys are the
 // exact export names those packages register the fonts under. Fonts don't change with
 // day/night -- only ThemeColors below does.
+// PARITY WITH THE PWA IS THE POINT (2026-08-30). The two apps are one design, and the
+// visual pass that moved the PWA to a serif interface never reached here -- every redesign
+// commit touched index.html alone. The palettes were already the same to the byte; the
+// divergence was entirely typography, which is why the app read as "the old look" while its
+// colours were identical.
+//
+// So `body` is Spectral, not Inter. That is the PWA's --font-body, and because App.tsx sets
+// a global <Text> default from it, this one line changes the face of every screen at once --
+// which is exactly what parity requires and why it is worth stating loudly.
 export const FONTS = {
-  display: 'CinzelDecorative_700Bold',
+  display: 'Cinzel_700Bold',
   heading: 'Cinzel_600SemiBold',
   headingBold: 'Cinzel_700Bold',
-  body: 'Inter_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
+  body: 'Spectral_400Regular',
+  bodyMedium: 'Spectral_500Medium',
+  bodySemiBold: 'Spectral_600SemiBold',
   literary: 'Spectral_400Regular',
   literaryMedium: 'Spectral_500Medium',
   literaryItalic: 'Spectral_400Regular_Italic',
@@ -51,7 +60,7 @@ export type ThemeColors = {
 // so "keep gold as-is" is enforced by construction, not by convention.
 export const NIGHT_COLORS: ThemeColors = {
   bg: '#120d08',
-  panel: '#1a130b',
+  panel: '#221a10',   // PWA --panel. Was #1a130b, which is --bg-alt: one step too dark.
   border: '#4a3a22',
   borderDim: '#2a2013',
   text: '#e9dcb8',
