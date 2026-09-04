@@ -146,6 +146,18 @@ export default function NavDrawer({
         <Text style={styles.closeBtnText}>✕</Text>
       </Pressable>
 
+      {/* The city is PINNED to the foot of the panel, not carried in the scroll flow. As a
+          flow element it ended wherever the content happened to end, so any scroll exposed a
+          band of bare cream beneath it. Anchored to the bottom it is simply where the panel
+          stops, at every scroll position, and the content scrolls over it. */}
+      {mode === 'night' && (
+        <Image
+          source={require('../../assets/drawer-city.webp')}
+          style={[styles.art, { width: panelWidth, height: panelWidth / (3 / 2) }]}
+          resizeMode="cover"
+        />
+      )}
+
       {/* Drawn corners are for DAY only. At night they are already in the header artwork,
           and drawing them again would double every line. */}
       {mode === 'day' && (
@@ -159,7 +171,13 @@ export default function NavDrawer({
         </>
       )}
 
-      <ScrollView contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.panelContent,
+          { paddingBottom: mode === 'night' ? panelWidth / (3 / 2) * 0.62 + 24 : 40 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Night wears one supplied image: corners, rose, moon phases, title, subtitle and
             the rule beneath them. Full bleed to the top and both sides -- the negative
             margins cancel the panel's own padding -- and its own alpha ramp does the
@@ -230,13 +248,7 @@ export default function NavDrawer({
             so every row of sky in the file would have been payload spent on nothing.
             `cover` rather than `contain`: the picture is a foot to the panel, not a framed
             plate, and it should run off the edges the way it does in the reference. */}
-        {mode === 'night' && (
-          <Image
-            source={require('../../assets/drawer-city.webp')}
-            style={[styles.art, { width: panelWidth, height: panelWidth / (3 / 2) }]}
-            resizeMode="cover"
-          />
-        )}
+
       </ScrollView>
     </SlidePanel>
   );
@@ -314,7 +326,9 @@ function makeStyles(colors: ThemeColors) {
     },
     closeBtnText: { color: colors.railInk, fontSize: 15 },
     // Inset so it sits INSIDE the header artwork's corner flourish rather than across it.
-    panelContent: { padding: 24, paddingTop: 32, paddingBottom: 40, flexGrow: 1 },
+    // paddingBottom is set at the call site: it has to clear the pinned artwork, whose
+    // height depends on the panel's width.
+    panelContent: { padding: 24, paddingTop: 32, flexGrow: 1 },
     brand: { alignItems: 'center', marginBottom: 16 },
     brandTitle: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 20, letterSpacing: 1.5, marginTop: 8 },
     brandSubtitle: { color: colors.railDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 3, marginTop: 4 },
@@ -353,12 +367,13 @@ function makeStyles(colors: ThemeColors) {
     // 360 x 240dp -- 1080 x 720px at 3x. Negative margins cancel the panel's 24dp padding so
     // it reaches the edges; -26 rather than -24 because a hairline of parchment at the very
     // edge reads as a border and the whole point is that it does not have one.
-    // As headerArt: sized at the call site from panelWidth. -24 cancels the panel's padding
-    // exactly, so the picture reaches both edges without overhanging them.
+    // Pinned to the bottom edge of the panel. Sized at the call site from panelWidth, and
+    // positioned absolutely so no amount of scrolling can reveal cream underneath it.
     art: {
-      marginTop: 26,
-      marginLeft: -24,
-      marginBottom: -42,
+      position: 'absolute',
+      left: 0,
+      bottom: 0,
+      zIndex: 0,
     },
     section: { marginBottom: 4 },
     sectionLabel: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },

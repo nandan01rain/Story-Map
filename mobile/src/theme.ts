@@ -86,7 +86,11 @@ export const NIGHT_COLORS: ThemeColors = {
   // (#e8d5b2, sampled from drawer-city.webp) so picture and panel meet with no seam to hide.
   // The rail took the artwork's colour rather than the artwork taking the rail's, which is
   // why no gradient fade is needed between them. Day is olive; see DAY_COLORS.
-  rail: '#e8d5b2',
+  // Sampled from the artwork itself (drawer-header.webp, opaque region, #e6d6b7..#e8dabd)
+  // rather than chosen. #e8d5b2 was a shade more saturated, which put a visible horizontal
+  // seam where the header's fade finished and the panel began -- the one join the alpha ramp
+  // exists to hide. The panel matches the paper now; the paper does not match the panel.
+  rail: '#e7d8ba',
   // Gold in both modes. The app's #c69a3a reads at 2.3:1 on parchment -- gold in name, grey
   // in effect -- so this is the same hue carried down to 4.1:1: legibly gold rather than
   // nominally gold.
