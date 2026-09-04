@@ -82,13 +82,20 @@ export const NIGHT_COLORS: ThemeColors = {
   textFaint: '#7c88a8',
   gold: '#c69a3a',
   error: '#b8542e',
-  rail: '#efe6d0',    // cream paper against the blue
-  // GOLD in both modes, by decision. On cream that has to be a deeper gold than the app's
-  // #c69a3a, which reads at about 2.3:1 against #efe6d0 -- gold in name and grey in effect.
-  // #8a6a35 is the same hue carried further down and clears 4.5:1, so it is legibly gold
-  // rather than nominally gold.
-  railInk: '#8a6a35',
-  railDim: '#9a8a68',
+  // THE DRAWER IS PARCHMENT IN BOTH MODES, and its cream is the artwork's own top-edge
+  // colour (#e8d5b2, sampled from drawer-city.webp) so the illustration at its foot meets
+  // the panel with no seam to hide.
+  //
+  // That overrules the earlier "olive rail by day": the reference is a cream drawer, and the
+  // artwork is parchment-grounded, so an olive panel would have had a cream picture pasted
+  // onto it. The olive did not go away -- by day it moves to the ornament rules, which is
+  // what "olive green with gold letters upon cream" actually describes.
+  rail: '#e8d5b2',
+  // Gold in both modes. The app's #c69a3a reads at 2.3:1 on parchment -- gold in name, grey
+  // in effect -- so this is the same hue carried down to 4.1:1: legibly gold rather than
+  // nominally gold.
+  railInk: '#7d5f2c',
+  railDim: '#a89268',
 };
 
 // Day is parchment: a cream page with OLIVE chrome and GOLD lettering on it. Body ink stays
@@ -104,9 +111,9 @@ export const DAY_COLORS: ThemeColors = {
   textFaint: '#8a7355',
   gold: '#c69a3a',
   error: '#b8542e',
-  rail: '#3c4a2a',    // olive
-  railInk: '#e3c274', // gold
-  railDim: '#a9b48f',
+  rail: '#e8d5b2',    // the same parchment; the drawer is one material at both hours
+  railInk: '#7d5f2c', // gold
+  railDim: '#5d6b45', // olive -- day's ornament rules and glyph strokes carry the green
 };
 
 export type ThemeMode = 'day' | 'night';

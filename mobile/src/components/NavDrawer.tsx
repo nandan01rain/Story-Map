@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
 import type { SlidePanelController } from '../lib/useSlidePanel';
@@ -203,12 +203,12 @@ export default function NavDrawer({
           </View>
         </View>
 
-        {/* The illustrated city belongs here. It is the one part of the reference that cannot
-            be drawn from a description -- real artwork, which has to arrive as a file. Until
-            it does this renders nothing at all rather than a placeholder, because an empty
-            parchment foot looks deliberate and a grey box looks broken. Drop a PNG or WEBP at
-            mobile/assets/drawer-city.png and give this the <Image>. */}
-        <View style={styles.artSlot} />
+        {/* The illustrated city. Bled off the bottom and both sides, anchored low, with the
+            sky cropped away at build time -- the drawer supplies its own parchment above it,
+            so every row of sky in the file would have been payload spent on nothing.
+            `cover` rather than `contain`: the picture is a foot to the panel, not a framed
+            plate, and it should run off the edges the way it does in the reference. */}
+        <Image source={require('../../assets/drawer-city.webp')} style={styles.art} resizeMode="cover" />
       </ScrollView>
     </SlidePanel>
   );
@@ -302,9 +302,18 @@ function makeStyles(colors: ThemeColors) {
       paddingHorizontal: 18,
     },
     epigraphStar: { alignItems: 'center', marginTop: -7, backgroundColor: 'transparent' },
-    // Reserved for the illustrated city. Nothing renders until the artwork exists -- an
-    // empty parchment foot reads as deliberate, a grey placeholder reads as broken.
-    artSlot: { height: 0 },
+    // Full bleed: negative margins cancel the panel's own padding so the picture reaches
+    // the edges. Its own top edge is the same cream as the rail, so no fade is needed --
+    // they meet exactly, which is why the rail took the artwork's colour rather than the
+    // artwork taking the rail's.
+    art: {
+      width: undefined,
+      height: 230,
+      marginTop: 26,
+      marginHorizontal: -22,
+      marginBottom: -28,
+      alignSelf: 'stretch',
+    },
     section: { marginBottom: 4 },
     sectionLabel: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },
     sectionLabelText: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 12, letterSpacing: 2 },

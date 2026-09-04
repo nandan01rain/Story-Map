@@ -2,7 +2,7 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v8';
+const CACHE_VERSION = 'storymap-shell-v9';
 
 const APP_SHELL_PATHS = [
   './',
