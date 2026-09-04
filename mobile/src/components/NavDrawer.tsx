@@ -43,6 +43,7 @@ const MANAGE: DrawerItem[] = [
   { key: 'import', icon: 'upload', label: 'Import' },
   { key: 'read', icon: 'bookmark', label: 'Read' },
   { key: 'notes', icon: 'pin', label: 'Pages' },
+  { key: 'treatments', icon: 'book-open', label: 'Treatments' },
   { key: 'trash', icon: 'trash', label: 'Trash' },
 ];
 
@@ -70,6 +71,7 @@ export default function NavDrawer({
   onOpenReader,
   onOpenSettings,
   onOpenNotes,
+  onOpenTreatments,
   onOpenDocuments,
   onOpenAssistant,
   onOpenBraid,
@@ -85,6 +87,7 @@ export default function NavDrawer({
   onOpenReader: () => void;
   onOpenSettings: () => void;
   onOpenNotes: () => void;
+  onOpenTreatments: () => void;
   onOpenDocuments: () => void;
   onOpenAssistant: () => void;
   onOpenBraid: () => void;
@@ -118,6 +121,7 @@ export default function NavDrawer({
   const manageItems = MANAGE.map((item) => {
     if (item.key === 'read') return { ...item, onPress: onOpenReader };
     if (item.key === 'notes') return { ...item, onPress: onOpenNotes };
+    if (item.key === 'treatments') return { ...item, onPress: onOpenTreatments };
     return item;
   });
 

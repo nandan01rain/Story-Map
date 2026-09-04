@@ -32,7 +32,7 @@ const SNIPPET_PAD = 50;
 
 type Hit = {
   key: string;
-  kind: 'page' | 'chapter' | 'scene' | 'document';
+  kind: 'page' | 'chapter' | 'scene' | 'document' | 'treatment';
   label: string;
   title: string;
   meta: string;
@@ -46,6 +46,7 @@ const KIND_LABEL: Record<Hit['kind'], string> = {
   chapter: 'Chapter',
   scene: 'Scene',
   document: 'Document',
+  treatment: 'Treatment',
 };
 
 type RpcRow = {
@@ -56,6 +57,8 @@ type RpcRow = {
   snippet: string | null;
   rank: number;
   at: string | null;
+  /** Non-null only for treatment versions: live | stale. */
+  status: string | null;
 };
 
 /**
@@ -167,6 +170,8 @@ export default function SearchScreen({ route, navigation }: Props) {
       chapter: (id: string) => () => navigation.navigate('Editor', { chapterId: id }),
       scene: (chapterId: string) => () => navigation.navigate('ChapterDrawer', { chapterId, projectId }),
       document: () => () => navigation.navigate('Documents', { projectId }),
+      // parent_id is the treatment; the version id in `id` is what matched.
+      treatment: (treatmentId: string) => () => navigation.navigate('Treatment', { projectId, treatmentId }),
     }),
     [navigation, projectId],
   );
@@ -183,7 +188,10 @@ export default function SearchScreen({ route, navigation }: Props) {
           label: KIND_LABEL[r.kind],
           title: r.title?.trim() || (r.kind === 'page' ? 'Untitled page' : 'Untitled'),
           meta:
-            r.kind === 'page' && r.at
+            r.kind === 'treatment'
+              ? (r.status === 'stale' ? 'set aside' : 'live') +
+                (r.at ? ' · ' + new Date(r.at).toLocaleDateString() : '')
+              : r.kind === 'page' && r.at
               ? new Date(r.at).toLocaleDateString()
               : chapter
                 ? `${BOOKS[chapter.book] ?? `Book ${chapter.book + 1}`} · ${chapter.title}`
@@ -196,7 +204,9 @@ export default function SearchScreen({ route, navigation }: Props) {
                 ? openers.document()
                 : r.kind === 'page'
                   ? openers.page(r.id)
-                  : openers.chapter(r.id),
+                  : r.kind === 'treatment'
+                    ? openers.treatment(r.parent_id ?? '')
+                    : openers.chapter(r.id),
         };
       });
     }

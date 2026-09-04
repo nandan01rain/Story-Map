@@ -19,6 +19,7 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { useChapterStore } from '../store/chapterStore';
 import { PAGE_TYPES, pageTitle, usePageStore, type PageType } from '../store/pageStore';
+import { useTreatmentStore } from '../store/treatmentStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Page'>;
@@ -170,6 +171,10 @@ export default function PageScreen({ route, navigation }: Props) {
             setSheetOpen(false);
             navigation.navigate('Editor', { chapterId });
           }}
+          onOpenTreatment={(treatmentId) => {
+            setSheetOpen(false);
+            navigation.navigate('Treatment', { projectId, treatmentId });
+          }}
         />
       )}
     </KeyboardAvoidingView>
@@ -187,6 +192,7 @@ function PageSheet({
   colors,
   onClose,
   onOpenChapter,
+  onOpenTreatment,
 }: {
   visible: boolean;
   pageId: string;
@@ -197,9 +203,11 @@ function PageSheet({
   colors: ThemeColors;
   onClose: () => void;
   onOpenChapter: (chapterId: string) => void;
+  onOpenTreatment: (treatmentId: string) => void;
 }) {
   const { pages, setType, setStatus, markBecame } = usePageStore();
   const { chapters, fetchChapters, createChapter } = useChapterStore();
+  const createTreatment = useTreatmentStore((s) => s.createTreatment);
   const page = pages.find((p) => p.id === pageId);
   const [promoting, setPromoting] = useState(false);
   const [book, setBook] = useState(0);
@@ -285,16 +293,37 @@ function PageSheet({
             ) : page!.became_type ? (
               <Pressable
                 style={styles.sheetAction}
-                onPress={() => page!.became_id && onOpenChapter(page!.became_id)}
+                onPress={() => {
+                  if (!page!.became_id) return;
+                  if (page!.became_type === 'treatment') onOpenTreatment(page!.became_id);
+                  else onOpenChapter(page!.became_id);
+                }}
               >
                 <Text style={styles.sheetActionText}>
                   Became a {page!.became_type} — open it
                 </Text>
               </Pressable>
             ) : (
-              <Pressable style={styles.sheetAction} onPress={() => setPromoting(true)}>
-                <Text style={styles.sheetActionText}>Make this a chapter</Text>
-              </Pressable>
+              <>
+                {/* Treatment first: most of what gets deposited here is scene-level, so this
+                    is the common landing and a chapter is the rarer one. */}
+                <Pressable
+                  style={styles.sheetAction}
+                  onPress={async () => {
+                    if (!page || busy) return;
+                    setBusy(true);
+                    const { treatment } = await createTreatment(page.user_id, projectId, content);
+                    if (treatment) await markBecame(page.id, 'treatment', treatment.id);
+                    setBusy(false);
+                    if (treatment) onOpenTreatment(treatment.id);
+                  }}
+                >
+                  <Text style={styles.sheetActionText}>Make this a treatment</Text>
+                </Pressable>
+                <Pressable style={styles.sheetAction} onPress={() => setPromoting(true)}>
+                  <Text style={styles.sheetActionText}>Make this a chapter</Text>
+                </Pressable>
+              </>
             )}
 
             <View style={styles.sheetRule} />

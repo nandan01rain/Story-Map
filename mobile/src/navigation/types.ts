@@ -9,6 +9,12 @@ export type SignedInStackParamList = {
   /** The stack of raw-capture pages. Replaces the old sticky-note board. */
   Pages: { projectId: string };
   /**
+   * Treatments: one scene described, dialogue unwritten. Ordered saga-wide and deliberately
+   * carrying no chapter/book/act -- scenes get written before anyone knows where they go.
+   */
+  Treatments: { projectId: string };
+  Treatment: { projectId: string; treatmentId: string };
+  /**
    * One page, open for writing. No `pageId` means a blank one -- and no database row is
    * created until the first character is typed, so opening a blank page costs nothing.
    */

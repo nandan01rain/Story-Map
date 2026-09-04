@@ -17,6 +17,8 @@ import SearchScreen from '../screens/SearchScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import PageScreen from '../screens/PageScreen';
+import TreatmentScreen from '../screens/TreatmentScreen';
+import TreatmentsScreen from '../screens/TreatmentsScreen';
 import PagesScreen from '../screens/PagesScreen';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, useTheme } from '../theme';
@@ -71,6 +73,8 @@ export default function RootNavigator() {
           <Stack.Screen name="GraphReview" component={GraphReviewScreen} />
           <Stack.Screen name="Pages" component={PagesScreen} options={{ title: 'Pages' }} />
           <Stack.Screen name="Page" component={PageScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Treatments" component={TreatmentsScreen} options={{ title: 'Treatments' }} />
+          <Stack.Screen name="Treatment" component={TreatmentScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Search" component={SearchScreen} />
         </Stack.Navigator>
       ) : (
