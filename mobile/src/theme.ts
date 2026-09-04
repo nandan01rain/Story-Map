@@ -83,8 +83,12 @@ export const NIGHT_COLORS: ThemeColors = {
   gold: '#c69a3a',
   error: '#b8542e',
   rail: '#efe6d0',    // cream paper against the blue
-  railInk: '#2c2011',
-  railDim: '#6b5d42',
+  // GOLD in both modes, by decision. On cream that has to be a deeper gold than the app's
+  // #c69a3a, which reads at about 2.3:1 against #efe6d0 -- gold in name and grey in effect.
+  // #8a6a35 is the same hue carried further down and clears 4.5:1, so it is legibly gold
+  // rather than nominally gold.
+  railInk: '#8a6a35',
+  railDim: '#9a8a68',
 };
 
 // Day is parchment: a cream page with OLIVE chrome and GOLD lettering on it. Body ink stays

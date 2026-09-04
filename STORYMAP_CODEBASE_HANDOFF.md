@@ -4297,6 +4297,29 @@ chrome and wrong at reading size: gold text on cream at 14px is a legibility pro
 as a decision. The gold goes where it has something to hold -- on the olive rail, and on
 headings.
 
-**Unverified, and worth a look on the device**: the drawer's icons are drawn in `colors.gold`,
-which sat on a dark rail before and now sits on cream at night. Gold on cream is the thinnest
-contrast anywhere in the new palette. If it reads weakly, `railInk` is the correction.
+**The drawer's ink is GOLD in both modes**, by decision -- but not the same gold. The app's
+`#c69a3a` reads at roughly 2.3:1 against the cream rail: gold in name and grey in effect. Night
+therefore uses `#8a6a35`, the same hue carried further down, which clears 4.5:1 and is legibly
+gold rather than nominally gold. Day keeps the brighter `#e3c274`, which holds easily on olive.
+One decision, two values, for the same reason a palette has a dim and a bright anywhere else.
+
+### 30.6 The system bars were eating the braid's controls
+
+Removing the native header did not cause this; it exposed it. The renderer's `Layers / Show /
+View / Find` row sits at the very top of its own document, so full-bleed put it **under the
+notification bar**, and the navigation bar sat over the legend and the time scrubber. Neither
+was reachable, which on a surface whose entire content is one picture makes the picture the
+only thing you can use.
+
+Both bars now hide while the braid is open: `<StatusBar hidden />` (hidden rather than
+translucent -- a translucent bar still reserves its height on Android and the top row would
+stay underneath it) and `NavigationBar.setVisibilityAsync('hidden')`.
+
+**Restored on BLUR, not on unmount.** This screen can be navigated away from and back to
+without unmounting, and leaving a reader with no navigation bar on some other screen is a far
+worse bug than the one being fixed -- so it hangs off `useFocusEffect`.
+
+A display cutout survives hiding the bars, and **in landscape it is on the side** -- exactly
+where the braid is read. The WebView is padded by the safe-area insets on all four edges, so
+the renderer's chrome clears it without the renderer needing to know anything about phones;
+the corner glyphs take the same offsets.

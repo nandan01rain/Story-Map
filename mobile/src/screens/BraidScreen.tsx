@@ -1,8 +1,12 @@
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as NavigationBar from 'expo-navigation-bar';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
 import { BRAID_HTML } from '../lib/braidHtml';
@@ -47,6 +51,32 @@ export default function BraidScreen({ route, navigation }: Props) {
     };
   }, []);
   const { colors, mode } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // The braid is the whole screen, so the system bars go away while it is open -- and come
+  // back the moment it is left. Removing the app's own header exposed the problem rather
+  // than causing it: the renderer's Layers / Show / View / Find row sits at the very top of
+  // its document, which put it under the notification bar, and the navigation bar sat over
+  // the legend and scrubber at the bottom. Neither was reachable.
+  //
+  // Restored on blur rather than on unmount: this screen can be navigated away from and back
+  // to without unmounting, and a reader left with no navigation bar on some other screen
+  // would be a far worse bug than the one being fixed.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      if (Platform.OS === 'android') {
+        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+      }
+      return () => {
+        cancelled = true;
+        if (Platform.OS === 'android') {
+          NavigationBar.setVisibilityAsync('visible').catch(() => {});
+        }
+        void cancelled;
+      };
+    }, []),
+  );
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const webRef = useRef<WebView>(null);
 
@@ -176,12 +206,24 @@ export default function BraidScreen({ route, navigation }: Props) {
 
       {graph && (
         <>
+          {/* Hidden, not merely translucent: a translucent bar still reserves its height on
+              Android and the renderer's top row would stay underneath it. */}
+          <StatusBar hidden />
           <WebView
             // Keyed on the theme: the renderer reads it once at module scope, so a change has
             // to remount the document rather than be posted into a running one.
             key={mode}
             ref={webRef}
-            style={styles.web}
+            // A display cutout survives hiding the bars, and in landscape it is on the side
+            // rather than the top -- which is exactly where the braid is read. Padding the
+            // WebView keeps the renderer's own chrome clear of it without the renderer
+            // needing to know anything about phones.
+            style={[styles.web, {
+              paddingTop: insets.top,
+              paddingLeft: insets.left,
+              paddingRight: insets.right,
+              paddingBottom: insets.bottom,
+            }]}
             originWhitelist={['*']}
             source={{ html: BRAID_HTML }}
             // Before the document's own scripts run, so THEME is already decided when they do.
@@ -194,10 +236,18 @@ export default function BraidScreen({ route, navigation }: Props) {
           />
 
           {/* The two native controls, as glyphs over the canvas rather than a header band. */}
-          <Pressable style={[styles.corner, styles.cornerLeft]} onPress={() => navigation.goBack()} hitSlop={12}>
+          <Pressable
+            style={[styles.corner, styles.cornerLeft, { top: insets.top + 6, left: insets.left + 4 }]}
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+          >
             <Text style={styles.cornerGlyph}>‹</Text>
           </Pressable>
-          <Pressable style={[styles.corner, styles.cornerRight]} onPress={() => setAdding('character')} hitSlop={12}>
+          <Pressable
+            style={[styles.corner, styles.cornerRight, { top: insets.top + 6, right: insets.right + 4 }]}
+            onPress={() => setAdding('character')}
+            hitSlop={12}
+          >
             <Text style={styles.cornerGlyph}>+</Text>
           </Pressable>
 
@@ -209,7 +259,7 @@ export default function BraidScreen({ route, navigation }: Props) {
               the other corner glyphs: reachable, not insistent. */}
           {review.nodes + review.links > 0 && (
             <Pressable
-              style={[styles.corner, styles.cornerFlag]}
+              style={[styles.corner, styles.cornerFlag, { top: insets.top + 6, right: insets.right + 46 }]}
               onPress={() => navigation.navigate('GraphReview', { projectId })}
               hitSlop={12}
             >
@@ -367,7 +417,7 @@ function makeStyles(colors: ThemeColors) {
     // chrome over it should be findable without competing with a thread.
     corner: {
       position: 'absolute',
-      top: 6,
+      top: 6,   // offset further by the safe-area inset at the call site
       width: 40,
       height: 40,
       alignItems: 'center',
