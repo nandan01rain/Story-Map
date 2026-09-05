@@ -84,11 +84,13 @@ export const NIGHT_COLORS: ThemeColors = {
   error: '#b8542e',
   // BOTH drawers are parchment now (2026-09-05): day and night are the same two plates with
   // a sun or a crescent over the rose, so they are one object at two hours rather than two
-  // objects. The cream is the plate's OWN bottom edge, sampled from the cropped header's flat bottom
-  // edge by scripts/build-drawer-plates.py, which prints both values when it runs -- the panel matches the paper, the paper does not
+  // objects. The cream is the plate's OWN bottom edge, read back off the ENCODED header's last
+  // row by scripts/build-drawer-plates.py, which prints both values when it runs. That row is
+  // uniform because the plate's bottom 30% is cross-faded to the rail -- which is also what
+  // stops the vine borders ending on a hard line -- the panel matches the paper, the paper does not
   // match the panel. That is what lets the header stop and the rail start with nothing drawn
   // over the join.
-  rail: '#efdbb4',
+  rail: '#efdcb5',
   // Gold in both modes. The app's #c69a3a reads at 2.3:1 on parchment -- gold in name, grey
   // in effect -- so this is the same hue carried down to 4.1:1: legibly gold rather than
   // nominally gold.
@@ -112,7 +114,7 @@ export const DAY_COLORS: ThemeColors = {
   // Day's drawer is the same parchment as night's, sampled the same way from its own plate
   // (drawer-day-header.webp, flat bottom edge). The olive drawer is gone with the single
   // full-height plate it belonged to; see NIGHT_COLORS for why the sampling matters.
-  rail: '#efdcb2',
+  rail: '#efddb1',
   railInk: '#7d5f2c',
   railDim: '#a08a5e',
 };

@@ -4556,7 +4556,14 @@ to be: it is the element that moves when a section expands.
 exists because the generator returns three things the app cannot use directly, and each fix is
 measured rather than judged:
 
-**Headers are cropped to their last clean opaque row (780 of 992).** Both plates end in a
+**Headers are cropped to their last clean opaque row (780 of 992), then cross-faded to the
+rail over their bottom 30%.** The bare crop was wrong on the phone in two ways that turned out
+to be one cause: the vine borders stopped dead on a horizontal line, and the paper's own
+vignette made its edges sit off the average the rail was sampled from, so the join carried a
+faint colour step. Fading the foot to the rail fixes both — the vines dissolve just below
+STORYMAP instead of being chopped, and the last row IS the rail, so there is no step left.
+14% and 22% both still left a vine stub at the title line; 30% is the first that reads as the
+border thinning out. Both plates end in a
 ragged torn-paper alpha fade, and the day plate came back *flattened onto its own
 checkerboard*, so every row inside its fade is contaminated grey — reconstructing that alpha
 was not worth attempting. Cropping discards both problems at once and leaves a flat parchment
@@ -4575,6 +4582,14 @@ only lever is how far that grey is spread. Short, it is a distinct band of haze 
 the picture. Spread, the same pixels read as atmosphere *above* the clouds. 28% still banded
 and 60% washed the cloud detail out, so 45% is the middle that was chosen by looking at all
 three. Day needs none of this — its sky is pale and its supplied ramp already runs 44% down.
+
+**Two traps in the ramp arithmetic.** Divide by `rows - 1`, not `rows`: otherwise the final
+row never reaches 1.0, the plate's own pixels still contribute a unit or two, and the join
+keeps a step that looks exactly like a codec artefact — re-encoding at quality 100 or even
+lossless does not shift it, which is the tell. And sample the rail off the **encoded** file's
+last row, not the image in memory: WEBP moves it a unit regardless, and a panel painted with
+what was intended rather than with what shipped is a seam again, just a smaller one. Both
+values are a fixed point of the script now — night exactly, day within one unit of blue.
 
 **The trap that cost a pass**: `Image.getchannel('A')` returns a COPY. Editing what its
 `load()` hands back changes nothing, and the ramp variants all came out identical and looked
