@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { isOffline, readCache, writeCache } from '../lib/offlineCache';
+import { enqueue, flush, uuid } from '../lib/outbox';
 import { supabase } from '../lib/supabase';
 
 // Pages -- stage-one raw capture. Same `sticky_notes` table the PWA and this app's old
@@ -146,37 +147,76 @@ export const usePageStore = create<PageState>((set, get) => ({
       set({ loading: false, error: isOffline(full.error) ? null : full.error.message });
       return;
     }
+    // A fetch must not overwrite a page that is still waiting to be sent: the server's copy
+    // is older than the one in hand, and replacing it would undo work that has not synced.
     const rows = (full.data ?? []).map(asPage);
-    set({ loading: false, legacySchema: false, pages: rows });
-    writeCache('pages:' + projectId, rows);
+    const local = new Map(get().pages.map((p) => [p.id, p]));
+    const merged = rows.map((r) => {
+      const mine = local.get(r.id);
+      if (!mine) return r;
+      const mineAt = Date.parse(mine.updated_at ?? mine.created_at);
+      const theirs = Date.parse(r.updated_at ?? r.created_at);
+      return mineAt > theirs ? mine : r;
+    });
+    // Anything local the server has never seen -- created in the air -- is kept.
+    const seen = new Set(rows.map((r) => r.id));
+    const unsent = get().pages.filter((p) => !seen.has(p.id));
+    const pages = [...unsent, ...merged];
+    set({ loading: false, legacySchema: false, pages });
+    writeCache('pages:' + projectId, pages);
   },
 
   // A row is created on the first keystroke, not when the blank page opens -- so an opened-
   // and-abandoned page leaves nothing behind, and nothing ever has to be cleaned up later.
   // That is the only way "never delete a page" and "no empty clutter" hold at the same time.
+  //
+  // LOCAL FIRST. The id is minted here rather than by Postgres, which is what makes writing
+  // on a plane possible at all: the page exists, has an identity, and can be edited and
+  // reopened immediately, with the server told whenever there is a server to tell. Nothing
+  // here awaits the network, so nothing here can be slowed or refused by its absence.
   createPage: async (userId, projectId, content = '') => {
     const legacy = get().legacySchema;
     // rotation is the old Margin board's per-card tilt. Kept because the PWA still draws
     // notes as tilted cards and a row created here has to look right over there too.
     const rotation = Math.round((Math.random() * 6 - 3) * 10) / 10;
-    const row: Record<string, unknown> = { user_id: userId, project_id: projectId, content, rotation };
+    const now = new Date().toISOString();
+
+    const page: Page = {
+      id: uuid(),
+      user_id: userId,
+      project_id: projectId,
+      content,
+      created_at: now,
+      updated_at: now,
+      rotation,
+      type: null,
+      status: 'raw',
+      versions: [],
+      became_type: null,
+      became_id: null,
+      became_at: null,
+    };
+
+    const pages = [page, ...get().pages];
+    set({ pages });
+    writeCache('pages:' + projectId, pages);
+
+    const row: Record<string, unknown> = {
+      id: page.id, user_id: userId, project_id: projectId, content, rotation, created_at: now,
+    };
     if (!legacy) {
       row.status = 'raw';
       row.versions = [];
-      row.updated_at = new Date().toISOString();
+      row.updated_at = now;
     }
-    const { data, error } = await supabase
-      .from('sticky_notes')
-      .insert(row)
-      .select(legacy ? BASE_COLUMNS : PAGE_COLUMNS)
-      .single();
-    if (error) return { page: null, error: error.message };
-    // The select list is chosen at runtime, which defeats supabase-js's select-string types.
-    const page = asPage(data as unknown as Record<string, unknown>);
-    set({ pages: [page, ...get().pages] });
+    await enqueue({ table: 'sticky_notes', kind: 'insert', row: row as { id: string } });
+    void flush();
     return { page, error: null };
   },
 
+  // Autosave, and therefore the hottest path in the app. It touches local state and the
+  // cache synchronously and queues the write; the outbox coalesces repeated edits to one
+  // pending op per page, so six hours of typing is one write to send, not thousands.
   savePage: async (pageId, content) => {
     const current = get().pages.find((p) => p.id === pageId);
     if (!current || current.content === content) return { error: null };
@@ -184,33 +224,41 @@ export const usePageStore = create<PageState>((set, get) => ({
     const legacy = get().legacySchema;
     const versions = legacy ? current.versions : pushVersion(current.versions, current.content);
     const updatedAt = new Date().toISOString();
-    const patch: Record<string, unknown> = legacy
-      ? { content }
-      : { content, versions, updated_at: updatedAt };
 
-    const { error } = await supabase.from('sticky_notes').update(patch).eq('id', pageId);
-    if (error) return { error: error.message };
-    set({
-      pages: get().pages.map((p) =>
-        p.id === pageId ? { ...p, content, versions, updated_at: legacy ? p.updated_at : updatedAt } : p,
-      ),
-    });
+    const pages = get().pages.map((p) =>
+      p.id === pageId ? { ...p, content, versions, updated_at: legacy ? p.updated_at : updatedAt } : p,
+    );
+    set({ pages });
+    const projectId = current.project_id;
+    writeCache('pages:' + projectId, pages);
+
+    const patch: Record<string, unknown> = legacy
+      ? { id: pageId, content }
+      : { id: pageId, content, versions, updated_at: updatedAt };
+    await enqueue({ table: 'sticky_notes', kind: 'update', row: patch as { id: string } });
+    void flush();
     return { error: null };
   },
 
   setType: async (pageId, type) => {
     if (get().legacySchema) return { error: 'Run 20260826_pages.sql first.' };
-    const { error } = await supabase.from('sticky_notes').update({ type }).eq('id', pageId);
-    if (error) return { error: error.message };
-    set({ pages: get().pages.map((p) => (p.id === pageId ? { ...p, type } : p)) });
+    const pages = get().pages.map((p) => (p.id === pageId ? { ...p, type } : p));
+    set({ pages });
+    const page = pages.find((p) => p.id === pageId);
+    if (page) writeCache('pages:' + page.project_id, pages);
+    await enqueue({ table: 'sticky_notes', kind: 'update', row: { id: pageId, type } });
+    void flush();
     return { error: null };
   },
 
   setStatus: async (pageId, status) => {
     if (get().legacySchema) return { error: 'Run 20260826_pages.sql first.' };
-    const { error } = await supabase.from('sticky_notes').update({ status }).eq('id', pageId);
-    if (error) return { error: error.message };
-    set({ pages: get().pages.map((p) => (p.id === pageId ? { ...p, status } : p)) });
+    const pages = get().pages.map((p) => (p.id === pageId ? { ...p, status } : p));
+    set({ pages });
+    const page = pages.find((p) => p.id === pageId);
+    if (page) writeCache('pages:' + page.project_id, pages);
+    await enqueue({ table: 'sticky_notes', kind: 'update', row: { id: pageId, status } });
+    void flush();
     return { error: null };
   },
 
@@ -220,16 +268,18 @@ export const usePageStore = create<PageState>((set, get) => ({
   markBecame: async (pageId, becameType, becameId) => {
     if (get().legacySchema) return { error: null };
     const becameAt = new Date().toISOString();
-    const { error } = await supabase
-      .from('sticky_notes')
-      .update({ became_type: becameType, became_id: becameId, became_at: becameAt })
-      .eq('id', pageId);
-    if (error) return { error: error.message };
-    set({
-      pages: get().pages.map((p) =>
-        p.id === pageId ? { ...p, became_type: becameType, became_id: becameId, became_at: becameAt } : p,
-      ),
+    const pages = get().pages.map((p) =>
+      p.id === pageId ? { ...p, became_type: becameType, became_id: becameId, became_at: becameAt } : p,
+    );
+    set({ pages });
+    const page = pages.find((p) => p.id === pageId);
+    if (page) writeCache('pages:' + page.project_id, pages);
+    await enqueue({
+      table: 'sticky_notes',
+      kind: 'update',
+      row: { id: pageId, became_type: becameType, became_id: becameId, became_at: becameAt },
     });
+    void flush();
     return { error: null };
   },
 }));

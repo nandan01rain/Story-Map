@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, AppState, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DropProvider } from 'react-native-reanimated-dnd';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { flush } from './src/lib/outbox';
 import { useOtaUpdate } from './src/lib/useOtaUpdate';
 import RootNavigator from './src/navigation/RootNavigator';
 import { FONTS, NIGHT_COLORS, ThemeProvider, useAppFonts, useTheme } from './src/theme';
@@ -24,6 +26,17 @@ TextAny.defaultProps.style = [{ fontFamily: FONTS.body }, TextAny.defaultProps.s
 function AppShell() {
   const { mode, colors } = useTheme();
   const ota = useOtaUpdate();
+
+  // Anything written without a network goes out when there is one. No connectivity library
+  // is consulted: the queue simply tries, and a failure leaves it exactly as it was. Sending
+  // on foreground covers the case that matters -- landing, and the app coming back up.
+  useEffect(() => {
+    void flush();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void flush();
+    });
+    return () => sub.remove();
+  }, []);
   return (
     <>
       <RootNavigator />

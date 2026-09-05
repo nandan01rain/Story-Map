@@ -4323,3 +4323,88 @@ A display cutout survives hiding the bars, and **in landscape it is on the side*
 where the braid is read. The WebView is padded by the safe-area insets on all four edges, so
 the renderer's chrome clears it without the renderer needing to know anything about phones;
 the corner glyphs take the same offsets.
+
+
+## 31. WRITING WITHOUT A NETWORK (2026-08-30)
+
+The app did not open on a plane, and once it did it could not be written in. Both are fixed
+for pages; chapters and treatments still read from cache and still write online only.
+
+### 31.1 Why it would not open
+
+`RootNavigator` waits on `initializing`, which clears only when `onAuthStateChange` fires.
+Supabase restores the stored session fine, but an access token lasts about an hour, so a cold
+start usually tries to REFRESH it -- and that needs a network. With none, the request does not
+fail quickly; it hangs until the platform gives up, and the splash stays.
+
+A 2.5s deadline now reads the session directly and lets the app in. It fabricates nothing: if
+there is genuinely no session the sign-in screen is correct and simply arrives sooner, and a
+late refresh still corrects through the listener.
+
+Also relevant and NOT fixed: `updates.fallbackToCacheTimeout: 8000` in `app.json` adds up to
+eight seconds before any of this runs. It is native config, so it needs a build.
+
+### 31.2 Reading: last-known-good
+
+`lib/offlineCache.ts`. Chapters, pages and treatments paint from AsyncStorage before the
+network is asked anything, and keep it if nothing answers. A network failure is distinguished
+from a database error by the ABSENCE of a PostgREST `code` -- so a missing table still
+surfaces and a missing tunnel does not.
+
+### 31.3 Writing: the outbox
+
+`lib/outbox.ts`, wired into `pageStore`. Pages first, because pages are the deposit-anywhere
+layer and a layer that cannot be deposited into on a six-hour flight is the exact failure the
+design existed to end.
+
+Four properties, and each is load-bearing:
+
+1. **A write is never lost.** It lands in local state and in the cache BEFORE anything is
+   sent, and stays queued until the server confirms it. A crash mid-flight loses nothing
+   because nothing was ever only in memory.
+2. **Replay is idempotent.** Rows carry **client-generated ids**, so an insert replays as an
+   upsert on the primary key. This is the property that makes a queue safe rather than a
+   duplicate factory, and it is why `createPage` now mints the id instead of Postgres.
+3. **Order is preserved.** Oldest first, and a network failure stops the run rather than
+   skipping ahead -- so an update never lands before the insert that created its row.
+4. **Autosave does not flood it.** Updates to one row coalesce into a single op carrying the
+   merged latest values. Six hours of typing is one pending write per page. An update against
+   a row whose insert is still pending merges INTO that insert, because there is nothing on
+   the server to update yet -- getting this wrong is how an offline page arrives empty.
+
+**An op the server genuinely rejects is dropped**, not retried forever: a constraint violation
+will never succeed, and leaving it at the head would block every write behind it. Only
+codeless (network) errors are kept.
+
+**Fetch does not clobber unsent work.** A refresh merges by `updated_at` and keeps any local
+row the server has never seen, so landing does not overwrite what was written in the air.
+
+**No new dependency for any of it.** The UUID is fifteen lines of `Math.random` -- deliberately
+not crypto-strength, since these are row ids in an RLS-fenced table and the only requirement is
+that two rows made on one device never collide. Reaching for `expo-crypto` would have bought
+unguessability nobody needs at the price of a native module, and therefore a new APK, putting
+the fix weeks away instead of minutes. The network is discovered by trying rather than by
+asking `netinfo`, for the same reason. Flushes happen at launch and on every foreground.
+
+### 31.4 Verified
+
+`scripts/test-outbox.mjs`, 14 assertions: 500 autosaves collapse to one op still marked
+insert and carrying the newest text; different fields on one row merge; separate rows stay
+separate and in order; a network failure keeps the whole queue; a mid-run failure stops without
+skipping; a rejected op is dropped without blocking those behind it; replaying an insert twice
+touches one row.
+
+**It tests the RULES, not the file** -- the module imports AsyncStorage and supabase, so the
+test re-implements the two pure decisions and asserts against those. If the two diverge, the
+test passes and the app is wrong. Worth knowing before trusting it.
+
+**Not verified**: none of this has run on a device. The honest test is airplane mode -- write
+three pages, force-quit, reopen still offline, confirm all three are there, then reconnect and
+confirm they arrive exactly once.
+
+### 31.5 Still online-only
+
+Chapters and treatments read from cache but write straight to Supabase; the editor's autosave
+on a plane will fail. Extending the outbox to them is mechanical now the shape exists -- mint
+the id client-side, write local, enqueue -- but chapters carry `annotations` and `versions`
+jsonb, so a merge on reconnect needs more thought than pages did.
