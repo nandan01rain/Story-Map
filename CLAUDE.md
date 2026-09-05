@@ -651,6 +651,26 @@ continuity checker, which is Icarus's job now. See handoff §19.
   and keep working with every assistant off. Handler unwritten, and blocked on stages
   two/three. Handoff §24.
 
+- **🎨 The drawer is artwork (2026-08-30, night done, day mid-flight)** — the nav
+  drawer is supplied plates with live text printed into measured gaps. Night is two
+  images anchored to their own edges (header in the scroll flow, city pinned to the
+  foot); day is currently one full-height plate and **should be split the same way** —
+  that decision is made and unexecuted, see handoff §32.4. Panel colours are
+  **sampled from the artwork with Pillow**, never chosen, because the drawer is the
+  plate and a chosen value shows as a seam. Section rows and the quotation box stay
+  drawn in code: a row's parts must lay out together or they misalign, and the box
+  moves when a section expands. Handoff §32.
+
+- **📴 Offline (2026-08-30)** — the app opens and is writable without a network.
+  Auth had a launch hang (a token refresh that cannot fail fast), now on a 2.5s
+  deadline. Chapters, pages and treatments read from a last-known-good cache and
+  **write local-first through an outbox** (`mobile/src/lib/outbox.ts`): client-minted
+  ids make replay idempotent, updates coalesce so six hours of autosave is one
+  pending write, order is preserved, and a rejected op is dropped rather than
+  blocking those behind it. No new dependency, so it ships over the air. The braid
+  still needs the network (three.js from a CDN) and `fallbackToCacheTimeout: 8000`
+  still costs up to 8s at launch. Handoff §31.
+
 ## Design principles worth preserving
 
 - Every AI feature must stay behind the `aiEnabled` toggle and must never be

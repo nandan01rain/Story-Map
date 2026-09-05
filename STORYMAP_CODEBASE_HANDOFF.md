@@ -4429,3 +4429,102 @@ will look like data loss rather than like a documented trade.
 **Only one direct write remains** in the three stores: `deleteChapter`, a hard delete that the
 UI does not call -- deletions go through `trashStore`. It stays online-only deliberately;
 queueing a destructive op is a different risk from queueing a constructive one.
+
+
+## 32. THE DRAWER AS ARTWORK (2026-08-30) — night done, day mid-flight
+
+The nav drawer is now largely supplied artwork with live text printed into gaps left for it.
+Night works. Day is half-built and the next step is a decision that has already been made but
+not executed — read §32.4 before touching anything here.
+
+### 32.1 What the drawer is made of
+
+**Night (working).** Two plates, each anchored to its own edge, with the panel's parchment
+between them:
+
+- `mobile/assets/drawer-header.webp` — 1080x675, corner flourishes, compass rose, moon phases,
+  **"SAGA-01" and "STORYMAP" both baked in**, and the rule beneath. In the scroll flow, so it
+  scrolls away as the menu grows.
+- `mobile/assets/drawer-city.webp` — 1080x720, the illustrated city. **Pinned to the bottom
+  edge**, drawn before the menu, so no scroll position can reveal cream beneath it.
+
+**Day (incomplete).** One full-height plate, `drawer-day.webp` (748x2103, 1:2.81), carrying
+everything: frame, vines down both edges, rose, STORYMAP, rule and the city. Live text is
+positioned into two measured gaps.
+
+**Drawn in code, both modes**: the section rows (glyph, label, rule, chevron) and the
+quotation box. Deliberately: a row's parts must be laid out together or they misalign on some
+other screen size, and the box has to move when a section expands.
+
+### 32.2 Colours are SAMPLED, never chosen
+
+Every panel colour comes out of the artwork with Pillow, because the drawer *is* the plate and
+any independently chosen value shows up as a seam. Night's rail is `#e7d8ba`; day's is
+`#f2e1bd`, its own menu-band parchment.
+
+**The tan line, and why matching the panel was not enough.** Inside the header's own alpha fade
+its RGB drifts LIGHTER than the panel -- `#eadfc2` to `#efe6d2` against `#e7d8ba` -- so a
+half-transparent light pixel over the panel still lands lighter than the panel. Both artworks
+are therefore **flattened onto the panel colour** and their fade bands pulled the rest of the
+way to it on a smoothstep, so the joins are the panel meeting itself. Opaque WEBP also
+compresses far better than one carrying alpha: header 122 KB to 42, city 260 to 123.
+
+### 32.3 The measured gaps
+
+The day plate's own printing was located by scanning its central column for non-parchment
+rows, not by eye. As fractions of panel height:
+
+| band | contents |
+| --- | --- |
+| 3.0 – 8.1% | sunburst and moon arc |
+| 8.2 – 16.8% | compass rose |
+| **16.8 – 20.8%** | **CLEAR — the project title is drawn here** |
+| 20.8 – 21.6% | "STORYMAP" |
+| 22.6 – 23.0% | the gold rule |
+| **24.5 – ~66%** | **CLEAR — the menu is drawn here** |
+| ~66 – 100% | the city |
+
+`PLATE` in `NavDrawer.tsx` holds these. A title nearly in its gap looks worse than one
+obviously somewhere else, which is why they were measured.
+
+### 32.4 THE DECISION FOR THE NEXT SESSION: split the day plate
+
+Five faults were found on a real device. Three were code and are fixed; two are the artwork's
+and are NOT:
+
+**Fixed.** The menu was scrolling over the compass rose -- a fixed background cannot survive
+content scrolling across it, so by day the menu now lives in a *window* between the rule and
+the artwork. The navigation bar sat on the city, and is hidden while the drawer is open. The
+menu was running through the vines rather than inside them.
+
+**Not fixed, and the reason the plate should be split.** A full-height plate has to satisfy
+three incompatible demands at once: match every phone's aspect (so it crops), carry the vines
+the full height (so it squeezes the menu into ~70% of an already narrow panel), and stay fixed
+while the menu moves. **Split into a header and a foot, as night already is, none of those
+exist** — and the machinery is already written and working.
+
+Agreed direction, not yet executed:
+
+- **Header, 1080x675** — corner frame, vines descending from the top corners and thinning out,
+  sunburst and rose, a clear gap for the title, STORYMAP, the rule. Bottom ~12% fading out.
+- **Foot, 1080x720** — the city running hard off left, right and bottom; top ~25% fading into
+  parchment plus a radial falloff at the upper-right, exactly as night's foot already does.
+- Panel between them: flat parchment sampled from the pieces, and the menu gets the full width.
+
+**The cost, stated:** the vine border stops being continuous. Night has never had one and reads
+correctly, so this is judged worth it.
+
+**Also still outstanding**: the night plate is still 1:2 and would lose 220px off each side if
+ever used full-height (it is not — it is split, which is precisely the point). The three
+section icons at 96x96 transparent have not been supplied, so day's rows use drawn
+approximations against detailed artwork. And `drawer-day.webp` is 748px wide against a ~920px
+slot, which is why the baked "SAGA-01" reads soft while the live title beside it is sharp --
+regenerate at 1200 wide.
+
+### 32.5 Two things not to undo
+
+**"SAGA-01" is baked into the night header.** Every project's drawer will read SAGA-01. Fine
+for one project; it needs the title band left clear when that changes.
+
+**The quotation box was deliberately removed from the day plate** and is drawn in code. It has
+to be: it is the element that moves when a section expands.
