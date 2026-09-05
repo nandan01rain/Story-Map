@@ -4471,8 +4471,13 @@ Every panel colour comes out of the artwork with Pillow, because the drawer *is*
 any independently chosen value shows up as a seam. Since the split both rails are that mode's
 header plate's own flat bottom edge — day `#efdcb2`, night `#efdbb4` — and
 `build-drawer-plates.py` prints both every time it runs, so the values in `theme.ts` are
-transcribed rather than picked. Day's olive rail went with the plate it belonged to; the two
+transcribed rather than picked. Both were already cream (`#e7d8ba` and `#f2e1bd`) despite
+day's comment calling its drawer olive — the comment was stale, not the colour — and the two
 drawers are one object at two hours now, not two objects.
+
+`rail` is the one drawer token that reaches outside the drawer: `SlidePanel` also backs the
+Reader's table of contents, so that panel moved by the same few units of cream. No artwork
+goes there — the four plates are referenced only by `NavDrawer.tsx`.
 
 **The tan line, and why matching the panel was not enough.** Inside the header's own alpha fade
 its RGB drifts LIGHTER than the panel -- `#eadfc2` to `#efe6d2` against `#e7d8ba` -- so a
