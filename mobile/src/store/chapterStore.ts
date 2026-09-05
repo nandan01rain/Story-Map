@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { isOffline, readCache, writeCache } from '../lib/offlineCache';
+import { enqueue, flush, uuid } from '../lib/outbox';
 import { supabase } from '../lib/supabase';
 
 // Mirrors the PWA's chapters table shape (handoff doc §4) and loadData() (index.html).
@@ -120,13 +121,35 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       annotations: r.annotations ?? [],
       versions: r.versions ?? [],
     })) as Chapter[];
-    set({ loading: false, chapters: rows });
-    writeCache('chapters:' + projectId, rows);
+    // Same rule as pages: the server's copy may be older than one still waiting to send, and
+    // a chapter written on a plane has never been seen there at all.
+    const local = new Map(get().chapters.map((c) => [c.id, c]));
+    const seen = new Set(rows.map((r) => r.id));
+    const merged = rows.map((r) => local.get(r.id) ?? r);
+    const unsent = get().chapters.filter((c) => !seen.has(c.id));
+    const chapters = [...merged, ...unsent];
+    set({ loading: false, chapters });
+    writeCache('chapters:' + projectId, chapters);
   },
+  // Local first, like pages. The editor's autosave is the caller here, so it must never wait
+  // on a network and must never fail because there is none.
+  //
+  // The merge rule for `annotations` and `versions` is LAST WRITE WINS ON THE WHOLE ROW, and
+  // that is a real limitation rather than an oversight: two devices flagging different lines
+  // in one chapter offline will keep only the copy that syncs later. Single writer, single
+  // device, it never arises; it is written down because the day it does arise it will look
+  // like data loss rather than like a documented trade.
   updateChapter: async (chapterId, patch) => {
-    const { error } = await supabase.from('chapters').update(patch).eq('id', chapterId);
-    if (error) return { error: error.message };
-    set({ chapters: get().chapters.map((c) => (c.id === chapterId ? { ...c, ...patch } : c)) });
+    const chapters = get().chapters.map((c) => (c.id === chapterId ? { ...c, ...patch } : c));
+    set({ chapters });
+    const ch = chapters.find((c) => c.id === chapterId);
+    if (ch) writeCache('chapters:' + ch.project_id, chapters);
+    await enqueue({
+      table: 'chapters',
+      kind: 'update',
+      row: { id: chapterId, ...patch, updated_at: new Date().toISOString() } as { id: string },
+    });
+    void flush();
     return { error: null };
   },
   // Hard delete for now -- the PWA soft-deletes to a trash table (handoff doc §5); trash
@@ -149,33 +172,45 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       .chapters.filter((c) => c.project_id === projectId && c.book === book && c.act === act)
       .map((c) => c.order);
     const order = actOrders.length > 0 ? Math.min(...actOrders) - 1 : 0;
-    const { data, error } = await supabase
-      .from('chapters')
-      .insert({
-        project_id: projectId,
-        book,
-        act,
-        order,
-        title: title.trim() || 'Untitled chapter',
-        status: 'idea',
-        content: '',
-        notes: '',
-        annotations: [],
-        versions: [],
-      })
-      .select('id, project_id, book, act, "order", title, status, content, notes, annotations, versions')
-      .single();
-    if (error) return { chapter: null, error: error.message };
-    const chapter = { ...data, annotations: data.annotations ?? [], versions: data.versions ?? [] } as Chapter;
-    set({ chapters: [...get().chapters, chapter] });
+
+    // Minted here, not by Postgres: a chapter created without a network still needs an
+    // identity the editor can open and the outbox can replay onto.
+    const chapter: Chapter = {
+      id: uuid(),
+      project_id: projectId,
+      book,
+      act,
+      order,
+      title: title.trim() || 'Untitled chapter',
+      status: 'idea',
+      content: '',
+      notes: '',
+      annotations: [],
+      versions: [],
+    };
+    const chapters = [...get().chapters, chapter];
+    set({ chapters });
+    writeCache('chapters:' + projectId, chapters);
+
+    await enqueue({
+      table: 'chapters',
+      kind: 'insert',
+      row: {
+        id: chapter.id, project_id: projectId, book, act, order,
+        title: chapter.title, status: 'idea', content: '', notes: '',
+        annotations: [], versions: [],
+      },
+    });
+    void flush();
     return { chapter, error: null };
   },
   reorderChapters: async (updates) => {
-    const results = await Promise.all(
-      updates.map((u) => supabase.from('chapters').update({ act: u.act, order: u.order }).eq('id', u.id)),
-    );
-    const firstError = results.find((r) => r.error)?.error;
-    if (firstError) return { error: firstError.message };
+    // One op per row rather than one for the batch: the outbox coalesces per row, so a drag
+    // that settles several times before the network returns still sends each chapter once.
+    for (const u of updates) {
+      await enqueue({ table: 'chapters', kind: 'update', row: { id: u.id, act: u.act, order: u.order } });
+    }
+    void flush();
     const byId = new Map(updates.map((u) => [u.id, u]));
     set({
       chapters: get().chapters.map((c) => {
@@ -183,6 +218,8 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
         return u ? { ...c, act: u.act, order: u.order } : c;
       }),
     });
+    const first = get().chapters[0];
+    if (first) writeCache('chapters:' + first.project_id, get().chapters);
     return { error: null };
   },
 }));

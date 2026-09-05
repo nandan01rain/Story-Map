@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { isOffline, readCache, writeCache } from '../lib/offlineCache';
+import { enqueue, flush, uuid } from '../lib/outbox';
 import { supabase } from '../lib/supabase';
 import { pushVersion, type PageVersion } from './pageStore';
 
@@ -167,27 +168,36 @@ export const useTreatmentStore = create<TreatmentState>((set, get) => ({
 
   // Created on the first keystroke, not when a blank editor opens -- so an opened-and-
   // abandoned treatment leaves nothing behind and nothing ever needs cleaning up.
+  // Two rows, both minted here. Order matters in the queue: the version references the
+  // treatment, so the treatment is enqueued first and the outbox's ordering guarantee does
+  // the rest -- a failure stops the run rather than sending the child on its own.
   createTreatment: async (userId, projectId, content = '') => {
     const last = get().treatments[get().treatments.length - 1];
     const position = last ? Number(last.position) + POSITION_GAP : POSITION_GAP;
+    const now = new Date().toISOString();
 
-    const t = await supabase
-      .from('treatments')
-      .insert({ user_id: userId, project_id: projectId, position })
-      .select(TREATMENT_COLUMNS)
-      .single();
-    if (t.error) return { treatment: null, version: null, error: t.error.message };
-    const treatment = t.data as Treatment;
+    const treatment: Treatment = {
+      id: uuid(), user_id: userId, project_id: projectId, title: null, position,
+      became_type: null, became_id: null, became_at: null, created_at: now, updated_at: now,
+    };
+    const version: TreatmentVersion = {
+      id: uuid(), treatment_id: treatment.id, user_id: userId, project_id: projectId,
+      content, status: 'live', history: [], created_at: now, updated_at: now,
+    };
 
-    const v = await supabase
-      .from('treatment_versions')
-      .insert({ treatment_id: treatment.id, user_id: userId, project_id: projectId, content, status: 'live' })
-      .select(VERSION_COLUMNS)
-      .single();
-    if (v.error) return { treatment, version: null, error: v.error.message };
-    const version = { ...(v.data as TreatmentVersion), history: [] };
+    const treatments = [...get().treatments, treatment];
+    const versions = [version, ...get().versions];
+    set({ treatments, versions });
+    writeCache('treatments:' + projectId, { treatments, versions });
 
-    set({ treatments: [...get().treatments, treatment], versions: [version, ...get().versions] });
+    await enqueue({ table: 'treatments', kind: 'insert', row: {
+      id: treatment.id, user_id: userId, project_id: projectId, position, created_at: now,
+    } });
+    await enqueue({ table: 'treatment_versions', kind: 'insert', row: {
+      id: version.id, treatment_id: treatment.id, user_id: userId, project_id: projectId,
+      content, status: 'live', history: [], created_at: now,
+    } });
+    void flush();
     return { treatment, version, error: null };
   },
 
@@ -195,62 +205,71 @@ export const useTreatmentStore = create<TreatmentState>((set, get) => ({
     const current = get().versions.find((v) => v.id === versionId);
     if (!current || current.content === content) return { error: null };
 
-    // Same cadence as pages: the text about to be overwritten is snapshotted at most once
-    // per few minutes, and the OLDEST entry is never the one discarded.
     const history = pushVersion(current.history ?? [], current.content);
     const updatedAt = new Date().toISOString();
-    const { error } = await supabase
-      .from('treatment_versions')
-      .update({ content, history, updated_at: updatedAt })
-      .eq('id', versionId);
-    if (error) return { error: error.message };
+    const versions = get().versions.map((v) =>
+      v.id === versionId ? { ...v, content, history, updated_at: updatedAt } : v,
+    );
+    set({ versions });
+    writeCache('treatments:' + current.project_id, { treatments: get().treatments, versions });
 
-    set({
-      versions: get().versions.map((v) =>
-        v.id === versionId ? { ...v, content, history, updated_at: updatedAt } : v,
-      ),
-    });
+    await enqueue({ table: 'treatment_versions', kind: 'update', row: {
+      id: versionId, content, history, updated_at: updatedAt,
+    } });
+    void flush();
     return { error: null };
   },
 
   // A marker, never a deletion. A stale version stays in the table, stays searchable and
   // stays retrievable; only the default view stops showing it.
   setVersionStatus: async (versionId, status) => {
-    const { error } = await supabase.from('treatment_versions').update({ status }).eq('id', versionId);
-    if (error) return { error: error.message };
-    set({ versions: get().versions.map((v) => (v.id === versionId ? { ...v, status } : v)) });
+    const versions = get().versions.map((v) => (v.id === versionId ? { ...v, status } : v));
+    set({ versions });
+    const v = versions.find((x) => x.id === versionId);
+    if (v) writeCache('treatments:' + v.project_id, { treatments: get().treatments, versions });
+    await enqueue({ table: 'treatment_versions', kind: 'update', row: { id: versionId, status } });
+    void flush();
     return { error: null };
   },
 
   addVersion: async (treatmentId, content = '') => {
     const t = get().treatments.find((x) => x.id === treatmentId);
     if (!t) return { version: null, error: 'No such treatment.' };
-    const { data, error } = await supabase
-      .from('treatment_versions')
-      .insert({ treatment_id: treatmentId, user_id: t.user_id, project_id: t.project_id, content, status: 'live' })
-      .select(VERSION_COLUMNS)
-      .single();
-    if (error) return { version: null, error: error.message };
-    const version = { ...(data as TreatmentVersion), history: [] };
-    set({ versions: [version, ...get().versions] });
+    const now = new Date().toISOString();
+    const version: TreatmentVersion = {
+      id: uuid(), treatment_id: treatmentId, user_id: t.user_id, project_id: t.project_id,
+      content, status: 'live', history: [], created_at: now, updated_at: now,
+    };
+    const versions = [version, ...get().versions];
+    set({ versions });
+    writeCache('treatments:' + t.project_id, { treatments: get().treatments, versions });
+    await enqueue({ table: 'treatment_versions', kind: 'insert', row: {
+      id: version.id, treatment_id: treatmentId, user_id: t.user_id, project_id: t.project_id,
+      content, status: 'live', history: [], created_at: now,
+    } });
+    void flush();
     return { version, error: null };
   },
 
   setTitle: async (treatmentId, title) => {
-    const { error } = await supabase.from('treatments').update({ title }).eq('id', treatmentId);
-    if (error) return { error: error.message };
-    set({ treatments: get().treatments.map((t) => (t.id === treatmentId ? { ...t, title } : t)) });
+    const treatments = get().treatments.map((t) => (t.id === treatmentId ? { ...t, title } : t));
+    set({ treatments });
+    const t = treatments.find((x) => x.id === treatmentId);
+    if (t) writeCache('treatments:' + t.project_id, { treatments, versions: get().versions });
+    await enqueue({ table: 'treatments', kind: 'update', row: { id: treatmentId, title } });
+    void flush();
     return { error: null };
   },
 
   reorder: async (treatmentId, position) => {
-    const { error } = await supabase.from('treatments').update({ position }).eq('id', treatmentId);
-    if (error) return { error: error.message };
-    set({
-      treatments: get()
-        .treatments.map((t) => (t.id === treatmentId ? { ...t, position } : t))
-        .sort((a, b) => Number(a.position) - Number(b.position)),
-    });
+    const treatments = get()
+      .treatments.map((t) => (t.id === treatmentId ? { ...t, position } : t))
+      .sort((a, b) => Number(a.position) - Number(b.position));
+    set({ treatments });
+    const t = treatments.find((x) => x.id === treatmentId);
+    if (t) writeCache('treatments:' + t.project_id, { treatments, versions: get().versions });
+    await enqueue({ table: 'treatments', kind: 'update', row: { id: treatmentId, position } });
+    void flush();
     return { error: null };
   },
 
@@ -258,16 +277,16 @@ export const useTreatmentStore = create<TreatmentState>((set, get) => ({
   // chapter will be rewritten, and the treatment is the record of what it first described.
   markBecame: async (treatmentId, becameType, becameId) => {
     const becameAt = new Date().toISOString();
-    const { error } = await supabase
-      .from('treatments')
-      .update({ became_type: becameType, became_id: becameId, became_at: becameAt })
-      .eq('id', treatmentId);
-    if (error) return { error: error.message };
-    set({
-      treatments: get().treatments.map((t) =>
-        t.id === treatmentId ? { ...t, became_type: becameType, became_id: becameId, became_at: becameAt } : t,
-      ),
-    });
+    const treatments = get().treatments.map((t) =>
+      t.id === treatmentId ? { ...t, became_type: becameType, became_id: becameId, became_at: becameAt } : t,
+    );
+    set({ treatments });
+    const t = treatments.find((x) => x.id === treatmentId);
+    if (t) writeCache('treatments:' + t.project_id, { treatments, versions: get().versions });
+    await enqueue({ table: 'treatments', kind: 'update', row: {
+      id: treatmentId, became_type: becameType, became_id: becameId, became_at: becameAt,
+    } });
+    void flush();
     return { error: null };
   },
 

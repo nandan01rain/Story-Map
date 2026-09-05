@@ -4402,9 +4402,30 @@ test passes and the app is wrong. Worth knowing before trusting it.
 three pages, force-quit, reopen still offline, confirm all three are there, then reconnect and
 confirm they arrive exactly once.
 
-### 31.5 Still online-only
+### 31.5 Chapters and treatments, same treatment (2026-08-30)
 
-Chapters and treatments read from cache but write straight to Supabase; the editor's autosave
-on a plane will fail. Extending the outbox to them is mechanical now the shape exists -- mint
-the id client-side, write local, enqueue -- but chapters carry `annotations` and `versions`
-jsonb, so a merge on reconnect needs more thought than pages did.
+Extended the same day. Every mutation in all three stores is now local-first: state and cache
+first, queue second, network whenever there is one. `createChapter`, `createTreatment` and
+`addVersion` mint their ids here rather than in Postgres, for the same reason `createPage`
+does -- a row made in the air needs an identity the editor can open and the outbox can replay
+onto.
+
+Two things specific to these two:
+
+**A treatment is two rows.** The version references the treatment, so the treatment is enqueued
+first and the outbox's ordering guarantee does the rest: a failure stops the run rather than
+sending the child on its own.
+
+**Chapter reordering enqueues one op per row**, not one for the batch. The outbox coalesces per
+row, so a drag that settles several times before the network returns still sends each chapter
+exactly once.
+
+**The known limitation, stated rather than discovered later**: the merge for `annotations` and
+`versions` is LAST WRITE WINS ON THE WHOLE ROW. Two devices flagging different lines in one
+chapter while both offline will keep only the copy that syncs later. With one writer on one
+device it never arises. It is written into `updateChapter` because the day it does arise it
+will look like data loss rather than like a documented trade.
+
+**Only one direct write remains** in the three stores: `deleteChapter`, a hard delete that the
+UI does not call -- deletions go through `trashStore`. It stays online-only deliberately;
+queueing a destructive op is a different risk from queueing a constructive one.
