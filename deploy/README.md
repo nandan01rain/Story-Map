@@ -95,8 +95,13 @@ Apple Developer Program at $99/yr.
 
 ```bash
 cd mobile
-eas update --branch preview --message "what changed"
+eas update --branch preview --environment preview --message "what changed"
 ```
+
+`--environment` became mandatory in eas-cli 22 whenever the command cannot prompt for it;
+interactively it will ask instead. It selects which environment's variables the bundle is
+built against, and is unrelated to `--branch`, which is where the update is published --
+they are both `preview` here only because the names happen to coincide.
 
 Seconds, not minutes — it uploads a JS bundle, not a binary. The app checks on launch and
 again a few seconds in, then offers **"An update is ready — tap to restart"**. It is offered
