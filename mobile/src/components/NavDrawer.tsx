@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect } from 'react';
+import * as NavigationBar from 'expo-navigation-bar';
+import {
+  Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View,
+} from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
 import type { SlidePanelController } from '../lib/useSlidePanel';
@@ -32,6 +36,13 @@ type SectionKey = 'discover' | 'manage' | 'assist';
 //  23%   - ~66%    CLEAR -- the menu is drawn here
 //  ~66%  - 100%    the illustrated city
 const PLATE = { titleTop: 0.168, titleBottom: 0.208, menuTop: 0.245, artTop: 0.66 };
+
+// The plate's vine borders eat about 15% of the width on each side, and content laid out over
+// them reads as text growing through a hedge. This is how far in the menu has to start -- and
+// it is the number that makes the panel feel cramped, because it leaves roughly 70% of an
+// already narrow panel. The real fix is thinner vines in the artwork; this is what keeps the
+// type off them until then.
+const VINE_INSET = 0.155;
 
 const SECTION_GLYPH: Record<SectionKey, SectionGlyphName> = {
   discover: 'discover',
@@ -119,6 +130,18 @@ export default function NavDrawer({
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
   const { height: screenH } = useWindowDimensions();
+
+  // The drawer runs the full height of the screen and its artwork reaches the bottom edge, so
+  // the navigation bar sits directly on the city. Hidden while the panel is mounted, restored
+  // when it closes -- the same treatment the braid gets, and for the same reason: the picture
+  // goes all the way down or it is not the picture.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+    return () => {
+      NavigationBar.setVisibilityAsync('visible').catch(() => {});
+    };
+  }, []);
   const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const onClose = controller.close;
@@ -198,15 +221,32 @@ export default function NavDrawer({
       )}
 
 
+      {/* By day the menu lives in a WINDOW between the plate's rule and its artwork, and
+          scrolls inside it. Previously the scroll view covered the whole panel, so expanding a
+          section drove the rows up over the compass rose -- the plate is fixed, so anything
+          scrolling across it overwrites it. A window cannot: the head stays put, the city stays
+          put, and only the menu moves. */}
       <ScrollView
+        style={
+          mode === 'day'
+            ? {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: screenH * PLATE.menuTop,
+                height: screenH * (PLATE.artTop - PLATE.menuTop),
+                zIndex: 1,
+              }
+            : undefined
+        }
         contentContainerStyle={[
           styles.panelContent,
-          // By day the rows start below the plate's own rule; by night below the header art.
-          mode === 'day' && { paddingTop: screenH * PLATE.menuTop },
-          {
-            paddingBottom:
-              mode === 'night' ? panelWidth / (3 / 2) * 0.62 + 24 : screenH * (1 - PLATE.artTop) + 16,
+          mode === 'day' && {
+            paddingTop: 0,
+            paddingBottom: 24,
+            paddingHorizontal: panelWidth * VINE_INSET,
           },
+          mode === 'night' && { paddingBottom: panelWidth / (3 / 2) * 0.62 + 24 },
         ]}
         showsVerticalScrollIndicator={false}
       >
