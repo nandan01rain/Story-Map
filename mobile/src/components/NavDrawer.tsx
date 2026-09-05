@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
 import type { SlidePanelController } from '../lib/useSlidePanel';
@@ -19,6 +19,20 @@ import SlidePanel from './SlidePanel';
 type SectionKey = 'discover' | 'manage' | 'assist';
 
 // The reference sets a drawn mark beside each group -- a compass, stacked books, a quill.
+// The day plate is one image for the whole panel, and the live text has to land in the gaps
+// it left. These are measured from drawer-day.webp (748x2103) by scanning its central column
+// for non-parchment rows -- not estimated by eye, because a title that is nearly in its gap
+// looks worse than one that is obviously somewhere else.
+//
+//   3.0% -  8.1%   sunburst and moon-phase arc
+//   8.2% - 16.8%   compass rose
+//  16.8% - 20.8%   CLEAR -- the project title goes here
+//  20.8% - 21.6%   "STORYMAP"
+//  22.6% - 23.0%   the gold rule
+//  23%   - ~66%    CLEAR -- the menu is drawn here
+//  ~66%  - 100%    the illustrated city
+const PLATE = { titleTop: 0.168, titleBottom: 0.208, menuTop: 0.245, artTop: 0.66 };
+
 const SECTION_GLYPH: Record<SectionKey, SectionGlyphName> = {
   discover: 'discover',
   manage: 'manage',
@@ -104,6 +118,7 @@ export default function NavDrawer({
   onExportEpub: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
+  const { height: screenH } = useWindowDimensions();
   const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const onClose = controller.close;
@@ -146,6 +161,30 @@ export default function NavDrawer({
         <Text style={styles.closeBtnText}>✕</Text>
       </Pressable>
 
+      {/* DAY is one plate for the whole panel: frame, vines, rose, STORYMAP, rule and the
+          city, with two clear bands left for the things that vary. `cover` and not `contain`
+          because the plate's 1:2.81 and the panel's ~1:2.8 differ by a percent or two, and a
+          percent of crop is invisible where a letterboxed edge would not be. */}
+      {mode === 'day' && (
+        <>
+          <Image
+            source={require('../../assets/drawer-day.webp')}
+            style={[styles.plate, { width: panelWidth, height: screenH }]}
+            resizeMode="cover"
+          />
+          <Text
+            style={[styles.plateTitle, {
+              top: screenH * PLATE.titleTop,
+              width: panelWidth,
+              height: screenH * (PLATE.titleBottom - PLATE.titleTop),
+            }]}
+            numberOfLines={1}
+          >
+            {projectName}
+          </Text>
+        </>
+      )}
+
       {/* The city is PINNED to the foot of the panel, not carried in the scroll flow. As a
           flow element it ended wherever the content happened to end, so any scroll exposed a
           band of bare cream beneath it. Anchored to the bottom it is simply where the panel
@@ -158,23 +197,16 @@ export default function NavDrawer({
         />
       )}
 
-      {/* Drawn corners are for DAY only. At night they are already in the header artwork,
-          and drawing them again would double every line. */}
-      {mode === 'day' && (
-        <>
-          <View pointerEvents="none" style={styles.cornerTL}>
-            <CornerFlourish corner="tl" color={colors.railInk} />
-          </View>
-          <View pointerEvents="none" style={styles.cornerTR}>
-            <CornerFlourish corner="tr" color={colors.railInk} />
-          </View>
-        </>
-      )}
 
       <ScrollView
         contentContainerStyle={[
           styles.panelContent,
-          { paddingBottom: mode === 'night' ? panelWidth / (3 / 2) * 0.62 + 24 : 40 },
+          // By day the rows start below the plate's own rule; by night below the header art.
+          mode === 'day' && { paddingTop: screenH * PLATE.menuTop },
+          {
+            paddingBottom:
+              mode === 'night' ? panelWidth / (3 / 2) * 0.62 + 24 : screenH * (1 - PLATE.artTop) + 16,
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -183,7 +215,7 @@ export default function NavDrawer({
             margins cancel the panel's own padding -- and its own alpha ramp does the
             blending at the foot, which is why nothing here draws a gradient. Day has no such
             artwork and keeps the drawn assembly. */}
-        {mode === 'night' ? (
+        {mode === 'night' && (
           <Image
             source={require('../../assets/drawer-header.webp')}
             style={[styles.headerArt, {
@@ -192,17 +224,6 @@ export default function NavDrawer({
             }]}
             resizeMode="cover"
           />
-        ) : (
-          <>
-            <View style={styles.brand}>
-              <CompassRose size={92} color={colors.railInk} />
-              <Text style={styles.brandTitle}>{projectName}</Text>
-              <Text style={styles.brandSubtitle}>STORYMAP</Text>
-            </View>
-            <View style={styles.dividerWrap}>
-              <OrnamentRule color={colors.railDim} />
-            </View>
-          </>
         )}
 
         <Section
@@ -341,6 +362,18 @@ function makeStyles(colors: ThemeColors) {
     // Image's INTRINSIC size when width is undefined, so a 1080px-wide file laid itself out
     // as 1080 DP -- three screens tall -- and aspectRatio never got a look in. Deriving both
     // dimensions from the panel's own width is deterministic and cannot do that.
+    plate: { position: 'absolute', left: 0, top: 0, zIndex: 0 },
+    plateTitle: {
+      position: 'absolute',
+      left: 0,
+      zIndex: 1,
+      textAlign: 'center',
+      textAlignVertical: 'center',
+      color: colors.railInk,
+      fontFamily: FONTS.headingBold,
+      fontSize: 22,
+      letterSpacing: 2,
+    },
     headerArt: {
       marginTop: -32,
       marginLeft: -24,

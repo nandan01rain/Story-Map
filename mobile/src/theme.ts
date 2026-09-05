@@ -114,9 +114,12 @@ export const DAY_COLORS: ThemeColors = {
   // Day's drawer is OLIVE with gold on it. Night's is parchment with the illustration at its
   // foot -- two different objects, not one object at two brightnesses, and that is the
   // decision: the artwork and the parchment belong to the night only.
-  rail: '#3c4a2a',
-  railInk: '#e3c274',
-  railDim: '#a9b48f',
+  // Sampled from drawer-day.webp, not chosen: the drawer IS that plate, and any colour the
+  // code picks independently shows up as a seam where the two meet. #f2e1bd is its menu-band
+  // parchment; the ink is the deep gold its own lettering uses.
+  rail: '#f2e1bd',
+  railInk: '#7d5f2c',
+  railDim: '#a08a5e',
 };
 
 export type ThemeMode = 'day' | 'night';
