@@ -51,6 +51,14 @@ export type ThemeColors = {
   gold: string;
   error: string;
   /**
+   * The navigation bar across the top. Its own token rather than `panel`, which React
+   * Navigation's theme was previously handing it: `panel` is also every card and sheet in
+   * the app, so tuning the bar through it repaints surfaces that have nothing to do with
+   * the bar. Both values are SAMPLED from the drawer artwork (see below) -- the bar sits
+   * directly above the plates and a shade chosen independently of them reads as plain.
+   */
+  chrome: string;
+  /**
    * The nav drawer, which is the one surface that changes MATERIAL rather than shade.
    * At night it is cream paper laid on a blue page; by day it is olive with gold lettering
    * on cream. The inversion is the same in both directions, which is what makes them read
@@ -82,6 +90,12 @@ export const NIGHT_COLORS: ThemeColors = {
   textFaint: '#7c88a8',
   gold: '#c69a3a',
   error: '#b8542e',
+  // The night city's own sky, sampled a quarter of the way down it. Deeper and cooler than
+  // the `#17224c` panel the bar used to borrow -- that was a violet navy belonging to
+  // nothing on screen, which is what made the bar read as plain against the artwork. The
+  // header keeps its bottom hairline (`border`), so sitting close to `bg` in value costs it
+  // no definition.
+  chrome: '#0c1f38',
   // BOTH drawers are parchment now (2026-09-05): day and night are the same two plates with
   // a sun or a crescent over the rose, so they are one object at two hours rather than two
   // objects. The cream is the plate's OWN bottom edge, read back off the ENCODED header's last
@@ -111,6 +125,11 @@ export const DAY_COLORS: ThemeColors = {
   textFaint: '#8a7355',
   gold: '#c69a3a',
   error: '#b8542e',
+  // The day plate's paper at mid-height, where its own vignette runs a shade deeper than the
+  // flat rail. Deeper on purpose: level with the rail the bar and the drawer would be one
+  // undifferentiated sheet, and a header band slightly darker than the page under it is what
+  // makes it read as a band at all.
+  chrome: '#e6d2a4',
   // Day's drawer is the same parchment as night's, sampled the same way from its own plate
   // (drawer-day-header.webp, flat bottom edge). The olive drawer is gone with the single
   // full-height plate it belonged to; see NIGHT_COLORS for why the sampling matters.

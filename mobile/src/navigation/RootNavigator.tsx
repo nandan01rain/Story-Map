@@ -54,7 +54,18 @@ export default function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       {session ? (
         <Stack.Navigator
-          screenOptions={{ headerTintColor: colors.gold, headerTitleStyle: { fontFamily: FONTS.heading, fontSize: 17 } }}
+          screenOptions={{
+            // Gold on the night bar reads 6.4:1; on the deepened day parchment it is 1.75:1
+            // -- gold in name, grey in effect, and worse than the paler bar it replaces. Day
+            // therefore takes `railInk`, the same hue carried down to 4.0:1, which is the fix
+            // theme.ts already applies to gold on the drawer's parchment.
+            headerTintColor: mode === 'night' ? colors.gold : colors.railInk,
+            headerTitleStyle: { fontFamily: FONTS.heading, fontSize: 17 },
+            // Not the theme's `card`, which is `panel` and is shared with every card and
+            // sheet in the app. The bar gets its own colour, sampled from the drawer
+            // artwork it sits directly above -- see ThemeColors.chrome.
+            headerStyle: { backgroundColor: colors.chrome },
+          }}
         >
           {/* The landing page owns this route now -- the project picker is one tab inside
               it (see LandingScreen), so every existing navigate('ProjectPicker') still
