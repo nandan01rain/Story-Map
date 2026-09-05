@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useEffect } from 'react';
 import * as NavigationBar from 'expo-navigation-bar';
 import {
-  Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View,
+  Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
@@ -23,26 +23,28 @@ import SlidePanel from './SlidePanel';
 type SectionKey = 'discover' | 'manage' | 'assist';
 
 // The reference sets a drawn mark beside each group -- a compass, stacked books, a quill.
-// The day plate is one image for the whole panel, and the live text has to land in the gaps
-// it left. These are measured from drawer-day.webp (748x2103) by scanning its central column
-// for non-parchment rows -- not estimated by eye, because a title that is nearly in its gap
-// looks worse than one that is obviously somewhere else.
 //
-//   3.0% -  8.1%   sunburst and moon-phase arc
-//   8.2% - 16.8%   compass rose
-//  16.8% - 20.8%   CLEAR -- the project title goes here
-//  20.8% - 21.6%   "STORYMAP"
-//  22.6% - 23.0%   the gold rule
-//  23%   - ~66%    CLEAR -- the menu is drawn here
-//  ~66%  - 100%    the illustrated city
-const PLATE = { titleTop: 0.168, titleBottom: 0.208, menuTop: 0.245, artTop: 0.66 };
-
-// The plate's vine borders eat about 15% of the width on each side, and content laid out over
-// them reads as text growing through a hedge. This is how far in the menu has to start -- and
-// it is the number that makes the panel feel cramped, because it leaves roughly 70% of an
-// already narrow panel. The real fix is thinner vines in the artwork; this is what keeps the
-// type off them until then.
-const VINE_INSET = 0.155;
+// DAY AND NIGHT ARE NOW THE SAME LAYOUT (2026-09-05). Both modes are two supplied plates --
+// a header carried at the top of the scroll flow and a city pinned to the foot -- differing
+// only in which files they name. Day used to be ONE full-height plate with the live text
+// printed into gaps measured from it, which forced a fixed scroll window, a percentage-based
+// title band and a 15% inset to keep type off the vines running the whole height. None of
+// that survives the split: the menu sits on plain rail between two pictures, so it can be
+// laid out like any other list.
+//
+// The header files are cropped at build time to their last fully opaque row -- the generator
+// left a ragged alpha fade below it -- so their bottom edge is flat parchment and the panel
+// colour is sampled from that edge (theme.ts). No gradient, no seam.
+const HEADER_RATIO = 1080 / 531;   // the cropped plates' own aspect, not a chosen number
+const CITY_RATIO = 3 / 2;
+// The header's clear band, measured by scanning the cropped plate for ink: the rose ends at
+// 63%, STORYMAP runs 67-71%, the rule 73-78%, and everything below 78.2% is bare parchment.
+// The project title is printed into that band.
+const TITLE_BAND = 0.218;
+// The plates' vine borders eat roughly a tenth of the width on each side. Only the title
+// has to clear them now -- the menu sits on plain rail between the two pictures, so the 15%
+// inset the single full-height plate forced on every row is gone with it.
+const TITLE_INSET = 0.12;
 
 const SECTION_GLYPH: Record<SectionKey, SectionGlyphName> = {
   discover: 'discover',
@@ -129,7 +131,6 @@ export default function NavDrawer({
   onExportEpub: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
-  const { height: screenH } = useWindowDimensions();
 
   // The drawer runs the full height of the screen and its artwork reaches the bottom edge, so
   // the navigation bar sits directly on the city. Hidden while the panel is mounted, restored
@@ -143,6 +144,14 @@ export default function NavDrawer({
     };
   }, []);
   const { colors, mode } = useTheme();
+  const headerArt = mode === 'night'
+    ? require('../../assets/drawer-night-header.webp')
+    : require('../../assets/drawer-day-header.webp');
+  const cityArt = mode === 'night'
+    ? require('../../assets/drawer-night-city.webp')
+    : require('../../assets/drawer-day-city.webp');
+  const headerH = panelWidth / HEADER_RATIO;
+  const cityH = panelWidth / CITY_RATIO;
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const onClose = controller.close;
 
@@ -184,87 +193,52 @@ export default function NavDrawer({
         <Text style={styles.closeBtnText}>✕</Text>
       </Pressable>
 
-      {/* DAY is one plate for the whole panel: frame, vines, rose, STORYMAP, rule and the
-          city, with two clear bands left for the things that vary. `cover` and not `contain`
-          because the plate's 1:2.81 and the panel's ~1:2.8 differ by a percent or two, and a
-          percent of crop is invisible where a letterboxed edge would not be. */}
-      {mode === 'day' && (
-        <>
+      {/* The city is PINNED to the foot of the panel, not carried in the scroll flow. As a
+          flow element it ended wherever the content happened to end, so any scroll exposed a
+          band of bare cream beneath it. Anchored to the bottom it is simply where the panel
+          stops, at every scroll position, and the content scrolls over it. Both modes now:
+          day's city used to be the tail of one full-height plate and is its own file. */}
+      <Image
+        source={cityArt}
+        style={[styles.art, { width: panelWidth, height: cityH }]}
+        resizeMode="cover"
+      />
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.panelContent,
+          { paddingBottom: cityH * 0.62 + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Each mode wears one supplied plate: corners, vines, rose, its own celestial mark
+            (sun by day, crescent by night), STORYMAP and the rule beneath it. Full bleed to
+            the top and both sides -- the negative margins cancel the panel's own padding.
+            The plates are cropped to flat parchment at the foot rather than carrying an alpha
+            ramp, and the panel colour is sampled from that edge, so the join needs nothing
+            drawn over it.
+
+            The project title is printed into the plate's own clear band rather than laid out
+            after it: absolutely positioned inside this wrapper, so it cannot push the menu
+            down and the picture keeps its measured proportions. */}
+        <View style={[styles.headerArt, { width: panelWidth, height: headerH }]}>
           <Image
-            source={require('../../assets/drawer-day.webp')}
-            style={[styles.plate, { width: panelWidth, height: screenH }]}
+            source={headerArt}
+            style={{ width: panelWidth, height: headerH }}
             resizeMode="cover"
           />
           <Text
             style={[styles.plateTitle, {
-              top: screenH * PLATE.titleTop,
-              width: panelWidth,
-              height: screenH * (PLATE.titleBottom - PLATE.titleTop),
+              height: headerH * TITLE_BAND,
+              paddingHorizontal: panelWidth * TITLE_INSET,
             }]}
             numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
           >
             {projectName}
           </Text>
-        </>
-      )}
-
-      {/* The city is PINNED to the foot of the panel, not carried in the scroll flow. As a
-          flow element it ended wherever the content happened to end, so any scroll exposed a
-          band of bare cream beneath it. Anchored to the bottom it is simply where the panel
-          stops, at every scroll position, and the content scrolls over it. */}
-      {mode === 'night' && (
-        <Image
-          source={require('../../assets/drawer-city.webp')}
-          style={[styles.art, { width: panelWidth, height: panelWidth / (3 / 2) }]}
-          resizeMode="cover"
-        />
-      )}
-
-
-      {/* By day the menu lives in a WINDOW between the plate's rule and its artwork, and
-          scrolls inside it. Previously the scroll view covered the whole panel, so expanding a
-          section drove the rows up over the compass rose -- the plate is fixed, so anything
-          scrolling across it overwrites it. A window cannot: the head stays put, the city stays
-          put, and only the menu moves. */}
-      <ScrollView
-        style={
-          mode === 'day'
-            ? {
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: screenH * PLATE.menuTop,
-                height: screenH * (PLATE.artTop - PLATE.menuTop),
-                zIndex: 1,
-              }
-            : undefined
-        }
-        contentContainerStyle={[
-          styles.panelContent,
-          mode === 'day' && {
-            paddingTop: 0,
-            paddingBottom: 24,
-            paddingHorizontal: panelWidth * VINE_INSET,
-          },
-          mode === 'night' && { paddingBottom: panelWidth / (3 / 2) * 0.62 + 24 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Night wears one supplied image: corners, rose, moon phases, title, subtitle and
-            the rule beneath them. Full bleed to the top and both sides -- the negative
-            margins cancel the panel's own padding -- and its own alpha ramp does the
-            blending at the foot, which is why nothing here draws a gradient. Day has no such
-            artwork and keeps the drawn assembly. */}
-        {mode === 'night' && (
-          <Image
-            source={require('../../assets/drawer-header.webp')}
-            style={[styles.headerArt, {
-              width: panelWidth,
-              height: panelWidth / (8 / 5),
-            }]}
-            resizeMode="cover"
-          />
-        )}
+        </View>
 
         <Section
           title="Discover"
@@ -402,22 +376,26 @@ function makeStyles(colors: ThemeColors) {
     // Image's INTRINSIC size when width is undefined, so a 1080px-wide file laid itself out
     // as 1080 DP -- three screens tall -- and aspectRatio never got a look in. Deriving both
     // dimensions from the panel's own width is deterministic and cannot do that.
-    plate: { position: 'absolute', left: 0, top: 0, zIndex: 0 },
+    // Sits in the plate's own clear band, below the rule and above the crop. `bottom: 0`
+    // and a height of TITLE_BAND: the band IS the bottom of the image, so the title is
+    // positioned by the picture rather than by a number that has to be re-measured.
     plateTitle: {
       position: 'absolute',
       left: 0,
+      right: 0,
+      bottom: 0,
       zIndex: 1,
       textAlign: 'center',
       textAlignVertical: 'center',
       color: colors.railInk,
       fontFamily: FONTS.headingBold,
-      fontSize: 22,
+      fontSize: 19,
       letterSpacing: 2,
     },
     headerArt: {
       marginTop: -32,
       marginLeft: -24,
-      marginBottom: 4,
+      marginBottom: 8,
     },
     cornerTL: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
     cornerTR: { position: 'absolute', top: 10, right: 10, zIndex: 2 },

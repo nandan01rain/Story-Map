@@ -82,15 +82,13 @@ export const NIGHT_COLORS: ThemeColors = {
   textFaint: '#7c88a8',
   gold: '#c69a3a',
   error: '#b8542e',
-  // NIGHT'S drawer is parchment, and its cream is the illustration's own top-edge colour
-  // (#e8d5b2, sampled from drawer-city.webp) so picture and panel meet with no seam to hide.
-  // The rail took the artwork's colour rather than the artwork taking the rail's, which is
-  // why no gradient fade is needed between them. Day is olive; see DAY_COLORS.
-  // Sampled from the artwork itself (drawer-header.webp, opaque region, #e6d6b7..#e8dabd)
-  // rather than chosen. #e8d5b2 was a shade more saturated, which put a visible horizontal
-  // seam where the header's fade finished and the panel began -- the one join the alpha ramp
-  // exists to hide. The panel matches the paper now; the paper does not match the panel.
-  rail: '#e7d8ba',
+  // BOTH drawers are parchment now (2026-09-05): day and night are the same two plates with
+  // a sun or a crescent over the rose, so they are one object at two hours rather than two
+  // objects. The cream is the plate's OWN bottom edge, sampled from the cropped header's flat bottom
+  // edge by scripts/build-drawer-plates.py, which prints both values when it runs -- the panel matches the paper, the paper does not
+  // match the panel. That is what lets the header stop and the rail start with nothing drawn
+  // over the join.
+  rail: '#efdbb4',
   // Gold in both modes. The app's #c69a3a reads at 2.3:1 on parchment -- gold in name, grey
   // in effect -- so this is the same hue carried down to 4.1:1: legibly gold rather than
   // nominally gold.
@@ -111,13 +109,10 @@ export const DAY_COLORS: ThemeColors = {
   textFaint: '#8a7355',
   gold: '#c69a3a',
   error: '#b8542e',
-  // Day's drawer is OLIVE with gold on it. Night's is parchment with the illustration at its
-  // foot -- two different objects, not one object at two brightnesses, and that is the
-  // decision: the artwork and the parchment belong to the night only.
-  // Sampled from drawer-day.webp, not chosen: the drawer IS that plate, and any colour the
-  // code picks independently shows up as a seam where the two meet. #f2e1bd is its menu-band
-  // parchment; the ink is the deep gold its own lettering uses.
-  rail: '#f2e1bd',
+  // Day's drawer is the same parchment as night's, sampled the same way from its own plate
+  // (drawer-day-header.webp, flat bottom edge). The olive drawer is gone with the single
+  // full-height plate it belonged to; see NIGHT_COLORS for why the sampling matters.
+  rail: '#efdcb2',
   railInk: '#7d5f2c',
   railDim: '#a08a5e',
 };
