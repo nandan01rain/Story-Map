@@ -19,9 +19,10 @@ Three transforms, each fixing something the generator does that the app cannot u
    parchment bottom edge -- which is then sampled for the panel colour, so the picture stops
    and the rail starts with nothing drawn over the join.
 
-2. CITIES keep their alpha ramp but have the dead RGB under it replaced. The generator leaves
-   fully transparent pixels black; LANCZOS does not know they are invisible and drags that
-   black up into the visible part of the ramp as a dirty edge.
+2. CITIES have the dead RGB under their alpha ramp replaced, then are flattened onto the rail.
+   The generator leaves fully transparent pixels black; LANCZOS does not know they are
+   invisible and drags that black up into the visible part of the ramp as a dirty edge. The
+   flattening is what §32.2 already learned on the night pair -- see RAIL below.
 
 3. The NIGHT city's ramp is rebuilt long and eased. It is a dark scene dissolving into cream
    paper, so partial alpha composites to grey no matter what -- a short ramp shows that as a
@@ -35,6 +36,14 @@ from PIL import Image
 
 SRC = 'assets'
 OUT = 'mobile/assets'
+
+# The rail each mode's panel is painted with -- sampled from that mode's own header by
+# build_header() below, and the value theme.ts carries. The cities are FLATTENED onto it
+# rather than shipped with alpha: the ramp only ever composites over this one flat colour,
+# so the result is identical on screen, no half-transparent pixel can land lighter than the
+# panel the way §32.2 found, and an opaque WEBP compresses far better than one carrying an
+# alpha channel.
+RAIL = {'day': (0xef, 0xdc, 0xb2), 'night': (0xef, 0xdb, 0xb4)}
 
 # Measured, not chosen: the last row of both header plates where the parchment is still
 # fully opaque and clean. Both plates are 1586x992 and share the crop, so day and night have
@@ -103,8 +112,10 @@ def build_city(mode, src, ramp=None):
                 px[x, y] = (sr, sg, sb, px[x, y][3])
 
     im = im.resize(CITY_SIZE, Image.LANCZOS)
+    flat = Image.new('RGB', CITY_SIZE, RAIL[mode])
+    flat.paste(im, (0, 0), im)
     path = f'{OUT}/drawer-{mode}-city.webp'
-    im.save(path, 'WEBP', quality=92, method=6)
+    flat.save(path, 'WEBP', quality=92, method=6)
     print(f'{path}  {CITY_SIZE}  {os.path.getsize(path) // 1024} KB')
 
 
