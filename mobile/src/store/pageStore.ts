@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { supabase } from '../lib/supabase';
 
 // Pages -- stage-one raw capture. Same `sticky_notes` table the PWA and this app's old
@@ -118,6 +119,10 @@ export const usePageStore = create<PageState>((set, get) => ({
 
   fetchPages: async (projectId) => {
     set({ loading: true, error: null });
+    if (get().pages.length === 0) {
+      const cached = await readCache<Page[]>('pages:' + projectId);
+      if (cached) set({ pages: cached, loading: false });
+    }
     const full = await supabase
       .from('sticky_notes')
       .select(PAGE_COLUMNS)
@@ -138,10 +143,12 @@ export const usePageStore = create<PageState>((set, get) => ({
       return;
     }
     if (full.error) {
-      set({ loading: false, error: full.error.message });
+      set({ loading: false, error: isOffline(full.error) ? null : full.error.message });
       return;
     }
-    set({ loading: false, legacySchema: false, pages: (full.data ?? []).map(asPage) });
+    const rows = (full.data ?? []).map(asPage);
+    set({ loading: false, legacySchema: false, pages: rows });
+    writeCache('pages:' + projectId, rows);
   },
 
   // A row is created on the first keystroke, not when the blank page opens -- so an opened-

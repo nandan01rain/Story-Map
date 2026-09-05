@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { supabase } from '../lib/supabase';
 import { pushVersion, type PageVersion } from './pageStore';
 
@@ -118,6 +119,12 @@ export const useTreatmentStore = create<TreatmentState>((set, get) => ({
 
   fetchTreatments: async (projectId) => {
     set({ loading: true, error: null });
+    if (get().treatments.length === 0) {
+      const cached = await readCache<{ treatments: Treatment[]; versions: TreatmentVersion[] }>(
+        'treatments:' + projectId,
+      );
+      if (cached) set({ treatments: cached.treatments, versions: cached.versions, loading: false });
+    }
     const t = await supabase
       .from('treatments')
       .select(TREATMENT_COLUMNS)
@@ -129,6 +136,11 @@ export const useTreatmentStore = create<TreatmentState>((set, get) => ({
     // explains itself.
     if (t.error) {
       const missing = t.error.code === UNDEFINED_TABLE || t.error.code === UNDEFINED_COLUMN;
+      // Offline is not a missing table: keep the cache and stay quiet.
+      if (isOffline(t.error)) {
+        set({ loading: false });
+        return;
+      }
       set({ loading: false, missingSchema: missing, error: missing ? null : t.error.message });
       return;
     }
@@ -144,12 +156,13 @@ export const useTreatmentStore = create<TreatmentState>((set, get) => ({
       return;
     }
 
-    set({
-      loading: false,
-      missingSchema: false,
-      treatments: (t.data ?? []) as Treatment[],
-      versions: ((v.data ?? []) as TreatmentVersion[]).map((row) => ({ ...row, history: row.history ?? [] })),
-    });
+    const treatments = (t.data ?? []) as Treatment[];
+    const versions = ((v.data ?? []) as TreatmentVersion[]).map((row) => ({
+      ...row,
+      history: row.history ?? [],
+    }));
+    set({ loading: false, missingSchema: false, treatments, versions });
+    writeCache('treatments:' + projectId, { treatments, versions });
   },
 
   // Created on the first keystroke, not when a blank editor opens -- so an opened-and-

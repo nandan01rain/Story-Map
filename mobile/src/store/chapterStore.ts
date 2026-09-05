@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { supabase } from '../lib/supabase';
 
 // Mirrors the PWA's chapters table shape (handoff doc §4) and loadData() (index.html).
@@ -95,13 +96,23 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   error: null,
   fetchChapters: async (projectId) => {
     set({ loading: true, error: null });
+
+    // Paint from the last-known-good copy first, so the list is readable before the network
+    // is asked anything -- and remains readable if it never answers.
+    if (get().chapters.length === 0) {
+      const cached = await readCache<Chapter[]>('chapters:' + projectId);
+      if (cached) set({ chapters: cached, loading: false });
+    }
+
     const { data, error } = await supabase
       .from('chapters')
       .select('id, project_id, book, act, "order", title, status, content, notes, annotations, versions')
       .eq('project_id', projectId)
       .order('order', { ascending: true });
     if (error) {
-      set({ loading: false, error: error.message });
+      // Offline keeps whatever the cache gave us and says nothing; a real database error is
+      // still an error worth surfacing.
+      set({ loading: false, error: isOffline(error) ? null : error.message });
       return;
     }
     const rows = (data ?? []).map((r) => ({
@@ -110,6 +121,7 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       versions: r.versions ?? [],
     })) as Chapter[];
     set({ loading: false, chapters: rows });
+    writeCache('chapters:' + projectId, rows);
   },
   updateChapter: async (chapterId, patch) => {
     const { error } = await supabase.from('chapters').update(patch).eq('id', chapterId);
