@@ -4638,3 +4638,52 @@ values are a fixed point of the script now — night exactly, day within one uni
 **The trap that cost a pass**: `Image.getchannel('A')` returns a COPY. Editing what its
 `load()` hands back changes nothing, and the ramp variants all came out identical and looked
 like the fade was somehow immune to the curve. `putalpha` it back.
+
+
+## 33. THE CONTINUOUS WRITER, AND THE EDITOR THAT SAVED THE WRONG TEXT (2026-09-19)
+
+### 33.1 The bug first, because it is the one that loses words
+
+Write in a chapter, leave, come back: the writing is gone. It is in version history; restore
+it, leave, come back: gone again. The Reader shows the old text too.
+
+`EditorScreen`'s unmount flush was `useEffect(() => () => flushSave(), [])`. An effect with no
+deps runs the FIRST render's `flushSave`, whose `content` is the chapter as it was opened. It
+compared that against `savedContentRef` -- a ref, therefore live, holding what had really been
+written -- saw the two differ, and persisted the stale text over the new. The snapshot rule
+put the new text into `versions` on the way, which is why it was in history and nowhere else,
+and why restoring it did not stick: the same stale closure ran again on the next exit.
+
+Fixed with a ref reassigned every render (`flushSaveRef.current = flushSave`), so the cleanup
+calls whatever is current when the screen actually goes. **Every unmount flush in this codebase
+must read live state through a ref**; `WriterScreen` was written that way from the start.
+
+### 33.2 The Writer
+
+`WriterScreen` (`Manage → Write` in the drawer; route `Writer: { projectId }`) is one book as
+one scrolling manuscript: every chapter an editable run of prose under its own heading, in
+order, opening where the writer last left off the way the Reader does. It sits **beside** the
+per-chapter `EditorScreen`, not instead of it -- the Editor holds flags, pairing, threads and
+history, and tapping a chapter heading in the Writer opens it there. Books switch on a chip row.
+
+**Saving** is per chapter on the Editor's own rule: 1.2s debounce, the previously saved text
+snapshotted into `versions` (cap 10) before it is overwritten, local-first through
+`updateChapter` so it never waits on a network. Drafts live in a ref mirrored to state; the ref
+is what saves and flushes read. Coming back from the Editor, a clean draft adopts the store's
+newer copy; a dirty one keeps its text.
+
+**Position** is `{bookIndex, scrollY}` in AsyncStorage per project (`lib/writingPrefs.ts`),
+restored on the first content layout. A scroll offset is only exact while the manuscript above
+it is the same length, so text added elsewhere lands it a paragraph off; a chapter-plus-offset
+anchor is the obvious refinement if that ever matters.
+
+**The daily target** is words of FINISHED PROSE -- chapters only, never pages, which are for any
+idea. "Words today" is the project's total across every chapter now, minus a baseline taken the
+first time the Writer opens on a new local calendar day. That is deliberate: it counts in both
+directions (a cut paragraph counts against the day), and it counts words written in the
+per-chapter Editor too, because they are the same prose. Set or clear it by tapping the count.
+
+**Not built, stated**: the Editor's keep-the-caret-visible logic. The Writer pads its foot by the
+measured keyboard overlap so the end of a chapter can be scrolled above the keys, but it does
+not scroll the caret into view itself. Every keystroke also re-renders every chapter input in
+the open book; fine at current sizes, worth a `React.memo` per chapter if a long book drags.

@@ -661,6 +661,14 @@ continuity checker, which is Icarus's job now. See handoff §19.
   drawn in code: a row's parts must lay out together or they misalign, and the box
   moves when a section expands. Handoff §32.
 
+- **✍️ The continuous Writer (2026-09-19)** — `Manage → Write`: one book as one scrolling
+  manuscript, every chapter editable under its own heading, opening where you left off like
+  the Reader. Beside the per-chapter Editor, not instead of it (a heading opens that chapter's
+  Editor for flags and history). A **daily word target** counts finished prose only — chapters,
+  never pages — as total-now minus a baseline taken on the day's first open. Same day fixed
+  the Editor overwriting new text with old on exit (a stale unmount closure; handoff §33.1)
+  and the Reader hanging when opened from the Editor (no request deadline; §31.6).
+
 - **📴 Offline (2026-08-30)** — the app opens and is writable without a network.
   Auth had a launch hang (a token refresh that cannot fail fast), now on a 2.5s
   deadline. Chapters, pages and treatments read from a last-known-good cache and

@@ -4,6 +4,12 @@ export type SignedInStackParamList = {
   ChapterList: { projectId: string; projectName: string };
   ChapterDrawer: { chapterId: string; projectId: string };
   Editor: { chapterId: string; jumpToText?: string };
+  /**
+   * The continuous writer: one book as one scrolling manuscript, opening where the writer
+   * left off. Sits beside Editor rather than replacing it -- a chapter heading here opens
+   * that chapter's Editor for flags, pairing and history.
+   */
+  Writer: { projectId: string };
   Reader: { projectId: string; projectName?: string; chapterId?: string; jumpToText?: string };
   Settings: undefined;
   /** The stack of raw-capture pages. Replaces the old sticky-note board. */

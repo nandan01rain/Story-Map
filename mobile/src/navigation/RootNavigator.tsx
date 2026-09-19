@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import ChapterDrawerScreen from '../screens/ChapterDrawerScreen';
 import ChapterListScreen from '../screens/ChapterListScreen';
 import EditorScreen from '../screens/EditorScreen';
+import WriterScreen from '../screens/WriterScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import BraidScreen from '../screens/BraidScreen';
 import TrashScreen from '../screens/TrashScreen';
@@ -74,6 +75,7 @@ export default function RootNavigator() {
           <Stack.Screen name="ChapterList" component={ChapterListScreen} options={{ title: '' }} />
           <Stack.Screen name="ChapterDrawer" component={ChapterDrawerScreen} options={{ title: 'Chapter' }} />
           <Stack.Screen name="Editor" component={EditorScreen} options={{ title: '' }} />
+          <Stack.Screen name="Writer" component={WriterScreen} options={{ title: '' }} />
           <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Documents" component={DocumentsScreen} />

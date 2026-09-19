@@ -77,6 +77,7 @@ const MANAGE: DrawerItem[] = [
   { key: 'export', icon: 'download', label: 'Export' },
   { key: 'export-epub', icon: 'book-closed', label: 'Export as eBook' },
   { key: 'import', icon: 'upload', label: 'Import' },
+  { key: 'write', icon: 'feather', label: 'Write' },
   { key: 'read', icon: 'bookmark', label: 'Read' },
   { key: 'notes', icon: 'pin', label: 'Pages' },
   { key: 'treatments', icon: 'book-open', label: 'Treatments' },
@@ -105,6 +106,7 @@ export default function NavDrawer({
   onSwitchProject,
   onSignOut,
   onOpenReader,
+  onOpenWriter,
   onOpenSettings,
   onOpenNotes,
   onOpenTreatments,
@@ -121,6 +123,7 @@ export default function NavDrawer({
   onSwitchProject: () => void;
   onSignOut: () => void;
   onOpenReader: () => void;
+  onOpenWriter: () => void;
   onOpenSettings: () => void;
   onOpenNotes: () => void;
   onOpenTreatments: () => void;
@@ -175,6 +178,7 @@ export default function NavDrawer({
   });
 
   const manageItems = MANAGE.map((item) => {
+    if (item.key === 'write') return { ...item, onPress: onOpenWriter };
     if (item.key === 'read') return { ...item, onPress: onOpenReader };
     if (item.key === 'notes') return { ...item, onPress: onOpenNotes };
     if (item.key === 'treatments') return { ...item, onPress: onOpenTreatments };
