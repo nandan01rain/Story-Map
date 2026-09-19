@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { supabase } from '../lib/supabase';
 
 // Mirrors the PWA's loadProjectOptions()/rename/delete/create handlers (index.html,
@@ -26,18 +27,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   loading: false,
   error: null,
+  // The project list is the door to everything else: with no network and no cache here, the
+  // editor and reader were unreachable however well they worked once inside. Same shape as
+  // chapters -- paint the last-known-good list, replace it when the server answers, and say
+  // nothing about a network that does not.
   fetchProjects: async (userId) => {
-    set({ loading: true, error: null });
+    set({ loading: get().projects.length === 0, error: null });
+    if (get().projects.length === 0) {
+      const cached = await readCache<Project[]>('projects:' + userId);
+      if (cached) set({ projects: cached, loading: false });
+    }
     const { data, error } = await supabase
       .from('projects')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: true });
     if (error) {
-      set({ loading: false, error: error.message });
+      set({ loading: false, error: isOffline(error) ? null : error.message });
       return;
     }
-    set({ loading: false, projects: data ?? [] });
+    const projects = data ?? [];
+    set({ loading: false, projects });
+    writeCache('projects:' + userId, projects);
   },
   createProject: async (userId, name) => {
     const { data, error } = await supabase

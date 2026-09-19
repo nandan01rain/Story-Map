@@ -314,7 +314,9 @@ export default function ReaderScreen({ route, navigation }: Props) {
     });
   }
 
-  const allMeasured = bookChapters.length > 0 && bookChapters.every((c) => pagesByChapter.has(c.id));
+  // An empty book is measured trivially -- it used to be held at "not yet", which kept the
+  // spinner up in front of the "No chapters in this book yet" state that sits behind it.
+  const allMeasured = bookChapters.every((c) => pagesByChapter.has(c.id));
 
   const flatPages: FlatPage[] = useMemo(() => {
     if (!allMeasured) return [];
@@ -790,7 +792,12 @@ export default function ReaderScreen({ route, navigation }: Props) {
   }
 
   const showChoosingBook = bookIndex === null;
-  const showLoading = !showChoosingBook && (loading || !allMeasured);
+  // The spinner is for having nothing to show, not for a request being out. The store's
+  // `loading` is only true with no chapters in memory now, but this screen should not depend
+  // on that: with the chapters it needs already here, a background refetch -- the list
+  // screen's, still in flight when the Editor handed over -- is none of the Reader's
+  // business, and waiting on it was the hang.
+  const showLoading = !showChoosingBook && ((loading && chapters.length === 0) || !allMeasured);
   const overallProgress = flatPages.length > 0 ? Math.round(((pageIndex + 1) / flatPages.length) * 100) : 0;
   // Only shown alongside the rest of the chrome (search/Aa/etc) -- not floating over
   // every single page turn regardless of whether the chrome is even visible.

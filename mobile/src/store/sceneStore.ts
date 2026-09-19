@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { supabase } from '../lib/supabase';
 
 // Scenes are metadata-only children of a chapter (title/summary/POV/status) -- prose
@@ -31,18 +32,25 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   scenes: [],
   loading: false,
   error: null,
+  // Read-only offline: the chapter drawer paints the last scenes it saw for this chapter.
+  // Scene WRITES still go straight to the server and fail visibly without one -- see the note
+  // at the foot of offlineCache.ts; they have no outbox path yet.
   fetchScenes: async (chapterId) => {
     set({ loading: true, error: null });
+    const cached = await readCache<Scene[]>('scenes:' + chapterId);
+    if (cached) set({ scenes: cached, loading: false });
     const { data, error } = await supabase
       .from('scenes')
       .select('id, chapter_id, project_id, "order", title, status, summary, pov')
       .eq('chapter_id', chapterId)
       .order('order', { ascending: true });
     if (error) {
-      set({ loading: false, error: error.message });
+      set({ loading: false, error: isOffline(error) ? null : error.message });
       return;
     }
-    set({ loading: false, scenes: (data as Scene[]) ?? [] });
+    const scenes = (data as Scene[]) ?? [];
+    set({ loading: false, scenes });
+    writeCache('scenes:' + chapterId, scenes);
   },
   createScene: async (chapterId, projectId, order) => {
     const { data, error } = await supabase

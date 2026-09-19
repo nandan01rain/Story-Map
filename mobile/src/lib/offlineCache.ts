@@ -42,7 +42,9 @@ export function isOffline(error: { code?: string; message?: string } | null): bo
   if (!error) return false;
   if (error.code) return false;
   const m = (error.message || '').toLowerCase();
-  return m.includes('network') || m.includes('fetch') || m.includes('timeout') || m === 'failed to fetch';
+  // 'abort' is the client's own request deadline firing (lib/supabase.ts): a network that is
+  // present and not answering, which for every purpose here is the same as one that is absent.
+  return m.includes('network') || m.includes('fetch') || m.includes('timeout') || m.includes('abort') || m === 'failed to fetch';
 }
 
 // ---------------------------------------------------------------------------------------

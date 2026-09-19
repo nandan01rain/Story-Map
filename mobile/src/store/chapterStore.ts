@@ -96,7 +96,12 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   loading: false,
   error: null,
   fetchChapters: async (projectId) => {
-    set({ loading: true, error: null });
+    // `loading` means "there is nothing to show yet", not "a request is in flight". With
+    // chapters already in memory this is a background refresh, and a screen that gates on
+    // the flag -- the Reader, opened from the Editor while the list's own refetch was still
+    // out -- must not go blank for it. Before this it did, for as long as the network took,
+    // which on a dead-but-connected network was indefinitely (2026-09-19).
+    set({ loading: get().chapters.length === 0, error: null });
 
     // Paint from the last-known-good copy first, so the list is readable before the network
     // is asked anything -- and remains readable if it never answers.

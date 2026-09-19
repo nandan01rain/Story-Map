@@ -4430,6 +4430,50 @@ will look like data loss rather than like a documented trade.
 UI does not call -- deletions go through `trashStore`. It stays online-only deliberately;
 queueing a destructive op is a different risk from queueing a constructive one.
 
+### 31.6 The network that is present and useless (2026-09-19)
+
+§31 handled the network that is *absent*: fetch fails at once, `isOffline()` recognises it,
+the cache paints. It did not handle the network that is *connected and not passing traffic* --
+a tunnel, a captive portal, a phone that believes its wifi. There, fetch does not fail; it
+waits on the OS, for minutes, and the Supabase client had no deadline of its own. Every store
+flag that waited on such a request waited with it, and every screen gated on the flag showed
+a spinner for as long as it took.
+
+**The symptom that exposed it**: the Reader opened from the Editor spun indefinitely, while
+the same Reader opened from the drawer worked. Not a Reader bug, and not a Reader difference:
+`ChapterListScreen` refetches on every mount and `fetchChapters` set `loading: true` for the
+duration even with chapters already in memory; the Reader gated its spinner on
+`loading || !allMeasured`. Opened from the drawer, the Reader shows its table of contents
+first, which ignores `loading`, and by the time a book was chosen the request had usually
+settled. Opened from the Editor with a `chapterId`, it went straight to the spinner and stayed
+behind the list's refetch. Three faults in a row, all fixed:
+
+- **`lib/supabase.ts` gives every request a deadline** through `global.fetch`: 12s for reads,
+  which gate screens, and 40s for writes, which are the outbox replaying in the background and
+  can legitimately take longer for a whole chapter over a slow link. Cutting writes at 12s
+  would have left a big row retried and aborted forever -- never lost, never sent. An abort
+  surfaces as an error with no `code`, which is exactly what `isOffline()` and the outbox's
+  keep-or-drop rule already treat as "the network, later". `isOffline()` now also matches
+  `abort` by name.
+- **`loading` means "nothing to show yet", not "a request is out."** `fetchChapters` and
+  `fetchProjects` only raise it when their list is empty. A refresh with data already in
+  memory is silent. `ChapterListScreen`, which early-returns a spinner on `loading`, stops
+  flashing on every visit as a side effect.
+- **The Reader does not depend on that** anyway: its gate is now
+  `(loading && chapters.length === 0) || !allMeasured`. And `allMeasured` is true for an
+  empty book, which used to hold the spinner up in front of the "No chapters in this book yet"
+  state behind it.
+
+**Two stores joined the cache.** `projectStore` had none, which made the whole of §31 moot with
+no network: the editor and reader worked once inside a project, and the door to the project was
+a list that came back empty. It now paints last-known-good like chapters do. `sceneStore` is
+cached for reading -- the chapter drawer shows what it last saw. **Scene writes are still
+direct** and fail visibly without a network; they have no outbox path, and that is the one
+piece of the basic path still online-only. Documents and trash are also uncached.
+
+**Not verified on a dead-but-connected network.** The diagnosis is from the code and matches
+the symptom's shape exactly; the deadline was exercised only by reasoning. A tunnel is the test.
+
 
 ## 32. THE DRAWER AS ARTWORK (2026-08-30, completed 2026-09-05)
 
