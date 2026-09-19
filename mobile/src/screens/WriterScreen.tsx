@@ -8,8 +8,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
@@ -45,9 +48,15 @@ type Props = NativeStackScreenProps<SignedInStackParamList, 'Writer'>;
 const AUTOSAVE_DELAY_MS = 1200;
 const SCROLL_SAVE_THROTTLE_MS = 600;
 const MAX_VERSIONS = 10;
-// The whiteboard's height. A third of a tall phone: enough for a list of beats, with the
-// paragraph being written still in view above it.
-const SCRATCH_HEIGHT = 260;
+// The whiteboard takes two thirds of the screen. It slides up from the foot -- a swipe up
+// from the bottom edge, or the toggle -- and a swipe down on its head puts it away.
+const SCRATCH_FRACTION = 2 / 3;
+const SCRATCH_SETTLE_FRACTION = 0.25;
+const SCRATCH_SETTLE_VELOCITY = 600;
+const SCRATCH_DURATION = 220;
+// The strip along the bottom of the manuscript that a swipe up opens the pane from. Inside
+// the scroll view a vertical drag scrolls; this strip is the one place it does not.
+const SCRATCH_EDGE = 28;
 
 type Draft = { content: string; savedContent: string; timer: ReturnType<typeof setTimeout> | null };
 
@@ -198,7 +207,10 @@ export default function WriterScreen({ route, navigation }: Props) {
   // the same text, it syncs through the same outbox, and it is there without a network.
   // Same draft-and-debounce shape as the prose, kept separate so a save of one never
   // carries a stale copy of the other.
-  const [scratchOpen, setScratchOpen] = useState(false);
+  const { height: winHeight } = useWindowDimensions();
+  const scratchFullHeight = Math.round(winHeight * SCRATCH_FRACTION);
+  const [scratchOpen, setScratchOpen] = useState(false);       // mounted, i.e. visible at all
+  const scratchProgress = useSharedValue(0);                    // 0 away, 1 fully up
   const [focusedChapterId, setFocusedChapterId] = useState<string | null>(null);
   const scratch = useRef<Map<string, Draft>>(new Map());
   const [scratchText, setScratchText] = useState<Map<string, string>>(new Map());
@@ -249,6 +261,57 @@ export default function WriterScreen({ route, navigation }: Props) {
       persistScratch(chapterId);
     }, AUTOSAVE_DELAY_MS);
   }
+
+  function settleScratch(shouldOpen: boolean) {
+    'worklet';
+    scratchProgress.value = withTiming(shouldOpen ? 1 : 0, { duration: SCRATCH_DURATION }, (finished) => {
+      if (finished && !shouldOpen) runOnJS(setScratchOpen)(false);
+    });
+  }
+  function openScratch() {
+    setScratchOpen(true);
+    scratchProgress.value = withTiming(1, { duration: SCRATCH_DURATION });
+  }
+  function closeScratch() {
+    Keyboard.dismiss();
+    settleScratch(false);
+  }
+
+  // A swipe up from the strip along the foot of the manuscript. Mounted on activation, not
+  // on touch, so a tap there does nothing.
+  const scratchOpenGesture = Gesture.Pan()
+    .activeOffsetY(-12)
+    .failOffsetX([-24, 24])
+    .onStart(() => {
+      runOnJS(setScratchOpen)(true);
+      scratchProgress.value = 0;
+    })
+    .onUpdate((e) => {
+      scratchProgress.value = Math.min(1, Math.max(0, -e.translationY / scratchFullHeight));
+    })
+    .onEnd((e) => {
+      settleScratch(
+        -e.translationY > scratchFullHeight * SCRATCH_SETTLE_FRACTION || e.velocityY < -SCRATCH_SETTLE_VELOCITY,
+      );
+    });
+
+  // A swipe down on the pane's head. Only the head: the text inside has to keep its own
+  // vertical drag for scrolling.
+  const scratchCloseGesture = Gesture.Pan()
+    .activeOffsetY(12)
+    .failOffsetX([-24, 24])
+    .onUpdate((e) => {
+      scratchProgress.value = Math.min(1, Math.max(0, 1 - e.translationY / scratchFullHeight));
+    })
+    .onEnd((e) => {
+      settleScratch(
+        !(e.translationY > scratchFullHeight * SCRATCH_SETTLE_FRACTION || e.velocityY > SCRATCH_SETTLE_VELOCITY),
+      );
+    });
+
+  const scratchPaneStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: scratchFullHeight * (1 - scratchProgress.value) }],
+  }));
 
   const flushAll = useCallback(() => {
     for (const [id, d] of drafts.current) {
@@ -445,7 +508,7 @@ export default function WriterScreen({ route, navigation }: Props) {
           onContentSizeChange={onContentSizeChange}
           contentContainerStyle={[
             styles.manuscript,
-            { paddingBottom: keyboardPad + insets.bottom + 120 + (scratchOpen ? SCRATCH_HEIGHT : 0) },
+            { paddingBottom: keyboardPad + insets.bottom + 120 + (scratchOpen ? scratchFullHeight : 0) },
           ]}
         >
           {bookChapters.length === 0 ? (
@@ -490,30 +553,54 @@ export default function WriterScreen({ route, navigation }: Props) {
         </ScrollView>
       </View>
 
-      {/* The whiteboard toggle. Sits above the keyboard when there is one, so it is never
-          behind the keys; the pane it opens sits above the keyboard for the same reason. */}
-      <Pressable
-        onPress={() => setScratchOpen((v) => !v)}
-        style={[
-          styles.scratchToggle,
-          { bottom: keyboardPad + insets.bottom + 18 + (scratchOpen ? SCRATCH_HEIGHT : 0) },
-          scratchOpen && styles.scratchToggleOpen,
-        ]}
-        hitSlop={8}
-      >
-        <Icon name="list" size={18} color={scratchOpen ? colors.bg : colors.gold} />
-      </Pressable>
+      {/* The swipe-up strip along the foot of the manuscript. Above the keyboard when there
+          is one; gone while the pane is up, since the pane's own head takes over. */}
+      {!scratchOpen && (
+        <GestureDetector gesture={scratchOpenGesture}>
+          <View style={[styles.scratchEdge, { height: SCRATCH_EDGE, bottom: keyboardPad + insets.bottom }]} />
+        </GestureDetector>
+      )}
+
+      {/* The toggle, for whoever would rather tap. Rides up with the pane. */}
+      {!scratchOpen && (
+        <Pressable
+          onPress={openScratch}
+          style={[styles.scratchToggle, { bottom: keyboardPad + insets.bottom + 18 }]}
+          hitSlop={8}
+        >
+          <Icon name="list" size={18} color={colors.gold} />
+        </Pressable>
+      )}
 
       {scratchOpen && (
-        <View style={[styles.scratchPane, { height: SCRATCH_HEIGHT, bottom: keyboardPad + insets.bottom }]}>
-          <View style={styles.scratchHead}>
-            <Text style={styles.scratchTitle}>
-              {scratchChapterNumber ? `Rough work · Chapter ${scratchChapterNumber}` : 'Rough work'}
-            </Text>
-            <Text style={styles.scratchHint} numberOfLines={1}>
-              {scratchChapter?.title ?? ''}
-            </Text>
-          </View>
+        <Animated.View
+          style={[
+            styles.scratchPane,
+            scratchPaneStyle,
+            {
+              // Two thirds of the screen, or what the keyboard leaves of it -- the head must
+              // stay on screen, or there is nothing to swipe down on.
+              height: Math.min(scratchFullHeight, winHeight - keyboardPad - insets.bottom - 72),
+              bottom: keyboardPad + insets.bottom,
+            },
+          ]}
+        >
+          <GestureDetector gesture={scratchCloseGesture}>
+            <View style={styles.scratchHead}>
+              <View style={styles.scratchGrip} />
+              <View style={styles.scratchHeadRow}>
+                <Text style={styles.scratchTitle}>
+                  {scratchChapterNumber ? `Rough work · Chapter ${scratchChapterNumber}` : 'Rough work'}
+                </Text>
+                <Text style={styles.scratchHint} numberOfLines={1}>
+                  {scratchChapter?.title ?? ''}
+                </Text>
+                <Pressable onPress={closeScratch} hitSlop={10} style={styles.scratchClose}>
+                  <Text style={styles.scratchCloseText}>✕</Text>
+                </Pressable>
+              </View>
+            </View>
+          </GestureDetector>
           {scratchChapterId ? (
             <TextInput
               style={styles.scratchInput}
@@ -526,7 +613,7 @@ export default function WriterScreen({ route, navigation }: Props) {
               autoCorrect
             />
           ) : null}
-        </View>
+        </Animated.View>
       )}
 
       <Modal visible={targetSheetOpen} transparent animationType="fade" onRequestClose={() => setTargetSheetOpen(false)}>
@@ -647,7 +734,7 @@ function makeStyles(colors: ThemeColors) {
       justifyContent: 'center',
       zIndex: 3,
     },
-    scratchToggleOpen: { backgroundColor: colors.gold },
+    scratchEdge: { position: 'absolute', left: 0, right: 0, zIndex: 2 },
     scratchPane: {
       position: 'absolute',
       left: 0,
@@ -655,11 +742,23 @@ function makeStyles(colors: ThemeColors) {
       backgroundColor: colors.panel,
       borderTopWidth: 1,
       borderTopColor: colors.gold,
+      borderTopLeftRadius: 14,
+      borderTopRightRadius: 14,
       paddingHorizontal: 18,
-      paddingTop: 10,
       zIndex: 2,
     },
-    scratchHead: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 6 },
+    scratchHead: { paddingTop: 8, paddingBottom: 8 },
+    scratchGrip: {
+      alignSelf: 'center',
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.borderDim,
+      marginBottom: 10,
+    },
+    scratchHeadRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+    scratchClose: { marginLeft: 'auto' },
+    scratchCloseText: { color: colors.textFaint, fontSize: 14 },
     scratchTitle: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 2 },
     scratchHint: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 12, flexShrink: 1 },
     scratchInput: {

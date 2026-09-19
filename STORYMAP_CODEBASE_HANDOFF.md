@@ -4688,8 +4688,12 @@ foot of the manuscript for rough work -- "zoom in on his face, describe the mark
 crowd". It is **the chapter's own `notes` field**, not new storage: the PWA's chapter drawer
 shows the same text, it syncs through the same outbox, and it is there offline. Which chapter:
 the prose input that has focus, else the chapter block under the top of the viewport (block
-tops recorded on layout, resolved on scroll). Both the toggle and the pane sit above the
-measured keyboard, and the manuscript pads its foot by the pane's height while it is open.
+tops recorded on layout, resolved on scroll). It takes **two thirds of the screen** and moves the way
+the drawer does: a swipe up from a 28px strip along the foot of the manuscript drags it up
+(reanimated progress, settles past a quarter or a flick), a swipe down on its head puts it
+away, and a toggle is there for tapping. Above the measured keyboard, and clamped so its head
+stays on screen when the keyboard would push it off. The manuscript pads its foot by the
+pane's height while it is open.
 
 **Not built, stated**: the Editor's keep-the-caret-visible logic. The Writer pads its foot by the
 measured keyboard overlap so the end of a chapter can be scrolled above the keys, but it does

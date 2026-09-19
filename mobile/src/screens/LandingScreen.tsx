@@ -67,7 +67,8 @@ const PALETTES: Record<TimeOfDay, LandingPalette> = {
 const GREETINGS: Record<TimeOfDay, string> = {
   day: 'Good day',
   sunset: 'Good evening',
-  night: 'Good night',
+  // Not "Good night": that is what you say on the way out, and the writer is arriving.
+  night: 'Good evening',
 };
 
 const TABS: { key: TabKey; icon: string; label: string }[] = [
