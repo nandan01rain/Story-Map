@@ -20,11 +20,14 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { BOOKS, wordCount } from '../lib/storyData';
 import {
   loadDailyTarget,
+  loadWritingAlign,
   loadWritingPosition,
   resolveDailyBaseline,
   saveDailyTarget,
+  saveWritingAlign,
   saveWritingPosition,
   type DailyBaseline,
+  type WritingAlign,
 } from '../lib/writingPrefs';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
@@ -57,6 +60,13 @@ const SCRATCH_DURATION = 220;
 // The strip along the bottom of the manuscript that a swipe up opens the pane from. Inside
 // the scroll view a vertical drag scrolls; this strip is the one place it does not.
 const SCRATCH_EDGE = 28;
+
+const ALIGN_OPTIONS: { key: WritingAlign; icon: string }[] = [
+  { key: 'left', icon: 'align-left' },
+  { key: 'center', icon: 'align-center' },
+  { key: 'right', icon: 'align-right' },
+  { key: 'justify', icon: 'align-justify' },
+];
 
 type Draft = { content: string; savedContent: string; timer: ReturnType<typeof setTimeout> | null };
 
@@ -355,6 +365,16 @@ export default function WriterScreen({ route, navigation }: Props) {
     scheduleSave(chapterId);
   }
 
+  // ---- alignment -----------------------------------------------------------------------
+  const [align, setAlign] = useState<WritingAlign>('left');
+  useEffect(() => {
+    loadWritingAlign().then(setAlign);
+  }, []);
+  function pickAlign(next: WritingAlign) {
+    setAlign(next);
+    void saveWritingAlign(next);
+  }
+
   // ---- daily target --------------------------------------------------------------------
   const [target, setTarget] = useState(0);
   const [baseline, setBaseline] = useState<DailyBaseline | null>(null);
@@ -482,8 +502,8 @@ export default function WriterScreen({ route, navigation }: Props) {
         </View>
       )}
 
-      {/* Books, as chips. One row; the open one is gold. */}
-      {bookIndices.length > 1 && (
+      {/* Books as chips, alignment at the end of the same row. One row; the open one is gold. */}
+      <View style={styles.toolRow}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -496,7 +516,19 @@ export default function WriterScreen({ route, navigation }: Props) {
             </Pressable>
           ))}
         </ScrollView>
-      )}
+        <View style={styles.alignRow}>
+          {ALIGN_OPTIONS.map((o) => (
+            <Pressable
+              key={o.key}
+              onPress={() => pickAlign(o.key)}
+              hitSlop={6}
+              style={[styles.alignBtn, align === o.key && styles.alignBtnActive]}
+            >
+              <Icon name={o.icon} size={15} color={align === o.key ? colors.gold : colors.textFaint} />
+            </Pressable>
+          ))}
+        </View>
+      </View>
 
       <View ref={scrollAreaRef} style={styles.scrollArea} collapsable={false}>
         <ScrollView
@@ -535,7 +567,7 @@ export default function WriterScreen({ route, navigation }: Props) {
                   </View>
                 </Pressable>
                 <TextInput
-                  style={styles.prose}
+                  style={[styles.prose, { textAlign: align }]}
                   multiline
                   scrollEnabled={false}
                   value={contents.get(ch.id) ?? ''}
@@ -678,7 +710,11 @@ function makeStyles(colors: ThemeColors) {
     // A horizontal ScrollView has no height of its own inside a column: it takes flex space
     // and its children stretch to fill it, which put the chips on screen as full-height
     // columns. `flexGrow: 0` keeps it to its content; `alignItems` keeps a chip a chip.
-    bookRowScroll: { flexGrow: 0 },
+    toolRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 12 },
+    bookRowScroll: { flexGrow: 0, flexShrink: 1 },
+    alignRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: 'auto', paddingLeft: 8 },
+    alignBtn: { width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+    alignBtnActive: { backgroundColor: withOpacity(colors.gold, 0.12) },
     bookRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
     bookChip: {
       paddingHorizontal: 12,

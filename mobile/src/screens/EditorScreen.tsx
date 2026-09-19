@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, BOOKS, chapterNumberInBook, wordCount } from '../lib/storyData';
+import { loadWritingAlign, type WritingAlign } from '../lib/writingPrefs';
 import { fetchCharacterGraph, type GraphNode } from '../lib/characterGraph';
 import { useAssistantStore } from '../store/assistantStore';
 import { type Annotation, type FlagType, useChapterStore } from '../store/chapterStore';
@@ -65,6 +66,11 @@ export default function EditorScreen({ route, navigation }: Props) {
   );
 
   const [content, setContent] = useState(chapter?.content ?? '');
+  // Set in the Writer, honoured here: one manuscript, one setting (lib/writingPrefs.ts).
+  const [align, setAlign] = useState<WritingAlign>('left');
+  useEffect(() => {
+    loadWritingAlign().then(setAlign);
+  }, []);
   const [annotations, setAnnotations] = useState<Annotation[]>(chapter?.annotations ?? []);
   const [status, setStatus] = useState('');
   const [historyVisible, setHistoryVisible] = useState(false);
@@ -579,7 +585,7 @@ export default function EditorScreen({ route, navigation }: Props) {
         >
           <TextInput
             ref={textInputRef}
-            style={styles.editInput}
+            style={[styles.editInput, { textAlign: align }]}
             value={content}
             onChangeText={handleContentChange}
             onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}

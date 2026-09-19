@@ -19,6 +19,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 //    CHAPTERS ONLY -- pages are for any idea and are not the thing the target is for.
 
 export type WritingPosition = { bookIndex: number; scrollY: number };
+// How the prose is set while it is being written. One value for the Writer and the
+// per-chapter Editor both: it is the same manuscript, and a writer who justifies it in one
+// place expects it justified in the other. The Reader keeps its own (readerPrefs.ts) --
+// reading and writing are different postures and are allowed different settings.
+export type WritingAlign = 'left' | 'center' | 'right' | 'justify';
 export type DailyBaseline = { date: string; words: number };
 
 function positionKey(projectId: string) {
@@ -29,6 +34,24 @@ function targetKey(projectId: string) {
 }
 function baselineKey(projectId: string) {
   return `writer-daily-baseline:${projectId}`;
+}
+const ALIGN_KEY = 'writer-align';
+
+export async function loadWritingAlign(): Promise<WritingAlign> {
+  try {
+    const raw = await AsyncStorage.getItem(ALIGN_KEY);
+    return raw === 'center' || raw === 'right' || raw === 'justify' ? raw : 'left';
+  } catch {
+    return 'left';
+  }
+}
+
+export async function saveWritingAlign(align: WritingAlign): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ALIGN_KEY, align);
+  } catch {
+    // A lost preference is re-picked, nothing else.
+  }
 }
 
 /** Local calendar date, so "today" turns over at the writer's midnight, not UTC's. */
