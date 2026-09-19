@@ -188,12 +188,21 @@ export default function EditorScreen({ route, navigation }: Props) {
     });
   }
 
+  // The unmount flush has to see the LATEST text, and an effect with no deps captures the
+  // first render's `flushSave` -- whose `content` is whatever the chapter held when the
+  // screen opened. That closure compared that stale content against `savedContentRef`
+  // (a ref, so live, holding what had actually been written) and, seeing them differ,
+  // "flushed" the old text over the new. The writing survived only as the version snapshot
+  // taken on the way, and restoring it was undone the next time the screen was left, by the
+  // same stale closure (2026-09-19). A ref that is reassigned every render is the fix: the
+  // cleanup calls whatever `flushSave` is current when the screen actually goes.
+  const flushSaveRef = useRef(flushSave);
+  flushSaveRef.current = flushSave;
   useEffect(() => {
     return () => {
-      flushSave();
+      flushSaveRef.current();
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reader highlights live in the same array but are not story flags -- they carry no
