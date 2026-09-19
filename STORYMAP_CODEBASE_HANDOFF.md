@@ -4683,6 +4683,14 @@ first time the Writer opens on a new local calendar day. That is deliberate: it 
 directions (a cut paragraph counts against the day), and it counts words written in the
 per-chapter Editor too, because they are the same prose. Set or clear it by tapping the count.
 
+**The whiteboard** (same day, later): a round toggle at the bottom right opens a pane over the
+foot of the manuscript for rough work -- "zoom in on his face, describe the market, the
+crowd". It is **the chapter's own `notes` field**, not new storage: the PWA's chapter drawer
+shows the same text, it syncs through the same outbox, and it is there offline. Which chapter:
+the prose input that has focus, else the chapter block under the top of the viewport (block
+tops recorded on layout, resolved on scroll). Both the toggle and the pane sit above the
+measured keyboard, and the manuscript pads its foot by the pane's height while it is open.
+
 **Not built, stated**: the Editor's keep-the-caret-visible logic. The Writer pads its foot by the
 measured keyboard overlap so the end of a chapter can be scrolled above the keys, but it does
 not scroll the caret into view itself. Every keystroke also re-renders every chapter input in

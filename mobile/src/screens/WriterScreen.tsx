@@ -45,6 +45,9 @@ type Props = NativeStackScreenProps<SignedInStackParamList, 'Writer'>;
 const AUTOSAVE_DELAY_MS = 1200;
 const SCROLL_SAVE_THROTTLE_MS = 600;
 const MAX_VERSIONS = 10;
+// The whiteboard's height. A third of a tall phone: enough for a list of beats, with the
+// paragraph being written still in view above it.
+const SCRATCH_HEIGHT = 260;
 
 type Draft = { content: string; savedContent: string; timer: ReturnType<typeof setTimeout> | null };
 
@@ -188,6 +191,65 @@ export default function WriterScreen({ route, navigation }: Props) {
     [persist],
   );
 
+  // ---- scratch: the whiteboard beside the prose --------------------------------------
+  // Rough work for the chapter under the caret -- "zoom in on his face, describe the market,
+  // the crowd" -- in a panel that sits over the foot of the manuscript so both are in view.
+  // It is the chapter's own `notes` field, not new storage: the PWA's chapter drawer shows
+  // the same text, it syncs through the same outbox, and it is there without a network.
+  // Same draft-and-debounce shape as the prose, kept separate so a save of one never
+  // carries a stale copy of the other.
+  const [scratchOpen, setScratchOpen] = useState(false);
+  const [focusedChapterId, setFocusedChapterId] = useState<string | null>(null);
+  const scratch = useRef<Map<string, Draft>>(new Map());
+  const [scratchText, setScratchText] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let changed = false;
+    const next = new Map(scratchText);
+    for (const ch of projectChapters) {
+      const d = scratch.current.get(ch.id);
+      const notes = ch.notes ?? '';
+      if (!d) {
+        scratch.current.set(ch.id, { content: notes, savedContent: notes, timer: null });
+        next.set(ch.id, notes);
+        changed = true;
+      } else if (d.content === d.savedContent && notes !== d.savedContent) {
+        d.content = notes;
+        d.savedContent = notes;
+        next.set(ch.id, notes);
+        changed = true;
+      }
+    }
+    if (changed) setScratchText(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectChapters]);
+
+  const persistScratch = useCallback(
+    (chapterId: string) => {
+      const d = scratch.current.get(chapterId);
+      if (!d || d.content === d.savedContent) return;
+      d.savedContent = d.content;
+      void updateChapter(chapterId, { notes: d.content });
+    },
+    [updateChapter],
+  );
+
+  function handleScratchChange(chapterId: string, text: string) {
+    const d = scratch.current.get(chapterId);
+    if (!d) return;
+    d.content = text;
+    setScratchText((prev) => {
+      const next = new Map(prev);
+      next.set(chapterId, text);
+      return next;
+    });
+    if (d.timer) clearTimeout(d.timer);
+    d.timer = setTimeout(() => {
+      d.timer = null;
+      persistScratch(chapterId);
+    }, AUTOSAVE_DELAY_MS);
+  }
+
   const flushAll = useCallback(() => {
     for (const [id, d] of drafts.current) {
       if (d.timer) {
@@ -196,7 +258,14 @@ export default function WriterScreen({ route, navigation }: Props) {
       }
       persist(id);
     }
-  }, [persist]);
+    for (const [id, d] of scratch.current) {
+      if (d.timer) {
+        clearTimeout(d.timer);
+        d.timer = null;
+      }
+      persistScratch(id);
+    }
+  }, [persist, persistScratch]);
 
   const flushAllRef = useRef(flushAll);
   flushAllRef.current = flushAll;
@@ -264,8 +333,30 @@ export default function WriterScreen({ route, navigation }: Props) {
     scrollRef.current?.scrollTo({ y: restoreScrollY.current, animated: false });
   }
 
+  // Where each chapter block starts, so the scratch pane can follow the scroll when no input
+  // has focus: the chapter under the top third of the viewport is the one being worked on.
+  const blockTops = useRef<Map<string, number>>(new Map());
+  const [scrolledChapterId, setScrolledChapterId] = useState<string | null>(null);
+  function chapterAtScroll(y: number) {
+    let best: string | null = null;
+    let bestTop = -Infinity;
+    for (const ch of bookChapters) {
+      const top = blockTops.current.get(ch.id);
+      if (top !== undefined && top <= y + 160 && top > bestTop) {
+        best = ch.id;
+        bestTop = top;
+      }
+    }
+    return best ?? bookChapters[0]?.id ?? null;
+  }
+  const scratchChapterId = focusedChapterId ?? scrolledChapterId ?? bookChapters[0]?.id ?? null;
+  const scratchChapter = scratchChapterId ? bookChapters.find((c) => c.id === scratchChapterId) : undefined;
+  const scratchChapterNumber = scratchChapter ? bookChapters.indexOf(scratchChapter) + 1 : null;
+
   function onScroll(e: { nativeEvent: { contentOffset: { y: number } } }) {
     lastScrollY.current = e.nativeEvent.contentOffset.y;
+    const at = chapterAtScroll(lastScrollY.current);
+    if (at !== scrolledChapterId) setScrolledChapterId(at);
     if (scrollSaveTimer.current) return;
     scrollSaveTimer.current = setTimeout(() => {
       scrollSaveTimer.current = null;
@@ -352,13 +443,20 @@ export default function WriterScreen({ route, navigation }: Props) {
           onScroll={onScroll}
           scrollEventThrottle={100}
           onContentSizeChange={onContentSizeChange}
-          contentContainerStyle={[styles.manuscript, { paddingBottom: keyboardPad + insets.bottom + 120 }]}
+          contentContainerStyle={[
+            styles.manuscript,
+            { paddingBottom: keyboardPad + insets.bottom + 120 + (scratchOpen ? SCRATCH_HEIGHT : 0) },
+          ]}
         >
           {bookChapters.length === 0 ? (
             <Text style={styles.empty}>{positionLoaded ? 'No chapters in this book yet.' : ''}</Text>
           ) : (
             bookChapters.map((ch, i) => (
-              <View key={ch.id} style={styles.chapterBlock}>
+              <View
+                key={ch.id}
+                style={styles.chapterBlock}
+                onLayout={(e) => blockTops.current.set(ch.id, e.nativeEvent.layout.y)}
+              >
                 <Pressable
                   style={styles.chapterHead}
                   onPress={() => {
@@ -379,6 +477,7 @@ export default function WriterScreen({ route, navigation }: Props) {
                   scrollEnabled={false}
                   value={contents.get(ch.id) ?? ''}
                   onChangeText={(t) => handleChange(ch.id, t)}
+                  onFocus={() => setFocusedChapterId(ch.id)}
                   placeholder="…"
                   placeholderTextColor={colors.textFaint}
                   textAlignVertical="top"
@@ -390,6 +489,45 @@ export default function WriterScreen({ route, navigation }: Props) {
           )}
         </ScrollView>
       </View>
+
+      {/* The whiteboard toggle. Sits above the keyboard when there is one, so it is never
+          behind the keys; the pane it opens sits above the keyboard for the same reason. */}
+      <Pressable
+        onPress={() => setScratchOpen((v) => !v)}
+        style={[
+          styles.scratchToggle,
+          { bottom: keyboardPad + insets.bottom + 18 + (scratchOpen ? SCRATCH_HEIGHT : 0) },
+          scratchOpen && styles.scratchToggleOpen,
+        ]}
+        hitSlop={8}
+      >
+        <Icon name="list" size={18} color={scratchOpen ? colors.bg : colors.gold} />
+      </Pressable>
+
+      {scratchOpen && (
+        <View style={[styles.scratchPane, { height: SCRATCH_HEIGHT, bottom: keyboardPad + insets.bottom }]}>
+          <View style={styles.scratchHead}>
+            <Text style={styles.scratchTitle}>
+              {scratchChapterNumber ? `Rough work · Chapter ${scratchChapterNumber}` : 'Rough work'}
+            </Text>
+            <Text style={styles.scratchHint} numberOfLines={1}>
+              {scratchChapter?.title ?? ''}
+            </Text>
+          </View>
+          {scratchChapterId ? (
+            <TextInput
+              style={styles.scratchInput}
+              multiline
+              value={scratchText.get(scratchChapterId) ?? ''}
+              onChangeText={(t) => handleScratchChange(scratchChapterId, t)}
+              placeholder="Points in the scene, beats, things to describe…"
+              placeholderTextColor={colors.textFaint}
+              textAlignVertical="top"
+              autoCorrect
+            />
+          ) : null}
+        </View>
+      )}
 
       <Modal visible={targetSheetOpen} transparent animationType="fade" onRequestClose={() => setTargetSheetOpen(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setTargetSheetOpen(false)}>
@@ -495,6 +633,43 @@ function makeStyles(colors: ThemeColors) {
       lineHeight: 28,
       padding: 0,
       minHeight: 120,
+    },
+    scratchToggle: {
+      position: 'absolute',
+      right: 18,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: colors.gold,
+      backgroundColor: colors.panel,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 3,
+    },
+    scratchToggleOpen: { backgroundColor: colors.gold },
+    scratchPane: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      backgroundColor: colors.panel,
+      borderTopWidth: 1,
+      borderTopColor: colors.gold,
+      paddingHorizontal: 18,
+      paddingTop: 10,
+      zIndex: 2,
+    },
+    scratchHead: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 6 },
+    scratchTitle: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 2 },
+    scratchHint: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 12, flexShrink: 1 },
+    scratchInput: {
+      flex: 1,
+      color: colors.text,
+      fontFamily: FONTS.body,
+      fontSize: 15,
+      lineHeight: 22,
+      padding: 0,
+      paddingBottom: 10,
     },
     sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 28 },
     sheet: { backgroundColor: colors.panel, borderRadius: 14, padding: 20, borderWidth: 1, borderColor: colors.border },
