@@ -330,7 +330,12 @@ export default function WriterScreen({ route, navigation }: Props) {
 
       {/* Books, as chips. One row; the open one is gold. */}
       {bookIndices.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bookRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.bookRowScroll}
+          contentContainerStyle={styles.bookRow}
+        >
           {bookIndices.map((i) => (
             <Pressable key={i} onPress={() => switchBook(i)} style={[styles.bookChip, i === bookIndex && styles.bookChipActive]}>
               <Text style={[styles.bookChipText, i === bookIndex && styles.bookChipTextActive]}>{BOOKS[i] ?? `Book ${i + 1}`}</Text>
@@ -445,7 +450,11 @@ function makeStyles(colors: ThemeColors) {
     progressTrack: { height: 2, backgroundColor: colors.borderDim, marginHorizontal: 20 },
     progressFill: { height: 2, backgroundColor: colors.gold },
     progressDone: { backgroundColor: colors.gold, opacity: 1 },
-    bookRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+    // A horizontal ScrollView has no height of its own inside a column: it takes flex space
+    // and its children stretch to fill it, which put the chips on screen as full-height
+    // columns. `flexGrow: 0` keeps it to its content; `alignItems` keeps a chip a chip.
+    bookRowScroll: { flexGrow: 0 },
+    bookRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
     bookChip: {
       paddingHorizontal: 12,
       paddingVertical: 5,
