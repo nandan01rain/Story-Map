@@ -51,6 +51,12 @@ type Props = NativeStackScreenProps<SignedInStackParamList, 'Writer'>;
 const AUTOSAVE_DELAY_MS = 1200;
 const SCROLL_SAVE_THROTTLE_MS = 600;
 const MAX_VERSIONS = 10;
+// Each chapter's input is given exactly its content height (plus this): a multiline
+// TextInput on Android keeps a drag for itself whenever it believes it can scroll
+// internally, and with the cursor in it it tends to believe that by a pixel, which made the
+// manuscript unscrollable while editing (2026-09-19). A field with nothing to scroll hands
+// the drag to the ScrollView. EditorScreen does the same; see INPUT_SLACK there.
+const INPUT_SLACK = 6;
 // The whiteboard takes two thirds of the screen. It slides up from the foot -- a swipe up
 // from the bottom edge, or the toggle -- and a swipe down on its head puts it away.
 const SCRATCH_FRACTION = 2 / 3;
@@ -139,6 +145,15 @@ export default function WriterScreen({ route, navigation }: Props) {
   const [contents, setContents] = useState<Map<string, string>>(new Map());
   // Per-chapter word counts, so a keystroke recounts one chapter rather than the book.
   const [wordsByChapter, setWordsByChapter] = useState<Map<string, number>>(new Map());
+  const [inputHeights, setInputHeights] = useState<Map<string, number>>(new Map());
+  function setInputHeight(chapterId: string, h: number) {
+    setInputHeights((prev) => {
+      if (prev.get(chapterId) === h) return prev;
+      const next = new Map(prev);
+      next.set(chapterId, h);
+      return next;
+    });
+  }
 
   // Seed a draft for any chapter that has none, and ADOPT the store's copy for a chapter
   // whose draft is clean but behind it -- that is what coming back from the per-chapter
@@ -567,7 +582,12 @@ export default function WriterScreen({ route, navigation }: Props) {
                   </View>
                 </Pressable>
                 <TextInput
-                  style={[styles.prose, { textAlign: align }]}
+                  style={[
+                    styles.prose,
+                    { textAlign: align },
+                    inputHeights.has(ch.id) && { height: inputHeights.get(ch.id)! + INPUT_SLACK },
+                  ]}
+                  onContentSizeChange={(e) => setInputHeight(ch.id, e.nativeEvent.contentSize.height)}
                   multiline
                   scrollEnabled={false}
                   value={contents.get(ch.id) ?? ''}

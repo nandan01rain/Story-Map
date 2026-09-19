@@ -28,7 +28,11 @@ import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
 
-const AUTOSAVE_DELAY_MS = 1200; // matches the PWA's editorSaveTimer exactly (index.html)
+const AUTOSAVE_DELAY_MS = 1200;
+// Added to a text input's measured content height when it is sized explicitly (see
+// inputHeight). Slack in this direction is harmless -- a few px of air at the foot -- and
+// slack in the other direction is the bug: a field a pixel shorter than its text can scroll.
+const INPUT_SLACK = 6; // matches the PWA's editorSaveTimer exactly (index.html)
 const FLAG_LABELS: Record<FlagType, string> = { plant: '🌱 Plant', reveal: '⚡ Reveal', note: '📜 Note' };
 const LINE_HEIGHT = 27;
 const TEXTINPUT_TOP_OFFSET = 96; // position label + toolbar height, above the TextInput itself
@@ -66,6 +70,14 @@ export default function EditorScreen({ route, navigation }: Props) {
   );
 
   const [content, setContent] = useState(chapter?.content ?? '');
+  // The input's own content height, so it can be given EXACTLY that height. A multiline
+  // TextInput on Android keeps a drag for itself whenever it believes it can scroll
+  // internally -- and once it has focus it tends to believe that by a pixel or two, which
+  // is what made the page unscrollable with the cursor in it (2026-09-19). scrollEnabled
+  // {false} is meant to prevent this and has not been reliable on the new architecture.
+  // Sized to its content plus a little slack, the field has nothing to scroll and hands
+  // the drag to the ScrollView every time.
+  const [inputHeight, setInputHeight] = useState<number | null>(null);
   // Set in the Writer, honoured here: one manuscript, one setting (lib/writingPrefs.ts).
   const [align, setAlign] = useState<WritingAlign>('left');
   useEffect(() => {
@@ -585,7 +597,8 @@ export default function EditorScreen({ route, navigation }: Props) {
         >
           <TextInput
             ref={textInputRef}
-            style={[styles.editInput, { textAlign: align }]}
+            style={[styles.editInput, { textAlign: align }, inputHeight !== null && { height: inputHeight + INPUT_SLACK }]}
+            onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
             value={content}
             onChangeText={handleContentChange}
             onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
