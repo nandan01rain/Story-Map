@@ -27,7 +27,7 @@ import { AppleMark, GoogleMark, MicrosoftMark } from '../components/BrandIcons';
 import Icon from '../components/Icon';
 import { useSceneMode } from '../lib/timeOfDay';
 import { useAuthStore } from '../store/authStore';
-import { FONTS } from '../theme';
+import { FONTS, NIGHT_COLORS } from '../theme';
 
 const DIRECTIONS = require('../../assets/env/directions.webp');
 
@@ -251,7 +251,10 @@ export default function SignInScreen() {
 
 function makeStyles(bottomInset: number) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: '#120d08' },
+    // What shows before the scene's first frame paints, and behind any letterboxing. The
+    // app's night, not the leather it was: the night scene is a blue night, and the landing
+    // page this hands over to is navy (2026-09-19).
+    screen: { flex: 1, backgroundColor: NIGHT_COLORS.bg },
     hint: { position: 'absolute', left: 0, right: 0, bottom: 56 + bottomInset, alignItems: 'center' },
     hintText: {
       color: WHITE,

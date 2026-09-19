@@ -7,7 +7,7 @@ import Icon from '../components/Icon';
 import { type TimeOfDay, useSceneMode } from '../lib/timeOfDay';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
-import { FONTS } from '../theme';
+import { FONTS, NIGHT_COLORS } from '../theme';
 import ProjectPickerScreen from './ProjectPickerScreen';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
@@ -18,8 +18,12 @@ const WORDMARK_GOLD = require('../../assets/env/wordmark-gold.webp');
 
 // The PWA's landing page has one fixed light "parchment card" palette. Here it is three,
 // picked by real time of day the same way the sign-in scene is (lib/timeOfDay): parchment
-// by day, warm amber through the sunrise/sunset window, deep leather at night. Gold is the
-// same in all three -- it is the app's constant, exactly as in the day/night theme.
+// by day, warm amber through the sunrise/sunset window, and at night THE APP'S OWN NIGHT --
+// taken from NIGHT_COLORS rather than written here, because this page hands over to the
+// project picker on its Projects tab and that screen draws with the theme: a night palette
+// of its own put a brown tab bar under a navy list (2026-09-19). Night is royal blue since
+// 2026-08-30 (theme.ts has the reasoning); the leather this used to be predates that. Gold
+// is the same in all three -- it is the app's constant.
 type LandingPalette = {
   bg: string;
   card: string;
@@ -53,13 +57,14 @@ const PALETTES: Record<TimeOfDay, LandingPalette> = {
     wordmark: WORDMARK_GOLD,
   },
   night: {
-    bg: '#120d08',
-    card: '#1a130b',
-    border: '#4a3a22',
-    text: '#e9dcb8',
-    dim: '#a8926a',
-    gold: '#c69a3a',
-    bar: '#0d0905',
+    bg: NIGHT_COLORS.bg,
+    card: NIGHT_COLORS.panel,
+    border: NIGHT_COLORS.border,
+    text: NIGHT_COLORS.text,
+    dim: NIGHT_COLORS.textDim,
+    gold: NIGHT_COLORS.gold,
+    // The same sampled sky the navigation bar wears, so the two bars agree.
+    bar: NIGHT_COLORS.chrome,
     wordmark: WORDMARK_GOLD,
   },
 };
