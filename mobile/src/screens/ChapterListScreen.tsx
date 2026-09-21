@@ -10,6 +10,7 @@ import { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSlidePanel } from '../lib/useSlidePanel';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import { type EpubScope, exportEpub } from '../lib/epub';
+import { exportDocx } from '../lib/docx';
 import { watchForBackup } from '../lib/backup';
 import { bookCount, bookIndices, bookName, statusColor, wordCount } from '../lib/storyData';
 import { saveLastProject } from '../lib/writingPrefs';
@@ -38,6 +39,9 @@ export default function ChapterListScreen({ route, navigation }: Props) {
   const { projectId, projectName } = route.params;
   const { chapters, loading, error, fetchChapters, createChapter } = useChapterStore();
   const [epubOpen, setEpubOpen] = useState(false);
+  // Which file the sheet builds. EPUB for reading; Word for an editor, an agent or a
+  // typesetter -- standard manuscript shape, which is what Vellum's importer keys on.
+  const [exportFormat, setExportFormat] = useState<'epub' | 'docx'>('epub');
   const [exporting, setExporting] = useState(false);
   const [epubError, setEpubError] = useState('');
 
@@ -55,7 +59,10 @@ export default function ChapterListScreen({ route, navigation }: Props) {
     const selected = chapters
       .filter((c) => scope.bookIndex === null || c.book === scope.bookIndex)
       .sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order);
-    const { error: err } = await exportEpub(projectName, selected, scope);
+    const { error: err } =
+      exportFormat === 'docx'
+        ? await exportDocx(projectName, selected, scope)
+        : await exportEpub(projectName, selected, scope);
     setExporting(false);
     if (err) setEpubError(err);
     else setEpubOpen(false);
@@ -131,9 +138,19 @@ export default function ChapterListScreen({ route, navigation }: Props) {
     <Modal visible={epubOpen} transparent animationType="slide" onRequestClose={() => setEpubOpen(false)}>
       <View style={styles.epubBackdrop}>
         <View style={styles.epubSheet}>
-          <Text style={styles.epubTitle}>Export as eBook</Text>
+          <Text style={styles.epubTitle}>Export</Text>
+          <View style={styles.formatRow}>
+            <Pressable onPress={() => setExportFormat('epub')} style={[styles.formatChip, exportFormat === 'epub' && styles.formatChipOn]}>
+              <Text style={[styles.formatChipText, exportFormat === 'epub' && styles.formatChipTextOn]}>eBook (.epub)</Text>
+            </Pressable>
+            <Pressable onPress={() => setExportFormat('docx')} style={[styles.formatChip, exportFormat === 'docx' && styles.formatChipOn]}>
+              <Text style={[styles.formatChipText, exportFormat === 'docx' && styles.formatChipTextOn]}>Word (.docx)</Text>
+            </Pressable>
+          </View>
           <Text style={styles.epubHint}>
-            An .epub you can open in any reader, or send anywhere from the share sheet.
+            {exportFormat === 'epub'
+              ? 'An .epub you can open in any reader, or send anywhere from the share sheet.'
+              : 'Standard manuscript format: title page, a page per chapter, double-spaced. What an editor or a typesetter expects.'}
           </Text>
 
           <Pressable
@@ -476,6 +493,11 @@ function makeStyles(colors: ThemeColors) {
       gap: 8,
     },
     epubTitle: { color: colors.text, fontFamily: FONTS.heading, fontSize: 17 },
+    formatRow: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 6 },
+    formatChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: colors.borderDim },
+    formatChipOn: { borderColor: colors.gold },
+    formatChipText: { color: colors.textDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 1 },
+    formatChipTextOn: { color: colors.gold },
     epubHint: { color: colors.textFaint, fontSize: 12, lineHeight: 17 },
     epubOption: {
       flexDirection: 'row',
