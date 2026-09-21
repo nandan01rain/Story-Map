@@ -669,7 +669,11 @@ continuity checker, which is Icarus's job now. See handoff §19.
   manuscript, every chapter editable under its own heading, opening where you left off like
   the Reader. Beside the per-chapter Editor, not instead of it (a heading opens that chapter's
   Editor for flags and history). A **daily word target** counts finished prose only — chapters,
-  never pages — as total-now minus a baseline taken on the day's first open. Same day fixed
+  never pages — as total-now minus a baseline taken on the day's first open. **Goals &
+  streak** (2026-09-21, `lib/writingStats.ts`): streaks of met days and a daily reminder
+  notification on unmet days, counted from either editor; needs `expo-notifications`, hence
+  version 1.1.0 / build 5 and a new runtime. The drawer's first section is now **Write**:
+  Write, Read, Goals & streak, Pages, Treatments. Same day fixed
   the Editor overwriting new text with old on exit (a stale unmount closure; handoff §33.1)
   and the Reader hanging when opened from the Editor (no request deadline; §31.6).
 

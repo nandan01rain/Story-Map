@@ -4706,6 +4706,32 @@ away, and a toggle is there for tapping. Above the measured keyboard, and clampe
 stays on screen when the keyboard would push it off. The manuscript pads its foot by the
 pane's height while it is open.
 
+### 33.3 Goals, streaks and the reminder (2026-09-21) -- and why they cost a runtime
+
+`lib/writingStats.ts` is a store with a subscriber on the chapters, not screen state: the thing
+measured is finished prose WHEREVER it was written, so a paragraph typed in the per-chapter
+Editor counts the same as one in the Writer, and a day spent in the other editor does not break
+a streak. Per project, on the device: `history` {date: {words, target}} -- the target stored
+with the day is the one it FACED, so raising it tomorrow does not unmake yesterday -- and
+`reminder` {enabled, hour, minute}.
+
+**Streak rule**: consecutive met days ending today or yesterday; today counts once met; a day
+with no target neither extends nor breaks. **Reminder rule**: exactly one scheduled
+notification, for the next reminder time on a day not yet met; rescheduled on every recount
+and every foreground, so it never has to be right for longer than that. `WritingGoalsScreen`
+(drawer: Write → Goals & streak) shows today, streak, best, a fortnight of dots, the target
+and the reminder; the Writer's day bar reads the same store and shows the streak.
+
+**The drawer gained a WRITE section**, first: Write, Read, Goals & streak, Pages, Treatments.
+Manage keeps the file operations. The quill glyph moved to Write; Assist took a star.
+
+**`expo-notifications` is native, and that is why this is version 1.1.0 / build 5.** The
+runtime version follows the app version. Publishing this bundle under 1.0.0 would have had
+the installed binary download it, fail to find the module, and crash at launch -- the trap
+§30.2's rule about delivery exists for. Bumping the version makes a new runtime: only build 5
+receives updates from here, and build 4 keeps the last 1.0.0 update it has. Every future
+native addition takes the same step.
+
 **Not built, stated**: the Editor's keep-the-caret-visible logic. The Writer pads its foot by the
 measured keyboard overlap so the end of a chapter can be scrolled above the keys, but it does
 not scroll the caret into view itself. Every keystroke also re-renders every chapter input in

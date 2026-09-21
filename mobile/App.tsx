@@ -6,6 +6,7 @@ import { DropProvider } from 'react-native-reanimated-dnd';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { flush } from './src/lib/outbox';
+import { useWritingStats } from './src/lib/writingStats';
 import { useOtaUpdate } from './src/lib/useOtaUpdate';
 import RootNavigator from './src/navigation/RootNavigator';
 import { FONTS, NIGHT_COLORS, ThemeProvider, useAppFonts, useTheme } from './src/theme';
@@ -33,7 +34,12 @@ function AppShell() {
   useEffect(() => {
     void flush();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void flush();
+      if (state === 'active') {
+        void flush();
+        // The day may have turned over while the app was in the background; the streak and
+        // the reminder are recomputed for it.
+        if (useWritingStats.getState().ready) void useWritingStats.getState().recount();
+      }
     });
     return () => sub.remove();
   }, []);

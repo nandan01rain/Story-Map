@@ -10,6 +10,8 @@ export type SignedInStackParamList = {
    * that chapter's Editor for flags, pairing and history.
    */
   Writer: { projectId: string };
+  /** Today's words, the streak, the daily target and the reminder. */
+  WritingGoals: { projectId: string };
   Reader: { projectId: string; projectName?: string; chapterId?: string; jumpToText?: string };
   Settings: undefined;
   /** The stack of raw-capture pages. Replaces the old sticky-note board. */

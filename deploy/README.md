@@ -122,8 +122,12 @@ Any change to native code. In practice:
 Everything else — every screen, every store, the character web, the theme, the EPUB builder —
 goes over the air.
 
-The last build's native surface: `expo-font`, `expo-web-browser`, `expo-sharing`,
-`expo-updates`, plus `jszip` (pure JS, ships OTA), `expo-file-system`,
+**When a native module is added, bump `version` too** (1.0.0 → 1.1.0 on 2026-09-21 for
+`expo-notifications`). The runtime version follows it, so the old binary stops receiving
+updates instead of downloading one it cannot run and crashing at launch.
+
+The last build's native surface: `expo-font`, `expo-notifications`, `expo-web-browser`,
+`expo-sharing`, `expo-updates`, plus `jszip` (pure JS, ships OTA), `expo-file-system`,
 `react-native-worklets`, `react-native-reanimated`, `react-native-gesture-handler`,
 `react-native-webview`.
 

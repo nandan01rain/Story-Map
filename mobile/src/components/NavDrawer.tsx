@@ -20,7 +20,7 @@ import SlidePanel from './SlidePanel';
 // don't have a mobile screen yet (see CLAUDE.md's mobile roadmap / handoff doc §14.6)
 // -- those render disabled with a "coming soon" tap response rather than being hidden,
 // so the menu's shape matches the PWA today and items switch on as their screens land.
-type SectionKey = 'discover' | 'manage' | 'assist';
+type SectionKey = 'write' | 'discover' | 'manage' | 'assist';
 
 // The reference sets a drawn mark beside each group -- a compass, stacked books, a quill.
 //
@@ -47,6 +47,7 @@ const TITLE_BAND = 0.218;
 const TITLE_INSET = 0.12;
 
 const SECTION_GLYPH: Record<SectionKey, SectionGlyphName> = {
+  write: 'write',
   discover: 'discover',
   manage: 'manage',
   assist: 'assist',
@@ -71,16 +72,20 @@ const DISCOVER: DrawerItem[] = [
   { key: 'braid', icon: 'link', label: 'The Braid' },
 ];
 
-const MANAGE: DrawerItem[] = [
-  { key: 'epub', icon: 'books', label: 'Export as eBook' },
-  { key: 'trash', icon: 'trash', label: 'Trash' },
-  { key: 'export', icon: 'download', label: 'Export' },
-  { key: 'export-epub', icon: 'book-closed', label: 'Export as eBook' },
-  { key: 'import', icon: 'upload', label: 'Import' },
+// Everything about writing, first and together (2026-09-21): the manuscript, the reader, the
+// capture stages beneath it, and the habit. Manage keeps the file operations.
+const WRITE: DrawerItem[] = [
   { key: 'write', icon: 'feather', label: 'Write' },
   { key: 'read', icon: 'bookmark', label: 'Read' },
+  { key: 'goals', icon: 'flag', label: 'Goals & streak' },
   { key: 'notes', icon: 'pin', label: 'Pages' },
   { key: 'treatments', icon: 'book-open', label: 'Treatments' },
+];
+
+const MANAGE: DrawerItem[] = [
+  { key: 'epub', icon: 'books', label: 'Export as eBook' },
+  { key: 'export', icon: 'download', label: 'Export' },
+  { key: 'import', icon: 'upload', label: 'Import' },
   { key: 'trash', icon: 'trash', label: 'Trash' },
 ];
 
@@ -107,6 +112,7 @@ export default function NavDrawer({
   onSignOut,
   onOpenReader,
   onOpenWriter,
+  onOpenGoals,
   onOpenSettings,
   onOpenNotes,
   onOpenTreatments,
@@ -124,6 +130,7 @@ export default function NavDrawer({
   onSignOut: () => void;
   onOpenReader: () => void;
   onOpenWriter: () => void;
+  onOpenGoals: () => void;
   onOpenSettings: () => void;
   onOpenNotes: () => void;
   onOpenTreatments: () => void;
@@ -177,11 +184,18 @@ export default function NavDrawer({
     return item;
   });
 
-  const manageItems = MANAGE.map((item) => {
+  const writeItems = WRITE.map((item) => {
     if (item.key === 'write') return { ...item, onPress: onOpenWriter };
     if (item.key === 'read') return { ...item, onPress: onOpenReader };
+    if (item.key === 'goals') return { ...item, onPress: onOpenGoals };
     if (item.key === 'notes') return { ...item, onPress: onOpenNotes };
     if (item.key === 'treatments') return { ...item, onPress: onOpenTreatments };
+    return item;
+  });
+
+  const manageItems = MANAGE.map((item) => {
+    if (item.key === 'epub') return { ...item, onPress: onExportEpub };
+    if (item.key === 'trash') return { ...item, onPress: onOpenTrash };
     return item;
   });
 
@@ -244,6 +258,15 @@ export default function NavDrawer({
           </Text>
         </View>
 
+        <Section
+          title="Write"
+          sectionKey="write"
+          expanded={expanded.has('write')}
+          onToggle={toggleSection}
+          items={writeItems}
+          colors={colors}
+          styles={styles}
+        />
         <Section
           title="Discover"
           sectionKey="discover"

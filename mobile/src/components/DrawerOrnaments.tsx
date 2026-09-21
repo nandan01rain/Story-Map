@@ -108,10 +108,18 @@ export function SectionGlyph({ name, color, size = 26 }: { name: SectionGlyphNam
             <Path d="M6 12 h20 a2 2 0 0 1 2 2 H8 a2 2 0 0 0 -2 -2 Z" />
           </>
         )}
-        {name === 'assist' && (
+        {/* The quill moved from Assist to Write when Write became a section (2026-09-21):
+            it is the writing mark. Assist takes a star. */}
+        {name === 'write' && (
           <>
             <Path d="M5 27 c8 -1.5 13.5 -5.5 17 -12 2.1 -3.6 2.9 -6.6 3.2 -9.4 -2.7 0.3 -5.7 1.1 -9.3 3.2 -6.5 3.9 -10.5 9.4 -12 17 Z" />
             <Path d="M5 27 l8 -8" />
+          </>
+        )}
+        {name === 'assist' && (
+          <>
+            <Path d="M16 4 l2.6 7.4 L26 14 l-7.4 2.6 L16 24 l-2.6 -7.4 L6 14 l7.4 -2.6 Z" />
+            <Path d="M24 22 l1 2.6 2.6 1 -2.6 1 -1 2.6 -1 -2.6 -2.6 -1 2.6 -1 Z" />
           </>
         )}
       </G>
@@ -119,7 +127,7 @@ export function SectionGlyph({ name, color, size = 26 }: { name: SectionGlyphNam
   );
 }
 
-export type SectionGlyphName = 'discover' | 'manage' | 'assist';
+export type SectionGlyphName = 'write' | 'discover' | 'manage' | 'assist';
 
 /** A chevron, replacing the small filled triangle. */
 export function Chevron({ color, size = 16, open }: { color: string; size?: number; open?: boolean }) {

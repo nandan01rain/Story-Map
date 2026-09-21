@@ -19,16 +19,13 @@ import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { bookName, wordCount } from '../lib/storyData';
 import {
-  loadDailyTarget,
   loadWritingAlign,
   loadWritingPosition,
-  resolveDailyBaseline,
-  saveDailyTarget,
   saveWritingAlign,
   saveWritingPosition,
-  type DailyBaseline,
   type WritingAlign,
 } from '../lib/writingPrefs';
+import { useWritingStats } from '../lib/writingStats';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
@@ -186,12 +183,6 @@ export default function WriterScreen({ route, navigation }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectChapters]);
-
-  const totalWords = useMemo(() => {
-    let n = 0;
-    for (const v of wordsByChapter.values()) n += v;
-    return n;
-  }, [wordsByChapter]);
 
   // ---- saving --------------------------------------------------------------------------
   const persist = useCallback(
@@ -391,26 +382,29 @@ export default function WriterScreen({ route, navigation }: Props) {
   }
 
   // ---- daily target --------------------------------------------------------------------
-  const [target, setTarget] = useState(0);
-  const [baseline, setBaseline] = useState<DailyBaseline | null>(null);
+  // Read from the shared stats (lib/writingStats.ts), which count prose from either editor
+  // and keep the streak and the reminder. This screen no longer owns a baseline of its own.
+  const stats = useWritingStats();
+  useEffect(() => {
+    void stats.setProject(projectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+  const target = stats.target;
+  // Live while typing: the store recounts 1.5s after a save, so between keystrokes the
+  // day's words are the store's figure plus what this screen has added since its drafts
+  // last matched the store.
+  const unsaved = useMemo(() => {
+    let n = 0;
+    for (const [id, d] of drafts.current) {
+      if (d.content !== d.savedContent) n += (wordsByChapter.get(id) ?? 0) - wordCount(d.savedContent);
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wordsByChapter]);
+  const todayWords = Math.max(0, stats.todayWords + unsaved);
+  const progress = target > 0 ? Math.min(1, todayWords / target) : 0;
   const [targetSheetOpen, setTargetSheetOpen] = useState(false);
   const [targetInput, setTargetInput] = useState('');
-
-  useEffect(() => {
-    loadDailyTarget(projectId).then(setTarget);
-  }, [projectId]);
-
-  // The baseline is taken once the project's prose is actually counted -- the first time
-  // every chapter has a word count -- and never re-taken within the day: a later recount is
-  // the writer writing, which is the thing being measured.
-  const allCounted = projectChapters.length > 0 && projectChapters.every((c) => wordsByChapter.has(c.id));
-  useEffect(() => {
-    if (baseline || !allCounted) return;
-    resolveDailyBaseline(projectId, totalWords).then(setBaseline);
-  }, [baseline, allCounted, projectId, totalWords]);
-
-  const todayWords = baseline ? Math.max(0, totalWords - baseline.words) : 0;
-  const progress = target > 0 ? Math.min(1, todayWords / target) : 0;
 
   function openTargetSheet() {
     setTargetInput(target > 0 ? String(target) : '');
@@ -418,9 +412,7 @@ export default function WriterScreen({ route, navigation }: Props) {
   }
   function commitTarget() {
     const n = parseInt(targetInput.replace(/[^\d]/g, ''), 10);
-    const next = Number.isFinite(n) && n > 0 ? n : 0;
-    setTarget(next);
-    void saveDailyTarget(projectId, next);
+    void stats.setTarget(Number.isFinite(n) && n > 0 ? n : 0);
     setTargetSheetOpen(false);
   }
 
@@ -508,7 +500,9 @@ export default function WriterScreen({ route, navigation }: Props) {
             {todayWords.toLocaleString()}
             {target > 0 ? ` / ${target.toLocaleString()}` : ''}
           </Text>
-          <Text style={styles.dayLabel}>{target > 0 ? 'words today' : 'today · set a target'}</Text>
+          <Text style={styles.dayLabel}>
+            {target > 0 ? (stats.streak > 0 ? `words today · ${stats.streak}-day streak` : 'words today') : 'today · set a target'}
+          </Text>
         </Pressable>
       </View>
       {target > 0 && (
@@ -690,8 +684,7 @@ export default function WriterScreen({ route, navigation }: Props) {
               <Pressable
                 onPress={() => {
                   setTargetInput('');
-                  setTarget(0);
-                  void saveDailyTarget(projectId, 0);
+                  void stats.setTarget(0);
                   setTargetSheetOpen(false);
                 }}
               >
