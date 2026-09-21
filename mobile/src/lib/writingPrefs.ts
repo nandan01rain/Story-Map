@@ -36,6 +36,26 @@ function baselineKey(projectId: string) {
   return `writer-daily-baseline:${projectId}`;
 }
 const ALIGN_KEY = 'writer-align';
+// The project most recently opened. The landing page sits above the project list and shows
+// the day's target for THIS one, since the stats are per project.
+const LAST_PROJECT_KEY = 'last-project';
+
+export async function loadLastProject(): Promise<{ id: string; name: string } | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_PROJECT_KEY);
+    return raw ? (JSON.parse(raw) as { id: string; name: string }) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastProject(id: string, name: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id, name }));
+  } catch {
+    // Forgotten, the landing page shows no target until a project is opened again.
+  }
+}
 
 export async function loadWritingAlign(): Promise<WritingAlign> {
   try {

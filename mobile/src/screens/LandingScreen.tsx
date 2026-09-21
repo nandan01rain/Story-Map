@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
@@ -8,6 +8,10 @@ import { type TimeOfDay, useSceneMode } from '../lib/timeOfDay';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, NIGHT_COLORS } from '../theme';
+import { loadLastBackup, useBackup } from '../lib/backup';
+import { loadLastProject } from '../lib/writingPrefs';
+import { useWritingStats } from '../lib/writingStats';
+import { useChapterStore } from '../store/chapterStore';
 import ProjectPickerScreen from './ProjectPickerScreen';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
@@ -101,9 +105,66 @@ export default function LandingScreen({ navigation, route }: Props) {
   const signOut = useAuthStore((s) => s.signOut);
   const displayName = (user?.user_metadata?.display_name as string | undefined) || user?.email?.split('@')[0] || '';
 
+  // The day's target, for the project last opened. The stats are per project and this page
+  // is above the project list, so "last opened" is the one that means anything here. Its
+  // chapters are fetched (cache-first) if the store is empty, since the stats refuse to
+  // count a project that is not loaded.
+  const [lastProject, setLastProject] = useState<{ id: string; name: string } | null>(null);
+  const stats = useWritingStats();
+  const backup = useBackup();
+  const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    loadLastProject().then(async (p) => {
+      if (cancelled || !p) return;
+      setLastProject(p);
+      const store = useChapterStore.getState();
+      if (!store.chapters.some((c) => c.project_id === p.id)) await store.fetchChapters(p.id);
+      await stats.setProject(p.id);
+      await stats.recount();
+      setLastBackupAt(await loadLastBackup(p.id));
+    });
+    if (!backup.ready) void backup.load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+  const showTarget = !!lastProject && stats.ready && stats.projectId === lastProject.id;
+  const todayMet = stats.target > 0 && stats.todayWords >= stats.target;
+
+  async function backupNow() {
+    if (!lastProject) return;
+    setBackupBusy(true);
+    const { error } = await backup.backupProject(lastProject.id);
+    setBackupBusy(false);
+    if (error) Alert.alert('Backup did not finish', error);
+    else setLastBackupAt(Date.now());
+  }
+  async function pickBackupFolder() {
+    const { error } = await backup.chooseFolder();
+    if (error) Alert.alert('No folder', error);
+    else if (lastProject) void backupNow();
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.body}>
+        {/* Today's words against the target, top right, on every tab. Tapping it opens the
+            full picture under Profile. */}
+        {showTarget && (
+          <Pressable style={styles.targetPill} onPress={() => setTab('profile')} hitSlop={6}>
+            <Text style={[styles.targetPillCount, todayMet && styles.targetPillMet]}>
+              {stats.todayWords.toLocaleString()}
+              {stats.target > 0 ? ` / ${stats.target.toLocaleString()}` : ''}
+            </Text>
+            <Text style={styles.targetPillLabel}>
+              {stats.target > 0 ? (stats.streak > 0 ? `today · ${stats.streak}-day streak` : 'today') : 'today · no target'}
+            </Text>
+          </Pressable>
+        )}
+
         {tab === 'home' && (
           <ScrollView contentContainerStyle={styles.homeContent}>
             <Image source={palette.wordmark} resizeMode="contain" style={styles.wordmark} />
@@ -146,6 +207,49 @@ export default function LandingScreen({ navigation, route }: Props) {
           <ScrollView contentContainerStyle={styles.homeContent}>
             <Text style={styles.greeting}>{displayName || 'Your account'}</Text>
             <Text style={styles.cardMeta}>{user?.email ?? ''}</Text>
+
+            {/* The writing habit: today, the streak, the target and the reminder. */}
+            <Pressable
+              style={styles.primaryCard}
+              onPress={() => lastProject && navigation.navigate('WritingGoals', { projectId: lastProject.id })}
+              disabled={!lastProject}
+            >
+              <Icon name="flag" size={22} color={palette.gold} />
+              <View style={styles.primaryCardText}>
+                <Text style={styles.cardTitle}>Writing goals</Text>
+                <Text style={styles.cardMeta}>
+                  {!lastProject
+                    ? 'Open a project to start counting.'
+                    : stats.target > 0
+                      ? `${stats.todayWords.toLocaleString()} of ${stats.target.toLocaleString()} today · ${stats.streak}-day streak · best ${stats.best}`
+                      : `${lastProject.name} · no daily target set`}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* The second copy of the manuscript. */}
+            <Pressable style={styles.primaryCard} onPress={backup.folderUri ? backupNow : pickBackupFolder} disabled={backupBusy}>
+              <Icon name="folder" size={22} color={palette.gold} />
+              <View style={styles.primaryCardText}>
+                <Text style={styles.cardTitle}>{backup.folderUri ? 'Backup folder' : 'Back up to a folder'}</Text>
+                <Text style={styles.cardMeta}>
+                  {!backup.folderUri
+                    ? 'Pick a folder -- a Google Drive folder works -- and every save is mirrored there as markdown and JSON.'
+                    : backupBusy || backup.running
+                      ? 'Backing up…'
+                      : backup.error
+                        ? `Last attempt failed: ${backup.error}`
+                        : lastBackupAt
+                          ? `Mirrored ${new Date(lastBackupAt).toLocaleString()}. Tap to back up now.`
+                          : 'Tap to back up now.'}
+                </Text>
+              </View>
+            </Pressable>
+            {backup.folderUri && (
+              <Pressable onPress={pickBackupFolder} hitSlop={8} style={styles.linkRow}>
+                <Text style={styles.linkText}>Change folder</Text>
+              </Pressable>
+            )}
 
             <Pressable style={styles.primaryCard} onPress={() => navigation.navigate('Settings')}>
               <Icon name="gear" size={22} color={palette.gold} />
@@ -208,6 +312,12 @@ function makeStyles(palette: LandingPalette, bottomInset: number) {
     homeContent: { padding: 24, paddingTop: 56 },
     wordmark: { width: '72%', height: 64, alignSelf: 'center', marginBottom: 24 },
     greeting: { color: palette.text, fontFamily: FONTS.heading, fontSize: 22, textAlign: 'center' },
+    targetPill: { position: 'absolute', top: 10, right: 16, zIndex: 2, alignItems: 'flex-end' },
+    targetPillCount: { color: palette.text, fontFamily: FONTS.headingBold, fontSize: 15, letterSpacing: 1 },
+    targetPillMet: { color: palette.gold },
+    targetPillLabel: { color: palette.dim, fontFamily: FONTS.body, fontSize: 10.5, marginTop: 1 },
+    linkRow: { alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 4, marginTop: -6 },
+    linkText: { color: palette.dim, fontFamily: FONTS.body, fontSize: 12, textDecorationLine: 'underline' },
     epigraph: {
       marginTop: 28,
       borderWidth: 1,

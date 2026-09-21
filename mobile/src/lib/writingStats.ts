@@ -232,6 +232,11 @@ export const useWritingStats = create<WritingStatsState>((set, get) => ({
   recount: async () => {
     const { projectId, target, reminder } = get();
     if (!projectId) return;
+    // Never count a project whose chapters are not loaded. On a cold start the store is
+    // empty until a project is opened, and a recount then would read zero words -- and on a
+    // new day would RECORD zero as the baseline, so the first real load would count the
+    // whole manuscript as today's writing. The landing page asks for the chapters first.
+    if (!useChapterStore.getState().chapters.some((c) => c.project_id === projectId)) return;
     const today = todayKey();
     const total = projectWords(projectId);
     const baseline = await resolveDailyBaseline(projectId, total);

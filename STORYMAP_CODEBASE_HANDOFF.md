@@ -4722,8 +4722,16 @@ and every foreground, so it never has to be right for longer than that. `Writing
 (drawer: Write → Goals & streak) shows today, streak, best, a fortnight of dots, the target
 and the reminder; the Writer's day bar reads the same store and shows the streak.
 
-**The drawer gained a WRITE section**, first: Write, Read, Goals & streak, Pages, Treatments.
-Manage keeps the file operations. The quill glyph moved to Write; Assist took a star.
+**The drawer gained a WRITE section**, first: Write, Read, Pages, Treatments. Manage keeps
+the file operations. The quill glyph moved to Write; Assist took a star. **Goals live under
+Profile on the landing page, not in the drawer** (moved the same day, by request): they are
+about the writer, not the project. The landing page shows today's words against the target
+top right on every tab, for the LAST-OPENED project (`writingPrefs.saveLastProject`, written
+by the chapter list) -- the stats are per project and this page is above the project list.
+It fetches that project's chapters cache-first if the store is empty, because `recount`
+refuses to count a project that is not loaded: on a cold start it would otherwise read zero
+words and, on a new day, record zero as the baseline, making the first real load look like a
+day's writing of the whole manuscript.
 
 **`expo-notifications` is native, and that is why this is version 1.1.0 / build 5.** The
 runtime version follows the app version. Publishing this bundle under 1.0.0 would have had
@@ -4736,3 +4744,33 @@ native addition takes the same step.
 measured keyboard overlap so the end of a chapter can be scrolled above the keys, but it does
 not scroll the caret into view itself. Every keystroke also re-renders every chapter input in
 the open book; fine at current sizes, worth a `React.memo` per chapter if a long book drags.
+
+
+## 34. THE SECOND COPY: A FOLDER BACKUP (2026-09-21)
+
+"If something happens to Supabase I should not lose everything." `lib/backup.ts` mirrors the
+manuscript to a folder the writer picks ONCE through Android's own picker (the Storage Access
+Framework, `expo-file-system/legacy`). The Google Drive app exposes its folders to that picker,
+so a Drive folder is chosen directly and Drive's own app syncs it -- which is the whole reason
+this is not built on the existing Drive OAuth code in `lib/googleDrive.ts`: that needs a Google
+Cloud OAuth client that has been account work for a month, its token dies in an hour with no way
+to refresh it from a phone, and its scope is read-only. A backup that works for an hour after
+a tap is not insurance. The picker route needs no account, no token, works offline (Drive syncs
+when it can), and works the same for OneDrive or a local folder.
+
+Under `<folder>/<Project name>/`: `project.json` (every chapter and page, whole -- the restore
+copy) and `Book N/NN - Title.md` per chapter with a small header and the notes. Runs after every
+save, debounced 20s, for the last-opened project; and on demand from Profile → Backup folder,
+which also shows the last time it ran. It is a MIRROR, not a history: files are overwritten in
+place, and a chapter deleted in the app stays in the folder until the writer removes it, on
+purpose. SAF has no write-to-path -- files are opaque content URIs and creating a name that
+exists makes "name (1)" -- so every write lists the folder and finds the name first.
+
+**Not verified on the device**: whether the installed Drive app offers folder access to the
+picker (it has since 2022 on current versions; older builds only offered single files), and the
+SAF name-from-URI parsing against Drive's provider specifically. Both are the first things to
+check. If Drive's provider refuses folder access, a local folder still works and Drive's
+"back up device folders" can carry it from there.
+
+**Not built**: restore. `project.json` is complete enough to write one from; nothing reads it
+yet. The point today was that the copy exists.

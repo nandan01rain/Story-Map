@@ -73,11 +73,11 @@ const DISCOVER: DrawerItem[] = [
 ];
 
 // Everything about writing, first and together (2026-09-21): the manuscript, the reader, the
-// capture stages beneath it, and the habit. Manage keeps the file operations.
+// capture stages beneath it. Manage keeps the file operations. Goals and the streak live
+// under Profile on the landing page, not here -- they are about the writer, not the project.
 const WRITE: DrawerItem[] = [
   { key: 'write', icon: 'feather', label: 'Write' },
   { key: 'read', icon: 'bookmark', label: 'Read' },
-  { key: 'goals', icon: 'flag', label: 'Goals & streak' },
   { key: 'notes', icon: 'pin', label: 'Pages' },
   { key: 'treatments', icon: 'book-open', label: 'Treatments' },
 ];
@@ -112,7 +112,6 @@ export default function NavDrawer({
   onSignOut,
   onOpenReader,
   onOpenWriter,
-  onOpenGoals,
   onOpenSettings,
   onOpenNotes,
   onOpenTreatments,
@@ -130,7 +129,6 @@ export default function NavDrawer({
   onSignOut: () => void;
   onOpenReader: () => void;
   onOpenWriter: () => void;
-  onOpenGoals: () => void;
   onOpenSettings: () => void;
   onOpenNotes: () => void;
   onOpenTreatments: () => void;
@@ -187,7 +185,6 @@ export default function NavDrawer({
   const writeItems = WRITE.map((item) => {
     if (item.key === 'write') return { ...item, onPress: onOpenWriter };
     if (item.key === 'read') return { ...item, onPress: onOpenReader };
-    if (item.key === 'goals') return { ...item, onPress: onOpenGoals };
     if (item.key === 'notes') return { ...item, onPress: onOpenNotes };
     if (item.key === 'treatments') return { ...item, onPress: onOpenTreatments };
     return item;

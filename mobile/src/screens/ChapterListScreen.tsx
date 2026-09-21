@@ -10,7 +10,9 @@ import { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSlidePanel } from '../lib/useSlidePanel';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import { type EpubScope, exportEpub } from '../lib/epub';
+import { watchForBackup } from '../lib/backup';
 import { bookCount, bookIndices, bookName, statusColor, wordCount } from '../lib/storyData';
+import { saveLastProject } from '../lib/writingPrefs';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
@@ -80,7 +82,10 @@ export default function ChapterListScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     fetchChapters(projectId);
-  }, [projectId, fetchChapters]);
+    // Remembered for the landing page's target and the backup's mirror.
+    void saveLastProject(projectId, projectName);
+    watchForBackup(projectId);
+  }, [projectId, projectName, fetchChapters]);
 
   const byBook = useMemo(() => {
     const map = new Map<number, Chapter[]>();
@@ -177,7 +182,6 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onSignOut={() => navigateFromDrawer(signOut)}
       onOpenReader={() => navigateFromDrawer(() => navigation.navigate('Reader', { projectId, projectName }))}
       onOpenWriter={() => navigateFromDrawer(() => navigation.navigate('Writer', { projectId }))}
-      onOpenGoals={() => navigateFromDrawer(() => navigation.navigate('WritingGoals', { projectId }))}
       onOpenSettings={() => navigateFromDrawer(() => navigation.navigate('Settings'))}
       onOpenNotes={() => navigateFromDrawer(() => navigation.navigate('Pages', { projectId }))}
       onOpenTreatments={() => navigateFromDrawer(() => navigation.navigate('Treatments', { projectId }))}

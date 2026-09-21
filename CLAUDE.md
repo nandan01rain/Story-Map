@@ -672,10 +672,17 @@ continuity checker, which is Icarus's job now. See handoff §19.
   never pages — as total-now minus a baseline taken on the day's first open. **Goals &
   streak** (2026-09-21, `lib/writingStats.ts`): streaks of met days and a daily reminder
   notification on unmet days, counted from either editor; needs `expo-notifications`, hence
-  version 1.1.0 / build 5 and a new runtime. The drawer's first section is now **Write**:
-  Write, Read, Goals & streak, Pages, Treatments. Same day fixed
+  version 1.1.0 / build 5 and a new runtime. Goals and the streak live under **Profile** on
+  the landing page, with today's words against the target top right on every tab (for the
+  last-opened project). The drawer's first section is now **Write**: Write, Read, Pages,
+  Treatments. Same day fixed
   the Editor overwriting new text with old on exit (a stale unmount closure; handoff §33.1)
   and the Reader hanging when opened from the Editor (no request deadline; §31.6).
+
+- **🗂 Folder backup (2026-09-21)** — Profile → Backup folder: pick a folder once through
+  Android's own picker (a Google Drive folder works; the Drive app syncs it) and every
+  save mirrors the project there as `project.json` plus one markdown file per chapter.
+  No OAuth, no token, works offline. A mirror, not a history; restore not built. Handoff §34.
 
 - **📴 Offline (2026-08-30)** — the app opens and is writable without a network.
   Auth had a launch hang (a token refresh that cannot fail fast), now on a 2.5s
