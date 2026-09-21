@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '../lib/supabase';
-import { BOOKS } from '../lib/storyData';
+import { bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useChapterStore } from '../store/chapterStore';
 import { pageTitle, usePageStore } from '../store/pageStore';
@@ -194,7 +194,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               : r.kind === 'page' && r.at
               ? new Date(r.at).toLocaleDateString()
               : chapter
-                ? `${BOOKS[chapter.book] ?? `Book ${chapter.book + 1}`} · ${chapter.title}`
+                ? `${bookName(chapter.book)} · ${chapter.title}`
                 : '',
           runs: splitHeadline(r.snippet ?? ''),
           open:
@@ -221,7 +221,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         kind: 'chapter',
         label: KIND_LABEL.chapter,
         title: ch.title,
-        meta: `${BOOKS[ch.book] ?? `Book ${ch.book + 1}`} · Act ${ch.act}`,
+        meta: `${bookName(ch.book)} · Act ${ch.act}`,
         runs: substringRuns(ch.content || ch.title, debounced),
         open: openers.chapter(ch.id),
       });
@@ -235,7 +235,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         kind: 'scene',
         label: KIND_LABEL.scene,
         title: s.title,
-        meta: ch ? `${BOOKS[ch.book] ?? `Book ${ch.book + 1}`} · ${ch.title}` : '',
+        meta: ch ? `${bookName(ch.book)} · ${ch.title}` : '',
         runs: substringRuns(s.summary || s.title, debounced),
         open: openers.scene(s.chapter_id),
       });

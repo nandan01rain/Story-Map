@@ -36,7 +36,7 @@ import {
   saveMovingBookmark,
   saveReaderPrefs,
 } from '../lib/readerPrefs';
-import { BOOKS, tokenizeWords } from '../lib/storyData';
+import { bookIndices, bookName, tokenizeWords } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
 import { type Annotation, type Chapter, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
@@ -1006,7 +1006,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {projectName || (bookIndex !== null ? BOOKS[bookIndex] : '')}
+          {projectName || (bookIndex !== null ? bookName(bookIndex) : '')}
         </Text>
       </Animated.View>
 
@@ -1152,7 +1152,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
               <Pressable style={styles.tocBackRow} onPress={() => setTocView('books')}>
                 <Text style={styles.tocBackText}>‹ All books</Text>
               </Pressable>
-              <Text style={styles.tocTitle}>{BOOKS[bookIndex] ?? 'Contents'}</Text>
+              <Text style={styles.tocTitle}>{bookName(bookIndex)}</Text>
               <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
                 {(byBook.get(bookIndex) ?? []).map((c, i) => (
                   <Pressable
@@ -1175,12 +1175,12 @@ export default function ReaderScreen({ route, navigation }: Props) {
             <>
               <Text style={styles.tocTitle}>{projectName || 'Contents'}</Text>
               <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
-                {BOOKS.map((name, i) => {
+                {bookIndices(chapters).map((i) => {
                   const bookChs = byBook.get(i) ?? [];
                   if (bookChs.length === 0) return null;
                   return (
                     <Pressable key={i} style={styles.tocBookMain} onPress={() => selectBookFromToc(i)}>
-                      <Text style={styles.tocBookTitle}>{name}</Text>
+                      <Text style={styles.tocBookTitle}>{bookName(i)}</Text>
                       <Text style={styles.tocBookMeta}>
                         {bookChs.length} chapter{bookChs.length === 1 ? '' : 's'}
                       </Text>

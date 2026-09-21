@@ -417,8 +417,12 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   daily use, because all of it depends on there being pages. Handoff §23.2.
 - **Ingesting a finished book someone else wrote.** Scoped 2026-08-27, not built.
   The braid needs no change at all -- `spine-layout.mjs` never reads `BOOKS` and
-  already adapts its banding -- but `BOOKS` is a five-element constant used 28
-  times in `index.html` and 23 in `mobile/src`, so seven books do not fit the UI.
+  already adapts its banding. **Mobile no longer caps at five (2026-09-21)**: `BOOKS`
+  supplies the first five names only, `bookName`/`bookIndices` in `storyData.ts`
+  continue indefinitely, the chapter list draws empty books as startable and offers
+  "+ Add Book N" past the last, and the promote-to-chapter pickers offer one book
+  past the last in use. A book is still its chapters -- nothing new is stored. The
+  PWA's `index.html` still has the five-element constant in 28 places.
   Three steps: labels become data (`project_settings.book_labels`, same precedent
   as `act_labels`), levels become declared per project rather than fixed at
   Book/Act, and an importer that maps a manuscript's own divisions onto rows --

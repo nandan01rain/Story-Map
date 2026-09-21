@@ -1,7 +1,44 @@
-// Ported directly from the PWA (index.html) -- BOOKS/BOOK_TARGETS are hardcoded
-// project-wide constants, not stored data; statusColor's palette matches the PWA's
-// CSS custom properties (--gray/--gold/--ember/--teal).
+// Ported directly from the PWA (index.html) -- statusColor's palette matches the PWA's CSS
+// custom properties (--gray/--gold/--ember/--teal).
+//
+// BOOKS IS NOT A LIMIT ANY MORE (2026-09-21). A book was never a stored thing: a chapter
+// carries an integer `book`, and books are inferred from chapters exactly as acts are. What
+// was fixed at five was the UI -- every list mapped over this constant -- so a sixth book
+// could exist in the data and be invisible on screen. The constant now only supplies the
+// first five NAMES; `bookName` continues the sequence indefinitely, and `bookIndices` gives
+// each screen the range to draw: at least the saga's five, plus whatever the chapters reach,
+// plus (where the screen creates chapters) one more for the book that does not exist yet.
 export const BOOKS = ['Book One', 'Book Two', 'Book Three', 'Book Four', 'Book Five'];
+/** How many books every project shows even when empty -- the saga is five. */
+export const MIN_BOOKS = BOOKS.length;
+
+const ORDINAL_WORDS = [
+  'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen',
+  'Nineteen', 'Twenty',
+];
+
+/** "Book One" .. "Book Twenty", then "Book 21" and on. Never undefined, whatever the index. */
+export function bookName(bookIndex: number): string {
+  const word = ORDINAL_WORDS[bookIndex];
+  return word ? `Book ${word}` : `Book ${bookIndex + 1}`;
+}
+
+/** Highest book index any chapter uses, plus one; never below MIN_BOOKS. */
+export function bookCount(chapters: { book: number }[]): number {
+  let max = -1;
+  for (const c of chapters) if (c.book > max) max = c.book;
+  return Math.max(MIN_BOOKS, max + 1);
+}
+
+/**
+ * The book indices a screen should offer. `withNext` adds one past the last -- the book that
+ * will exist once a chapter is created in it -- for screens that create chapters.
+ */
+export function bookIndices(chapters: { book: number }[], withNext = false): number[] {
+  const n = bookCount(chapters) + (withNext ? 1 : 0);
+  return Array.from({ length: n }, (_, i) => i);
+}
 
 export const STATUS_COLORS: Record<string, string> = {
   idea: '#6b5d42',

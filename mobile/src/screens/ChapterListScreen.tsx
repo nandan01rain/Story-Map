@@ -10,7 +10,7 @@ import { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSlidePanel } from '../lib/useSlidePanel';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import { type EpubScope, exportEpub } from '../lib/epub';
-import { BOOKS, statusColor, wordCount } from '../lib/storyData';
+import { bookCount, bookIndices, bookName, statusColor, wordCount } from '../lib/storyData';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
@@ -147,7 +147,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
               disabled={exporting}
               onPress={() => runExport({ bookIndex: b })}
             >
-              <Text style={styles.epubOptionText}>{BOOKS[b]}</Text>
+              <Text style={styles.epubOptionText}>{bookName(b)}</Text>
               <Text style={styles.epubOptionMeta}>
                 {chapters.filter((c) => c.book === b).length} chapters
               </Text>
@@ -211,35 +211,32 @@ export default function ChapterListScreen({ route, navigation }: Props) {
     );
   }
 
-  if (chapters.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.empty}>No chapters yet.</Text>
-        {edgeSwipeZone}
-        {drawer}
-      </View>
-    );
-  }
+  // No early return for an empty project any more: the list below draws the five empty books
+  // with their "+", which is how a first chapter gets written. "No chapters yet." with no way
+  // to make one was a dead end (2026-09-21).
 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {BOOKS.map((bookName, bookIndex) => {
-        const bookChapters = byBook.get(bookIndex);
-        if (!bookChapters || bookChapters.length === 0) return null;
-        const isOpen = expandedBooks.has(bookIndex);
+      {/* Every book up to the count -- the saga's five, or as far as the chapters reach. An
+          EMPTY book is drawn too, quietly, with its "+": it used to be hidden, which left no
+          way on this screen to start Book Two until Book Two somehow had a chapter. */}
+      {bookIndices(chapters).map((bookIndex) => {
+        const bookChapters = byBook.get(bookIndex) ?? [];
+        const isEmpty = bookChapters.length === 0;
+        const isOpen = !isEmpty && expandedBooks.has(bookIndex);
 
         return (
-          <View key={bookIndex} style={styles.book}>
-            <Pressable style={styles.bookHeader} onPress={() => toggleBook(bookIndex)}>
-              <Text style={styles.bookTitle}>{bookName}</Text>
+          <View key={bookIndex} style={[styles.book, isEmpty && styles.bookEmpty]}>
+            <Pressable style={styles.bookHeader} onPress={() => (isEmpty ? openAddChapter(bookIndex) : toggleBook(bookIndex))}>
+              <Text style={[styles.bookTitle, isEmpty && styles.bookTitleEmpty]}>{bookName(bookIndex)}</Text>
               <Text style={styles.bookMeta}>
-                {bookChapters.length} chapter{bookChapters.length === 1 ? '' : 's'}
+                {isEmpty ? 'empty' : `${bookChapters.length} chapter${bookChapters.length === 1 ? '' : 's'}`}
               </Text>
               <Pressable style={styles.addChapterBtn} onPress={() => openAddChapter(bookIndex)} hitSlop={8}>
                 <Text style={styles.addChapterBtnText}>+</Text>
               </Pressable>
-              <Text style={styles.bookArrow}>{isOpen ? '▼' : '▶'}</Text>
+              {!isEmpty && <Text style={styles.bookArrow}>{isOpen ? '▼' : '▶'}</Text>}
             </Pressable>
 
             {isOpen && (
@@ -249,11 +246,17 @@ export default function ChapterListScreen({ route, navigation }: Props) {
         );
       })}
 
+      {/* A book is its chapters, so a new one begins with its first chapter: this opens the
+          same sheet aimed one past the last book. There is no upper limit. */}
+      <Pressable style={styles.addBook} onPress={() => openAddChapter(bookCount(chapters))}>
+        <Text style={styles.addBookText}>+ Add {bookName(bookCount(chapters))}</Text>
+      </Pressable>
+
       <Modal visible={addChapterBook !== null} transparent animationType="fade" onRequestClose={() => setAddChapterBook(null)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              New chapter{addChapterBook !== null ? ` — ${BOOKS[addChapterBook]}` : ''}
+              New chapter{addChapterBook !== null ? ` — ${bookName(addChapterBook)}` : ''}
             </Text>
             <TextInput
               style={styles.modalInput}
@@ -496,6 +499,10 @@ function makeStyles(colors: ThemeColors) {
       borderRadius: 8,
       overflow: 'hidden',
     },
+    bookEmpty: { opacity: 0.6 },
+    bookTitleEmpty: { color: colors.textDim },
+    addBook: { alignItems: 'center', paddingVertical: 18 },
+    addBookText: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 13, letterSpacing: 1 },
     bookHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
     bookTitle: { color: colors.text, fontFamily: FONTS.heading, fontSize: 16, flex: 1 },
     bookMeta: { color: colors.textDim, fontFamily: FONTS.mono, fontSize: 11 },

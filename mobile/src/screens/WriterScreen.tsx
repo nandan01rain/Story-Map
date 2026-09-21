@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
-import { BOOKS, wordCount } from '../lib/storyData';
+import { bookName, wordCount } from '../lib/storyData';
 import {
   loadDailyTarget,
   loadWritingAlign,
@@ -494,7 +494,7 @@ export default function WriterScreen({ route, navigation }: Props) {
     };
   }, []);
 
-  const bookLabel = bookIndex === null ? '' : (BOOKS[bookIndex] ?? `Book ${bookIndex + 1}`);
+  const bookLabel = bookIndex === null ? '' : bookName(bookIndex);
 
   return (
     <View style={styles.screen}>
@@ -527,7 +527,7 @@ export default function WriterScreen({ route, navigation }: Props) {
         >
           {bookIndices.map((i) => (
             <Pressable key={i} onPress={() => switchBook(i)} style={[styles.bookChip, i === bookIndex && styles.bookChipActive]}>
-              <Text style={[styles.bookChipText, i === bookIndex && styles.bookChipTextActive]}>{BOOKS[i] ?? `Book ${i + 1}`}</Text>
+              <Text style={[styles.bookChipText, i === bookIndex && styles.bookChipTextActive]}>{bookName(i)}</Text>
             </Pressable>
           ))}
         </ScrollView>

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BOOKS } from '../lib/storyData';
+import { bookIndices, bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useChapterStore } from '../store/chapterStore';
 import { treatmentTitle, useTreatmentStore, type TreatmentVersion } from '../store/treatmentStore';
@@ -256,9 +256,9 @@ function TreatmentSheet({
               <>
                 <Text style={styles.sheetLabel}>Make this a chapter</Text>
                 <View style={styles.chipRow}>
-                  {BOOKS.map((name, i) => (
-                    <Pressable key={name} style={[styles.chip, book === i && styles.chipOn]} onPress={() => setBook(i)}>
-                      <Text style={[styles.chipText, book === i && styles.chipTextOn]}>{name}</Text>
+                  {bookIndices(chapters, true).map((i) => (
+                    <Pressable key={i} style={[styles.chip, book === i && styles.chipOn]} onPress={() => setBook(i)}>
+                      <Text style={[styles.chipText, book === i && styles.chipTextOn]}>{bookName(i)}</Text>
                     </Pressable>
                   ))}
                 </View>

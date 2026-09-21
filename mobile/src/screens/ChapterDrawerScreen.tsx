@@ -13,7 +13,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 
 import type { SignedInStackParamList } from '../navigation/types';
-import { BOOKS, chapterNumberInBook, statusColor, wordCount } from '../lib/storyData';
+import { bookName, chapterNumberInBook, statusColor, wordCount } from '../lib/storyData';
 import { supabase } from '../lib/supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useAuthStore } from '../store/authStore';
@@ -142,7 +142,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.position}>
-        {BOOKS[chapter.book]}, Act {chapter.act}
+        {bookName(chapter.book)}, Act {chapter.act}
         {chapterNumber !== null ? `, Chapter ${chapterNumber}` : ''}
       </Text>
       <TextInput

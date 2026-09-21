@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
 
 import type { Chapter } from '../store/chapterStore';
-import { BOOKS } from './storyData';
+import { bookName } from './storyData';
 
 // EPUB export, ported from the PWA's buildEpubBlob (index.html) so the two produce the same
 // book from the same data. EPUB 2 rather than 3: it is what every reader accepts, and the
@@ -59,7 +59,7 @@ function uuid(): string {
 export type EpubScope = { bookIndex: number | null };
 
 export function epubFilename(projectName: string, scope: EpubScope): string {
-  const book = scope.bookIndex === null ? '' : ` - ${BOOKS[scope.bookIndex]}`;
+  const book = scope.bookIndex === null ? '' : ` - ${bookName(scope.bookIndex)}`;
   // Anything a filesystem might object to, flattened. A title with a colon in it is common
   // and would otherwise fail the write with an error about a path.
   const safe = `${projectName}${book}`
@@ -122,7 +122,7 @@ export async function exportEpub(
   });
 
   const id = uuid();
-  const title = scope.bookIndex === null ? projectName : `${projectName} — ${BOOKS[scope.bookIndex]}`;
+  const title = scope.bookIndex === null ? projectName : `${projectName} — ${bookName(scope.bookIndex)}`;
 
   oebps.file(
     'content.opf',

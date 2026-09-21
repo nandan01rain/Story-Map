@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
-import { ANNOTATION_COLORS, BOOKS, chapterNumberInBook, wordCount } from '../lib/storyData';
+import { ANNOTATION_COLORS, bookName, chapterNumberInBook, wordCount } from '../lib/storyData';
 import { loadWritingAlign, type WritingAlign } from '../lib/writingPrefs';
 import { fetchCharacterGraph, type GraphNode } from '../lib/characterGraph';
 import { useAssistantStore } from '../store/assistantStore';
@@ -533,7 +533,7 @@ export default function EditorScreen({ route, navigation }: Props) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Text style={styles.position}>
-        {BOOKS[chapter.book]}, Act {chapter.act}
+        {bookName(chapter.book)}, Act {chapter.act}
         {chapterNumber !== null ? `, Chapter ${chapterNumber}` : ''}
       </Text>
       <View style={styles.toolbar}>
