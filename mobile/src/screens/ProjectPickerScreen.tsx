@@ -14,6 +14,7 @@ import {
 } from '../lib/demoImport';
 import { supabase } from '../lib/supabase';
 import { useSortablePositions } from '../lib/useSortablePositions';
+import { forgetLastProject } from '../lib/writingPrefs';
 import { useAuthStore } from '../store/authStore';
 import { type Project, useProjectStore } from '../store/projectStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
@@ -182,9 +183,17 @@ export default function ProjectPickerScreen({ navigation }: Props) {
 
   async function confirmDelete() {
     if (!deleteTarget || deleteConfirmText !== deleteTarget.name) return;
-    const { error: err } = await deleteProject(deleteTarget.id);
-    if (err) setActionError(err);
+    const target = deleteTarget;
+    // Dismiss FIRST, and give the fade time to finish, before touching the list. Deleting
+    // changes the sortable list's id-set key, which remounts everything under the modal;
+    // Android's native Modal, told to hide in the same instant, was left showing its
+    // backdrop over nothing -- the blank grey screen that needed a force-close (2026-09-21).
     setDeleteTarget(null);
+    setDeleteConfirmText('');
+    await new Promise((r) => setTimeout(r, 300));
+    const { error: err } = await deleteProject(target.id);
+    if (err) setActionError(err);
+    else void forgetLastProject(target.id);
   }
 
   return (

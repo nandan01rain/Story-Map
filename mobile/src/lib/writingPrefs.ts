@@ -49,6 +49,16 @@ export async function loadLastProject(): Promise<{ id: string; name: string } | 
   }
 }
 
+/** A deleted project must not stay the landing page's "last opened". */
+export async function forgetLastProject(id: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_PROJECT_KEY);
+    if (raw && (JSON.parse(raw) as { id: string }).id === id) await AsyncStorage.removeItem(LAST_PROJECT_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+}
+
 export async function saveLastProject(id: string, name: string): Promise<void> {
   try {
     await AsyncStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id, name }));
