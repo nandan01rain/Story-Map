@@ -103,8 +103,10 @@ interactively it will ask instead. It selects which environment's variables the 
 built against, and is unrelated to `--branch`, which is where the update is published --
 they are both `preview` here only because the names happen to coincide.
 
-Seconds, not minutes — it uploads a JS bundle, not a binary. The app checks on launch and
-again a few seconds in, then offers **"An update is ready — tap to restart"**. It is offered
+Seconds, not minutes — it uploads a JS bundle, not a binary. The app checks a few seconds
+after launch and on every return to the foreground, then offers **"An update is ready — tap
+to restart"**. Launch itself never waits on the server (`fallbackToCacheTimeout: 0` since
+build 4): the app starts from the bundle it has and hears about a newer one afterwards. It is offered
 rather than taken: a reload mid-sentence is indistinguishable from a crash.
 
 ### When a new APK *is* required

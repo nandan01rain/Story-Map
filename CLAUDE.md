@@ -676,8 +676,9 @@ continuity checker, which is Icarus's job now. See handoff §19.
   ids make replay idempotent, updates coalesce so six hours of autosave is one
   pending write, order is preserved, and a rejected op is dropped rather than
   blocking those behind it. No new dependency, so it ships over the air. The braid
-  still needs the network (three.js from a CDN) and `fallbackToCacheTimeout: 8000`
-  still costs up to 8s at launch. Handoff §31.
+  still needs the network (three.js from a CDN). `fallbackToCacheTimeout` is 0 since
+  2026-09-21 (build 4) -- launch no longer waits up to 8s on the update server; the
+  in-app check offers updates instead, on launch and on every resume. Handoff §31.
 
 ## Design principles worth preserving
 

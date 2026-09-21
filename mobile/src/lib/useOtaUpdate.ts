@@ -1,5 +1,6 @@
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 
 // Over-the-air updates.
 //
@@ -12,6 +13,14 @@ import { useCallback, useEffect, useState } from 'react';
 // applies what it fetched on the NEXT launch. That is the wrong shape for a writing app you
 // leave open for hours: the update would sit there unused until you happened to force-quit.
 // So this checks again on demand and offers to reload once one is ready.
+//
+// LAUNCH DOES NOT WAIT for that fetch any more. fallbackToCacheTimeout was 8000, which held
+// the splash for up to 8s on every cold start while the server was asked -- and after the
+// phone had been idle a while, with the radio asleep, it used most of that. That was "the
+// lag when I haven't used the app for a while" (2026-09-21). It is 0 now: the app starts at
+// once from the bundle it has, expo-updates downloads anything newer in the background, and
+// this hook is what surfaces it. Which is why it also checks on RESUME, not only 4s after
+// launch: a session that lives for days still hears about updates.
 
 export type OtaState = {
   /** An update has been downloaded and will apply on reload. */
@@ -60,9 +69,16 @@ export function useOtaUpdate(): OtaState {
 
   useEffect(() => {
     // One check shortly after launch, on top of the automatic one, so a session that starts
-    // offline still picks up an update once the network returns.
+    // offline still picks up an update once the network returns -- and one on every return
+    // to the foreground, since launch no longer waits for the server.
     const id = setTimeout(check, 4000);
-    return () => clearTimeout(id);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void check();
+    });
+    return () => {
+      clearTimeout(id);
+      sub.remove();
+    };
   }, [check]);
 
   return { ready, checking, enabled, check, apply };

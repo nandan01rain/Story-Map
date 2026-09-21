@@ -4430,6 +4430,17 @@ will look like data loss rather than like a documented trade.
 UI does not call -- deletions go through `trashStore`. It stays online-only deliberately;
 queueing a destructive op is a different risk from queueing a constructive one.
 
+### 31.7 Launch no longer waits for the update server (2026-09-21)
+
+"The lag when I haven't used the app for a while" was `fallbackToCacheTimeout: 8000`: on
+every cold start expo-updates held the splash for up to 8s asking the server for a newer
+bundle, and after the phone had been idle, with the radio asleep, that used most of its
+allowance. §31 recorded the cost and left it, because it is native config and needs a build.
+Build 4 sets it to 0. The app starts at once from the bundle it has; expo-updates still
+downloads anything newer in the background; `useOtaUpdate` surfaces it -- and now checks on
+every return to the foreground as well as 4s after launch, so a session that lives for days
+still hears about updates. Nothing else about delivery changed: same channel, same runtime.
+
 ### 31.6 The network that is present and useless (2026-09-19)
 
 §31 handled the network that is *absent*: fetch fails at once, `isOffline()` recognises it,
