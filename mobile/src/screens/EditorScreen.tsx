@@ -21,6 +21,7 @@ import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, bookName, chapterNumberInBook, wordCount } from '../lib/storyData';
 import { loadWritingAlign, type WritingAlign } from '../lib/writingPrefs';
+import { diffSummary, diffWords, type DiffPart } from '../lib/textDiff';
 import { fetchCharacterGraph, type GraphNode } from '../lib/characterGraph';
 import { useAssistantStore } from '../store/assistantStore';
 import { type Annotation, type FlagType, useChapterStore } from '../store/chapterStore';
@@ -135,14 +136,28 @@ export default function EditorScreen({ route, navigation }: Props) {
     navigation.setOptions({ title: '' });
   }, [navigation]);
 
-  // pushVersionSnapshot(), ported: skip if nothing changed or content is empty, cap at 10.
+  // ONE snapshot per editing session, not one per autosave. Snapshotting on every 1.2s
+  // autosave filled the ten slots with near-identical copies inside a minute of typing, so
+  // history held one minute of history. The first persist of a session snapshots the text
+  // the screen OPENED with; every later one in the same session does not. Ten sessions of
+  // history is what a writer means by history (2026-09-21).
+  const sessionSnapshotTaken = useRef(false);
   function snapshotIfChanged(latestContent: string) {
     if (!chapter) return chapter;
+    if (sessionSnapshotTaken.current) return null;
     if (latestContent === savedContentRef.current) return null;
     if (!savedContentRef.current || !savedContentRef.current.trim()) return null;
+    sessionSnapshotTaken.current = true;
     const version = { content: savedContentRef.current, savedAt: Date.now(), words: wordCount(savedContentRef.current) };
     return [version, ...chapter.versions].slice(0, 10);
   }
+  // Which version is being compared with the current text, in the history sheet.
+  const [diffIndex, setDiffIndex] = useState<number | null>(null);
+  const diffParts: DiffPart[] | null = useMemo(
+    () => (diffIndex !== null && chapter ? diffWords(chapter.versions[diffIndex]?.content ?? '', content) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [diffIndex, chapter?.versions],
+  );
 
   async function persist(latestContent: string, latestAnnotations: Annotation[]) {
     if (!chapter) return;
@@ -540,6 +555,9 @@ export default function EditorScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.navigate('Reader', { projectId: chapter.project_id, chapterId })}>
           <Text style={styles.toolbarBtn}>Reader</Text>
         </Pressable>
+        <Pressable onPress={() => navigation.navigate('ProseReport', { projectId: chapter.project_id, chapterId })}>
+          <Text style={styles.toolbarBtn}>Report</Text>
+        </Pressable>
         <Pressable
           onPress={() =>
             navigation.navigate('Braid', {
@@ -915,22 +933,52 @@ export default function EditorScreen({ route, navigation }: Props) {
         </View>
       </Modal>
 
-      <Modal visible={historyVisible} transparent animationType="fade" onRequestClose={() => setHistoryVisible(false)}>
+      <Modal visible={historyVisible} transparent animationType="fade" onRequestClose={() => { setDiffIndex(null); setHistoryVisible(false); }}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Version history</Text>
-            {chapter.versions.length === 0 ? (
-              <Text style={styles.modalEmpty}>No earlier saves yet — history builds up as you keep editing.</Text>
+            <Text style={styles.modalTitle}>{diffIndex === null ? 'Version history' : 'Changes since then'}</Text>
+            {diffIndex !== null && diffParts ? (
+              <>
+                <Text style={styles.modalEmpty}>
+                  {(() => {
+                    const s = diffSummary(diffParts);
+                    return `${s.added} words added, ${s.removed} removed, against the version from ${new Date(chapter.versions[diffIndex].savedAt).toLocaleString()}.`;
+                  })()}
+                </Text>
+                <ScrollView style={{ maxHeight: 360 }}>
+                  <Text style={styles.diffText}>
+                    {diffParts.map((p, i) => (
+                      <Text
+                        key={i}
+                        style={p.kind === 'added' ? styles.diffAdded : p.kind === 'removed' ? styles.diffRemoved : undefined}
+                      >
+                        {p.text}
+                      </Text>
+                    ))}
+                  </Text>
+                </ScrollView>
+                <View style={styles.modalActions}>
+                  <Pressable onPress={() => setDiffIndex(null)} hitSlop={8}>
+                    <Text style={styles.modalCancel}>Back</Text>
+                  </Pressable>
+                  <Pressable onPress={() => { const i = diffIndex; setDiffIndex(null); restoreVersion(i); }} hitSlop={8}>
+                    <Text style={styles.modalConfirm}>Restore this version</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : chapter.versions.length === 0 ? (
+              <Text style={styles.modalEmpty}>No earlier saves yet — a version is kept each time you open the chapter and change it.</Text>
             ) : (
               <ScrollView style={{ maxHeight: 320 }}>
                 {chapter.versions.map((v, i) => (
                   <View key={i} style={styles.versionRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.versionTime}>{new Date(v.savedAt).toLocaleString()}</Text>
+                    <Pressable style={{ flex: 1 }} onPress={() => setDiffIndex(i)}>
+                      <Text style={styles.versionTime}>{new Date(v.savedAt).toLocaleString()} · {v.words.toLocaleString()} words</Text>
                       <Text style={styles.versionPreview} numberOfLines={1}>
                         {v.content.trim().slice(0, 100)}
                       </Text>
-                    </View>
+                      <Text style={styles.versionCompare}>Compare</Text>
+                    </Pressable>
                     <Pressable onPress={() => restoreVersion(i)}>
                       <Text style={styles.modalConfirm}>Restore</Text>
                     </Pressable>
@@ -971,6 +1019,10 @@ function makeStyles(colors: ThemeColors) {
       gap: 12,
     },
     toolbarBtn: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+    versionCompare: { color: colors.gold, fontFamily: FONTS.body, fontSize: 12, marginTop: 3 },
+    diffText: { color: colors.text, fontFamily: FONTS.literary, fontSize: 15, lineHeight: 23 },
+    diffAdded: { backgroundColor: withOpacity('#2f9d8a', 0.25), color: colors.text },
+    diffRemoved: { backgroundColor: withOpacity('#b8542e', 0.25), color: colors.textDim, textDecorationLine: 'line-through' },
     status: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 11, flex: 1, textAlign: 'center' },
     measurer: { position: 'absolute', left: -9999, top: 0, opacity: 0 },
     editScroll: { flex: 1 },

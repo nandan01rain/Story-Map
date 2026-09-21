@@ -12,6 +12,8 @@ export type SignedInStackParamList = {
   Writer: { projectId: string };
   /** Today's words, the streak, the daily target and the reminder. */
   WritingGoals: { projectId: string };
+  /** Line-level prose analysis: one chapter, or a whole book picked on the screen. */
+  ProseReport: { projectId: string; chapterId?: string };
   Reader: { projectId: string; projectName?: string; chapterId?: string; jumpToText?: string };
   Settings: undefined;
   /** The stack of raw-capture pages. Replaces the old sticky-note board. */

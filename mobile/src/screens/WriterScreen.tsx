@@ -71,7 +71,13 @@ const ALIGN_OPTIONS: { key: WritingAlign; icon: string }[] = [
   { key: 'justify', icon: 'align-justify' },
 ];
 
-type Draft = { content: string; savedContent: string; timer: ReturnType<typeof setTimeout> | null };
+type Draft = {
+  content: string;
+  savedContent: string;
+  timer: ReturnType<typeof setTimeout> | null;
+  /** One version per chapter per visit -- see EditorScreen's snapshotIfChanged for why. */
+  snapshotted: boolean;
+};
 
 export default function WriterScreen({ route, navigation }: Props) {
   const { projectId } = route.params;
@@ -162,7 +168,7 @@ export default function WriterScreen({ route, navigation }: Props) {
     for (const ch of projectChapters) {
       const d = drafts.current.get(ch.id);
       if (!d) {
-        drafts.current.set(ch.id, { content: ch.content, savedContent: ch.content, timer: null });
+        drafts.current.set(ch.id, { content: ch.content, savedContent: ch.content, timer: null, snapshotted: false });
         nextContents.set(ch.id, ch.content);
         nextWords.set(ch.id, wordCount(ch.content));
         changed = true;
@@ -194,9 +200,10 @@ export default function WriterScreen({ route, navigation }: Props) {
       // skip an empty prior, cap the history.
       const prior = d.savedContent;
       const versions =
-        prior && prior.trim()
+        !d.snapshotted && prior && prior.trim()
           ? [{ content: prior, savedAt: Date.now(), words: wordCount(prior) }, ...ch.versions].slice(0, MAX_VERSIONS)
           : ch.versions;
+      d.snapshotted = true;
       d.savedContent = d.content;
       void updateChapter(chapterId, { content: d.content, versions });
     },
@@ -238,7 +245,7 @@ export default function WriterScreen({ route, navigation }: Props) {
       const d = scratch.current.get(ch.id);
       const notes = ch.notes ?? '';
       if (!d) {
-        scratch.current.set(ch.id, { content: notes, savedContent: notes, timer: null });
+        scratch.current.set(ch.id, { content: notes, savedContent: notes, timer: null, snapshotted: true });
         next.set(ch.id, notes);
         changed = true;
       } else if (d.content === d.savedContent && notes !== d.savedContent) {

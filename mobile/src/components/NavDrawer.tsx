@@ -63,6 +63,7 @@ type DrawerItem = {
 
 const DISCOVER: DrawerItem[] = [
   { key: 'search', icon: 'search', label: 'Search' },
+  { key: 'report', icon: 'list', label: 'Prose report' },
   { key: 'pov', icon: 'eye', label: 'POV' },
   { key: 'continuity', icon: 'link', label: 'Continuity check' },
   { key: 'ledger', icon: 'book-open', label: 'Ledger' },
@@ -112,6 +113,7 @@ export default function NavDrawer({
   onSignOut,
   onOpenReader,
   onOpenWriter,
+  onOpenReport,
   onOpenSettings,
   onOpenNotes,
   onOpenTreatments,
@@ -129,6 +131,7 @@ export default function NavDrawer({
   onSignOut: () => void;
   onOpenReader: () => void;
   onOpenWriter: () => void;
+  onOpenReport: () => void;
   onOpenSettings: () => void;
   onOpenNotes: () => void;
   onOpenTreatments: () => void;
@@ -174,6 +177,7 @@ export default function NavDrawer({
 
   const discoverItems = DISCOVER.map((item) => {
     if (item.key === 'search') return { ...item, onPress: onSearch };
+    if (item.key === 'report') return { ...item, onPress: onOpenReport };
     if (item.key === 'documents') return { ...item, onPress: onOpenDocuments };
     if (item.key === 'assistant') return { ...item, onPress: onOpenAssistant };
     if (item.key === 'braid') return { ...item, onPress: onOpenBraid };
