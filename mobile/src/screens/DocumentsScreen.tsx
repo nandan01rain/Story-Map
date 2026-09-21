@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import Icon from '../components/Icon';
+import ProgressionsPanel from '../components/ProgressionsPanel';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { useTrashStore } from '../store/trashStore';
@@ -175,18 +176,24 @@ export default function DocumentsScreen({ route, navigation }: Props) {
           ))}
         </ScrollView>
 
-        <TextInput
-          style={styles.bodyInput}
-          value={body}
-          onChangeText={(t) => {
-            setBody(t);
-            scheduleSave(title, t);
-          }}
-          multiline
-          textAlignVertical="top"
-          placeholder="Write freely…"
-          placeholderTextColor={colors.textFaint}
-        />
+        {/* The body and, under it, what this document says as of each chapter. In one
+            scroll so a long entry and its progressions read as one thing. */}
+        <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+          <TextInput
+            style={styles.bodyInput}
+            value={body}
+            onChangeText={(t) => {
+              setBody(t);
+              scheduleSave(title, t);
+            }}
+            multiline
+            scrollEnabled={false}
+            textAlignVertical="top"
+            placeholder="Write freely…"
+            placeholderTextColor={colors.textFaint}
+          />
+          {user && <ProgressionsPanel documentId={openDoc.id} projectId={projectId} userId={user.id} />}
+        </ScrollView>
       </KeyboardAvoidingView>
     );
   }
@@ -304,7 +311,7 @@ function makeStyles(colors: ThemeColors) {
     typeChipText: { color: colors.textDim, fontSize: 12 },
     typeChipTextOn: { color: colors.text },
     bodyInput: {
-      flex: 1,
+      minHeight: 320,
       color: colors.text,
       fontFamily: FONTS.literary,
       fontSize: 16,

@@ -679,6 +679,16 @@ continuity checker, which is Icarus's job now. See handoff §19.
   the Editor overwriting new text with old on exit (a stale unmount closure; handoff §33.1)
   and the Reader hanging when opened from the Editor (no request deadline; §31.6).
 
+- **🔍 The craft layer (2026-09-21, handoff §35)** — **Prose reports** (sentence rhythm,
+  repeated openings, overused words, adverbs, filter words, dialogue tags; deterministic,
+  offline; Editor → Report, Discover → Prose report). **Version history** snapshots once per
+  editing session, with a word-level **diff**. **Word export** (.docx, manuscript format,
+  hand-built OOXML over jszip). **Chronology** (Discover): `story_time` per chapter with
+  carry-forward, `born` per character, ages and before-birth contradictions — needs
+  `20260825_spine_support.sql`, **still unrun**; degrades and says so. **Progressions**:
+  what a document says as of a chapter — needs `20260921_progressions.sql`, **unrun**;
+  degrades and says so.
+
 - **🗂 Folder backup (2026-09-21)** — Profile → Backup folder: pick a folder once through
   Android's own picker (a Google Drive folder works; the Drive app syncs it) and every
   save mirrors the project there as `project.json` plus one markdown file per chapter.

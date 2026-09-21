@@ -4774,3 +4774,56 @@ check. If Drive's provider refuses folder access, a local folder still works and
 
 **Not built**: restore. `project.json` is complete enough to write one from; nothing reads it
 yet. The point today was that the copy exists.
+
+
+## 35. THE CRAFT LAYER (2026-09-21): reports, diff, Word, chronology, progressions
+
+Built in one pass against the comparison with Scrivener / Novelcrafter / Aeon / World Anvil,
+with the assistants left dormant by decision. Everything here runs with every assistant off.
+
+**Prose reports** (`lib/proseReport.ts`, `ProseReportScreen`; Editor toolbar → Report for a
+chapter, Discover → Prose report for a book). Deterministic: sentence-length bands and the
+longest run of one band, repeated two-word openings, overused content words per thousand,
+-ly adverb density, filter words (felt, saw, suddenly, really…), dialogue share and the tags
+after closing quotes, paragraph length. This is the deterministic half Icarus was always meant
+to run before any model call. Heuristics, and worded as such: abbreviations split sentences.
+
+**Version history that means something.** Both editors took a snapshot on every 1.2s autosave,
+so ten slots held one minute of typing. Now ONE per editing session -- the text the chapter
+opened with -- so history is ten sessions. Tapping a version shows a word-level diff
+(`lib/textDiff.ts`: common prefix/suffix stripped, LCS on the middle up to 1500 words a side,
+a plain replace beyond that, because an exact diff over a 20k-word chapter on a phone is not
+worth the wait).
+
+**Word export** (`lib/docx.ts`). A .docx built by hand from four XML parts and zipped with the
+jszip the EPUB uses; nothing new ships. Standard manuscript shape -- title page, a part per
+book, each chapter on a new page under "Chapter N" and its title, double-spaced, first-line
+indent -- which is what an editor, an agent or Vellum's importer expects. Typesetting beyond
+that is deliberately not attempted; PDF would need expo-print (native) and was left out for
+the same reason. Validated: every part parses, paragraphs and breaks land, entities escape.
+
+**Chronology** (`lib/chronology.ts`, `ChronologyScreen`; Discover → Chronology). `story_time`
+joins the chapter store with the degraded path pages and treatments carry: a database without
+the column (migration **20260825_spine_support.sql, still not run**) is asked again without it,
+`storyTimeSupported` goes false, `updateChapter` strips the field so the outbox never carries
+a row the server would reject, and the screen says what to paste. An unmarked chapter follows
+the last marked one -- the braid's own rule, so the two never disagree. Characters carry
+`born` in their graph node's `properties` (`setCharacterProperties`, manual_override so
+extraction respects it). Derived: effective time per chapter, reading order running backwards
+(flashback -- flagged, not faulted), every present character's age per chapter, and anyone
+present before they were born. Presence is the graph's (character → event ↔ chapter), so this
+sees exactly what the braid's Characters layer sees; a chapter nobody is placed in has no ages.
+Needs the network for the graph; the chapter half works offline.
+
+**Progressions** (`supabase/migrations/20260921_progressions.sql`, **not applied**;
+`store/progressionStore.ts`, `components/ProgressionsPanel.tsx` under a document's body). What
+a document says AS OF a chapter: a note anchored to the chapter from which it holds, read in
+reading order. Anchored to a chapter and not a story time on purpose -- the writer thinks
+"from the moment she takes the throne", and that is a chapter. `on delete set null` so a
+deleted chapter leaves the note undated rather than taking the fact with it. Direct to the
+server like documents; `supported` goes false on 42P01 and the panel says what to paste. This
+is also the shape mention-detection would consume when the assistants wake: base text plus
+every progression at or before the scene's chapter.
+
+**Two migrations are now waiting**: 20260825_spine_support.sql (story time) and
+20260921_progressions.sql. Both screens work without them and say so.
