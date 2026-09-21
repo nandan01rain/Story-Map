@@ -246,6 +246,24 @@ export async function acceptNode(id: string): Promise<{ error: string | null }> 
   return { error: error?.message ?? null };
 }
 
+/**
+ * Merge properties into a character node -- `born`, for the chronology screen, is the first
+ * use. Manual, so extraction must not overwrite it. Direct to the server: the graph has no
+ * offline path, and this screen already needs the network for the graph itself.
+ */
+export async function setCharacterProperties(
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<{ error: string | null }> {
+  const { data, error: readError } = await supabase.from('graph_nodes').select('properties').eq('id', id).single();
+  if (readError) return { error: readError.message };
+  const { error } = await supabase
+    .from('graph_nodes')
+    .update({ properties: { ...((data?.properties as Record<string, unknown>) ?? {}), ...patch }, source: 'manual_override', updated_at: new Date().toISOString() })
+    .eq('id', id);
+  return { error: error?.message ?? null };
+}
+
 // Correcting marks the row manual_override, which extraction is required to respect.
 export async function correctEdge(
   id: string,

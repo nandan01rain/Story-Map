@@ -8,6 +8,7 @@ import EditorScreen from '../screens/EditorScreen';
 import WriterScreen from '../screens/WriterScreen';
 import WritingGoalsScreen from '../screens/WritingGoalsScreen';
 import ProseReportScreen from '../screens/ProseReportScreen';
+import ChronologyScreen from '../screens/ChronologyScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import BraidScreen from '../screens/BraidScreen';
 import TrashScreen from '../screens/TrashScreen';
@@ -80,6 +81,7 @@ export default function RootNavigator() {
           <Stack.Screen name="Writer" component={WriterScreen} options={{ title: '' }} />
           <Stack.Screen name="WritingGoals" component={WritingGoalsScreen} options={{ title: 'Goals' }} />
           <Stack.Screen name="ProseReport" component={ProseReportScreen} options={{ title: 'Prose report' }} />
+          <Stack.Screen name="Chronology" component={ChronologyScreen} options={{ title: 'Chronology' }} />
           <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Documents" component={DocumentsScreen} />

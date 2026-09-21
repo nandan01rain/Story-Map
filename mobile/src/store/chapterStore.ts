@@ -57,16 +57,26 @@ export type Chapter = {
   notes: string;
   annotations: Annotation[];
   versions: Version[];
+  /**
+   * When this chapter happens on the story's own timeline, in the writer's own units --
+   * years, days, whatever the saga counts in. Null means "wherever the previous marked
+   * chapter put us": sparse by design, see lib/chronology.ts. The column comes from
+   * migration 20260825_spine_support.sql; until that is run, every chapter reads null and
+   * `storyTimeSupported` below is false.
+   */
+  story_time: number | null;
 };
 
 type ChapterState = {
+  /** False when the database predates the story_time column (migration not run). */
+  storyTimeSupported: boolean;
   chapters: Chapter[];
   loading: boolean;
   error: string | null;
   fetchChapters: (projectId: string) => Promise<void>;
   updateChapter: (
     chapterId: string,
-    patch: Partial<Pick<Chapter, 'title' | 'book' | 'act' | 'status' | 'notes' | 'content' | 'annotations' | 'versions'>>,
+    patch: Partial<Pick<Chapter, 'title' | 'book' | 'act' | 'status' | 'notes' | 'content' | 'annotations' | 'versions' | 'story_time'>>,
   ) => Promise<{ error: string | null }>;
   deleteChapter: (chapterId: string) => Promise<{ error: string | null }>;
   // Creates a chapter directly from List view (a book's "+" button), not via the full
@@ -91,7 +101,11 @@ type ChapterState = {
   reorderChapters: (updates: { id: string; act: number; order: number }[]) => Promise<{ error: string | null }>;
 };
 
+const UNDEFINED_COLUMN = '42703';
+const CHAPTER_COLUMNS = 'id, project_id, book, act, "order", title, status, content, notes, annotations, versions';
+
 export const useChapterStore = create<ChapterState>((set, get) => ({
+  storyTimeSupported: true,
   chapters: [],
   loading: false,
   error: null,
@@ -110,11 +124,35 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       if (cached) set({ chapters: cached, loading: false });
     }
 
-    const { data, error } = await supabase
+    // Typed loosely on purpose: the column list is a runtime string (it has two shapes), and
+    // the client's query-string type parser cannot see through that.
+    type Row = Omit<Chapter, 'annotations' | 'versions' | 'story_time'> & {
+      annotations: Annotation[] | null;
+      versions: Version[] | null;
+      story_time?: number | null;
+    };
+    const first = await supabase
       .from('chapters')
-      .select('id, project_id, book, act, "order", title, status, content, notes, annotations, versions')
+      .select(CHAPTER_COLUMNS + ', story_time')
       .eq('project_id', projectId)
       .order('order', { ascending: true });
+    let data = first.data as unknown as Row[] | null;
+    let error = first.error;
+    if (error && error.code === UNDEFINED_COLUMN) {
+      // The database predates story_time (migration 20260825_spine_support.sql not run).
+      // Same degraded path pages and treatments carry: ask again without it, remember that
+      // it is missing so the chronology screen can say so, and never write it.
+      set({ storyTimeSupported: false });
+      const second = await supabase
+        .from('chapters')
+        .select(CHAPTER_COLUMNS)
+        .eq('project_id', projectId)
+        .order('order', { ascending: true });
+      data = second.data as unknown as Row[] | null;
+      error = second.error;
+    } else if (!error) {
+      set({ storyTimeSupported: true });
+    }
     if (error) {
       // Offline keeps whatever the cache gave us and says nothing; a real database error is
       // still an error worth surfacing.
@@ -125,6 +163,7 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       ...r,
       annotations: r.annotations ?? [],
       versions: r.versions ?? [],
+      story_time: r.story_time ?? null,
     })) as Chapter[];
     // Same rule as pages: the server's copy may be older than one still waiting to send, and
     // a chapter written on a plane has never been seen there at all.
@@ -145,6 +184,13 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   // device, it never arises; it is written down because the day it does arise it will look
   // like data loss rather than like a documented trade.
   updateChapter: async (chapterId, patch) => {
+    // A column the database does not have must not reach the outbox: the server would
+    // reject the whole row, and the outbox drops rejected ops -- taking the prose with it.
+    if (!get().storyTimeSupported && 'story_time' in patch) {
+      const { story_time: _dropped, ...rest } = patch;
+      patch = rest;
+      if (Object.keys(patch).length === 0) return { error: 'Story time needs migration 20260825_spine_support.sql.' };
+    }
     const chapters = get().chapters.map((c) => (c.id === chapterId ? { ...c, ...patch } : c));
     set({ chapters });
     const ch = chapters.find((c) => c.id === chapterId);
@@ -192,6 +238,7 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       notes: '',
       annotations: [],
       versions: [],
+      story_time: null,
     };
     const chapters = [...get().chapters, chapter];
     set({ chapters });

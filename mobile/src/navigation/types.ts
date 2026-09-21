@@ -14,6 +14,8 @@ export type SignedInStackParamList = {
   WritingGoals: { projectId: string };
   /** Line-level prose analysis: one chapter, or a whole book picked on the screen. */
   ProseReport: { projectId: string; chapterId?: string };
+  /** Story time per chapter, birth times per character, ages and contradictions. */
+  Chronology: { projectId: string };
   Reader: { projectId: string; projectName?: string; chapterId?: string; jumpToText?: string };
   Settings: undefined;
   /** The stack of raw-capture pages. Replaces the old sticky-note board. */
