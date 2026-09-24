@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { Chapter } from './chapterStore';
 import type { StoryDocument } from './documentStore';
 import type { Scene } from './sceneStore';
+import type { StoryEvent } from './storyboardStore';
 
 // Soft delete, shared with the PWA rather than invented again.
 //
@@ -16,11 +17,13 @@ import type { Scene } from './sceneStore';
 //                                   it or a restore brings back a chapter with nothing in it
 //   scene     { scene, chapterId }
 //   document  { document }
+//   storyboard_event  { event, threadIds }   mobile-only; the threads it was strung on
+//                                            travel with it, since its links cascade away
 //
 // graph_node / graph_edge rows are also trashed here by characterGraph.ts, with their own
 // payload shape. They are listed but not restorable from this screen yet -- see below.
 
-export type TrashType = 'chapter' | 'scene' | 'document' | 'graph_node' | 'graph_edge';
+export type TrashType = 'chapter' | 'scene' | 'document' | 'storyboard_event' | 'graph_node' | 'graph_edge';
 
 export type TrashEntry = {
   id: string;
@@ -32,6 +35,8 @@ export type TrashEntry = {
     scene?: Scene;
     chapterId?: string;
     document?: StoryDocument;
+    event?: StoryEvent;
+    threadIds?: string[];
     node?: { label?: string };
     edge?: unknown;
   };
@@ -53,6 +58,12 @@ type TrashState = {
     projectId: string,
     userId: string,
     document: StoryDocument,
+  ) => Promise<{ error: string | null }>;
+  trashStoryEvent: (
+    projectId: string,
+    userId: string,
+    event: StoryEvent,
+    threadIds: string[],
   ) => Promise<{ error: string | null }>;
   restore: (projectId: string, userId: string, entry: TrashEntry) => Promise<{ error: string | null }>;
   purge: (id: string) => Promise<{ error: string | null }>;
@@ -77,6 +88,9 @@ export function describeTrash(entry: TrashEntry): { kind: string; title: string;
   if (entry.type === 'document') {
     return { kind: 'Document', title: p.document?.title || 'Untitled document', detail: '' };
   }
+  if (entry.type === 'storyboard_event') {
+    return { kind: 'Storyboard event', title: p.event?.title || 'Untitled event', detail: '' };
+  }
   if (entry.type === 'graph_node') {
     return { kind: 'Character', title: p.node?.label || 'Unnamed', detail: 'Restore from the web' };
   }
@@ -85,7 +99,7 @@ export function describeTrash(entry: TrashEntry): { kind: string; title: string;
 
 /** Only what this screen knows how to put back. */
 export function isRestorable(entry: TrashEntry): boolean {
-  return entry.type === 'chapter' || entry.type === 'scene' || entry.type === 'document';
+  return entry.type === 'chapter' || entry.type === 'scene' || entry.type === 'document' || entry.type === 'storyboard_event';
 }
 
 export const useTrashStore = create<TrashState>((set, get) => ({
@@ -156,6 +170,20 @@ export const useTrashStore = create<TrashState>((set, get) => ({
     return { error: null };
   },
 
+  trashStoryEvent: async (projectId, userId, event, threadIds) => {
+    const { error } = await supabase.from('trash').insert({
+      user_id: userId,
+      project_id: projectId,
+      type: 'storyboard_event',
+      payload: { event, threadIds },
+      deleted_at: new Date().toISOString(),
+    });
+    if (error) return { error: error.message };
+    // The row itself is deleted by the storyboard store, which also drops it from the board.
+    get().fetchTrash(projectId);
+    return { error: null };
+  },
+
   restore: async (projectId, userId, entry) => {
     const p = entry.payload ?? {};
 
@@ -190,6 +218,29 @@ export const useTrashStore = create<TrashState>((set, get) => ({
     } else if (entry.type === 'document' && p.document) {
       const { error } = await supabase.from('documents').insert({ ...p.document, user_id: userId });
       if (error) return { error: error.message };
+    } else if (entry.type === 'storyboard_event' && p.event) {
+      // A chapter it pointed at may have gone since; the column is nullable, so point at
+      // nothing rather than fail on the foreign key.
+      let chapterId = p.event.chapter_id;
+      if (chapterId) {
+        const { data: ch } = await supabase.from('chapters').select('id').eq('id', chapterId).maybeSingle();
+        if (!ch) chapterId = null;
+      }
+      const { error } = await supabase
+        .from('storyboard_events')
+        .insert({ ...p.event, chapter_id: chapterId, user_id: userId });
+      if (error) return { error: error.message };
+      // Restrung only onto threads that still exist -- a deleted thread is not recreated.
+      if (p.threadIds && p.threadIds.length > 0) {
+        const { data: alive } = await supabase.from('storyboard_threads').select('id').in('id', p.threadIds);
+        const rows = (alive ?? []).map((t: { id: string }) => ({
+          user_id: userId,
+          project_id: projectId,
+          thread_id: t.id,
+          event_id: p.event!.id,
+        }));
+        if (rows.length > 0) await supabase.from('storyboard_links').insert(rows);
+      }
     } else {
       return { error: 'This kind of item cannot be restored from here yet.' };
     }

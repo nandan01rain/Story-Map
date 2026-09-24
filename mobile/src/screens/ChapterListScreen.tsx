@@ -204,6 +204,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onOpenSettings={() => navigateFromDrawer(() => navigation.navigate('Settings'))}
       onOpenNotes={() => navigateFromDrawer(() => navigation.navigate('Pages', { projectId }))}
       onOpenTreatments={() => navigateFromDrawer(() => navigation.navigate('Treatments', { projectId }))}
+      onOpenStoryboard={() => navigateFromDrawer(() => navigation.navigate('Storyboard', { projectId }))}
       onOpenDocuments={() => navigateFromDrawer(() => navigation.navigate('Documents', { projectId }))}
       onOpenAssistant={() => navigateFromDrawer(() => navigation.navigate('Assistant', { projectId }))}
       onOpenBraid={() => navigateFromDrawer(() => navigation.navigate('Braid', { projectId }))}

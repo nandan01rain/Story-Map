@@ -4960,3 +4960,47 @@ Build 4 keeps the last 1.0.0 update it received; everything since goes only to b
 `expo-doctor` reports 8 out-of-date Expo packages and has through all three builds. Left alone
 deliberately: upgrading them moves the native surface away from the installed binary, which is
 the one thing an OTA update must never do. It is its own piece of work, with its own build.
+
+## 37. THE STORYBOARD (2026-09-24)
+
+`Write → Storyboard` in the drawer (mobile only; no PWA surface). One book at a time: a chain of
+**events** down the screen in the book's order, and **threads** — a subplot, an arc, a mystery —
+strung through whichever events carry them. This is the first piece of what the roadmap called
+Stage 3, and deliberately the prose-only piece of it: no images.
+
+**Schema** — `20260924_storyboard.sql`, **not yet run**. Three tables: `storyboard_events`
+(`book`, sparse numeric `position`, `title`, `summary`, optional `chapter_id` with
+`on delete set null`), `storyboard_threads` (`book`, `name`, `color`, `position`) and
+`storyboard_links` (thread ↔ event, many-to-many, its own `id` so backup/restore upserts it like
+everything else). Until the migration runs the screen says what to paste and nothing else breaks
+(`isMissingTable` accepts both `42P01` and PostgREST's `PGRST205`).
+
+**What it is not, and why each line was drawn.** Not scenes — scenes are children of a chapter and
+describe prose that exists; an event may precede any chapter or never become one, so `chapter_id`
+is a pointer to where it landed, never a requirement. Not treatments — those are saga-wide and
+unplaced on purpose; a storyboard is a book's shape. Not the braid's subplots — those are derived
+from plant/reveal flags in finished prose; a storyboard thread is a plan declared by hand and may
+never be flagged anywhere. Nothing reads storyboard rows except the storyboard, backup and trash.
+
+**How it reads.** Each thread is a coloured lane left of the cards: a dot on each event it passes
+through, a line between its first and last, nothing outside them. A thread that goes quiet shows
+as a run of bare line — that gap is the thing the picture exists to show. Lanes are drawn per row
+from the local `items` order, so they follow a drag live; that is also why rows are fixed height
+(`ITEM_HEIGHT`) beyond useSortableList needing it — segments of adjacent rows have to meet.
+
+**How it is used.** Tap a thread chip to enter *stringing* mode: every tap on an event adds it to
+that thread or takes it off; Done (or the chip again) leaves. A new thread drops straight into
+stringing, since that is what it was made for. Long-press a chip to rename, recolour or remove —
+removing a thread unstrings its events and moves none of them. Tap an event (not stringing) for
+its sheet: title, summary, which chapter it became, which threads carry it, Open chapter, Delete.
+
+**Traps already avoided.** Sheets are absolute overlays, not native `Modal`s — adding or deleting
+an event changes the sortable id set and remounts the list, which a Modal does not survive
+(§36.3). Deleting an event trashes `{event, threadIds}` first (`trashStore`, type
+`storyboard_event`), because its links cascade away with it; restore re-inserts it, restrings it
+onto threads that still exist, and drops a `chapter_id` whose chapter has gone rather than fail
+on the foreign key. The store writes direct to the server with local-first optimistic state and
+rollback, like progressions — **no outbox**, so it needs a network to save.
+
+Backup `SNAPSHOT_VERSION` is 3: snapshots carry `storyboardEvents/Threads/Links`; older files
+restore with those read as empty. JS-only change — no native module, ships over the air on 1.2.0.

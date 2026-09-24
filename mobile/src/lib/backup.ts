@@ -46,7 +46,7 @@ const FOLDER_KEY = 'backup-folder-uri';
 const LAST_KEY = 'backup-last:';
 const DEBOUNCE_MS = 20_000;
 /** Bumped when the snapshot's shape changes, so a restore can tell what it is reading. */
-export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
 
 export type Snapshot = {
   snapshotVersion: number;
@@ -59,6 +59,10 @@ export type Snapshot = {
   scenes: unknown[];
   treatments: unknown[];
   treatmentVersions: unknown[];
+  /** Since version 3. Absent from older snapshots, which restore reads as empty. */
+  storyboardEvents?: unknown[];
+  storyboardThreads?: unknown[];
+  storyboardLinks?: unknown[];
   graphNodes: unknown[];
   graphEdges: unknown[];
   trash: unknown[];
@@ -140,13 +144,28 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
   const pages = usePageStore.getState().pages.filter((p) => p.project_id === projectId);
   const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
 
-  const [documents, documentProgressions, scenes, treatments, treatmentVersions, graphNodes, graphEdges, trash] =
+  const [
+    documents,
+    documentProgressions,
+    scenes,
+    treatments,
+    treatmentVersions,
+    storyboardEvents,
+    storyboardThreads,
+    storyboardLinks,
+    graphNodes,
+    graphEdges,
+    trash,
+  ] =
     await Promise.all([
       table('documents', projectId, incomplete),
       table('document_progressions', projectId, incomplete),
       table('scenes', projectId, incomplete),
       table('treatments', projectId, incomplete),
       table('treatment_versions', projectId, incomplete),
+      table('storyboard_events', projectId, incomplete),
+      table('storyboard_threads', projectId, incomplete),
+      table('storyboard_links', projectId, incomplete),
       table('graph_nodes', projectId, incomplete),
       table('graph_edges', projectId, incomplete),
       table('trash', projectId, incomplete),
@@ -163,6 +182,9 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
     scenes,
     treatments,
     treatmentVersions,
+    storyboardEvents,
+    storyboardThreads,
+    storyboardLinks,
     graphNodes,
     graphEdges,
     trash,

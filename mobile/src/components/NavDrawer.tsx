@@ -82,6 +82,7 @@ const WRITE: DrawerItem[] = [
   { key: 'read', icon: 'bookmark', label: 'Read' },
   { key: 'notes', icon: 'pin', label: 'Pages' },
   { key: 'treatments', icon: 'book-open', label: 'Treatments' },
+  { key: 'storyboard', icon: 'map', label: 'Storyboard' },
 ];
 
 const MANAGE: DrawerItem[] = [
@@ -119,6 +120,7 @@ export default function NavDrawer({
   onOpenSettings,
   onOpenNotes,
   onOpenTreatments,
+  onOpenStoryboard,
   onOpenDocuments,
   onOpenAssistant,
   onOpenBraid,
@@ -138,6 +140,7 @@ export default function NavDrawer({
   onOpenSettings: () => void;
   onOpenNotes: () => void;
   onOpenTreatments: () => void;
+  onOpenStoryboard: () => void;
   onOpenDocuments: () => void;
   onOpenAssistant: () => void;
   onOpenBraid: () => void;
@@ -195,6 +198,7 @@ export default function NavDrawer({
     if (item.key === 'read') return { ...item, onPress: onOpenReader };
     if (item.key === 'notes') return { ...item, onPress: onOpenNotes };
     if (item.key === 'treatments') return { ...item, onPress: onOpenTreatments };
+    if (item.key === 'storyboard') return { ...item, onPress: onOpenStoryboard };
     return item;
   });
 

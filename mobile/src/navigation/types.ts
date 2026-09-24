@@ -27,6 +27,11 @@ export type SignedInStackParamList = {
   Treatments: { projectId: string };
   Treatment: { projectId: string; treatmentId: string };
   /**
+   * One book's chain of events with threads strung through them. `book` opens on that book;
+   * the screen offers every other one.
+   */
+  Storyboard: { projectId: string; book?: number };
+  /**
    * One page, open for writing. No `pageId` means a blank one -- and no database row is
    * created until the first character is typed, so opening a blank page costs nothing.
    */

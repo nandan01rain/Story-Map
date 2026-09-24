@@ -52,6 +52,7 @@ export function describeSnapshot(s: Snapshot): string {
     `${s.documents?.length ?? 0} documents`,
     `${s.pages?.length ?? 0} pages`,
     `${s.treatments?.length ?? 0} treatments`,
+    `${s.storyboardEvents?.length ?? 0} storyboard events`,
   ];
   const warn = s.incomplete?.length ? ` Incomplete when saved: ${s.incomplete.join(', ')}.` : '';
   return `${name}, saved ${when}. ${bits.join(', ')}.${warn}`;
@@ -115,6 +116,10 @@ export async function restoreSnapshot(
   await upsert('sticky_notes', at(snapshot.pages), report);
   await upsert('treatments', at(snapshot.treatments), report);
   await upsert('treatment_versions', at(snapshot.treatmentVersions), report);
+  // Threads and events before the links that join them.
+  await upsert('storyboard_events', at(snapshot.storyboardEvents), report);
+  await upsert('storyboard_threads', at(snapshot.storyboardThreads), report);
+  await upsert('storyboard_links', at(snapshot.storyboardLinks), report);
   await upsert('graph_nodes', at(snapshot.graphNodes), report);
   await upsert('graph_edges', at(snapshot.graphEdges), report);
   await upsert('document_progressions', at(snapshot.documentProgressions), report);

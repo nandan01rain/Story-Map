@@ -17,10 +17,11 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > publish to GitHub Pages — the URL 404s, because the workflow sits in
 > `deploy/` (this repo's credential lacks GitHub's `workflow` scope) and Pages
 > was never enabled. It runs locally against the same Supabase project with no
-> loss of capability. And **three migrations are outstanding** (2026-09-24):
+> loss of capability. And **four migrations are outstanding** (2026-09-24):
 > `20260824_graph_pairs.sql` (supersedes the three graph migrations before it),
-> `20260825_spine_support.sql` (story time — Chronology needs it) and
-> `20260921_progressions.sql` (progressions). Every screen that needs one detects
+> `20260825_spine_support.sql` (story time — Chronology needs it),
+> `20260921_progressions.sql` (progressions) and `20260924_storyboard.sql`
+> (the storyboard). Every screen that needs one detects
 > its absence, degrades, and says what to paste; nothing else breaks.
 >
 > **The installed Android binary should be build 6, version 1.2.0** (2026-09-24), which is
@@ -109,6 +110,9 @@ trash:     {id, type: chapter|scene|document, deletedAt, ...soft-deleted payload
 actLabels: { "bookIndex-actNumber": "custom label" }
 document_progressions: {id, document_id, project_id, from_chapter_id, note}
                          // what a document says AS OF a chapter (migration unrun)
+storyboard_events:  {id, project_id, book, position, title, summary, chapter_id?}
+storyboard_threads: {id, project_id, book, name, color, position}
+storyboard_links:   {id, project_id, thread_id, event_id}   // many-to-many (migration unrun)
 chapterWordTargets: [[min,max], ...]  // per-book, applies to every chapter in that book
 aiEnabled: boolean       // global gate for the two AI-powered features
 viewMode:  'list'        // map view removed 2026-08-23; column kept for older clients
@@ -228,6 +232,13 @@ chapter boundaries for pacing).
   a conflict to resolve; setting one aside filters it and nothing more. Page →
   treatment → chapter, each step copying rather than moving. `treatments` +
   `treatment_versions`, both applied. PWA surface not built. Handoff §30.
+- **🗺 Storyboard (mobile, 2026-09-24)** — per book, a chain of events in the book's
+  order (drag to reorder) and threads strung through them: tap a thread to enter
+  stringing mode, then tap the events that carry it. Each thread is a coloured lane
+  — dots where it passes, a line between its first and last — so a thread gone quiet
+  is visible as bare line. An event may point at the chapter it became; nothing
+  requires it. Deleted events go to Trash with their threads. Needs
+  `20260924_storyboard.sql`, **unrun**; degrades and says so. Handoff §37.
 - **📄 Pages (both apps, 2026-08-27)** — stage one of the capture pipeline, and
   the replacement for "The Margin". Same `sticky_notes` rows; a stack of pages
   rather than a board of tilted cards, because the same list now holds drafted
@@ -533,8 +544,8 @@ schema of claim-and-evidence; Daedalus may propose document edits and additional
 receives a digest of the whole saga. A cheap model running Icarus is still Icarus.
 Handoff doc §16.
 
-**Stage 3** (explicitly not started): storyboards, image generation, and
-anything extending past prose-only tooling.
+**Stage 3**: the prose-only storyboard exists (mobile, 2026-09-24, handoff §37).
+Image generation and anything else past prose-only tooling is still not started.
 
 **Native mobile app (in progress, separate track from Stages 1-3 above)**:
 a from-scratch React Native/Expo rewrite in `mobile/` (its own package.json,
