@@ -17,8 +17,15 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > publish to GitHub Pages — the URL 404s, because the workflow sits in
 > `deploy/` (this repo's credential lacks GitHub's `workflow` scope) and Pages
 > was never enabled. It runs locally against the same Supabase project with no
-> loss of capability. And one migration *is* outstanding:
-> `20260825_spine_support.sql`, written and not run.
+> loss of capability. And **three migrations are outstanding** (2026-09-24):
+> `20260824_graph_pairs.sql` (supersedes the three graph migrations before it),
+> `20260825_spine_support.sql` (story time — Chronology needs it) and
+> `20260921_progressions.sql` (progressions). Every screen that needs one detects
+> its absence, degrades, and says what to paste; nothing else breaks.
+>
+> **The installed Android binary is build 5, version 1.1.0** (2026-09-21), which is
+> also the OTA runtime. Adding a native module means bumping `version`, not only
+> `versionCode` — see handoff §36.4 for why, and for the builds ledger.
 >
 > **As of 2026-08-30, §20's claim that the phone takes changes over the air was
 > false for the installed binary and had never been true.** Three separate faults,
@@ -91,13 +98,17 @@ upserts).
 
 ```
 chapters:  {id, book, act, order, title, status, content, wordMin, wordMax,
-            notes, annotations[], versions[], storyTime}   // storyTime nullable
+            notes, annotations[], versions[], storyTime}   // storyTime nullable,
+            // = chapters.story_time; sparse by design, an unmarked chapter carries
+            // forward the last marked one (handoff §35). scenes.story_time likewise.
 scenes:    {id, chapterId, order, title, status, summary, requires[],
             provides[], deferredRequires[], notes, pov}
 documents: {id, title, type, content}            // Master Bible, character bibles, etc.
 stickyNotes: {id, content, createdAt, rotation}  // "The Margin" — quick idea capture
 trash:     {id, type: chapter|scene|document, deletedAt, ...soft-deleted payload}
 actLabels: { "bookIndex-actNumber": "custom label" }
+document_progressions: {id, document_id, project_id, from_chapter_id, note}
+                         // what a document says AS OF a chapter (migration unrun)
 chapterWordTargets: [[min,max], ...]  // per-book, applies to every chapter in that book
 aiEnabled: boolean       // global gate for the two AI-powered features
 viewMode:  'list'        // map view removed 2026-08-23; column kept for older clients
@@ -422,8 +433,9 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   continue indefinitely, the chapter list draws empty books as startable and offers
   "+ Add Book N" past the last, and the promote-to-chapter pickers offer one book
   past the last in use. A book is still its chapters -- nothing new is stored. The
-  PWA's `index.html` still has the five-element constant in 28 places.
-  Three steps: labels become data (`project_settings.book_labels`, same precedent
+  PWA's `index.html` still has the five-element constant in 28 places. Handoff §36.1.
+  **The three steps below are the real work and remain untouched** — the cap was only
+  the UI. Labels become data (`project_settings.book_labels`, same precedent
   as `act_labels`), levels become declared per project rather than fixed at
   Book/Act, and an importer that maps a manuscript's own divisions onto rows --
   the bulk of it, since nothing parses a manuscript today. Three levels above the
@@ -618,7 +630,8 @@ with an invented cast.
 
 Still not built: Map view (**not planned for mobile** — the character web
 replaces it there), the remaining secondary features (continuity checker, POV
-tracker, Mythic Threads, trash), a dictionary/word-lookup feature in the Reader
+tracker, Mythic Threads — **trash was ported 2026-08-23**, see the parity section
+below), a dictionary/word-lookup feature in the Reader
 (deferred by explicit choice), and the two assistants' actual operation (built,
 not deployed — see Stage 4 and handoff §15). Google Drive import is written but
 needs a Google Cloud OAuth client and the Google provider enabled in the
@@ -655,11 +668,14 @@ continuity checker, which is Icarus's job now. See handoff §19.
   and keep working with every assistant off. Handler unwritten, and blocked on stages
   two/three. Handoff §24.
 
-- **🎨 The drawer is artwork (2026-08-30, night done, day mid-flight)** — the nav
-  drawer is supplied plates with live text printed into measured gaps. Night is two
-  images anchored to their own edges (header in the scroll flow, city pinned to the
-  foot); day is currently one full-height plate and **should be split the same way** —
-  that decision is made and unexecuted, see handoff §32.4. Panel colours are
+- **🎨 The drawer is artwork (2026-08-30, completed 2026-09-05)** — the nav
+  drawer is supplied plates with live text printed into measured gaps. **Day and night
+  are now the same two plates** — a header in the scroll flow, a city pinned to the foot
+  — differing only in which files they name and whether a sun or a crescent sits over
+  the rose; the full-height day plate and the fixed scroll window it forced are gone.
+  `scripts/build-drawer-plates.py` conditions the supplied art and prints the two rail
+  colours `theme.ts` carries. The app icon is the same rose, lifted off the same plate
+  (`scripts/build-app-icon.py`, §36.2). Panel colours are
   **sampled from the artwork with Pillow**, never chosen, because the drawer is the
   plate and a chosen value shows as a seam. Section rows and the quotation box stay
   drawn in code: a row's parts must lay out together or they misalign, and the box
@@ -678,6 +694,15 @@ continuity checker, which is Icarus's job now. See handoff §19.
   Treatments. Same day fixed
   the Editor overwriting new text with old on exit (a stale unmount closure; handoff §33.1)
   and the Reader hanging when opened from the Editor (no request deadline; §31.6).
+
+- **📱 Found on the device (2026-09-19 → 21, handoff §36.3)** — four faults worth
+  knowing because each looked like something else: a focused multiline `TextInput`
+  keeps a vertical drag for itself (`scrollEnabled={false}` is not reliable on the new
+  architecture — size the input to its content instead); a horizontal `ScrollView` in a
+  column stretches its children to full height unless `flexGrow: 0`; a native `Modal`
+  cannot survive the list beneath it remounting in the same instant; and a surface that
+  **restates** a theme value instead of reading it drifts the next time the theme moves
+  (the landing page was still "deep leather" three weeks after night became royal blue).
 
 - **🔍 The craft layer (2026-09-21, handoff §35)** — **Prose reports** (sentence rhythm,
   repeated openings, overused words, adverbs, filter words, dialogue tags; deterministic,

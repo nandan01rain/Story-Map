@@ -4827,3 +4827,99 @@ every progression at or before the scene's chapter.
 
 **Two migrations are now waiting**: 20260825_spine_support.sql (story time) and
 20260921_progressions.sql. Both screens work without them and say so.
+
+
+## 36. THE REST OF THE WEEK (2026-09-19 → 21)
+
+What §33-35 did not cover: the cap that was never in the data, the icon, the four faults only a
+real device found, and which binary is running what.
+
+### 36.1 Books were never five; the UI was
+
+A book has never been stored. A chapter carries an integer `book`, and books are inferred from
+chapters exactly as acts are — `spine-layout.mjs` has always known this, which is why §25 said
+the braid needed no change. What was fixed at five was every list that mapped over the `BOOKS`
+constant, so a sixth book could exist in the data and be invisible on screen.
+
+`lib/storyData.ts` now exports `bookName(i)` (words to "Book Twenty", then numbers, never
+undefined), `bookCount(chapters)` (highest index in use, floor of five) and
+`bookIndices(chapters, withNext?)`. `BOOKS` survives only as the first five names. Screens that
+merely label a book call `bookName`; screens that list them call `bookIndices`; screens that
+CREATE chapters pass `withNext` so the book that does not exist yet is offered.
+
+The chapter list also **draws empty books**, quietly, each with its `+`, and offers
+"+ Add Book N" past the last. That was a second fault hiding behind the first: empty books were
+skipped, so there was no way on that screen to start Book Two until Book Two somehow had a
+chapter, and a project with no chapters at all said "No chapters yet" with no way to write one.
+
+§25's three steps are untouched and still the real work: labels as data, declared levels, and an
+importer. This is only the cap.
+
+### 36.2 The icon is the drawer's own rose
+
+`scripts/build-app-icon.py` lifts the compass rose off `assets/dayplate_top.png` and writes the
+whole set (1024 legacy, 512 adaptive foreground/background, 432 monochrome, favicon) onto the
+drawer's parchment. Two things about the lift, both measured rather than eyeballed:
+
+- The rose is taken as the **connected component of ink** around the plate's centre, not as a
+  box — the bead arc passes inside any box that holds the E-W points.
+- The sunburst touches the north point, so it comes along and is cut at the neck (row 182); the
+  north point is then **rebuilt by mirroring the south half**, which the rose's symmetry allows.
+
+The adaptive foreground sits at 56% of the canvas, because a launcher shows only the central 66%
+and masks it to a circle or squircle — anything larger loses its points to the mask.
+
+### 36.3 Four faults only the device found
+
+Each looked like something it was not, which is why they are written down.
+
+**A focused TextInput keeps the drag.** Neither editor would scroll once the cursor was placed,
+keyboard or no keyboard. `scrollEnabled={false}` is meant to prevent exactly this and is not
+reliable on the new architecture: a multiline input keeps a vertical drag for itself whenever it
+believes it can scroll internally, and with focus it believes that by a pixel. Both inputs are
+now sized explicitly to their own content height plus `INPUT_SLACK` (6px) — a field with nothing
+to scroll hands the drag to the ScrollView. Slack in that direction is a little air at the foot;
+slack the other way is the bug.
+
+**A horizontal ScrollView in a column has no height of its own.** The Writer's book chips came
+out as full-height columns: the scroller took the flex space and its children stretched to fill
+it. `flexGrow: 0` and `alignItems: 'center'` on the content.
+
+**A native Modal cannot survive the list under it remounting.** Deleting a project left a blank
+grey screen needing a force-close — the delete modal's backdrop over nothing, because deleting
+changes the sortable list's id-set key (§ the `useSortablePositions` note) and remounts
+everything underneath in the same instant Android is told to hide the dialog. Dismiss first,
+let the fade finish, then touch the list.
+
+**A palette written before a decision keeps the old decision.** Night became royal blue on
+2026-08-30; `LandingScreen` kept a "deep leather" night palette of its own from before that, and
+its Projects tab hands over to the project picker, which draws from the theme — one screen,
+navy list over a brown bar. It reads `NIGHT_COLORS` now rather than restating it. The sign-in
+screen's base colour was the same leftover. **The general form**: a surface that restates a
+theme value instead of reading it will drift the next time the theme moves.
+
+Also this week, and cheaper than they look: the nav bar took its own `chrome` token sampled from
+the artwork (`#0c1f38` night, the city's sky a quarter down; `#e6d2a4` day, the plate's paper at
+mid-height) rather than borrowing `panel`, which is every card in the app — and day's title had
+to move to `railInk`, because gold on the deepened parchment reads 1.75:1, worse than the paler
+bar it replaced. And the prose alignment control is one stored value for the Writer and the
+Editor both, because it is one manuscript; the Reader keeps its own, because reading and writing
+are different postures.
+
+### 36.4 Which binary is running what
+
+| Build | Version | Runtime | Carries |
+|---|---|---|---|
+| 3 | 1.0.0 | 1.0.0 | compass-rose icon |
+| 4 | 1.0.0 | 1.0.0 | `fallbackToCacheTimeout: 0` (§31.7) |
+| **5** | **1.1.0** | **1.1.0** | `expo-notifications` — the daily reminder |
+
+**The runtime version follows the app version** (`runtimeVersion: {policy: 'appVersion'}`), so
+adding a native module means bumping `version`, not only `versionCode`. Publishing a bundle that
+needs a new native module under the old runtime would have the installed binary download it,
+fail to find the module, and crash at launch — which is the §30.2 failure wearing a new coat.
+Build 4 keeps the last 1.0.0 update it received; everything since goes only to build 5.
+
+`expo-doctor` reports 8 out-of-date Expo packages and has through all three builds. Left alone
+deliberately: upgrading them moves the native surface away from the installed binary, which is
+the one thing an OTA update must never do. It is its own piece of work, with its own build.
