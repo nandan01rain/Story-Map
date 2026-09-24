@@ -9,6 +9,7 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, NIGHT_COLORS } from '../theme';
 import { loadLastBackup, useBackup } from '../lib/backup';
+import { describeSnapshot, pickSnapshot, restoreSnapshot } from '../lib/restore';
 import { loadLastProject } from '../lib/writingPrefs';
 import { useWritingStats } from '../lib/writingStats';
 import { useChapterStore } from '../store/chapterStore';
@@ -148,6 +149,46 @@ export default function LandingScreen({ navigation, route }: Props) {
     else if (lastProject) void backupNow();
   }
 
+  // The route that reaches Google Drive. Drive's own provider will not hand out a folder to
+  // the picker above, so a backup gets there as a FILE through the share sheet instead.
+  async function saveBackupFile() {
+    if (!lastProject) return;
+    setBackupBusy(true);
+    const { error } = await backup.shareSnapshot(lastProject.id);
+    setBackupBusy(false);
+    if (error) Alert.alert('Backup did not finish', error);
+    else setLastBackupAt(Date.now());
+  }
+
+  // Additive and idempotent, into a NEW project -- see lib/restore.ts. Confirmed against
+  // what the file actually contains, because a backup is only worth what it still holds.
+  async function restoreFromFile() {
+    const { snapshot, error } = await pickSnapshot();
+    if (error) {
+      Alert.alert('Could not read that file', error);
+      return;
+    }
+    if (!snapshot || !user) return;
+    Alert.alert('Restore this backup?', `${describeSnapshot(snapshot)}\n\nIt will be restored into a NEW project. Nothing you have now is changed or deleted.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Restore',
+        onPress: async () => {
+          setBackupBusy(true);
+          const { report, error: err } = await restoreSnapshot(snapshot, user.id, null);
+          setBackupBusy(false);
+          if (err || !report) {
+            Alert.alert('Restore failed', err ?? 'Nothing was written.');
+            return;
+          }
+          const wrote = Object.entries(report.counts).map(([t, n]) => `${n} ${t}`).join(', ') || 'nothing';
+          const missed = report.skipped.length ? `\n\nNot restored: ${report.skipped.map((x) => x.table).join(', ')}.` : '';
+          Alert.alert('Restored', `Wrote ${wrote}.${missed}`);
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.body}>
@@ -227,14 +268,32 @@ export default function LandingScreen({ navigation, route }: Props) {
               </View>
             </Pressable>
 
-            {/* The second copy of the manuscript. */}
+            {/* The copy that reaches anywhere: one file, through the share sheet. This is
+                the Google Drive route -- Drive will not give the folder picker a folder. */}
+            <Pressable style={styles.primaryCard} onPress={saveBackupFile} disabled={backupBusy || !lastProject}>
+              <Icon name="download" size={22} color={palette.gold} />
+              <View style={styles.primaryCardText}>
+                <Text style={styles.cardTitle}>Save a backup file</Text>
+                <Text style={styles.cardMeta}>
+                  {!lastProject
+                    ? 'Open a project first.'
+                    : backupBusy || backup.running
+                      ? 'Building…'
+                      : lastBackupAt
+                        ? `Everything in one .json — chapters, documents, pages, treatments, the braid. Last saved ${new Date(lastBackupAt).toLocaleString()}.`
+                        : 'Everything in one .json — chapters, documents, pages, treatments, the braid. Send it to Drive, email it, anywhere.'}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* The automatic copy. A folder on the phone or one a sync app watches. */}
             <Pressable style={styles.primaryCard} onPress={backup.folderUri ? backupNow : pickBackupFolder} disabled={backupBusy}>
               <Icon name="folder" size={22} color={palette.gold} />
               <View style={styles.primaryCardText}>
-                <Text style={styles.cardTitle}>{backup.folderUri ? 'Backup folder' : 'Back up to a folder'}</Text>
+                <Text style={styles.cardTitle}>{backup.folderUri ? 'Backup folder' : 'Mirror to a folder'}</Text>
                 <Text style={styles.cardMeta}>
                   {!backup.folderUri
-                    ? 'Pick a folder -- a Google Drive folder works -- and every save is mirrored there as markdown and JSON.'
+                    ? 'Pick a folder on this phone and every save mirrors there automatically. Google Drive can’t be picked here — use the backup file above for Drive.'
                     : backupBusy || backup.running
                       ? 'Backing up…'
                       : backup.error
@@ -250,6 +309,14 @@ export default function LandingScreen({ navigation, route }: Props) {
                 <Text style={styles.linkText}>Change folder</Text>
               </Pressable>
             )}
+
+            <Pressable style={styles.primaryCard} onPress={restoreFromFile} disabled={backupBusy}>
+              <Icon name="upload" size={22} color={palette.gold} />
+              <View style={styles.primaryCardText}>
+                <Text style={styles.cardTitle}>Restore from a backup</Text>
+                <Text style={styles.cardMeta}>Reads a .json back in, into a new project. Nothing you have now is changed or deleted.</Text>
+              </View>
+            </Pressable>
 
             <Pressable style={styles.primaryCard} onPress={() => navigation.navigate('Settings')}>
               <Icon name="gear" size={22} color={palette.gold} />

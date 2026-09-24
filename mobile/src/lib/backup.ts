@@ -1,39 +1,70 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File, Paths } from 'expo-file-system';
 import { StorageAccessFramework as SAF, writeAsStringAsync } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { bookName, chapterNumberInBook } from './storyData';
+import { supabase } from './supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { usePageStore } from '../store/pageStore';
 import { useProjectStore } from '../store/projectStore';
 
-// A second copy of the manuscript, in files, somewhere Supabase is not.
+// A second copy of the whole project, somewhere Supabase is not.
 //
-// The writer picks a folder ONCE through Android's own picker (the Storage Access Framework).
-// The Google Drive app exposes its folders to that picker, so a Drive folder can be chosen
-// directly and Drive's own app does the syncing -- no OAuth client, no token that dies in an
-// hour, no Google Cloud project, and nothing that stops working offline. OneDrive or a plain
-// local folder work the same way. What the app holds is a persistent permission on that one
-// folder, which survives restarts.
+// TWO ROUTES, because Android gives two and they fail differently.
 //
-// What is written, per project, under <folder>/<Project name>/:
-//   project.json                        every chapter and page, whole -- the restore copy
-//   Book One/03 - The Red Coat.md       one markdown file per chapter, for reading anywhere
+//   1. A FOLDER, picked once through Android's own picker (the Storage Access Framework).
+//      Every save mirrors into it. Best for a folder on the phone, on an SD card, or one a
+//      sync app (OneDrive, Syncthing, FolderSync) watches.
 //
-// It runs after every save, debounced, and on demand. It is a MIRROR, not a history: a file
-// is overwritten in place, and a chapter deleted in the app stays in the folder until the
-// writer removes it -- deliberately, since a backup that deletes is not a backup.
+//      NOT GOOGLE DRIVE. The Drive app's DocumentsProvider does not support
+//      ACTION_OPEN_DOCUMENT_TREE: it appears in the picker for choosing a single file, but a
+//      folder inside it cannot be granted as a tree and cannot be created there. This module
+//      was first written (2026-09-21) assuming it could, and the phone said otherwise
+//      (2026-09-24). Nothing in the picker route reaches Drive, and the wording must not
+//      promise it.
 //
-// SAF has no "write to path": files are addressed by opaque content URIs, and creating a file
-// whose name exists makes "name (1)". So every write first lists the folder and looks for the
-// name, writing into the existing file if it is there. Names come back inside the URI's last
-// segment, percent-encoded, with the tree's own prefix -- decodeURIComponent and the part
-// after the last '/' is the file name.
+//   2. A FILE, handed to the share sheet. One .json of everything, which Drive accepts
+//      through "Save to Drive" like any other file, as do Gmail, Keep, WhatsApp and a cable.
+//      Manual, and the reliable way to get a copy INTO Drive from Android.
+//
+// Both write the same snapshot: EVERY project-scoped table, not just the prose. The first
+// version carried chapters and pages only, which would have kept the manuscript and lost the
+// Master Bible -- the thing least replaceable by rewriting.
+//
+// It is a MIRROR, not a history: a file is overwritten in place, and a chapter deleted in the
+// app stays in the folder until the writer removes it, deliberately -- a backup that deletes
+// is not a backup.
+//
+// SAF has no "write to path": files are opaque content URIs, and creating a file whose name
+// exists makes "name (1)". So every write lists the folder and looks for the name first.
+// Names come back inside the URI's last segment, percent-encoded.
 
 const FOLDER_KEY = 'backup-folder-uri';
 const LAST_KEY = 'backup-last:';
 const DEBOUNCE_MS = 20_000;
+/** Bumped when the snapshot's shape changes, so a restore can tell what it is reading. */
+export const SNAPSHOT_VERSION = 2;
+
+export type Snapshot = {
+  snapshotVersion: number;
+  exportedAt: string;
+  project: unknown;
+  chapters: unknown[];
+  pages: unknown[];
+  documents: unknown[];
+  documentProgressions: unknown[];
+  scenes: unknown[];
+  treatments: unknown[];
+  treatmentVersions: unknown[];
+  graphNodes: unknown[];
+  graphEdges: unknown[];
+  trash: unknown[];
+  /** Tables the network or a missing migration prevented reading, so a restore knows. */
+  incomplete: string[];
+};
 
 type BackupState = {
   folderUri: string | null;
@@ -45,6 +76,8 @@ type BackupState = {
   chooseFolder: () => Promise<{ error: string | null }>;
   clearFolder: () => Promise<void>;
   backupProject: (projectId: string) => Promise<{ error: string | null }>;
+  /** Build the snapshot and hand it to the share sheet -- the route that reaches Drive. */
+  shareSnapshot: (projectId: string) => Promise<{ error: string | null }>;
 };
 
 function safName(uri: string): string {
@@ -84,6 +117,57 @@ function chapterMarkdown(ch: Chapter, all: Chapter[]): string {
   if (ch.notes && ch.notes.trim()) head.push('', '## Notes', '', ch.notes.trim());
   head.push('', '---', '', ch.content ?? '');
   return head.join('\n');
+}
+
+/** One table, or [] plus a note in `incomplete` when it cannot be read. */
+async function table(name: string, projectId: string, incomplete: string[]): Promise<unknown[]> {
+  const { data, error } = await supabase.from(name).select('*').eq('project_id', projectId);
+  if (error) {
+    incomplete.push(name);
+    return [];
+  }
+  return data ?? [];
+}
+
+/**
+ * Everything the project is. Chapters and pages come from the stores, which are cache-backed
+ * and therefore correct offline and ahead of the server when the outbox has not flushed; the
+ * rest are read straight from the database, and are listed in `incomplete` if that fails.
+ */
+export async function collectSnapshot(projectId: string): Promise<Snapshot> {
+  const incomplete: string[] = [];
+  const chapters = useChapterStore.getState().chapters.filter((c) => c.project_id === projectId);
+  const pages = usePageStore.getState().pages.filter((p) => p.project_id === projectId);
+  const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
+
+  const [documents, documentProgressions, scenes, treatments, treatmentVersions, graphNodes, graphEdges, trash] =
+    await Promise.all([
+      table('documents', projectId, incomplete),
+      table('document_progressions', projectId, incomplete),
+      table('scenes', projectId, incomplete),
+      table('treatments', projectId, incomplete),
+      table('treatment_versions', projectId, incomplete),
+      table('graph_nodes', projectId, incomplete),
+      table('graph_edges', projectId, incomplete),
+      table('trash', projectId, incomplete),
+    ]);
+
+  return {
+    snapshotVersion: SNAPSHOT_VERSION,
+    exportedAt: new Date().toISOString(),
+    project: project ?? { id: projectId },
+    chapters,
+    pages,
+    documents,
+    documentProgressions,
+    scenes,
+    treatments,
+    treatmentVersions,
+    graphNodes,
+    graphEdges,
+    trash,
+    incomplete,
+  };
 }
 
 export const useBackup = create<BackupState>((set, get) => ({
@@ -126,21 +210,13 @@ export const useBackup = create<BackupState>((set, get) => ({
     if (running) return { error: null };
     const chapters = useChapterStore.getState().chapters.filter((c) => c.project_id === projectId);
     if (chapters.length === 0) return { error: null }; // nothing loaded is not nothing written
-    const pages = usePageStore.getState().pages.filter((p) => p.project_id === projectId);
     const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
     const projectName = safeName(project?.name ?? projectId);
 
     set({ running: true, error: null });
     try {
       const projectDir = await ensureDir(folderUri, projectName);
-
-      // The whole thing, for restoring.
-      const snapshot = {
-        exportedAt: new Date().toISOString(),
-        project: project ?? { id: projectId, name: projectName },
-        chapters,
-        pages,
-      };
+      const snapshot = await collectSnapshot(projectId);
       await writeFile(projectDir, 'project.json', 'application/json', JSON.stringify(snapshot, null, 2));
 
       // One readable file per chapter, in its book's folder.
@@ -171,6 +247,32 @@ export const useBackup = create<BackupState>((set, get) => ({
       return { error: message };
     }
   },
+
+  shareSnapshot: async (projectId) => {
+    set({ running: true, error: null });
+    try {
+      const snapshot = await collectSnapshot(projectId);
+      const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
+      const stamp = new Date().toISOString().slice(0, 10);
+      const file = new File(Paths.cache, `${safeName(project?.name ?? 'StoryMap')} ${stamp}.json`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(JSON.stringify(snapshot, null, 2));
+      if (!(await Sharing.isAvailableAsync())) {
+        set({ running: false });
+        return { error: 'The file was written, but this device has no way to share it.' };
+      }
+      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Save a backup' });
+      const now = Date.now();
+      await AsyncStorage.setItem(LAST_KEY + projectId, String(now));
+      set({ running: false, lastBackupAt: now });
+      return { error: null };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not build the backup file.';
+      set({ running: false, error: message });
+      return { error: message };
+    }
+  },
 }));
 
 export async function loadLastBackup(projectId: string): Promise<number | null> {
@@ -183,7 +285,7 @@ export async function loadLastBackup(projectId: string): Promise<number | null> 
 }
 
 // After every save, debounced: the outbox coalesces autosaves the same way, and a backup
-// that ran on every keystroke would be writing the same file dozens of times a minute.
+// that ran on every keystroke would be writing the same files dozens of times a minute.
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastProjectId: string | null = null;
 export function watchForBackup(projectId: string) {

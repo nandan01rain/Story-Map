@@ -4766,14 +4766,50 @@ place, and a chapter deleted in the app stays in the folder until the writer rem
 purpose. SAF has no write-to-path -- files are opaque content URIs and creating a name that
 exists makes "name (1)" -- so every write lists the folder and finds the name first.
 
-**Not verified on the device**: whether the installed Drive app offers folder access to the
-picker (it has since 2022 on current versions; older builds only offered single files), and the
-SAF name-from-URI parsing against Drive's provider specifically. Both are the first things to
-check. If Drive's provider refuses folder access, a local folder still works and Drive's
-"back up device folders" can carry it from there.
+### 34.1 The Drive assumption was wrong, and the backup was too narrow (2026-09-24)
 
-**Not built**: restore. `project.json` is complete enough to write one from; nothing reads it
-yet. The point today was that the copy exists.
+Two faults, found three days later by using it.
+
+**Google Drive cannot be picked as a folder.** The Drive app's DocumentsProvider does not
+support `ACTION_OPEN_DOCUMENT_TREE`: it appears in the picker for choosing a single file, but a
+folder inside it cannot be granted as a tree, and a folder cannot be created there. §34 was
+written assuming it could and flagged the assumption as unverified; the phone settled it. The
+picker route is for a folder on the phone, on an SD card, or one a sync app (OneDrive,
+Syncthing, FolderSync) watches, and the wording says so now.
+
+**The route that does reach Drive is a FILE, through the share sheet** -- `shareSnapshot`
+writes one .json to the cache and hands it to `Sharing.shareAsync`, which Drive accepts via
+"Save to Drive" like any other file, as do Gmail, Keep and a cable. Manual rather than
+automatic, which is the trade for it working at all.
+
+**The snapshot carried the manuscript and not the bible.** v1 held chapters and pages only, so
+a restore from it would have kept the prose and lost every document -- the Master Bible and the
+character bibles, which are the least replaceable thing in the project. `collectSnapshot` now
+reads EVERY project-scoped table: chapters, pages, documents, document_progressions, scenes,
+treatments, treatment_versions, graph_nodes, graph_edges, trash. Chapters and pages come from
+the stores (cache-backed, so correct offline and ahead of the server when the outbox has not
+flushed); the rest are read from the database, and any that cannot be read are named in the
+snapshot's `incomplete` array so a restore can say what is missing rather than imply
+completeness. `SNAPSHOT_VERSION` is 2.
+
+### 34.2 Restore (2026-09-24)
+
+`lib/restore.ts`, Profile → Restore from a backup. **Additive, idempotent, and it never
+deletes**: every row keeps its own uuid, so the whole thing is an upsert on the primary key --
+run it twice and the second run changes nothing. Nothing removes a row the backup does not
+contain, because a restore that deleted would turn a stale backup into data loss, which is the
+failure the backup exists to prevent.
+
+**Into a NEW project by default.** Restoring over a live project is the dangerous shape, so the
+destination is explicit; the default mints "<name> (restored)" and rewrites every `project_id`
+and `user_id` to it. Row ids are PRESERVED, which is what keeps annotations, progressions and
+graph rows resolving. Parents before children, because the foreign keys are real. Chunked at
+100 rows, and a chunk that fails names its table in the report rather than failing the run.
+
+`expo-document-picker` is native, so this is **version 1.2.0 / build 6** -- §36.4's rule, and
+the first time it has been applied prospectively rather than after the fact. Publishing it
+under 1.1.0 would have had build 5 download a bundle importing a module it does not have and
+crash at launch, since the import is top-level in a screen the landing page loads.
 
 
 ## 35. THE CRAFT LAYER (2026-09-21): reports, diff, Word, chronology, progressions
@@ -4912,7 +4948,8 @@ are different postures.
 |---|---|---|---|
 | 3 | 1.0.0 | 1.0.0 | compass-rose icon |
 | 4 | 1.0.0 | 1.0.0 | `fallbackToCacheTimeout: 0` (§31.7) |
-| **5** | **1.1.0** | **1.1.0** | `expo-notifications` — the daily reminder |
+| 5 | 1.1.0 | 1.1.0 | `expo-notifications` — the daily reminder |
+| **6** | **1.2.0** | **1.2.0** | `expo-document-picker` — restore (§34.2) |
 
 **The runtime version follows the app version** (`runtimeVersion: {policy: 'appVersion'}`), so
 adding a native module means bumping `version`, not only `versionCode`. Publishing a bundle that

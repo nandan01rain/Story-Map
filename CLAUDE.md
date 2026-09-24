@@ -23,7 +23,7 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > `20260921_progressions.sql` (progressions). Every screen that needs one detects
 > its absence, degrades, and says what to paste; nothing else breaks.
 >
-> **The installed Android binary is build 5, version 1.1.0** (2026-09-21), which is
+> **The installed Android binary should be build 6, version 1.2.0** (2026-09-24), which is
 > also the OTA runtime. Adding a native module means bumping `version`, not only
 > `versionCode` — see handoff §36.4 for why, and for the builds ledger.
 >
@@ -714,10 +714,15 @@ continuity checker, which is Icarus's job now. See handoff §19.
   what a document says as of a chapter — needs `20260921_progressions.sql`, **unrun**;
   degrades and says so.
 
-- **🗂 Folder backup (2026-09-21)** — Profile → Backup folder: pick a folder once through
-  Android's own picker (a Google Drive folder works; the Drive app syncs it) and every
-  save mirrors the project there as `project.json` plus one markdown file per chapter.
-  No OAuth, no token, works offline. A mirror, not a history; restore not built. Handoff §34.
+- **🗂 Backup and restore (2026-09-21, corrected 2026-09-24)** — Profile. **Save a backup
+  file**: everything in one `.json` — chapters, documents, pages, treatments, scenes, the
+  braid — through the share sheet, which is **the way to get a copy into Google Drive**
+  (Drive's provider refuses to hand a folder to Android's picker, so the folder route below
+  cannot reach it; §34.1 corrects the original assumption). **Mirror to a folder**: a folder
+  on the phone or one a sync app watches, written after every save. **Restore from a backup**:
+  additive, idempotent, never deletes, into a new project by default (§34.2). The first
+  snapshot carried chapters and pages only and would have lost the Master Bible; it now
+  carries every project-scoped table. Needs build 6 / 1.2.0 (`expo-document-picker`).
 
 - **📴 Offline (2026-08-30)** — the app opens and is writable without a network.
   Auth had a launch hang (a token refresh that cannot fail fast), now on a 2.5s
