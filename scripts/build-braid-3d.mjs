@@ -58,7 +58,10 @@ if (useEmbed) {
 } else {
   const demo = fs.readFileSync(DEMO, 'utf8');
   const at = demo.indexOf('window.__GRAPH__ = ');
-  if (at === -1) throw new Error('Run: node scripts/build-graph-demo.mjs');
+  // graph/character-web-demo.html is a frozen artifact now: the script that generated it read
+  // the character web's renderer, which was deleted with the web itself (2026-08-30). Its
+  // baked demo payload is still the right shape, so it stays as this script's data source.
+  if (at === -1) throw new Error('graph/character-web-demo.html has no window.__GRAPH__ payload');
   const open = demo.indexOf('{', at);
   payload = JSON.parse(demo.slice(open, demo.indexOf('};', open) + 1));
   sourceName = 'The Southern Wing (demo pack)';

@@ -43,7 +43,7 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
   // CLAUDE.md); mobile held the principle and had no bin, so it was permanent everywhere.
   const { trashChapter, trashScene } = useTrashStore();
   const user = useAuthStore((s) => s.user);
-  const { scenes, fetchScenes, createScene, updateScene, deleteScene } = useSceneStore();
+  const { scenes, fetchScenes, createScene, updateScene } = useSceneStore();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 

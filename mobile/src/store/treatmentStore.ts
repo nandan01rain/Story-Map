@@ -4,6 +4,7 @@ import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { enqueue, flush, uuid } from '../lib/outbox';
 import { supabase } from '../lib/supabase';
 import { pushVersion, type PageVersion } from './pageStore';
+import { POSITION_GAP } from '../lib/sparseOrder';
 
 // Treatments -- the layer between pages and chapters.
 //
@@ -60,8 +61,6 @@ const VERSION_COLUMNS =
 const UNDEFINED_COLUMN = '42703';
 const UNDEFINED_TABLE = '42P01';
 
-/** Sparse ordinals: a drag rewrites one row, not the whole list. */
-const POSITION_GAP = 1000;
 
 /** The first non-empty line, which is what the list shows when a treatment has no title. */
 export function treatmentTitle(t: Treatment, live: TreatmentVersion | undefined): string {
@@ -74,16 +73,6 @@ export function treatmentTitle(t: Treatment, live: TreatmentVersion | undefined)
   return first ?? '';
 }
 
-/**
- * A position strictly between two neighbours. numeric, not int, so there is always room --
- * a list dragged into a tight gap never needs a renumbering pass.
- */
-export function positionBetween(before: number | null, after: number | null): number {
-  if (before == null && after == null) return POSITION_GAP;
-  if (before == null) return (after as number) - POSITION_GAP;
-  if (after == null) return before + POSITION_GAP;
-  return (before + after) / 2;
-}
 
 type TreatmentState = {
   treatments: Treatment[];

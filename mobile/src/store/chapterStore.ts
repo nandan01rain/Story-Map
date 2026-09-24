@@ -87,6 +87,9 @@ type ChapterState = {
     book: number,
     act: number,
     title: string,
+    /** `atEnd` places it after the act's last chapter rather than before its first; `notes`
+     *  seeds the chapter's notes (a storyboard event's summary, when one becomes a chapter). */
+    options?: { atEnd?: boolean; notes?: string },
   ) => Promise<{ chapter: Chapter | null; error: string | null }>;
   // Persists a new chapter order within a book -- ports the PWA's List view drag-to-
   // reorder (index.html, wireListDrag()), but extended to work across the whole book
@@ -218,11 +221,13 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   // existing chapter in that act, so nothing else needs renumbering (matches how
   // ChapterListScreen's own reorder already treats `order` as an act-scoped sort key,
   // not a book-wide sequence).
-  createChapter: async (projectId, book, act, title) => {
+  createChapter: async (projectId, book, act, title, options = {}) => {
     const actOrders = get()
       .chapters.filter((c) => c.project_id === projectId && c.book === book && c.act === act)
       .map((c) => c.order);
-    const order = actOrders.length > 0 ? Math.min(...actOrders) - 1 : 0;
+    const order =
+      actOrders.length === 0 ? 0 : options.atEnd ? Math.max(...actOrders) + 1 : Math.min(...actOrders) - 1;
+    const notes = options.notes ?? '';
 
     // Minted here, not by Postgres: a chapter created without a network still needs an
     // identity the editor can open and the outbox can replay onto.
@@ -235,7 +240,7 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       title: title.trim() || 'Untitled chapter',
       status: 'idea',
       content: '',
-      notes: '',
+      notes,
       annotations: [],
       versions: [],
       story_time: null,
@@ -249,7 +254,7 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
       kind: 'insert',
       row: {
         id: chapter.id, project_id: projectId, book, act, order,
-        title: chapter.title, status: 'idea', content: '', notes: '',
+        title: chapter.title, status: 'idea', content: '', notes,
         annotations: [], versions: [],
       },
     });

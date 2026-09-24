@@ -5,7 +5,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { supabase } from '../lib/supabase';
 import { bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
+import { useAuthStore } from '../store/authStore';
 import { useChapterStore } from '../store/chapterStore';
+import { useProjectStore } from '../store/projectStore';
 import { pageTitle, usePageStore } from '../store/pageStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
@@ -29,10 +31,14 @@ const SNIPPET_PAD = 50;
 //   * a client-side substring scan, used only when that function is not on the live project
 //     yet. It is the search this screen had before, kept because search breaking while a
 //     migration sits unapplied is worse than search being naive.
+//
+// With no projectId it searches EVERY project (the landing page's Explore tab): the same RPC
+// once per project, merged by rank. That mode is full-text only -- pulling every project's
+// prose onto the phone for a substring scan is not a fallback, it is a download.
 
 type Hit = {
   key: string;
-  kind: 'page' | 'chapter' | 'scene' | 'document' | 'treatment';
+  kind: 'page' | 'chapter' | 'scene' | 'document' | 'treatment' | 'storyboard';
   label: string;
   title: string;
   meta: string;
@@ -47,6 +53,7 @@ const KIND_LABEL: Record<Hit['kind'], string> = {
   scene: 'Scene',
   document: 'Document',
   treatment: 'Treatment',
+  storyboard: 'Storyboard',
 };
 
 type RpcRow = {
@@ -59,6 +66,9 @@ type RpcRow = {
   at: string | null;
   /** Non-null only for treatment versions: live | stale. */
   status: string | null;
+  /** Filled in client-side, and only when searching every project. */
+  project_id?: string;
+  project_name?: string;
 };
 
 /**
@@ -94,7 +104,12 @@ type SceneRow = { id: string; chapter_id: string; title: string; summary: string
 type DocRow = { id: string; title: string; content: string | null };
 
 export default function SearchScreen({ route, navigation }: Props) {
-  const { projectId } = route.params;
+  // Absent when searching every project -- see the header note.
+  const projectId = route.params?.projectId;
+  const everywhere = !projectId;
+  const user = useAuthStore((s) => s.user);
+  const projects = useProjectStore((s) => s.projects);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [rows, setRows] = useState<RpcRow[]>([]);
@@ -111,8 +126,10 @@ export default function SearchScreen({ route, navigation }: Props) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Search' });
-  }, [navigation]);
+    if (!everywhere) navigation.setOptions({ title: 'Search' });
+    else if (projects.length === 0 && user) void fetchProjects(user.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, everywhere]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
@@ -122,7 +139,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   // Only paid for if the RPC turns out to be missing -- there is no reason to pull every
   // chapter's prose onto the phone when Postgres is doing the searching.
   const loadFallbackCorpus = useCallback(async () => {
-    if (fallbackLoaded.current) return;
+    if (fallbackLoaded.current || !projectId) return;
     fallbackLoaded.current = true;
     if (chapters.length === 0) fetchChapters(projectId);
     fetchPages(projectId);
@@ -145,6 +162,22 @@ export default function SearchScreen({ route, navigation }: Props) {
       return;
     }
     setSearching(true);
+    if (everywhere) {
+      Promise.all(
+        projects.map((p) =>
+          supabase
+            .rpc('search_everything', { p_project_id: p.id, p_query: debounced })
+            .then(({ data }) => ((data as RpcRow[]) ?? []).map((r) => ({ ...r, project_id: p.id, project_name: p.name }))),
+        ),
+      ).then((lists) => {
+        if (cancelled) return;
+        setSearching(false);
+        setRows(lists.flat().sort((a, b) => b.rank - a.rank).slice(0, 200));
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
     supabase
       .rpc('search_everything', { p_project_id: projectId, p_query: debounced })
       .then(({ data, error }) => {
@@ -162,51 +195,70 @@ export default function SearchScreen({ route, navigation }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [debounced, projectId, fullText, loadFallbackCorpus]);
+  }, [debounced, projectId, everywhere, projects, fullText, loadFallbackCorpus]);
+
+  // `pid` is the hit's own project. Inside one project that is simply projectId; searching
+  // everywhere, a hit may belong to a project whose chapters are not loaded, so its chapters
+  // are fetched first and its chapter list is put under the target -- back from the hit then
+  // lands inside the project it came from, not on the landing page.
+  const open = useCallback(
+    (pid: string, projectName: string | undefined, go: () => void) => async () => {
+      if (!everywhere) return go();
+      await useChapterStore.getState().fetchChapters(pid);
+      navigation.navigate('ChapterList', { projectId: pid, projectName: projectName ?? '' });
+      go();
+    },
+    [everywhere, navigation],
+  );
 
   const openers = useMemo(
     () => ({
-      page: (id: string) => () => navigation.navigate('Page', { projectId, pageId: id }),
-      chapter: (id: string) => () => navigation.navigate('Editor', { chapterId: id }),
-      scene: (chapterId: string) => () => navigation.navigate('ChapterDrawer', { chapterId, projectId }),
-      document: () => () => navigation.navigate('Documents', { projectId }),
+      page: (pid: string, id: string) => () => navigation.navigate('Page', { projectId: pid, pageId: id }),
+      chapter: (_pid: string, id: string) => () => navigation.navigate('Editor', { chapterId: id }),
+      scene: (pid: string, chapterId: string) => () => navigation.navigate('ChapterDrawer', { chapterId, projectId: pid }),
+      document: (pid: string) => () => navigation.navigate('Documents', { projectId: pid }),
       // parent_id is the treatment; the version id in `id` is what matched.
-      treatment: (treatmentId: string) => () => navigation.navigate('Treatment', { projectId, treatmentId }),
+      treatment: (pid: string, treatmentId: string) => () => navigation.navigate('Treatment', { projectId: pid, treatmentId }),
+      storyboard: (pid: string, eventId: string) => () => navigation.navigate('Storyboard', { projectId: pid, eventId }),
     }),
-    [navigation, projectId],
+    [navigation],
   );
 
   const hits = useMemo<Hit[]>(() => {
     if (debounced.length < MIN_QUERY_LENGTH) return [];
 
-    if (fullText) {
+    if (fullText || everywhere) {
       return rows.map((r) => {
+        const pid = r.project_id ?? projectId ?? '';
         const chapter = r.kind === 'scene' ? chapters.find((c) => c.id === r.parent_id) : undefined;
-        return {
-          key: `${r.kind}-${r.id}`,
-          kind: r.kind,
-          label: KIND_LABEL[r.kind],
-          title: r.title?.trim() || (r.kind === 'page' ? 'Untitled page' : 'Untitled'),
-          meta:
-            r.kind === 'treatment'
-              ? (r.status === 'stale' ? 'set aside' : 'live') +
-                (r.at ? ' · ' + new Date(r.at).toLocaleDateString() : '')
-              : r.kind === 'page' && r.at
+        const target =
+          r.kind === 'scene'
+            ? openers.scene(pid, r.parent_id ?? '')
+            : r.kind === 'document'
+              ? openers.document(pid)
+              : r.kind === 'page'
+                ? openers.page(pid, r.id)
+                : r.kind === 'treatment'
+                  ? openers.treatment(pid, r.parent_id ?? '')
+                  : r.kind === 'storyboard'
+                    ? openers.storyboard(pid, r.id)
+                    : openers.chapter(pid, r.id);
+        const meta =
+          r.kind === 'treatment'
+            ? (r.status === 'stale' ? 'set aside' : 'live') + (r.at ? ' · ' + new Date(r.at).toLocaleDateString() : '')
+            : r.kind === 'page' && r.at
               ? new Date(r.at).toLocaleDateString()
               : chapter
                 ? `${bookName(chapter.book)} · ${chapter.title}`
-                : '',
+                : '';
+        return {
+          key: `${r.kind}-${r.id}`,
+          kind: r.kind,
+          label: KIND_LABEL[r.kind] ?? r.kind,
+          title: r.title?.trim() || (r.kind === 'page' ? 'Untitled page' : 'Untitled'),
+          meta: [r.project_name, meta].filter(Boolean).join(' · '),
           runs: splitHeadline(r.snippet ?? ''),
-          open:
-            r.kind === 'scene'
-              ? openers.scene(r.parent_id ?? '')
-              : r.kind === 'document'
-                ? openers.document()
-                : r.kind === 'page'
-                  ? openers.page(r.id)
-                  : r.kind === 'treatment'
-                    ? openers.treatment(r.parent_id ?? '')
-                    : openers.chapter(r.id),
+          open: open(pid, r.project_name, target),
         };
       });
     }
@@ -223,7 +275,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         title: ch.title,
         meta: `${bookName(ch.book)} · Act ${ch.act}`,
         runs: substringRuns(ch.content || ch.title, debounced),
-        open: openers.chapter(ch.id),
+        open: openers.chapter(projectId ?? '', ch.id),
       });
     }
 
@@ -237,7 +289,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         title: s.title,
         meta: ch ? `${bookName(ch.book)} · ${ch.title}` : '',
         runs: substringRuns(s.summary || s.title, debounced),
-        open: openers.scene(s.chapter_id),
+        open: openers.scene(projectId ?? '', s.chapter_id),
       });
     }
 
@@ -250,7 +302,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         title: d.title,
         meta: '',
         runs: substringRuns(d.content || d.title, debounced),
-        open: openers.document(),
+        open: openers.document(projectId ?? ''),
       });
     }
 
@@ -263,12 +315,12 @@ export default function SearchScreen({ route, navigation }: Props) {
         title: pageTitle(p) || 'Untitled page',
         meta: new Date(p.updated_at ?? p.created_at).toLocaleDateString(),
         runs: substringRuns(p.content, debounced),
-        open: openers.page(p.id),
+        open: openers.page(projectId ?? '', p.id),
       });
     }
 
     return list;
-  }, [debounced, fullText, rows, chapters, scenes, documents, pages, openers]);
+  }, [debounced, fullText, everywhere, projectId, rows, chapters, scenes, documents, pages, openers, open]);
 
   return (
     <View style={styles.screen}>
@@ -276,7 +328,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         style={styles.input}
         value={query}
         onChangeText={setQuery}
-        placeholder="Search everything you've written"
+        placeholder={everywhere ? 'Search every project' : "Search everything you've written"}
         placeholderTextColor={colors.textFaint}
         autoFocus
         autoCorrect={false}

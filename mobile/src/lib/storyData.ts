@@ -56,6 +56,18 @@ export function wordCount(text: string | null | undefined): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+type Ordered = { book: number; act: number; order: number };
+
+/** Saga reading order: book, then act, then position within the act. */
+export function byReadingOrder(a: Ordered, b: Ordered): number {
+  return a.book - b.book || a.act - b.act || a.order - b.order;
+}
+
+/** Order within one book: act, then position. */
+export function byBookOrder(a: Omit<Ordered, 'book'>, b: Omit<Ordered, 'book'>): number {
+  return a.act - b.act || a.order - b.order;
+}
+
 // "Chapter N" -- a chapter's 1-based position within its book, spanning every act in
 // sequence (matching how a novel numbers its chapters). Not a stored field; the PWA
 // doesn't have this concept either (its own editor-title just shows Book/Act, see
@@ -67,7 +79,7 @@ export function chapterNumberInBook<T extends { id: string; project_id: string; 
 ): number | null {
   const inBook = allChapters
     .filter((c) => c.project_id === chapter.project_id && c.book === chapter.book)
-    .sort((a, b) => a.act - b.act || a.order - b.order);
+    .sort(byBookOrder);
   const idx = inBook.findIndex((c) => c.id === chapter.id);
   return idx === -1 ? null : idx + 1;
 }
@@ -79,39 +91,12 @@ export const ANNOTATION_COLORS: Record<'plant' | 'reveal' | 'note', string> = {
   note: 'rgba(58,106,138,0.35)',
 };
 
-export type HighlightSegment = { text: string; type: 'plant' | 'reveal' | 'note' | null; label?: string };
-
 export type SentenceToken = { text: string; start: number; end: number };
 
-// Android's native TextInput drag-to-extend-selection is unreliable enough (longstanding
-// RN platform bug, only ever selects a single word on some devices/keyboards -- see
-// EditorScreen's comments) that flagging is built on top of this instead: tap a sentence
-// to anchor a selection, tap another to extend it, entirely independent of native text
-// selection. Chunked by sentence rather than by word -- an earlier per-word version
-// wrapped every word in the chapter in its own touchable element, which for a real
-// chapter (thousands of words) meant thousands of nodes re-evaluating on every tap and
-// blocked the JS thread for seconds (confirmed on real hardware: taps took 10-15s to
-// register). Sentences cut that by roughly the average sentence length in words, and are
-// a more natural unit for flagging a Plant/Reveal/Note anyway. `[^.!?\n]` stops a chunk
-// at a paragraph break even without terminal punctuation (mid-draft prose often has
-// none yet); the newline itself lands in the gap between tokens the same way inter-word
-// whitespace does, so it's preserved when reconstructing the exact substring.
-export function tokenizeSentences(text: string): SentenceToken[] {
-  const tokens: SentenceToken[] = [];
-  const re = /[^.!?\n]*[.!?]+|[^.!?\n]+/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (!m[0].trim()) continue;
-    tokens.push({ text: m[0], start: m.index, end: m.index + m[0].length });
-  }
-  return tokens;
-}
-
-// Word-level tokens, same {text,start,end} shape as SentenceToken -- used by
-// ReaderScreen's long-press selection (paginate.ts's buildPageSegments is generic over
-// either). Computing tokens for a whole chapter is cheap (a regex pass, no rendering);
-// what actually caused the 10-15s-per-tap ANR noted above was rendering a touchable
-// element per word for an entire CHAPTER. ReaderScreen only ever renders tokens that
+// Word-level {text,start,end} tokens -- used by ReaderScreen's long-press selection
+// (paginate.ts's buildPageSegments consumes them). Computing tokens for a whole chapter is
+// cheap (a regex pass, no rendering); what once caused a 10-15s-per-tap ANR was rendering a
+// touchable element per word for an entire CHAPTER. ReaderScreen only ever renders tokens that
 // buildPageSegments has already filtered down to the current PAGE (a few hundred words),
 // so the render cost stays small even though tokenizeWords itself runs over the full text.
 export function tokenizeWords(text: string): SentenceToken[] {
@@ -124,42 +109,3 @@ export function tokenizeWords(text: string): SentenceToken[] {
   return tokens;
 }
 
-// Ports renderAnnotatedContent()'s algorithm exactly (index.html): each annotation
-// relocates by searching for its exact flagged substring (first occurrence only) rather
-// than tracking a fixed offset -- if prose is edited enough to break the match, the
-// annotation silently stops rendering inline (not deleted). Overlapping ranges are
-// dropped in annotation-array order, same as the original.
-export function computeHighlightSegments(
-  text: string,
-  annotations: { text: string; type: 'plant' | 'reveal' | 'note'; label: string }[],
-): HighlightSegment[] {
-  if (!annotations || annotations.length === 0) return [{ text, type: null }];
-
-  const ranges: { start: number; end: number; type: 'plant' | 'reveal' | 'note'; label: string }[] = [];
-  for (const a of annotations) {
-    if (!a.text) continue;
-    const idx = text.indexOf(a.text);
-    if (idx === -1) continue;
-    ranges.push({ start: idx, end: idx + a.text.length, type: a.type, label: a.label });
-  }
-  ranges.sort((a, b) => a.start - b.start);
-
-  const filtered: typeof ranges = [];
-  let lastEnd = -1;
-  for (const r of ranges) {
-    if (r.start >= lastEnd) {
-      filtered.push(r);
-      lastEnd = r.end;
-    }
-  }
-
-  const segments: HighlightSegment[] = [];
-  let pos = 0;
-  for (const r of filtered) {
-    if (r.start > pos) segments.push({ text: text.slice(pos, r.start), type: null });
-    segments.push({ text: text.slice(r.start, r.end), type: r.type, label: r.label });
-    pos = r.end;
-  }
-  if (pos < text.length) segments.push({ text: text.slice(pos), type: null });
-  return segments;
-}

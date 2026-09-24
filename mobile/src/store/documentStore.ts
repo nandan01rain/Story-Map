@@ -40,7 +40,6 @@ type DocumentState = {
     content: string,
   ) => Promise<{ document: StoryDocument | null; error: string | null }>;
   updateDocument: (id: string, patch: Partial<StoryDocument>) => Promise<{ error: string | null }>;
-  deleteDocument: (id: string) => Promise<{ error: string | null }>;
 };
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -80,13 +79,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       .eq('id', id);
     if (error) return { error: error.message };
     set({ documents: get().documents.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
-    return { error: null };
-  },
-
-  deleteDocument: async (id) => {
-    const { error } = await supabase.from('documents').delete().eq('id', id);
-    if (error) return { error: error.message };
-    set({ documents: get().documents.filter((d) => d.id !== id) });
     return { error: null };
   },
 }));

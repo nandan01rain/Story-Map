@@ -5004,3 +5004,82 @@ rollback, like progressions — **no outbox**, so it needs a network to save.
 
 Backup `SNAPSHOT_VERSION` is 3: snapshots carry `storyboardEvents/Threads/Links`; older files
 restore with those read as empty. JS-only change — no native module, ships over the air on 1.2.0.
+
+## 38. THE REDUNDANCY PASS (2026-09-24)
+
+Asked for: every redundancy in the build, and whatever would make it smoother to use. What
+changed, grouped by why.
+
+### 38.1 Removed because nothing used it
+
+**PWA (`index.html`, ~44 KB lighter).** `seedData()` — the original hard-coded saga outline,
+never called since Supabase became the store (it is in git history if the outline is ever
+wanted). The `DEBUG_TOUCH_OVERLAY` block and the drawer-scroll `console.log` instrumentation,
+both marked temporary. `bookRollupLabel`, and `findRevealForPlant` (the Plant Ledger's resolver;
+the Ledger went in August). The hidden `#map-wrap` element, its legend and their CSS. The map's
+`lastPositions` and the 400ms ghost-click guard keyed on `lastNodeInteractionEndTime`, which
+nothing had set since the map went, so the guard could never fire.
+
+**One PWA bug found on the way:** tapping a chapter's title in the act modal called
+`jumpToChapter`, which looked the chapter up in the map's node positions, found nothing, and
+silently did nothing. It now opens the chapter's drawer.
+
+**Mobile.** Store actions for hard deletes nobody called (`deleteScene`, `deleteDocument` —
+both screens trash instead, per the design principle); `deleteCharacter`/`deleteEdge` and
+their trash helper in `characterGraph.ts`; `tokenizeSentences` and `computeHighlightSegments`
+(the Editor's old sentence-tap flagging); `clearMovingBookmark`; `useAssistantEnabled`; three
+unused drawer ornaments (`CompassRose`, `CornerFlourish`, `OrnamentRule` — painted into the
+plates now) and the drawer's `CompassIcon`, badge support and a dozen unused styles.
+`npx tsc --noEmit --noUnusedLocals` is clean after this and is worth running before commits.
+
+**Repo.** `character-web.html` (the PWA embeds `braid.html`) and `scripts/build-graph-demo.mjs`,
+which could not run at all — it read `characterWebHtml.ts`, deleted with the web on 2026-08-30.
+`graph/character-web-demo.html` stays: `build-braid-3d.mjs` reads its baked payload as data.
+Also `_p.png` (a scratch screenshot) and an empty file named `git`. **The Pages workflow in
+`deploy/` copied `character-web.html` and not `braid.html`** — so the first deploy would have
+shipped a PWA whose braid 404s. Fixed.
+
+### 38.2 Merged because it existed twice
+
+- `byReadingOrder` / `byBookOrder` in `storyData.ts` replace the same comparator written out in
+  ten places.
+- `components/BookChips.tsx` replaces three hand-drawn book pickers (Writer, Prose report,
+  Storyboard), which had drifted to slightly different sizes.
+- `lib/sparseOrder.ts`: `positionBetween` moves out of `treatmentStore` (the storyboard was
+  importing a treatment module to order events), plus `useSparseReorder`, the local-order /
+  one-row-per-drop drag contract Treatments and Storyboard each had a copy of.
+- `promptRestore` in `lib/restore.ts`: the pick → confirm → restore → report conversation,
+  used by both Profile and the drawer so they cannot say different things about one operation.
+
+### 38.3 The drawer: every row does something
+
+POV, Continuity check, Ledger and Mythic Threads were greyed "coming soon" rows kept so the
+drawer's shape matched the PWA. None was coming — each was superseded or dropped by decision
+(§19, §22) — so they were promises nothing would keep, and they are gone. Export and Import
+were in the same state while Profile had a working backup; Manage is now **Export eBook or
+Word · Save a backup · Restore a backup · Trash**. Discover is reordered by use: Search, The
+Braid, Documents, Chronology, Prose report, Assistant.
+
+### 38.4 Smoother
+
+- **Explore searches every project** (landing page). It is `SearchScreen` with no `projectId`:
+  the same RPC once per project, merged by rank, the project named on each hit. Opening a hit
+  fetches that project's chapters and puts its chapter list underneath, so back lands inside
+  the project. Full-text only in that mode — a substring fallback across every project would
+  be a download, not a fallback.
+- **"↻ N to sync"** top right of the chapter list whenever the outbox holds unsent writes, and
+  tapping it retries. Offline work used to look exactly like saved work. While anything is
+  pending, `usePendingSync` also retries every 30s — before, a phone that regained signal with
+  the app open waited for the next edit or the next foreground to send anything.
+  (`outbox.subscribePending` feeds it.)
+- **Continue writing** on the Home tab: one tap into the Writer for the last project, with its
+  chapter list underneath.
+- **Storyboard**: a map icon on every book header in the chapter list opens that book's board;
+  with no book given it opens on the book last written in; **Start this chapter** on an event
+  makes a chapter at the end of the book's last act (title from the event, summary into its
+  notes), points the event at it and opens the Editor; storyboard events are **searchable**
+  (a sixth branch of `search_everything()`, added to `20260924_storyboard.sql`, which is still
+  unrun) and a hit opens the board on that event. `createChapter` gained
+  `{atEnd, notes}` options for this; the list's "+" still inserts at the top of the act as before.
+
+JS-only again: no native module, ships over the air on 1.2.0.

@@ -1,12 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { SignedInStackParamList } from '../navigation/types';
 import { analyseProse, type ProseReport, type SentenceBand } from '../lib/proseReport';
-import { bookIndices, bookName } from '../lib/storyData';
+import { bookIndices, byBookOrder } from '../lib/storyData';
 import { useChapterStore } from '../store/chapterStore';
-import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
+import { FONTS, type ThemeColors, useTheme } from '../theme';
+import BookChips from '../components/BookChips';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProseReport'>;
 
@@ -50,7 +51,7 @@ export default function ProseReportScreen({ route, navigation }: Props) {
     if (bookIndex === null) return '';
     return projectChapters
       .filter((c) => c.book === bookIndex)
-      .sort((a, b) => a.act - b.act || a.order - b.order)
+      .sort(byBookOrder)
       .map((c) => c.content ?? '')
       .join('\n\n');
   }, [chapter, bookIndex, projectChapters]);
@@ -63,13 +64,7 @@ export default function ProseReportScreen({ route, navigation }: Props) {
       {chapter ? (
         <Text style={styles.subject}>{chapter.title}</Text>
       ) : (
-        <View style={styles.chips}>
-          {bookIndices(projectChapters).map((i) => (
-            <Pressable key={i} onPress={() => setBookIndex(i)} style={[styles.chip, i === bookIndex && styles.chipOn]}>
-              <Text style={[styles.chipText, i === bookIndex && styles.chipTextOn]}>{bookName(i)}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <BookChips books={bookIndices(projectChapters)} selected={bookIndex} onSelect={setBookIndex} style={styles.chips} />
       )}
 
       {!report ? (
@@ -199,11 +194,7 @@ function makeStyles(colors: ThemeColors) {
     screen: { flex: 1, backgroundColor: colors.bg },
     content: { padding: 16, gap: 12, paddingBottom: 40 },
     subject: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 17, letterSpacing: 1, textAlign: 'center' },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: colors.borderDim },
-    chipOn: { borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.1) },
-    chipText: { color: colors.textDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 1 },
-    chipTextOn: { color: colors.gold },
+    chips: { marginHorizontal: -16 },
     empty: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 15, textAlign: 'center', marginTop: 40 },
     row: { flexDirection: 'row', gap: 12 },
     card: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 16 },

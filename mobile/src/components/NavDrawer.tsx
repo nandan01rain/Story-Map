@@ -1,25 +1,23 @@
-import { useMemo, useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as NavigationBar from 'expo-navigation-bar';
-import {
-  Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View,
-} from 'react-native';
-import { Circle, Path, Svg } from 'react-native-svg';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { SlidePanelController } from '../lib/useSlidePanel';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
-import { Chevron, CompassRose, CornerFlourish, Flourish, OrnamentRule, SectionGlyph,
-  type SectionGlyphName } from './DrawerOrnaments';
+import { Chevron, Flourish, SectionGlyph, type SectionGlyphName } from './DrawerOrnaments';
 import Icon from './Icon';
 import SlidePanel from './SlidePanel';
 
-// Ports the PWA's hamburger drawer (index.html: #header-menu-btn / #header-actions,
-// the .hdr-section collapsible groups). Discover/Manage/Assist & Project mirror the
-// PWA's three sections, item order, and icons (react-native-svg re-render of the exact
-// same <symbol> paths, see Icon.tsx) exactly. Most items point at PWA features that
-// don't have a mobile screen yet (see CLAUDE.md's mobile roadmap / handoff doc §14.6)
-// -- those render disabled with a "coming soon" tap response rather than being hidden,
-// so the menu's shape matches the PWA today and items switch on as their screens land.
+// Ports the PWA's hamburger drawer (index.html: #header-menu-btn / #header-actions, the
+// .hdr-section collapsible groups), icons re-rendered from the same <symbol> paths (see
+// Icon.tsx).
+//
+// Every row does something (2026-09-24). The drawer used to carry POV, Continuity check,
+// Ledger and Mythic Threads as greyed "coming soon" rows so its shape matched the PWA's --
+// but those were superseded or removed by decision (the braid's layers, Progression's POV
+// marks, Icarus), not waiting on a port, so they were promises nothing would keep. Export
+// and Import were in the same state while Profile already had a working backup and restore;
+// they now ARE that backup and restore.
 type SectionKey = 'write' | 'discover' | 'manage' | 'assist';
 
 // The reference sets a drawn mark beside each group -- a compass, stacked books, a quill.
@@ -57,54 +55,8 @@ type DrawerItem = {
   key: string;
   icon: string;
   label: string;
-  badge?: number;
-  onPress?: () => void;
+  onPress: () => void;
 };
-
-const DISCOVER: DrawerItem[] = [
-  { key: 'search', icon: 'search', label: 'Search' },
-  { key: 'report', icon: 'list', label: 'Prose report' },
-  { key: 'chronology', icon: 'sunset', label: 'Chronology' },
-  { key: 'pov', icon: 'eye', label: 'POV' },
-  { key: 'continuity', icon: 'link', label: 'Continuity check' },
-  { key: 'ledger', icon: 'book-open', label: 'Ledger' },
-  { key: 'mythic', icon: 'compass', label: 'Mythic Threads' },
-  { key: 'documents', icon: 'books', label: 'Documents' },
-  { key: 'assistant', icon: 'sparkle', label: 'Assistant' },
-  { key: 'braid', icon: 'link', label: 'The Braid' },
-];
-
-// Everything about writing, first and together (2026-09-21): the manuscript, the reader, the
-// capture stages beneath it. Manage keeps the file operations. Goals and the streak live
-// under Profile on the landing page, not here -- they are about the writer, not the project.
-const WRITE: DrawerItem[] = [
-  { key: 'write', icon: 'feather', label: 'Write' },
-  { key: 'read', icon: 'bookmark', label: 'Read' },
-  { key: 'notes', icon: 'pin', label: 'Pages' },
-  { key: 'treatments', icon: 'book-open', label: 'Treatments' },
-  { key: 'storyboard', icon: 'map', label: 'Storyboard' },
-];
-
-const MANAGE: DrawerItem[] = [
-  { key: 'epub', icon: 'books', label: 'Export as eBook' },
-  { key: 'export', icon: 'download', label: 'Export' },
-  { key: 'import', icon: 'upload', label: 'Import' },
-  { key: 'trash', icon: 'trash', label: 'Trash' },
-];
-
-function CompassIcon({ color, size = 34 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 40 40">
-      <Path d="M20 2 L23.5 17 L38 20 L23.5 23 L20 38 L16.5 23 L2 20 L16.5 17 Z" stroke={color} strokeWidth={1.2} fill="none" />
-      <Circle cx={20} cy={20} r={12} stroke={color} strokeWidth={1} fill="none" />
-      <Circle cx={20} cy={20} r={2.5} fill={color} />
-    </Svg>
-  );
-}
-
-function comingSoon(label: string) {
-  Alert.alert(label, 'Not built yet on mobile — coming in a later pass.');
-}
 
 export default function NavDrawer({
   controller,
@@ -126,6 +78,8 @@ export default function NavDrawer({
   onOpenBraid,
   onOpenTrash,
   onExportEpub,
+  onSaveBackup,
+  onRestoreBackup,
 }: {
   controller: SlidePanelController;
   panelWidth: number;
@@ -146,6 +100,8 @@ export default function NavDrawer({
   onOpenBraid: () => void;
   onOpenTrash: () => void;
   onExportEpub: () => void;
+  onSaveBackup: () => void;
+  onRestoreBackup: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<SectionKey>>(new Set());
 
@@ -181,32 +137,31 @@ export default function NavDrawer({
     });
   }
 
-  const discoverItems = DISCOVER.map((item) => {
-    if (item.key === 'search') return { ...item, onPress: onSearch };
-    if (item.key === 'report') return { ...item, onPress: onOpenReport };
-    if (item.key === 'chronology') return { ...item, onPress: onOpenChronology };
-    if (item.key === 'documents') return { ...item, onPress: onOpenDocuments };
-    if (item.key === 'assistant') return { ...item, onPress: onOpenAssistant };
-    if (item.key === 'braid') return { ...item, onPress: onOpenBraid };
-    if (item.key === 'trash') return { ...item, onPress: onOpenTrash };
-    if (item.key === 'epub') return { ...item, onPress: onExportEpub };
-    return item;
-  });
+  // Everything about writing first and together: the manuscript, the reader, and the capture
+  // and planning stages beneath it.
+  const writeItems: DrawerItem[] = [
+    { key: 'write', icon: 'feather', label: 'Write', onPress: onOpenWriter },
+    { key: 'read', icon: 'bookmark', label: 'Read', onPress: onOpenReader },
+    { key: 'notes', icon: 'pin', label: 'Pages', onPress: onOpenNotes },
+    { key: 'treatments', icon: 'book-open', label: 'Treatments', onPress: onOpenTreatments },
+    { key: 'storyboard', icon: 'map', label: 'Storyboard', onPress: onOpenStoryboard },
+  ];
 
-  const writeItems = WRITE.map((item) => {
-    if (item.key === 'write') return { ...item, onPress: onOpenWriter };
-    if (item.key === 'read') return { ...item, onPress: onOpenReader };
-    if (item.key === 'notes') return { ...item, onPress: onOpenNotes };
-    if (item.key === 'treatments') return { ...item, onPress: onOpenTreatments };
-    if (item.key === 'storyboard') return { ...item, onPress: onOpenStoryboard };
-    return item;
-  });
+  const discoverItems: DrawerItem[] = [
+    { key: 'search', icon: 'search', label: 'Search', onPress: onSearch },
+    { key: 'braid', icon: 'link', label: 'The Braid', onPress: onOpenBraid },
+    { key: 'documents', icon: 'books', label: 'Documents', onPress: onOpenDocuments },
+    { key: 'chronology', icon: 'sunset', label: 'Chronology', onPress: onOpenChronology },
+    { key: 'report', icon: 'list', label: 'Prose report', onPress: onOpenReport },
+    { key: 'assistant', icon: 'sparkle', label: 'Assistant', onPress: onOpenAssistant },
+  ];
 
-  const manageItems = MANAGE.map((item) => {
-    if (item.key === 'epub') return { ...item, onPress: onExportEpub };
-    if (item.key === 'trash') return { ...item, onPress: onOpenTrash };
-    return item;
-  });
+  const manageItems: DrawerItem[] = [
+    { key: 'export', icon: 'share', label: 'Export eBook or Word', onPress: onExportEpub },
+    { key: 'backup', icon: 'download', label: 'Save a backup', onPress: onSaveBackup },
+    { key: 'restore', icon: 'upload', label: 'Restore a backup', onPress: onRestoreBackup },
+    { key: 'trash', icon: 'trash', label: 'Trash', onPress: onOpenTrash },
+  ];
 
   const ASSIST: DrawerItem[] = [
     { key: 'switch-project', icon: 'swap', label: 'Switch project', onPress: onSwitchProject },
@@ -361,17 +316,12 @@ function Section({
           <Pressable
             key={item.key}
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-            onPress={item.onPress ?? (() => comingSoon(item.label))}
+            onPress={item.onPress}
           >
             <View style={styles.itemIcon}>
-              <Icon name={item.icon} size={17} color={item.onPress ? colors.gold : colors.textFaint} />
+              <Icon name={item.icon} size={17} color={colors.gold} />
             </View>
-            <Text style={[styles.itemLabel, !item.onPress && styles.itemLabelDisabled]}>{item.label}</Text>
-            {!!item.badge && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.badge}</Text>
-              </View>
-            )}
+            <Text style={styles.itemLabel}>{item.label}</Text>
           </Pressable>
         ))}
     </View>
@@ -401,11 +351,6 @@ function makeStyles(colors: ThemeColors) {
     // paddingBottom is set at the call site: it has to clear the pinned artwork, whose
     // height depends on the panel's width.
     panelContent: { padding: 24, paddingTop: 32, flexGrow: 1 },
-    brand: { alignItems: 'center', marginBottom: 16 },
-    brandTitle: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 20, letterSpacing: 1.5, marginTop: 8 },
-    brandSubtitle: { color: colors.railDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 3, marginTop: 4 },
-    divider: { height: 1, backgroundColor: colors.railDim, marginBottom: 20 },
-    dividerWrap: { marginBottom: 18, paddingHorizontal: 4 },
     // Width and height are set AT THE CALL SITE from panelWidth, not here.
     //
     // `width: undefined` with an aspectRatio was the bug: React Native falls back to an
@@ -433,10 +378,7 @@ function makeStyles(colors: ThemeColors) {
       marginLeft: -24,
       marginBottom: 8,
     },
-    cornerTL: { position: 'absolute', top: 10, left: 10, zIndex: 2 },
-    cornerTR: { position: 'absolute', top: 10, right: 10, zIndex: 2 },
     sectionGlyph: { width: 30, alignItems: 'center', marginRight: 6 },
-    sectionRuleWrap: { flex: 1, marginHorizontal: 10, justifyContent: 'center' },   // unused; kept for the day header rule
     // The epigraph is double-ruled with a star hung below it, so the outer view carries the
     // second rule and the inner one the first.
     epigraphInner: {
@@ -467,23 +409,10 @@ function makeStyles(colors: ThemeColors) {
     sectionLabel: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },
     sectionLabelText: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 12, letterSpacing: 2 },
     sectionRule: { flex: 1, height: 1, backgroundColor: colors.railInk, opacity: 0.55, marginHorizontal: 14 },
-    sectionArrow: { color: colors.gold, fontSize: 12, transform: [{ rotate: '0deg' }] },
-    sectionArrowOpen: { transform: [{ rotate: '90deg' }] },
     item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingLeft: 8, gap: 14 },
     itemPressed: { backgroundColor: 'rgba(120,100,60,0.12)' },
     itemIcon: { width: 22, alignItems: 'center' },
     itemLabel: { color: colors.railInk, fontSize: 14.5, letterSpacing: 0.5, flex: 1 },
-    itemLabelDisabled: { color: colors.railDim },
-    badge: {
-      backgroundColor: colors.gold,
-      borderRadius: 9,
-      minWidth: 18,
-      height: 18,
-      paddingHorizontal: 5,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badgeText: { color: colors.bg, fontFamily: FONTS.monoMedium, fontSize: 10.5 },
     // Two rules, not one: the outer box draws the first and epigraphInner the second, with
     // 4px between them. A single border with a thicker stroke reads as a heavier box; two
     // hairlines read as an engraved frame, which is what the reference is doing.

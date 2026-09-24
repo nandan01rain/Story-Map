@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { uuid } from '../lib/outbox';
 import { supabase } from '../lib/supabase';
-import { positionBetween } from './treatmentStore';
+import { positionBetween } from '../lib/sparseOrder';
 
 // The storyboard: per book, a chain of events and the threads strung through them. See
 // supabase/migrations/20260924_storyboard.sql for what each table is and is not.

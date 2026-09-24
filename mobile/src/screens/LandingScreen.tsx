@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { type ComponentProps, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,11 +9,12 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, NIGHT_COLORS } from '../theme';
 import { loadLastBackup, useBackup } from '../lib/backup';
-import { describeSnapshot, pickSnapshot, restoreSnapshot } from '../lib/restore';
+import { promptRestore } from '../lib/restore';
 import { loadLastProject } from '../lib/writingPrefs';
 import { useWritingStats } from '../lib/writingStats';
 import { useChapterStore } from '../store/chapterStore';
 import ProjectPickerScreen from './ProjectPickerScreen';
+import SearchScreen from './SearchScreen';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
 type TabKey = 'home' | 'projects' | 'explore' | 'profile';
@@ -94,8 +95,8 @@ const TABS: { key: TabKey; icon: string; label: string }[] = [
 // Deliberately NOT a nested tab navigator -- the tabs are views of one stack screen. The
 // project list needs to push ChapterList onto the parent stack, and every existing
 // navigate('ProjectPicker') call in the app already points here; keeping this a single
-// screen means neither has to change. Explore is a styled placeholder, exactly as in the
-// PWA -- cross-project search was never built there either.
+// screen means neither has to change. Explore is the search screen with no project given:
+// every project at once. (It was a placeholder until 2026-09-24, as it still is in the PWA.)
 export default function LandingScreen({ navigation, route }: Props) {
   const [tab, setTab] = useState<TabKey>('home');
   const timeOfDay = useSceneMode();
@@ -163,30 +164,7 @@ export default function LandingScreen({ navigation, route }: Props) {
   // Additive and idempotent, into a NEW project -- see lib/restore.ts. Confirmed against
   // what the file actually contains, because a backup is only worth what it still holds.
   async function restoreFromFile() {
-    const { snapshot, error } = await pickSnapshot();
-    if (error) {
-      Alert.alert('Could not read that file', error);
-      return;
-    }
-    if (!snapshot || !user) return;
-    Alert.alert('Restore this backup?', `${describeSnapshot(snapshot)}\n\nIt will be restored into a NEW project. Nothing you have now is changed or deleted.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Restore',
-        onPress: async () => {
-          setBackupBusy(true);
-          const { report, error: err } = await restoreSnapshot(snapshot, user.id, null);
-          setBackupBusy(false);
-          if (err || !report) {
-            Alert.alert('Restore failed', err ?? 'Nothing was written.');
-            return;
-          }
-          const wrote = Object.entries(report.counts).map(([t, n]) => `${n} ${t}`).join(', ') || 'nothing';
-          const missed = report.skipped.length ? `\n\nNot restored: ${report.skipped.map((x) => x.table).join(', ')}.` : '';
-          Alert.alert('Restored', `Wrote ${wrote}.${missed}`);
-        },
-      },
-    ]);
+    if (user) await promptRestore(user.id, setBackupBusy);
   }
 
   return (
@@ -220,6 +198,26 @@ export default function LandingScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
+            {/* One tap back to the manuscript. The project's chapter list goes underneath the
+                Writer, so back from the page lands inside the project, not here. */}
+            {lastProject && (
+              <Pressable
+                style={styles.primaryCard}
+                onPress={() => {
+                  navigation.navigate('ChapterList', { projectId: lastProject.id, projectName: lastProject.name });
+                  navigation.navigate('Writer', { projectId: lastProject.id });
+                }}
+              >
+                <Icon name="feather" size={22} color={palette.gold} />
+                <View style={styles.primaryCardText}>
+                  <Text style={styles.cardTitle}>Continue writing</Text>
+                  <Text style={styles.cardMeta} numberOfLines={1}>
+                    {lastProject.name}, where you left off.
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+
             <Pressable style={styles.primaryCard} onPress={() => setTab('projects')}>
               <Icon name="books" size={22} color={palette.gold} />
               <View style={styles.primaryCardText}>
@@ -234,14 +232,13 @@ export default function LandingScreen({ navigation, route }: Props) {
             and lose an in-progress rename or drag. */}
         {tab === 'projects' && <ProjectPickerScreen navigation={navigation} route={route} />}
 
+        {/* Search across every project at once: the project search with no project given.
+            Draws with the theme, like the Projects tab beside it. */}
         {tab === 'explore' && (
-          <View style={styles.placeholder}>
-            <Icon name="search" size={30} color={palette.gold} />
-            <Text style={styles.placeholderTitle}>Explore</Text>
-            <Text style={styles.placeholderText}>
-              Search across every project at once. Not built yet — for now, search within a project from its menu.
-            </Text>
-          </View>
+          <SearchScreen
+            navigation={navigation as unknown as ComponentProps<typeof SearchScreen>['navigation']}
+            route={{ key: 'explore', name: 'Search', params: undefined }}
+          />
         )}
 
         {tab === 'profile' && (
@@ -414,9 +411,6 @@ function makeStyles(palette: LandingPalette, bottomInset: number) {
     primaryCardText: { flex: 1 },
     cardTitle: { color: palette.text, fontFamily: FONTS.heading, fontSize: 15 },
     cardMeta: { color: palette.dim, fontSize: 12.5, marginTop: 3 },
-    placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10 },
-    placeholderTitle: { color: palette.text, fontFamily: FONTS.heading, fontSize: 18 },
-    placeholderText: { color: palette.dim, fontSize: 13, textAlign: 'center', lineHeight: 20 },
     tabBar: {
       flexDirection: 'row',
       alignItems: 'center',

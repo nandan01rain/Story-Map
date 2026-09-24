@@ -64,7 +64,20 @@ async function load(): Promise<OutboxOp[]> {
   }
 }
 
+// Anyone showing the writer how much is still waiting to sync. Told after every change to
+// the queue, so a count on screen never lags the queue itself.
+const listeners = new Set<(pending: number) => void>();
+
+/** Subscribe to the pending count; returns the unsubscribe. */
+export function subscribePending(listener: (pending: number) => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 async function save(ops: OutboxOp[]): Promise<void> {
+  for (const l of listeners) l(ops.length);
   try {
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(ops));
   } catch {

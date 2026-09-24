@@ -178,7 +178,6 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
    other way if the world's height genuinely exceeds the viewport (today it usually doesn't,
    per Phase 1a's own findings — worldHeight is typically close to or under a mobile
    viewport's available height). */
-#map-wrap{flex:1;overflow-x:auto;overflow-y:auto;touch-action:pan-x;position:relative;}
 .map-bg-image{pointer-events:none;-webkit-user-drag:none;user-select:none;}
 .book-band-label{font-family:var(--font-heading);font-size:16px;font-weight:600;fill:var(--text);letter-spacing:0.1em;text-transform:uppercase;}
 .book-band-sub{font-family:var(--font-mono);font-size:10px;fill:var(--text-dim);}
@@ -211,9 +210,6 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 .act-cluster-rect{fill:rgba(255,255,255,0.02);stroke:rgba(201,162,39,0.15);stroke-width:1;stroke-dasharray:3,4;}
 .band-rect.drop-target{fill:rgba(201,162,39,0.10) !important;}
 
-#legend{position:absolute;bottom:16px;left:24px;display:flex;gap:16px;background:rgba(20,24,51,0.88);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);z-index:3;}
-#legend .item{display:flex;align-items:center;gap:6px;}
-#legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 
 /* drawer */
 #drawer{position:fixed;top:0;right:0;height:100%;width:440px;background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .2s ease;display:flex;flex-direction:column;z-index:50;box-shadow:-20px 0 60px rgba(0,0,0,0.4);}
@@ -298,7 +294,7 @@ button.btn.small.btn-x{padding:0 12px;font-size:16px;line-height:1;min-width:0;}
 
 #thread-view, #web-view{position:fixed;inset:0;background:var(--bg);z-index:86;display:none;flex-direction:column;}
 #thread-view.show, #web-view.show{display:flex;}
-/* The renderer is one shared document (character-web.html), embedded rather than
+/* The renderer is one shared document (braid.html), embedded rather than
    reimplemented -- the phone loads the same markup into a WebView. Its own dark canvas is
    #0d1110, deliberately a shade off the app's --bg, so the graph reads as a surface rather
    than as a hole in the page. */
@@ -1008,7 +1004,6 @@ button.btn.primary#add-chapter-btn:hover{
   header{position:relative;}
   .header-actions{flex-wrap:wrap;gap:6px;}
   button.btn{padding:7px 10px;font-size:11px;}
-  #legend{display:none;}
 
   /* BUG FIX: header-actions wraps onto 2 rows on mobile (Map/List on row 1,
      +Add chapter wraps to row 2), making it tall — header-menu-btn, centered
@@ -2006,16 +2001,6 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     </div>
     </div>
   </header>
-  <div id="map-wrap" hidden>
-    <div id="legend">
-      <div class="item"><span class="dot" style="background:var(--bg-alt);border:1.5px solid var(--gray)"></span>idea</div>
-      <div class="item"><span class="dot" style="background:var(--bg-alt);border:1.5px solid var(--gold)"></span>outline</div>
-      <div class="item"><span class="dot" style="background:var(--ember)"></span>drafted</div>
-      <div class="item"><span class="dot" style="background:var(--teal)"></span>final</div>
-      <div class="item"><span class="dot" style="background:var(--danger)"></span>unresolved plant</div>
-      <div class="item"><span class="dot" style="background:var(--gold)"></span>word count flag</div>
-    </div>
-  </div>
   <nav id="sidebar" aria-label="Sections">
     <div class="sb-group">Story</div>
     <button class="sb-item on" data-pane="braid"><svg class="nav-icon"><use href="#icon-braid"></use></svg> The Braid</button>
@@ -2698,479 +2683,8 @@ let selectedChapterId = null;
 let editorChapterId = null;
 let editorReturnTo = null;
 let editorIsComposing = false;
-let lastPositions = [];
 let dragState = null;
-// Guards against a browser-synthesized "ghost click": pointer CAPTURE correctly
-// redirects pointerup to the node, but on some touch engines the derived
-// compatibility `click` event is still hit-tested at the raw release point
-// (ignoring capture) and can land on the act-cluster rect underneath, firing
-// the act popup right after a node tap already opened the correct chapter.
-let lastNodeInteractionEndTime = 0;
 
-/* ========== TEMP TOUCH-DEBUG OVERLAY — diagnosis only, safe to delete this whole block ========== */
-const DEBUG_TOUCH_OVERLAY = false;
-const debugTouchState = { count: 0, pointerType: '-', target: '-', outcome: '-', error: '' };
-let debugTouchEl = null;
-if(DEBUG_TOUCH_OVERLAY){
-  debugTouchEl = document.createElement('div');
-  debugTouchEl.id = 'touch-debug-overlay';
-  // Shrunk to a single truncated line (was ~100-150px of 4-5 wrapped lines) —
-  // that height was itself covering the bottom of the hamburger drawer,
-  // which is what made its last section look unreachable/unscrollable.
-  debugTouchEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.78);color:#7CFC7C;font-family:monospace;font-size:10px;line-height:1.4;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;';
-  document.body.appendChild(debugTouchEl);
-  debugTouchLog({});
-}
-function debugTouchLog(patch){
-  if(!DEBUG_TOUCH_OVERLAY) return;
-  Object.assign(debugTouchState, patch);
-  if(!debugTouchEl) return;
-  debugTouchEl.textContent =
-    `#${debugTouchState.count} ${debugTouchState.pointerType} → ${debugTouchState.target} :: ${debugTouchState.outcome}` +
-    (debugTouchState.error ? ` :: ERROR ${debugTouchState.error}` : '');
-}
-function debugTouchDescribeEl(el){
-  if(!el || !el.getAttribute) return String(el);
-  if(el.tagName && el.tagName.toLowerCase() === 'g') return 'g (node wrapper)';
-  return el.getAttribute('class') || el.tagName || '?';
-}
-/* ========== END TEMP TOUCH-DEBUG OVERLAY SETUP ========== */
-
-/* ========== TEMP HAMBURGER-DRAWER SCROLL DEBUG — logs to console only, no on-screen overlay,
-   remove once the reported scroll issue is diagnosed. Not related to the map/touch-drag debug
-   system above — separate DOM region (#header-actions), added specifically to investigate a
-   user report of the hamburger drawer not scrolling correctly. ========== */
-(function(){
-  const el = document.getElementById('header-actions');
-  if(!el) return;
-  const log = (label, extra) => {
-    console.log(`[HDR-SCROLL DEBUG] ${label}`, Object.assign({
-      scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight,
-      menuOpen: el.classList.contains('menu-open')
-    }, extra || {}));
-  };
-  el.addEventListener('scroll', () => log('scroll'));
-  el.addEventListener('touchstart', (e) => log('touchstart', { touches: e.touches.length, y: e.touches[0] && e.touches[0].clientY }), { passive: true });
-  el.addEventListener('touchmove', (e) => log('touchmove', { touches: e.touches.length, y: e.touches[0] && e.touches[0].clientY }), { passive: true });
-  el.addEventListener('touchend', () => log('touchend'), { passive: true });
-})();
-/* ========== END TEMP HAMBURGER-DRAWER SCROLL DEBUG ========== */
-
-/* ---------- SEED DATA ---------- */
-function seedData(){
-  chapters = []; scenes = []; actLabels = {}; nextId = 1;
-  documents = []; stickyNotes = []; aiEnabled = false;
-  const mkCh = (book, act, order, title, status) => {
-    const id = crypto.randomUUID();
-    chapters.push({id, projectId: currentProjectId, book, act, order, title, status, content:'', wordMin:2500, wordMax:4500, notes:'', annotations:[], versions:[]});
-    return id;
-  };
-  const mkSc = (chapterId, order, title, status, summary, requires, provides, notes) => {
-    scenes.push({id:crypto.randomUUID(), projectId: currentProjectId, chapterId, order, title, status, summary, requires:requires||[], provides:provides||[], notes:notes||'', deferredRequires:[], pov:''});
-  };
-
-  // ---- BOOK ONE ----
-  const b1 = [
-    [1,1,"The Ditch — Kal Finds Dev","final","Kal (7) finds Dev (4) dying in a ditch, wrapped in an oversized red coat.",[],["Two-knuckle head-tap gesture established","The red coat introduced","Dev's left-brow scar visible"]],
-    [1,2,"Dev, Kal & Amara — The Trio Forms","idea","Eli's mentorship, early Undertow life, the found-family baseline before anything breaks.",[],["Found-family baseline established"]],
-    [1,3,"The Red Coat Introduced","idea","The coat appears as an unexplained artifact.",[],["The coat as a mystery object"]],
-    [1,4,"Kal Fired — The End of 'The Right Way'","idea","Kal loses his honest job defending Dev and Eli from Harl.",[],["Kal's honest-path door closes","Dev's guilt — surfaces in Book Three"]],
-    [1,5,"Dev's Robin Hood Turn","idea","Anonymous district charity begins. Kal notices, says nothing.",[],["Robin Hood behaviour — cracks Zia open in Act Two"]],
-    [1,6,"The Relic Quest Ignites","idea","Six keys, the prophecy.",[],["The six-key quest structure"]],
-    [1,7,"Amara Recruited — The Wanted Poster Collision","idea","Amara joins through collision, not convenience.",[],["Amara joins the crew"]],
-    [1,8,"Ch 13 — The Last Night","idea","Eli caught sneaking out; his blessing, the sealed puzzle-lock and letter.",[],["Eli's sealed puzzle-lock and letter","Eli's blessing"]],
-    [1,9,"Ch 14 — The Truth Will Out","idea","Dawn raid, paint charges, the confetti exposé of the contractors. Dev broadcasts from the clock tower.",[],["Amara's transparency doctrine — origin","The pattern that gets her killed"]],
-    [1,10,"Ch 15 — Up Up and Away","idea","The chase, Kal's torches lit hours ahead, the seven-seat vehicle found.",["Eli's sealed puzzle-lock and letter"],["Act One threshold crossed"]],
-    [2,1,"Ocean Ecology — Coen Joins","idea","First mild signs of religious exploitation.",[],["Coen joins the crew","First signs of the religious-exploitation ladder"]],
-    [2,2,"Smuggler's Capital — Zia Joins","idea","The staged rescue. Zia's cover holds.",[],["Zia joins the crew, cover intact"]],
-    [2,3,"Amara & Kal — the name Eva","idea","A quiet happy beat. Amara teases Kal; he half-admits a name he's thought of. \"Eva, maybe.\"",[],["The name Eva established as Kal's own suggestion"]],
-    [2,4,"Agricultural Ecology — Wren Joins, the East/West Split","idea","West is spiritual, East is dogmatic. Wren is from the East — the family's black sheep.",[],["Wren joins the crew","Agricultural East/West split established","Wren's black-sheep backstory grounded"]],
-    [2,5,"The Harvest Festival Dance","drafted","Dev identifies Zia's contradiction without softening. Both are bad dancers. Zia feels a joy she has no category for.",[],["Zia's first involuntary emotional crack"]],
-    [2,6,"Desert Ecology — Nadir Joins, Sheltered by a Family","idea","The theocratic insurgency backdrop. The crew is sheltered by a family at real risk to themselves.",[],["Nadir joins the crew","Desert theocratic insurgency backdrop established"]],
-    [2,7,"Dev & Amara — The Faith Discussion","idea","The water-carrying boy. Amara: 'there is good and evil in everyone.' Dev lands on faith-as-placebo, not conversion.",["Desert theocratic insurgency backdrop established"],["'There is good and evil in everyone' — planted for Book Five","'It's not the faith, it's what you make of it' — saga thesis"]],
-    [2,8,"Zia's Real Capture & Dev's Waterfall Fall","idea","Dev's 3-day presumed death. Kal's riverbank vigil. Dev's unremarked meeting with Zia's own father.",[],["Dev's 3-day presumed death","Kal's riverbank vigil — plant for Book Three's guilt confession","Zia's unmarked meeting with her own father"]],
-    [2,9,"Kailash — The Crew Reaches the Source","idea","",[],[]],
-    [2,10,"The Murals Discovered","idea","Noah's dual nature. The intimacy of five centuries of memory.",[],["Noah's dual nature revealed"]],
-    [2,11,"Noah Is Awakened","idea","The child, not a vault.",["Noah's dual nature revealed"],["Noah awakened"]],
-    [2,12,"The Hunter Closes In","idea","",[],[]],
-    [2,13,"The Broadcast","idea","Noah reveals the truth, face never shown. Hunter ordered to break off.",["Noah awakened"],["Noah's public reveal","Origin of the 'extremist attack' cover story"]],
-    [2,14,"Retreat to the Catacombs","idea","",[],[]],
-    [2,15,"The Garden Campfire — The Parijaat Dome","idea","Unhurried at last. Noah bonds with the crew, falls back in love with humanity.",["Noah's public reveal"],["Noah's emotional basis for staying","Parijaat tree symbolism"]],
-    [2,16,"The Disconnection Conversation","idea","Noah chooses to stay and deliberate embodiment. Amara smiles and leaves.",["Noah's emotional basis for staying"],["Noah's decision to deliberate embodiment"]],
-    [3,1,"The Commission of Inquiry Forms","idea","The broadcast forces a formal cross-ecology investigative body into being.",["Noah's public reveal"],["Public accountability mechanism established"]],
-    [3,2,"Amara Enters Sequestration","idea","Her father houses and guards her himself — publicly read as grief, really distrust of institutions.",["Public accountability mechanism established"],["Amara's sequestration cover established","Her father's true motive — concealed"]],
-    [3,3,"The Crew Disperses","idea","Wren, Coen, Nadir to their ecologies. Dev and Kal to the Undertow. Nadir secretly recalled.",["Amara's sequestration cover established"],["Nadir's secret recall — concealed from Dev and Kal"]],
-    [3,4,"The Year Passes — Letters Only","idea","No physical contact with Amara. Dev & Zia's real bonding stretch.",["Nadir's secret recall — concealed from Dev and Kal"],["Dev & Zia's year of bonding"]],
-    [3,5,"Eva Is Born","idea","Total secrecy — known only to Nadir and Amara's father.",["Nadir's secret recall — concealed from Dev and Kal","The name Eva established as Kal's own suggestion"],["Eva born"]],
-    [3,6,"Amara Resumes Public Life","idea","About three months post-birth.",["Eva born"],["Amara re-enters public view"]],
-    [3,7,"Amara's Death","final","Amara dies protecting the crew. Her third and final spent smile. \"Eee—\"",["Amara's recurring smile established"],["Amara's smile spent for the last time","The unfinished word — later revealed as Eva"]],
-    [3,8,"Dev Arrives Too Late","idea","Farthest away. No goodbye.",["Amara's Death"],[]],
-    [3,9,"The Funeral — Noah Embodies","idea","Wren tells Noah. Noah embodies permanently, revealed only to the crew.",["Amara's Death"],["Noah's permanent embodiment"]],
-    [3,10,"The Argument — Kal Exits","idea","Held under government 'protective' guard. Kal's fury turns on Dev. Dev has no answer. Kal walks out.",["Noah's permanent embodiment"],["Kal leaves the crew","Kal's fury directed at Dev, not Zia"]],
-    [3,11,"Book One Close — The Peacock Feather","outline","The Order surfaces. Strange on first read, detonates on reread.",[],["The Order as a live thread"]],
-    [3,12,"Zia's Father Breaks Cover — The Order Revealed","idea","His first question is about the keys, not her grief. Everything recontextualizes.",["Kal leaves the crew"],["The Order revealed to Zia","Opens Book Two's chess match"]],
-  ];
-  b1.forEach(([act,order,title,status,summary,requires,provides]) => {
-    const chId = mkCh(0, act, order, title, status);
-    mkSc(chId, 1, title, status, summary, requires, provides);
-  });
-
-  // ---- BOOK TWO ----
-  const b2 = [
-    [1,1,"Cold Open — Zia, Kal, and the Hunter","outline","Weeks after Book One. Zia and Kal hunt down the Hunter together.",[],["Zia's academy history surfaces — the Hunter's true identity"]],
-    [1,2,"Noah's Death","outline","",[],[]],
-  ];
-  b2.forEach(([act,order,title,status,summary,requires,provides]) => {
-    const chId = mkCh(1, act, order, title, status);
-    mkSc(chId, 1, title, status, summary, requires, provides);
-  });
-
-  // ---- BOOK THREE ----
-  const b3vigil = mkCh(2, 2, 1, "The Vigil — Krishna Vision", "drafted");
-  mkSc(b3vigil, 1, "The Vigil — Krishna Vision", "drafted",
-    "72 hrs outside Zia's room, bloodstained, refuses to move. Collapses from exhaustion. Krishna's voice bleeds into Nadir's real voice as he wakes.",
-    ["Dev's first use of power (exhaustion cost)"],
-    ["Dev's private, unconfirmed cosmology","No more room for regrets — his motive for the confession"]);
-  scenes.find(s=>s.chapterId===b3vigil).pov = 'Dev';
-
-  const flowersContent = `Zia finally opens her eyes. The light is too bright, then not bright enough, then normal. She looks around — pale walls, the hum of some machine keeping count of something inside her.
-
-Nadir's face appears above her. "There you are. How do you feel? Do you need more anesthetic?"
-
-"Is that your go-to line, waiter?"
-
-Nadir doesn't even blink. "Every table gets the same service. Yours just tips worse." She checks something on the monitor without waiting for a comeback. "Seriously. How do you feel?"
-
-Zia takes stock before answering properly. Numbness across her gut, a little to the left, and underneath it a slow, patient throb that promises to get louder later. "No," she says. "I don't want to make an even bigger fool of myself than I already did yesterday. Dev's never going to let anyone forget it."
-
-"Might actually be an improvement on you," Nadir says.
-
-Zia doesn't answer that. The embarrassment isn't really about yesterday. Yesterday was nothing — a few slurred words and a thumbs-up she couldn't hold steady. The real humiliation is underneath it, and it isn't going anywhere just because the drugs have worn off.
-
-She knows, rationally, that it wasn't a fair fight. Kal caught a direct strike to the neck with his bare hand, snapped the blade off at the hilt, and drove the broken half through her armor with enough force that the entry wound looked more like something a gun would leave than a knife. That isn't a threat she could have trained for. Nobody trains for a man who can do that. And it's terrifying in a way that has nothing to do with pride — because if Kal can do that, then so can every soldier the Empire's been quietly building toward this. An entire army of it. And Kal knows them. Knows their positions, their instincts, their weaknesses. Knows Dev better than almost anyone alive.
-
-But underneath the fear is something uglier, and she doesn't like how much space it's taking up: she got beaten. Not outmaneuvered, not outnumbered — overpowered, cleanly, humiliatingly, in front of everyone. Her body took the wound. Her ego took worse.
-
-She's angrier at Kal than she has any right to be. Angrier than the situation calls for, given everything else there is to be angry about. She thinks, not for the first time, that she should have ended him back in the woods, after she brought down the Hunter herself, Kal on the ground beside her. She had the chance and didn't take it. But she knows she could never have done it. He was a broken, grieving man then, more dangerous to himself than to anyone else.
-
-That man isn't who put a knife through her stomach three days ago.
-
-What unsettles her more, though, is Dev. The memory comes back in pieces, distorted by whatever they had her on — Dev in the air, longer than a jump should carry him. Dev picking up one soldier and using him as a weapon against another. A man's skull meeting a wall in a way that isn't survivable. Dev's fist connecting with Kal hard enough to put him fifteen feet from where he'd been standing.
-
-His eyes weren't the amber she knew. They were lit orange-gold, like something behind them was burning.
-
-It didn't look like Dev. It didn't look like anything Dev should be capable of.
-
-Either that, she thinks, or the anesthetic has a hallucinogenic streak nobody warned me about.
-
-One thing she's sure of: there's a great deal to unpack, and none of it is going to wait politely for her to feel better first.
-
-Dev walks in. He looks freshened up — a black shirt and loose threaded trousers that reached the ankles, the usual brown tool belt and pocketwatch, the batons noticeably absent since the hospital doesn't allow weapons, and the same rust red trench coat. He looked tired, like he'd gotten a day's sleep and it still wasn't enough. Bags under his eyes. The only surprise was a bunch of flowers. Very out of character. He seemed a lot more muted today, none of the usual nervous energy or the performative humor. He seemed embarrassed, shy even.
-
-"Are those for me?" she asks, half smiling.
-
-He looks down at the flowers and answers, "Yes, I didn't know what else to bring you. By the looks of it you won't be having anything solid for a while."
-
-"So you bring me flowers — arguably the first time a living person has received flowers from you — and it's only because I can't 'have anything solid'?"
-
-He frowns. "Oh, I don't know. I'll throw it out if you don't like it."
-
-"No, they're pretty. Thank you."
-
-Dev sets the flowers down on the bedside table and starts fidgeting with his pocket watch.
-
-It's a rare treat to find him this flustered.
-
-He shuffles a couple steps forward, still fidgeting, and asks, "How are you feeling?"
-
-Zia turns onto her side to face him, one hand tucked under her chin. "Skewered," she replies.
-
-Dev nods. He finally leaves his watch, meets her eyes, and goes down on his knee beside the bed. "I have to tell you something."
-
-"I can see that."
-
-"Why do you feel the need to give me a taste of my own medicine now?"
-
-"Oh, I don't know — perhaps the fact that I was almost impaled saving you, after you ran off alone for a 'peace negotiation' with representatives of a xenophobic empire? I'd say you have a lot more medicine left to taste."
-
-Dev doesn't reply and suddenly appears very interested in the blank white tiles on the floor.
-
-"Well?" she asks.
-
-"What?" Dev looks up suddenly.
-
-She smiles. "What did you have to tell me which demanded flowers as an aperitif?"
-
-Dev flashes a nervous smile, sighs, and says, "I'm sorry. Not just for the trap, but for everything. But I thought I could reason with Kal — with the girl. She is my sister, after all."
-
-"A sister who sees you for what you are. The single greatest threat to her claim. She's tried to kill you twice now and very nearly succeeded both times. This is not someone you can afford to go soft on, Dev. Whatever she was to you, the only thing that matters right now is that we are at war, and they are on the other side. Kal was my friend too. But whoever he was to us, that man is gone. The only one that remains is a murderer who will stop at nothing to burn down everything we've built to achieve. And now he finally has the means to do it. We cannot reason with them."
-
-"You think I don't know that?" Dev's voice comes out harder than he means it to. "You think I went in there not knowing exactly what they are?"
-
-"I think you went in there hoping they weren't."
-
-"And you think hoping is the same as being an idiot." He's on his feet now, though neither of them noticed him stand. "Durga offered a deal in there. Step aside, let the throne go to her cleanly, and there's no war. No bloodshed. No fight we'd almost certainly lose." A short, hard breath. "She called it a deal where nobody loses anything."
-
-Zia goes still. "You didn't tell me that."
-
-"Because it doesn't matter. I said no." His jaw works. "You know why? Because the Empire doesn't have people. It has cogs. Everyone in it doing exactly what they're built to do, and not one of them with a voice to say otherwise. That's not a nation, that's a machine wearing a crown. And you want me to hand over everything we have — the mess, the arguing, the fact that people get to be wrong out loud — for that? For 'efficient'? I'd rather lose."
-
-"Nobody said you were wrong to refuse it —"
-
-"I'm not finished." He stops, breathes, and when he starts again his voice has dropped into something rawer. "You know what kills me? Kal never wanted any of this. He wanted the yard job. The wage. Whatever scraps of the ladder they'd let a man like him climb, honestly, one rung at a time. He never wanted a war. He never wanted a throne." A humorless breath. "And the day there was nothing honest left for him to climb — that was me. My mouth. Something I said to Harl that I couldn't take back, and Kal paid for it, and everything after that — the district, the anonymous handouts, all of it — I told myself it was virtue. Maybe it was just the only door I left open for him. I don't actually know anymore if I made him what he became, or if I just gave him the first shove."
-
-He looks at his hands like they did it.
-
-"Last time he asked me something like that — years ago now, right before he walked out after that argument with you — he asked if I had anything to say for myself, now that something was actually on the line." A short, humorless huff. "Like I've only ever talked my way through things that didn't matter. Maybe he's right. Maybe I only know how to run my mouth when nothing's actually at stake."
-
-"Dev —"
-
-"I'm still not finished." The words come out through his teeth now. "Everyone who's ever gotten close enough to know me wants me dead or wishes they'd never met me. Kal raised me and now he'd cut my throat given the chance. Durga's my blood and she's tried it twice. Amara's dead, because of what I am. You—" His voice cracks straight through the word and he has to stop.
-
-Zia doesn't move. Doesn't fill the silence.
-
-"You went down in front of me," he says, quieter now, and worse for it. "And for three days I didn't know if I was going to lose you the same way I lost her. So don't tell me I don't know what's at stake. I know exactly what it costs. I just don't know how to—" He stops again, shakes his head like he's trying to throw the sentence out of himself. "I don't know how to let anyone stand that close to me without also handing them a knife."
-
-He's not looking at her anymore.
-
-"If I lean on someone and they leave," he says, so quiet it's almost not for her at all, "I don't get back up from that. So I don't lean. I know I've been horrible about it. To you. I know that. I just don't know another way to check how much I can survive losing."
-
-The room is very quiet. Somewhere down the hall, a cart wheels past.
-
-Zia lets the silence sit for a moment before she speaks, and when she does, her voice has lost its edge — not softened, just quieter.
-
-"I was supposed to run, you know. Years ago." She's looking somewhere past him, not quite at him. "Day we got the sixth key. Plan was simple — vanish with it, let the six of you take the fall. No keys on you, no proof it wasn't you who stole them. Hunted for the rest of your lives while I disappeared clean." A short breath. "Thought it'd be cake. A handful of trusting idiots, and it only took half my attention to play all of them."
-
-A beat.
-
-"Then I got sloppy instead. Got caught. No keys on me by then, nothing to trade, nobody coming for the girl who was two days from selling out the only people who'd ever treated her like she mattered. Three days tied to a chair, plenty of time to sit with that." A short, humorless breath. "You came anyway. Every key already in hand. Nothing left to gain from me at all."
-
-She doesn't dress it up beyond that. Lets it sit.
-
-"Then you went into that river trying to pull me out of a mess I made, and you didn't come up." Her hand goes still against the sheet. "However long it was, it was long enough I started believing it — that you'd drowned, and it was because of me. Because I made you spend everything you had saving someone who was about to burn all of you for a clean exit. That's not carelessness, Dev. That's the kind of guilt that sits on your chest at night and tells you exactly whose fault it is."
-
-"Kal's the one who told me it wasn't my fault. Told me it wasn't yours either. Said you'd never let any of us get left behind, and then he wouldn't move from that riverbank until they found you — alive or not." A pause. "That's the same man who put a blade in your throat three days ago. The same one who put me in this bed. And he's not going to stop."
-
-"Kal is where he is because of Kal." Flat, immediate, no room in it for argument. "Every choice between that yard and that throne, he made himself. You handed a man an insult he mostly deserved. He's the one who chose everything after." A beat. "The choice to wait at that riverbank for someone he was near certain was dead. And the choice, years later, to put a blade to that same person's throat. Both his. Don't flatter yourself into thinking you're big enough to have caused either one alone." Another beat. "And if you actually think you're the reason he turned into what he is — then he was never the only one you changed."
-
-She keeps going before he can answer.
-
-"Coen used to say the tide doesn't answer to anyone. Spent his whole life making sure nothing could hold him — no crew, no cause, no port worth staying in. Five years now, he hasn't left. Not because you gave him a rank. Because you made staying feel like something he chose, instead of something that could own him."
-
-She shifts, wincing, and keeps going.
-
-"Wren spent her whole life being told her books were useless, the family disappointment nobody wanted at the table. You were the first person who acted like she wasn't wrong about anything. Now half the crew asks her before they ask anyone else." A beat. "Nadir buried a friend for telling the truth and decided the whole world ran on a machine nobody could fix. She still doesn't believe that's changed. She just can't stop stitching people back together long enough to notice she's wrong."
-
-"And then there's the god doing community service in the Undertow, teaching structural engineers how aqueducts work, or whatever else needs teaching that week." A beat. "He looks ten. Doesn't even blink at it. Everyone else in the room does." She lets that hang a second. "I still don't know how that came about, and at this point I've stopped asking."
-
-She lets the humor drain back out before she continues.
-
-"There was a night I danced badly in front of half the Agricultural ecology at the Harvest Festival and didn't want to disappear afterward. First time in my life I felt like a person instead of a blade my father kept sharpened. You didn't even mean to do that to me. You just did." Her hand finds his. "You've never once tried to rule any of us, Dev. Kal wants a throne because he's decided people can't be trusted with their own judgment — left alone, they choose wrong, and innocents die for it, so the whole rotten system has to be broken down and rebuilt under someone who knows better. That's the exact philosophy that built the Concord in the first place. You've spent this whole war making sure people still get to choose — to rise or fall on their own terms, even badly, even wrong. That's the part you keep missing about yourself."
-
-She looks at him steadily.
-
-"Amara saw your worth before any of us did." Her voice doesn't waver on the name. "She never once blamed you for what her choice cost. So don't you dare make her the reason you stopped letting the rest of us close."
-
-A beat.
-
-"That's not nothing, Dev." A pause. "No one does this alone. You least of all."
-
-Dev almost laughs. "Thank you for the vote of confidence."
-
-"I mean it as one." Flat. "You don't have to do it alone — that's the whole point of the rest of us being here. And you don't get to decide who lives or dies keeping you upright. That was never your call to make." A beat. "That's ours."
-
-"You think the only way to keep people safe is to stop needing them. It's not. Some of us already decided we're not going anywhere. So try not to get it killed."
-
-Dev keeps looking down. Zia could see his shoulders relaxing, a light exhale, like a long-standing burden finally dropped. Then he looks at her for a long moment, finally making eye contact, and the corner of his mouth twitches. "You were gonna run away? Hanging us out to dry? Winter herself couldn't be this cold. And with my flowers unclaimed?" He reaches out to the table, picks them up like holding a baby. Zia can't help but smile. "Tragic. Truly, I have tears in my e—"
-
-Zia leans forward and kisses him. Slow, unhurried, deliberate. When she pulls back, his expression is somewhere between stunned and something close to relief.
-
-"There," she says. "Now you don't need flowers to say things. You can just say them."
-
-"Okay." Dev says, his voice two octaves higher than usual.
-
-"Now if you'll excuse me, I need some more anesthetic."
-
-"Well that makes two of us," comes a voice from the doorway. Nadir's standing there, looking like she meant every word she said. Coen's staring with a mix of expressions that have yet to be deciphered.
-
-Zia calls out to him. "What's up, sailor?"
-
-No response.`;
-
-  const b3flowers = mkCh(2, 2, 2, "Flowers", "drafted");
-  mkSc(b3flowers, 1, "Dev & Zia — the Confession", "drafted",
-    "Flowers, banter, the argument, the stalled confession, the kiss.",
-    ["Head-tap NOT relevant here — but: the unfinished Eee/Eva word (echo material)","Krishna vision just occurred"],
-    ["Reciprocal romantic acknowledgment","Reversion to teasing afterward, per the inverted code"]);
-  chapters.find(c=>c.id===b3flowers).content = flowersContent;
-  scenes.find(s=>s.chapterId===b3flowers).pov = 'Zia';
-
-  const battlePlansContent = `Nadir comes back in with a tray, humming something two ecologies don't share a name for. She checks the line into Zia's arm, adjusts something, and doesn't ask about the flowers or the redness still sitting high on Dev's ears. Professional to the point of mercy.
-
-Coen finally steps past the doorframe instead of just haunting it. He doesn't say anything about what he walked in on. He drags a stool over, sits it backward, and folds his arms across the top of it — which, for Coen, is roughly the equivalent of a long speech.
-
-"So," Zia says, mostly to give him an out. "You going to tell me what I missed, or are we just going to sit here."
-
-"Not much." Coen tips his head toward Dev. "He turned into something out of a bad campfire story. Put a man through a wall."
-
-Dev, still holding the ghost of the earlier smile, looks distinctly less pleased about this conversation. "It wasn't that dramatic."
-
-"He was already going through the wall," Coen says, unbothered. "You just helped."
-
-"I don't remember most of it," Dev says. Quieter now. "I remember being furious. And then I remember being on the ground, and everyone looking at me like I'd grown a second head."
-
-"Eyes went gold," Coen adds, like he's reading it off a list. "Not amber-in-sunlight gold. Lit-from-inside gold. Durga looked like she'd seen a ghost wearing her brother's face. Which, credit to her, is roughly accurate."
-
-Nobody asks him what came after — the collapse, the seventy-two hours on the floor outside this room, whatever he found on the other side of that exhaustion. Zia watches him not offer it, and doesn't push. Whatever he saw in that gap belongs to him. She'll let him keep it, for now.
-
-"Good news, he's got an upgrade," Coen says, flat, already moving past it. "Bad news, whatever army's coming probably does too."
-
-That's what does it — pulls the room off the last thread of levity and back down into the actual size of the problem. Nadir stops fussing with the tray.
-
-"We don't know their numbers," Zia says, and it's a relief, almost, to be back on ground she knows how to stand on. Facts. Not feelings. "We know Kal's enhanced. We don't know if that's unique to him or standard issue for whoever's coming next."
-
-"Durga's still out there," Dev says. "Whatever she is now — enemy, prisoner of her own choices, I don't know — she's the only person who might actually tell us the truth about what they've got."
-
-"She tried to kill you twice," Coen says. Not unkindly. Just a fact, laid next to the others.
-
-"I'm aware."
-
-The conversation has the particular grimness of people doing math they don't like the answer to, and for a moment nobody says anything at all, just the low hum of Nadir's equipment filling the space where a plan should be.
-
-Which is when the door bangs open hard enough to rattle the tray.
-
-Wren is standing in the doorway looking like she lost a fight with an entire barn. Hay in her hair, hay down the collar of her coat, one boot untied, breathing like she ran the last mile of whatever journey put her in this state. There's a piece of straw stuck directly to her glasses.
-
-"Is she alive." It isn't a question so much as a demand for the universe to confirm it. "Someone tell me she's alive, I got the news three villages over and I have been traveling for two days and I may have committed several crimes involving a freight car that I would like officially struck from the record —"
-
-"I'm alive," Zia says.
-
-Wren doesn't seem to hear this. She crosses the room in four strides, grabs Zia's face in both hands — hay falling onto the blanket in the process — and studies her with the intensity of someone checking a structural beam for hairline cracks.
-
-"You look terrible."
-
-"Thank you."
-
-"No, I mean it, you look like you got run through with — wait, did you get run through? Someone said stabbed, someone else said run through, I need the actual mechanism of injury, this matters for —"
-
-"Wren." Coen, gently. "Breathe."
-
-Wren straightens up, takes a visibly effortful breath, and promptly loses about half her composure again anyway. "I rode in a grain car. For eleven hours."
-
-"There was probably a goat," Dev says, entirely straight-faced.
-
-Wren stares at him. "There was a goat. How did you—"
-
-"There's always a goat," Dev says, with the weary authority of a man who has clearly never once ridden in a grain car and is making this up on the spot.
-
-Nadir, without looking up from the chart she's now updating, says, "You're covered in hay and you smell like a stable. Sit down before you fall down."
-
-Wren sits. Immediately. The chaos drains out of her all at once, the way it always does once she's confirmed the thing she was actually afraid of hasn't happened, and what's left behind is just a very tired, very relieved girl with straw in her hair, blinking at the room like she's only now noticing it's full of people who also look like they've been through something.
-
-"Okay," she says, quieter. "Okay. Good. You're — okay." She looks around properly for the first time, clocks the tension still sitting under everything, and her face changes. "What did I walk into."
-
-Zia glances at Coen. Coen glances at Dev.
-
-"Sit tight," Zia says. "You're going to want to hear this from the start."
-
-The retelling takes the better part of an hour. Coen does most of the talking, flat and factual, filling in the parts he actually witnessed; Dev picks up where Coen wasn't present, though he keeps his own account clipped, skating past anything that isn't strictly necessary. Zia corrects them twice, both times without lifting her head off the pillow — once when Coen rounds the negotiating party up to "a small army," and she tells him, eyes still closed, that it was eleven soldiers and he knows it; once when Dev glosses past the moment Kal's blade found her as "it happened fast," and she says, flatly, "it happened exactly as fast as it needed to," and lets the room sit with that instead of the softer version.
-
-By the end of it, Wren has stopped fidgeting entirely, which is somehow more alarming than the hay had been.
-
-She doesn't say anything for a long moment. Then she stands up so fast the stool scrapes.
-
-"Okay. Okay, no, hang on—" She's already pacing, already talking with her hands. "You said the eyes changed. Color, not just brightness?"
-
-"Orange-gold," Dev says warily. "Why?"
-
-"Because that's not adrenaline. Adrenaline doesn't do pigment." Wren jabs a finger at nothing in particular. "Whatever's in you — the coat serum, the bloodline, whatever the actual mechanism is — it's not just juicing your muscles. It's routing through something with a visible physiological signature, which means it's systemic, which means—" she stops, spins back around— "which means it's probably not new. It's probably always been there, dormant, and the fight just switched it on. The question is whether it switches back off, or whether you've just permanently changed what your body defaults to."
-
-"Comforting," Dev says.
-
-"I'm not here to comfort you, I'm here to figure out if you're about to become a structural hazard." She's not really looking at him anymore, she's looking at some middle distance where the theory lives. "If it's adrenaline-gated, it should reset once your body reads the threat as over. If it's trauma-gated instead — if it needed you to actually believe you were about to lose someone — that's worse. That means it might not care whether the threat's real. It just needs you to think it is."
-
-The room goes quiet in a different way than before.
-
-"There's one way to find out," Wren says, already reaching for the tray.
-
-"Wren—" Nadir starts.
-
-Too late. Wren snatches a pair of tweezers off the tray and lobs them at Dev's head with absolutely no warning, hard and fast and entirely without malice, purely in the spirit of data collection.
-
-Dev's hand closes around them an inch from his own eye without him appearing to have decided to move at all.
-
-Everyone stares. Dev stares hardest, at his own fist, like it's a stranger's.
-
-"See," Wren says, delighted, already scribbling something invisible in the air with her finger like she's taking notes she'll transcribe later. "Still active. Baseline reflex, no visible trigger, no eye-color change — so it's not fully engaged, just elevated. That's useful. That's really useful."
-
-"You threw surgical instruments at a man recovering from cardiac-adjacent exertion," Nadir says, in the tone of someone filing a complaint she already knows will go nowhere.
-
-"He caught it fine."
-
-"That's not the metric I was worried about."
-
-Dev sets the tweezers down very carefully on the bedside table, next to the flowers, like he's not entirely sure either of them is safe to be near right now. "Can we agree that from now on, testing my reflexes involves a conversation first?"
-
-"Where's the data in that," Wren mutters, but she sits back down.
-
-The humor doesn't quite hold, though — it thins out fast, the way it does when a joke's already done the job of saying the thing nobody wanted to say plainly. Wren's grin fades somewhere in the silence after, and when she speaks again her voice has lost its bounce entirely.
-
-"If this happened to you from nothing but grief and a bad afternoon," she says, quietly now, "and Kal's had years to figure out how to turn his on on purpose —" She doesn't finish it. Doesn't need to.
-
-Nobody argues with the shape of that thought. The machine by the bed keeps its steady, unbothered rhythm, indifferent to what everyone in the room has just understood at the same time.`;
-
-  const b3battle = mkCh(2, 2, 3, "Battle Plans", "drafted");
-  mkSc(b3battle, 1, "Nadir, Coen & Wren Debrief", "drafted",
-    "The awakening debrief, Wren's trauma-gated theory, the tweezers test, the Kal-dread landing line.",
-    [], ["Wren's activation theory established"]);
-  chapters.find(c=>c.id===b3battle).content = battlePlansContent;
-  scenes.find(s=>s.chapterId===b3battle).pov = 'Zia';
-  scenes.find(s=>s.chapterId===b3battle).notes = "Wren's theory (trauma-gated vs adrenaline-gated) — decide if this pays off mechanically later or stays speculative color.";
-
-  const b3rest = [
-    [3,1,"Kal's Coup","outline","Seeds doubt about Durga, waits for her overreach, exposes Dev's identity publicly, crushes rival generals, spares them as a masterstroke.",["Dev's identity known only to Kal since Book Two"],["Durga branded a traitor, joins the crew distrusted"]],
-    [3,2,"Eva Joins the Crew","idea","Book Four close. Not a grief-ending — a hope-tinged one.",[],["Eva established on-page as a real, present character"]],
-  ];
-  b3rest.forEach(([act,order,title,status,summary,requires,provides]) => {
-    const chId = mkCh(2, act, order, title, status);
-    mkSc(chId, 1, title, status, summary, requires, provides);
-  });
-
-  // ---- BOOK FOUR ----
-  const b4 = [
-    [1,1,"The Despair Beat","idea","Straight arithmetic defeat before a single blow lands.",[],[]],
-    [1,2,"Durga Reclaims the Throne","idea","Her honor-code mechanic fractures the Empire from within.",["Honor-code mechanic planted in Book Three"],[]],
-  ];
-  b4.forEach(([act,order,title,status,summary,requires,provides]) => {
-    const chId = mkCh(3, act, order, title, status);
-    mkSc(chId, 1, title, status, summary, requires, provides);
-  });
-
-  // ---- BOOK FIVE ----
-  const kalDeathContent = ""; // left for future drafting pass in the editor
-  const b5death = mkCh(4, 1, 1, "Kal's Death — Amara, Eva, the Pendant", "drafted");
-  mkSc(b5death, 1, "Kal's Death — Amara, Eva, the Pendant", "drafted",
-    "Dev lands the fatal blow. Kal's vision of Amara as he sees Eva. The pendant handed over. The head-tap repeated. \"Eva\" — his last word, spoken whole.",
-    ["Two-knuckle head-tap (Book One, Ch.1)","The name Eva planted as Kal's own suggestion","The unfinished Eee— from Amara's death"],
-    ["Amara's touch — never shown to move the physical world","Eee/Eva — completed"]);
-  chapters.find(c=>c.id===b5death).notes = "Cut any objective-world confirmation of Amara's presence (no hair movement, no glance from Eva).";
-
-  const b5rest = [
-    [1,2,"The Village — Ending","idea","An old man repairing a fence. Children with the names of the dead. Peace proves the case.",[],[]],
-  ];
-  b5rest.forEach(([act,order,title,status,summary,requires,provides]) => {
-    const chId = mkCh(4, act, order, title, status);
-    mkSc(chId, 1, title, status, summary, requires, provides);
-  });
-
-  stickyNotes.push({
-    id: crypto.randomUUID(),
-    projectId: currentProjectId,
-    content: "The Hunter is the one who gave Zia her scar — the only fight she ever lost, back at the academy when she was 11 and he was ~16. Explains the mirror-scar motif (hers vs Dev's, from Durga). Haven't locked the exact age-gap phrasing (\"3 years ahead\" vs the 5-year age math) or where the scar actually sits on her face. Not ready for the Bible yet — park it here until it's settled.",
-    createdAt: Date.now() - 1000*60*60*26,
-    rotation: -2.4
-  });
-}
 
 /* ---------- STORAGE ---------- */
 const DEFAULT_CHAPTER_WORD_TARGETS = [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
@@ -3458,12 +2972,6 @@ function bookSubtitle(bookIndex){
 // rendering path that calls it.
 function getBookCoverUrl(bookIndex){
   return null;
-}
-function bookRollupLabel(bookIndex){
-  const total = bookWordTotal(bookIndex);
-  const [min, max] = BOOK_TARGETS[bookIndex] || [null, null];
-  if(!min && !max) return `${fmtK(total)} words`;
-  return `${fmtK(total)} / ${fmtK(min)}–${fmtK(max)} words`;
 }
 // Rough cost estimate for Claude Sonnet ($3/$15 per million tokens), ~1.3 tokens per word.
 // This is a ballpark for planning purposes, not a billing guarantee.
@@ -4050,15 +3558,8 @@ function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
 document.getElementById('drawer-close').addEventListener('click', closeDrawer);
 document.getElementById('overlay').addEventListener('click', ()=>{
-  // Same ghost-click hazard as the act-cluster rect/label: openDrawer() shows
-  // this overlay immediately, so the browser's ~300ms-later synthesized click
-  // (from the same touch that opened the drawer) lands on the now-visible
-  // overlay and would close what was just opened. Same 400ms guard as those
-  // two sites (see lastNodeInteractionEndTime above).
-  if(performance.now() - lastNodeInteractionEndTime < 400){
-    if(DEBUG_TOUCH_OVERLAY) debugTouchLog({ outcome: `overlay click suppressed - ghost click after node tap` });
-    return;
-  }
+  // (A 400ms ghost-click guard used to sit here, keyed on map-node taps. The map is gone and
+  // nothing set its timestamp any more, so it could never fire.)
   closeDrawer(); document.getElementById('act-modal').classList.remove('show'); document.getElementById('continuity-modal').classList.remove('show'); document.getElementById('add-modal').classList.remove('show');
 });
 document.getElementById('d-status').addEventListener('click', e=>{
@@ -4151,11 +3652,10 @@ function openActModal(book, act){
 function statusColor(s){
   return {idea:'var(--gray)', outline:'var(--gold)', drafted:'var(--ember)', final:'var(--teal)'}[s] || 'var(--gray)';
 }
+// Map view is gone, so there is nowhere to scroll to: a jump is simply opening the chapter's
+// drawer. (It used to look the chapter up in the map's node positions first, found nothing
+// once the map was removed, and silently did nothing.)
 function jumpToChapter(id){
-  const pos = lastPositions.find(p=>p.chapter.id===id);
-  if(!pos) return;
-  const wrap = document.getElementById('map-wrap');
-  wrap.scrollTo({left: Math.max(0, pos.x - wrap.clientWidth/2), behavior:'smooth'});
   openDrawer(id);
 }
 document.getElementById('act-modal-close').addEventListener('click', ()=>document.getElementById('act-modal').classList.remove('show'));
@@ -6214,26 +5714,6 @@ document.getElementById('pov-browser-close').addEventListener('click', () => {
 });
 
 /* ---------- PLANT LEDGER ---------- */
-function findRevealForPlant(chapterId, annotationId){
-  /* Through groupings, which is what the character web already reads -- so the Ledger and
-     the web now answer "is this paid?" with one rule instead of two. A plant may be claimed
-     by several reveals; the earliest in saga order is the one reported. */
-  const found = findAnnotationById(chapterId, annotationId);
-  if(!found) return null;
-  const ids = new Set(pairsOf(found.annotation).map(p=>p.id));
-  if(!ids.size) return null;
-  const claims = [];
-  chapters.forEach(ch => (ch.annotations||[]).forEach(a => {
-    if(a.type === 'reveal' && pairsOf(a).some(p=>ids.has(p.id))) claims.push({annotation:a, chapter:ch});
-  }));
-  if(!claims.length) return null;
-  claims.sort((x,y) =>
-    (x.chapter.book - y.chapter.book) ||
-    (x.chapter.act - y.chapter.act) ||
-    (x.chapter.order - y.chapter.order)
-  );
-  return claims[0];
-}
 /* ---------- DAY / NIGHT ----------
    Three preferences, one resolved value. 'auto' follows the DEVICE CLOCK -- 6am to 6pm reads
    as day -- not the OS's light/dark setting, which is a preference someone set once and not
@@ -7567,12 +7047,6 @@ function initApp(){
   tagAiGatedButtons();
   loadData().then(() => {
     renderAiToggle(); updateNotesBadge(); refreshPovSuggestions(); refreshThreadSuggestions(); updateTrashBadge(); render();
-    // Phase 1a: simple, deliberate default — top-left of the world, once, on initial project
-    // load only (not on every re-render, which happens on every save/edit and would otherwise
-    // yank the user's scroll position back on each mutation). See the Phase 1a report for why
-    // "most recent chapter" was considered and deferred rather than guessed at here.
-    const mapWrap = document.getElementById('map-wrap');
-    if(mapWrap){ mapWrap.scrollLeft = 0; mapWrap.scrollTop = 0; }
   });
 }
 </script>

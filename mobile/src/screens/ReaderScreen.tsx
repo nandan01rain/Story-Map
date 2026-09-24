@@ -36,7 +36,7 @@ import {
   saveMovingBookmark,
   saveReaderPrefs,
 } from '../lib/readerPrefs';
-import { bookIndices, bookName, tokenizeWords } from '../lib/storyData';
+import { bookIndices, bookName, byBookOrder, tokenizeWords } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
 import { type Annotation, type Chapter, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
@@ -269,7 +269,7 @@ export default function ReaderScreen({ route, navigation }: Props) {
       if (!map.has(ch.book)) map.set(ch.book, []);
       map.get(ch.book)!.push(ch);
     }
-    for (const list of map.values()) list.sort((a, b) => a.act - b.act || a.order - b.order);
+    for (const list of map.values()) list.sort(byBookOrder);
     return map;
   }, [chapters]);
 

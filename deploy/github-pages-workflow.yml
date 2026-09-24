@@ -39,7 +39,7 @@ jobs:
         # and shipping them would mean every push published the whole repo twice over.
         run: |
           mkdir -p _site
-          cp index.html character-web.html manifest.json service-worker.js supabase-config.js _site/
+          cp index.html braid.html manifest.json service-worker.js supabase-config.js _site/
           cp -r assets icons _site/
           # A 404 that loads the app rather than GitHub's default page: the PWA is a single
           # document, so any path under the scope should land in it.

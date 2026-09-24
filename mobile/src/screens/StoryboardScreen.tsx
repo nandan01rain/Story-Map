@@ -1,19 +1,22 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { bookIndices, bookName, chapterNumberInBook } from '../lib/storyData';
+import { bookIndices, bookName, byReadingOrder, chapterNumberInBook } from '../lib/storyData';
+import { useSparseReorder } from '../lib/sparseOrder';
 import { useSortablePositions } from '../lib/useSortablePositions';
+import { loadWritingPosition } from '../lib/writingPrefs';
+import { flush } from '../lib/outbox';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { useChapterStore } from '../store/chapterStore';
 import { THREAD_COLORS, useStoryboardStore, type StoryEvent, type StoryThread } from '../store/storyboardStore';
-import { positionBetween } from '../store/treatmentStore';
 import { useTrashStore } from '../store/trashStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
+import BookChips from '../components/BookChips';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Storyboard'>;
 
@@ -44,6 +47,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const chapters = useChapterStore((s) => s.chapters);
   const fetchChapters = useChapterStore((s) => s.fetchChapters);
+  const createChapter = useChapterStore((s) => s.createChapter);
   const { events, threads, links, loading, supported, error, fetch, addEvent, updateEvent, removeEvent, addThread, updateThread, removeThread, toggleLink } =
     useStoryboardStore();
   const trashStoryEvent = useTrashStore((s) => s.trashStoryEvent);
@@ -52,6 +56,15 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [book, setBook] = useState(route.params.book ?? 0);
+  // With no book asked for, open on the one the writer last wrote in -- the storyboard is
+  // most often consulted about the book in progress.
+  useEffect(() => {
+    if (route.params.book !== undefined || route.params.eventId) return;
+    void loadWritingPosition(projectId).then((pos) => {
+      if (pos) setBook((current) => (current === 0 ? pos.bookIndex : current));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
   const [stringing, setStringing] = useState<string | null>(null);
   const [eventSheet, setEventSheet] = useState<{ id: string | null } | null>(null);
   const [threadSheet, setThreadSheet] = useState<{ id: string | null } | null>(null);
@@ -69,7 +82,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   }, [navigation, projectId]);
 
   const projectChapters = useMemo(
-    () => chapters.filter((c) => c.project_id === projectId).sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order),
+    () => chapters.filter((c) => c.project_id === projectId).sort(byReadingOrder),
     [chapters, projectId],
   );
   // Every book the chapters reach, plus any a storyboard was started in ahead of its prose.
@@ -83,34 +96,23 @@ export default function StoryboardScreen({ route, navigation }: Props) {
 
   useEffect(() => setStringing(null), [book]);
 
-  // Local, because the drag reorders it live and the drop then reads the settled order -- the
-  // same contract TreatmentsScreen works under.
-  const [items, setItems] = useState<StoryEvent[]>([]);
+  // Arrived from a search hit: open on that event's book, with its sheet up. Once only --
+  // after that the writer is driving.
+  const openedEvent = useRef(false);
   useEffect(() => {
-    setItems(events.filter((e) => e.book === book));
-  }, [events, book]);
+    const id = route.params.eventId;
+    if (!id || openedEvent.current) return;
+    const e = events.find((x) => x.id === id);
+    if (!e) return;
+    openedEvent.current = true;
+    setBook(e.book);
+    setEventSheet({ id: e.id });
+  }, [events, route.params.eventId]);
 
-  const handleMove = useCallback((id: string, from: number, to: number) => {
-    setItems((prev) => {
-      if (from === to || !prev.some((e) => e.id === id)) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }, []);
-
-  const handleDrop = useCallback(
-    (id: string) => {
-      const idx = items.findIndex((e) => e.id === id);
-      if (idx === -1) return;
-      const before = idx > 0 ? items[idx - 1] : null;
-      const after = idx < items.length - 1 ? items[idx + 1] : null;
-      const next = positionBetween(before ? before.position : null, after ? after.position : null);
-      if (next !== items[idx].position) void updateEvent(id, { position: next });
-    },
-    [items, updateEvent],
-  );
+  // The drag contract (local order, one row written per drop) lives in useSparseReorder.
+  const bookEvents = useMemo(() => events.filter((e) => e.book === book), [events, book]);
+  const reposition = useCallback((id: string, position: number) => void updateEvent(id, { position }), [updateEvent]);
+  const { items, handleMove, handleDrop } = useSparseReorder(bookEvents, reposition);
 
   const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
     useSortableList({ data: items, itemHeight: ITEM_HEIGHT });
@@ -162,13 +164,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.stripContent}>
-        {books.map((b) => (
-          <Pressable key={b} onPress={() => setBook(b)} style={[styles.bookChip, b === book && styles.bookChipOn]}>
-            <Text style={[styles.bookChipText, b === book && styles.bookChipTextOn]}>{bookName(b)}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <BookChips books={books} selected={book} onSelect={setBook} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.stripContent}>
         {bookThreads.map((t) => {
@@ -322,6 +318,31 @@ export default function StoryboardScreen({ route, navigation }: Props) {
             setEventSheet(null);
             navigation.navigate('Editor', { chapterId });
           }}
+          onStartChapter={async (e, draft) => {
+            // An event becoming prose: a new chapter at the end of the book's last act, titled
+            // after the event, its summary carried into the chapter's notes, and the event
+            // pointed at it. Then straight into the Editor.
+            const lastAct = bookChapters.reduce((m, c) => Math.max(m, c.act), 1);
+            const { chapter, error: err } = await createChapter(projectId, book, lastAct, draft.title || e.title, {
+              atEnd: true,
+              notes: draft.summary,
+            });
+            if (err || !chapter) {
+              Alert.alert('No chapter made', err ?? 'Unknown error');
+              return;
+            }
+            // The chapter row has to reach the server before an event can point at it.
+            await flush();
+            const res = await updateEvent(e.id, { title: draft.title, summary: draft.summary, chapter_id: chapter.id });
+            if (res.error) {
+              Alert.alert(
+                'Chapter made, link not saved',
+                'The chapter exists but has not reached the server yet, so the event could not point at it. Link it from the event once you are back online.',
+              );
+            }
+            setEventSheet(null);
+            navigation.navigate('Editor', { chapterId: chapter.id });
+          }}
           onDelete={(e) => {
             Alert.alert('Delete this event?', 'It goes to Trash and can be restored from there.', [
               { text: 'Cancel', style: 'cancel' },
@@ -429,6 +450,7 @@ function EventSheet({
   onSave,
   onToggleThread,
   onOpenChapter,
+  onStartChapter,
   onDelete,
 }: {
   event: StoryEvent | null;
@@ -442,6 +464,7 @@ function EventSheet({
   onSave: (draft: { title: string; summary: string; chapterId: string | null }) => void;
   onToggleThread: (threadId: string) => void;
   onOpenChapter: (chapterId: string) => void;
+  onStartChapter: (event: StoryEvent, draft: { title: string; summary: string }) => void;
   onDelete: (event: StoryEvent) => void;
 }) {
   const [title, setTitle] = useState(event?.title ?? '');
@@ -513,11 +536,15 @@ function EventSheet({
               <Text style={styles.danger}>Delete</Text>
             </Pressable>
           )}
-          {event?.chapter_id && (
+          {event?.chapter_id ? (
             <Pressable onPress={() => onOpenChapter(event.chapter_id!)} hitSlop={8}>
               <Text style={styles.link}>Open chapter</Text>
             </Pressable>
-          )}
+          ) : event && !chapterId ? (
+            <Pressable onPress={() => onStartChapter(event, { title: title.trim(), summary: summary.trim() })} hitSlop={8}>
+              <Text style={styles.link}>Start this chapter</Text>
+            </Pressable>
+          ) : null}
           <View style={{ flex: 1 }} />
           <Pressable onPress={onClose} hitSlop={8}>
             <Text style={styles.cancel}>Cancel</Text>
@@ -615,10 +642,6 @@ function makeStyles(colors: ThemeColors) {
     // flexGrow 0: a horizontal ScrollView in a column otherwise takes the flex space (§36.3).
     strip: { flexGrow: 0 },
     stripContent: { gap: 8, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' },
-    bookChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: colors.borderDim },
-    bookChipOn: { borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.12) },
-    bookChipText: { color: colors.textDim, fontFamily: FONTS.heading, fontSize: 12, letterSpacing: 1 },
-    bookChipTextOn: { color: colors.gold },
     threadChip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -721,7 +744,7 @@ function makeStyles(colors: ThemeColors) {
     chipTextOn: { color: colors.gold },
     swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingVertical: 6 },
     bigSwatch: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: 'transparent' },
-    actions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10 },
+    actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 18, marginTop: 10 },
     cancel: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 14 },
     confirm: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
     link: { color: colors.gold, fontFamily: FONTS.body, fontSize: 13 },

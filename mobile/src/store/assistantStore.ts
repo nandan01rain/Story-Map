@@ -1,4 +1,3 @@
-import { useEffect, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 
 import { indexSource, indexStatus } from '../lib/assistant';
@@ -146,16 +145,5 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     if (error) set({ lastError: error });
   },
 }));
-
-// Hydrates once per app run, so a screen can read `enabled` without each one wiring its own
-// fetch.
-export function useAssistantEnabled(): boolean {
-  const enabled = useAssistantStore((s) => s.enabled);
-  const hydrated = useAssistantStore((s) => s.hydrated);
-  useEffect(() => {
-    if (!hydrated) useAssistantStore.getState().hydrate();
-  }, [hydrated]);
-  return enabled;
-}
 
 export { indexStatus };

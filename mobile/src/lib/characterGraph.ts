@@ -401,54 +401,6 @@ export async function createInteraction(params: {
   return { error: null };
 }
 
-// Soft delete into the existing trash table (spec §4.3) rather than a second mechanism.
-// The whole row goes into the payload, so a restore has everything it needs.
-async function trash(
-  projectId: string,
-  userId: string,
-  type: 'graph_node' | 'graph_edge',
-  payload: unknown,
-): Promise<void> {
-  await supabase.from('trash').insert({
-    user_id: userId,
-    project_id: projectId,
-    type,
-    payload,
-    deleted_at: new Date().toISOString(),
-  });
-}
-
-export async function deleteCharacter(
-  projectId: string,
-  userId: string,
-  id: string,
-): Promise<{ error: string | null }> {
-  const { data: node } = await supabase.from('graph_nodes').select('*').eq('id', id).single();
-  if (!node) return { error: 'That character no longer exists.' };
-
-  // Its edges go too -- the FK cascades them -- so they are trashed alongside, otherwise a
-  // restore would bring back a character with no relationships.
-  const { data: edges } = await supabase
-    .from('graph_edges')
-    .select('*')
-    .or(`from_node_id.eq.${id},to_node_id.eq.${id}`);
-
-  await trash(projectId, userId, 'graph_node', { node, edges: edges ?? [] });
-  const { error } = await supabase.from('graph_nodes').delete().eq('id', id);
-  return { error: error?.message ?? null };
-}
-
-export async function deleteEdge(
-  projectId: string,
-  userId: string,
-  id: string,
-): Promise<{ error: string | null }> {
-  const { data: edge } = await supabase.from('graph_edges').select('*').eq('id', id).single();
-  if (edge) await trash(projectId, userId, 'graph_edge', { edge });
-  const { error } = await supabase.from('graph_edges').delete().eq('id', id);
-  return { error: error?.message ?? null };
-}
-
 // Extraction. Gated on the assistant toggle by the caller, not here -- this module does not
 // know about billing, and the store that owns that flag does.
 export async function extractGraphForChapter(params: {

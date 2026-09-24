@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { bookName, chapterNumberInBook } from '../lib/storyData';
+import { bookName, byReadingOrder, chapterNumberInBook } from '../lib/storyData';
 import { useChapterStore } from '../store/chapterStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
@@ -36,7 +36,7 @@ export default function ProgressionsPanel({
   }, [documentId]);
 
   const reading = useMemo(
-    () => chapters.filter((c) => c.project_id === projectId).sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order),
+    () => chapters.filter((c) => c.project_id === projectId).sort(byReadingOrder),
     [chapters, projectId],
   );
   const order = useMemo(() => new Map(reading.map((c, i) => [c.id, i])), [reading]);

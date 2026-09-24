@@ -1,5 +1,6 @@
 import type { GraphData } from './characterGraph';
 import type { Chapter } from '../store/chapterStore';
+import { byReadingOrder } from './storyData';
 
 // The story's own clock, and what it can catch.
 //
@@ -39,7 +40,7 @@ export type Finding =
   | { kind: 'unplaced'; count: number };
 
 export function chapterTimes(chapters: Chapter[]): ChapterTime[] {
-  const reading = [...chapters].sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order);
+  const reading = [...chapters].sort(byReadingOrder);
   const out: ChapterTime[] = [];
   let carried = -Infinity;
   let prev = -Infinity;

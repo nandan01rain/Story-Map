@@ -56,10 +56,6 @@ export async function saveMovingBookmark(projectId: string, bookIndex: number, a
   await AsyncStorage.setItem(movingKey(projectId, bookIndex), JSON.stringify(anchor));
 }
 
-export async function clearMovingBookmark(projectId: string, bookIndex: number) {
-  await AsyncStorage.removeItem(movingKey(projectId, bookIndex));
-}
-
 export async function loadPinnedBookmarks(projectId: string): Promise<PinnedBookmark[]> {
   const raw = await AsyncStorage.getItem(pinnedKey(projectId));
   return raw ? (JSON.parse(raw) as PinnedBookmark[]) : [];

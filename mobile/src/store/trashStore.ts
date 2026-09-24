@@ -20,8 +20,8 @@ import type { StoryEvent } from './storyboardStore';
 //   storyboard_event  { event, threadIds }   mobile-only; the threads it was strung on
 //                                            travel with it, since its links cascade away
 //
-// graph_node / graph_edge rows are also trashed here by characterGraph.ts, with their own
-// payload shape. They are listed but not restorable from this screen yet -- see below.
+// graph_node / graph_edge rows may exist from the character web's era, with their own
+// payload shape. They are listed but not restorable from this screen -- see below.
 
 export type TrashType = 'chapter' | 'scene' | 'document' | 'storyboard_event' | 'graph_node' | 'graph_edge';
 

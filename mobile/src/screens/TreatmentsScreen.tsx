@@ -1,14 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSparseReorder } from '../lib/sparseOrder';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
-import { positionBetween, treatmentTitle, useTreatmentStore, type Treatment } from '../store/treatmentStore';
+import { treatmentTitle, useTreatmentStore } from '../store/treatmentStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Treatments'>;
@@ -44,42 +45,9 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
     return unsub;
   }, [navigation, projectId, fetchTreatments]);
 
-  // Local, because the drag reorders it live and the drop then reads the settled order --
-  // the same contract ChapterListScreen works under. A useMemo off the store would be reset
-  // under the drag by every store update.
-  const [items, setItems] = useState<Treatment[]>([]);
-  useEffect(() => {
-    setItems([...treatments].sort((a, b) => Number(a.position) - Number(b.position)));
-  }, [treatments]);
-
-  const handleMove = useCallback((id: string, from: number, to: number) => {
-    setItems((prev) => {
-      const idx = prev.findIndex((t) => t.id === id);
-      if (idx === -1 || from === to) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }, []);
-
-  // Sparse positions earn their keep here: the dropped row takes a value strictly between
-  // its settled neighbours, so ONE row is written rather than the whole list renumbered.
-  // numeric rather than int is what guarantees a value always exists between them.
-  const handleDrop = useCallback(
-    (id: string) => {
-      const idx = items.findIndex((t) => t.id === id);
-      if (idx === -1) return;
-      const before = idx > 0 ? items[idx - 1] : null;
-      const after = idx < items.length - 1 ? items[idx + 1] : null;
-      const next = positionBetween(
-        before ? Number(before.position) : null,
-        after ? Number(after.position) : null,
-      );
-      if (next !== Number(items[idx].position)) reorder(id, next);
-    },
-    [items, reorder],
-  );
+  // The drag contract (local order, one row written per drop) lives in useSparseReorder.
+  const sorted = useMemo(() => [...treatments].sort((a, b) => Number(a.position) - Number(b.position)), [treatments]);
+  const { items, handleMove, handleDrop } = useSparseReorder(sorted, reorder);
 
   const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
     useSortableList({ data: items, itemHeight: ITEM_HEIGHT });

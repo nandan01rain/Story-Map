@@ -43,7 +43,7 @@ export default function DocumentsScreen({ route, navigation }: Props) {
   // Documents go to the trash rather than being destroyed -- an imported reference doc is
   // exactly the kind of thing worth being able to get back.
   const trashDocument = useTrashStore((s) => s.trashDocument);
-  const { documents, loading, error, fetchDocuments, createDocument, updateDocument, deleteDocument } =
+  const { documents, loading, error, fetchDocuments, createDocument, updateDocument } =
     useDocumentStore();
 
   const [openDoc, setOpenDoc] = useState<StoryDocument | null>(null);

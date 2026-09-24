@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
-import { bookName, wordCount } from '../lib/storyData';
+import { bookName, byBookOrder, wordCount } from '../lib/storyData';
 import {
   loadWritingAlign,
   loadWritingPosition,
@@ -28,6 +28,7 @@ import {
 import { useWritingStats } from '../lib/writingStats';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
+import BookChips from '../components/BookChips';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Writer'>;
 
@@ -104,7 +105,7 @@ export default function WriterScreen({ route, navigation }: Props) {
       if (!map.has(ch.book)) map.set(ch.book, []);
       map.get(ch.book)!.push(ch);
     }
-    for (const list of map.values()) list.sort((a, b) => a.act - b.act || a.order - b.order);
+    for (const list of map.values()) list.sort(byBookOrder);
     return map;
   }, [projectChapters]);
   const bookIndices = useMemo(() => [...byBook.keys()].sort((a, b) => a - b), [byBook]);
@@ -520,18 +521,7 @@ export default function WriterScreen({ route, navigation }: Props) {
 
       {/* Books as chips, alignment at the end of the same row. One row; the open one is gold. */}
       <View style={styles.toolRow}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.bookRowScroll}
-          contentContainerStyle={styles.bookRow}
-        >
-          {bookIndices.map((i) => (
-            <Pressable key={i} onPress={() => switchBook(i)} style={[styles.bookChip, i === bookIndex && styles.bookChipActive]}>
-              <Text style={[styles.bookChipText, i === bookIndex && styles.bookChipTextActive]}>{bookName(i)}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <BookChips books={bookIndices} selected={bookIndex} onSelect={switchBook} />
         <View style={styles.alignRow}>
           {ALIGN_OPTIONS.map((o) => (
             <Pressable
@@ -727,25 +717,10 @@ function makeStyles(colors: ThemeColors) {
     progressTrack: { height: 2, backgroundColor: colors.borderDim, marginHorizontal: 20 },
     progressFill: { height: 2, backgroundColor: colors.gold },
     progressDone: { backgroundColor: colors.gold, opacity: 1 },
-    // A horizontal ScrollView has no height of its own inside a column: it takes flex space
-    // and its children stretch to fill it, which put the chips on screen as full-height
-    // columns. `flexGrow: 0` keeps it to its content; `alignItems` keeps a chip a chip.
     toolRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 12 },
-    bookRowScroll: { flexGrow: 0, flexShrink: 1 },
     alignRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: 'auto', paddingLeft: 8 },
     alignBtn: { width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
     alignBtnActive: { backgroundColor: withOpacity(colors.gold, 0.12) },
-    bookRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
-    bookChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.borderDim,
-    },
-    bookChipActive: { borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.1) },
-    bookChipText: { color: colors.textDim, fontFamily: FONTS.heading, fontSize: 11, letterSpacing: 1 },
-    bookChipTextActive: { color: colors.gold },
     scrollArea: { flex: 1 },
     manuscript: { paddingHorizontal: 22, paddingTop: 8 },
     empty: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 15, textAlign: 'center', marginTop: 60 },

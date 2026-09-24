@@ -65,7 +65,8 @@ JS, and a base64-embedded map background image live inline in `index.html`.
 Alongside those: `supabase/` holds the migrations and the assistant Edge
 Function (the only place any API key lives); `demo/` is a disposable test
 project converted into a fixture by `scripts/build-demo-fixture.mjs`; `graph/`
-holds a browser-runnable copy of the character web's renderer.
+holds the braid's layout module, its test harnesses and the demo payload
+`build-braid-3d.mjs` reads.
 
 A separate, from-scratch React Native/Expo rewrite lives in `mobile/` (its
 own `package.json`, node_modules, etc. — not built from or dependent on
@@ -249,6 +250,10 @@ chapter boundaries for pacing).
   promotion to a chapter copies and leaves the page untouched, edits snapshot
   the prior text, and the delete controls the board used to have are gone.
   Handoff §23.
+- **🧹 Redundancy pass (2026-09-24)** — dead code, stub menu rows and duplicated
+  helpers removed across both apps; the drawer's Export/Import now *are* backup
+  and restore; mobile's Explore tab searches every project; a "to sync" count shows
+  when offline writes are waiting. Handoff §38 lists every change.
 - **🔍 Search**: Postgres full-text (GIN-indexed, ranked, `search_everything()`)
   across pages, chapters, scenes and documents, with highlighted match snippets.
   Falls back to the old substring scan where `20260826_pages.sql` has not been
@@ -328,7 +333,8 @@ chapter boundaries for pacing).
 - **Landing page**: a bottom tab bar (Home / Projects / + / Explore /
   Profile) — Home is a decorative welcome view, Projects is the existing
   project picker, Explore is a placeholder for a not-yet-built
-  cross-project search. Uses its own light "parchment card" color palette,
+  cross-project search (PWA; mobile's Explore searches every project since
+  2026-09-24, handoff §38). Uses its own light "parchment card" color palette,
   distinct from the rest of the app's dark theme.
 - **Sign-in screen**: full-bleed background art (a sunset/castle
   illustration with the wordmark baked into the image itself) — opens
@@ -451,9 +457,8 @@ buttons are now a smaller "×"; the Reader view's mobile header overflow/crop
   Book/Act, and an importer that maps a manuscript's own divisions onto rows --
   the bulk of it, since nothing parses a manuscript today. Three levels above the
   chapter (LOTR, Malazan) is a deliberate collapse, not variable depth. Handoff §25.
-- **Cross-project search ("Explore" tab)** on the landing page — the tab
-  exists as a styled placeholder, the actual search-across-all-projects
-  feature was never built.
+- **Cross-project search ("Explore" tab) in the PWA** — still a styled
+  placeholder there. Built on mobile 2026-09-24 (handoff §38).
 
 ## Roadmap
 
@@ -762,5 +767,5 @@ continuity checker, which is Icarus's job now. See handoff §19.
   approved gilded/parchment concept — see the handoff doc for what's real
   art vs. CSS/SVG placeholder in that redesign.
 - Temporary diagnostic code must be clearly marked and actually removed once
-  it's served its purpose — see `DEBUG_TOUCH_OVERLAY` in the handoff doc for
-  the live example of this convention (and its current status).
+  it's served its purpose. `DEBUG_TOUCH_OVERLAY` and the drawer-scroll console
+  logging were the live examples; both were removed 2026-09-24 (handoff §38).

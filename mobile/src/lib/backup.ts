@@ -5,7 +5,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
-import { bookName, chapterNumberInBook } from './storyData';
+import { bookName, byBookOrder, chapterNumberInBook } from './storyData';
 import { supabase } from './supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { usePageStore } from '../store/pageStore';
@@ -249,7 +249,7 @@ export const useBackup = create<BackupState>((set, get) => ({
       }
       for (const [book, list] of byBook) {
         const bookDir = await ensureDir(projectDir, safeName(bookName(book)));
-        list.sort((a, b) => a.act - b.act || a.order - b.order);
+        list.sort(byBookOrder);
         for (const ch of list) {
           const n = chapterNumberInBook(ch, chapters) ?? 0;
           const name = `${String(n).padStart(2, '0')} - ${safeName(ch.title)}.md`;

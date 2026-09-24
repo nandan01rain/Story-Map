@@ -1,8 +1,10 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
+import { Alert } from 'react-native';
 
 import { supabase } from './supabase';
 import type { Snapshot } from './backup';
+import { useProjectStore } from '../store/projectStore';
 
 // Reading a backup back in. The half that makes the other half a plan rather than a hope.
 //
@@ -126,4 +128,41 @@ export async function restoreSnapshot(
   await upsert('trash', at(snapshot.trash), report);
 
   return { report, error: null };
+}
+
+/**
+ * The whole restore conversation: pick a file, confirm against what it actually holds, write
+ * it into a NEW project, report. Shared by Profile and the project drawer so the two cannot
+ * drift into saying different things about the same operation.
+ */
+export async function promptRestore(userId: string, setBusy: (busy: boolean) => void = () => {}): Promise<void> {
+  const { snapshot, error } = await pickSnapshot();
+  if (error) {
+    Alert.alert('Could not read that file', error);
+    return;
+  }
+  if (!snapshot) return;
+  Alert.alert('Restore this backup?', `${describeSnapshot(snapshot)}
+
+It will be restored into a NEW project. Nothing you have now is changed or deleted.`, [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Restore',
+      onPress: async () => {
+        setBusy(true);
+        const { report, error: err } = await restoreSnapshot(snapshot, userId, null);
+        setBusy(false);
+        if (err || !report) {
+          Alert.alert('Restore failed', err ?? 'Nothing was written.');
+          return;
+        }
+        void useProjectStore.getState().fetchProjects(userId);
+        const wrote = Object.entries(report.counts).map(([t, n]) => `${n} ${t}`).join(', ') || 'nothing';
+        const missed = report.skipped.length ? `
+
+Not restored: ${report.skipped.map((x) => x.table).join(', ')}.` : '';
+        Alert.alert('Restored', `Wrote ${wrote}. It is in your project list as a new project.${missed}`);
+      },
+    },
+  ]);
 }

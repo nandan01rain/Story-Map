@@ -1,18 +1,21 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
+import Icon from '../components/Icon';
 import NavDrawer from '../components/NavDrawer';
 import { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSlidePanel } from '../lib/useSlidePanel';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import { type EpubScope, exportEpub } from '../lib/epub';
 import { exportDocx } from '../lib/docx';
-import { watchForBackup } from '../lib/backup';
-import { bookCount, bookIndices, bookName, statusColor, wordCount } from '../lib/storyData';
+import { useBackup, watchForBackup } from '../lib/backup';
+import { promptRestore } from '../lib/restore';
+import { usePendingSync } from '../lib/usePendingSync';
+import { bookCount, bookIndices, bookName, byBookOrder, byReadingOrder, statusColor, wordCount } from '../lib/storyData';
 import { saveLastProject } from '../lib/writingPrefs';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { useAuthStore } from '../store/authStore';
@@ -58,7 +61,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
     // Saga order, which is what a book is: book, then act, then chapter.
     const selected = chapters
       .filter((c) => scope.bookIndex === null || c.book === scope.bookIndex)
-      .sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order);
+      .sort(byReadingOrder);
     const { error: err } =
       exportFormat === 'docx'
         ? await exportDocx(projectName, selected, scope)
@@ -73,6 +76,8 @@ export default function ChapterListScreen({ route, navigation }: Props) {
   const [newChapterAct, setNewChapterAct] = useState('1');
   const [creatingChapter, setCreatingChapter] = useState(false);
   const signOut = useAuthStore((s) => s.signOut);
+  const user = useAuthStore((s) => s.user);
+  const { pending, syncNow } = usePendingSync();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { width: winWidth } = useWindowDimensions();
@@ -83,9 +88,25 @@ export default function ChapterListScreen({ route, navigation }: Props) {
   const drawerWidth = Math.min(winWidth * 0.78, 360);
   const drawerPanel = useSlidePanel(drawerWidth);
 
+  // Top right, and only while something written here has not reached the server: offline
+  // work used to look exactly like saved work. Tapping it tries now rather than waiting.
   useEffect(() => {
-    navigation.setOptions({ title: projectName });
-  }, [navigation, projectName]);
+    navigation.setOptions({
+      title: projectName,
+      headerRight: pending > 0
+        ? () => (
+            <Pressable onPress={() => void syncNow()} hitSlop={10}>
+              <Text style={styles.pendingPill}>{`↻ ${pending} to sync`}</Text>
+            </Pressable>
+          )
+        : undefined,
+    });
+  }, [navigation, projectName, pending, syncNow, styles]);
+
+  async function saveBackup() {
+    const { error: err } = await useBackup.getState().shareSnapshot(projectId);
+    if (err) Alert.alert('Backup did not finish', err);
+  }
 
   useEffect(() => {
     fetchChapters(projectId);
@@ -210,6 +231,8 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onOpenBraid={() => navigateFromDrawer(() => navigation.navigate('Braid', { projectId }))}
       onOpenTrash={() => navigateFromDrawer(() => navigation.navigate('Trash', { projectId }))}
       onExportEpub={() => navigateFromDrawer(() => setEpubOpen(true))}
+      onSaveBackup={() => navigateFromDrawer(() => void saveBackup())}
+      onRestoreBackup={() => navigateFromDrawer(() => user && void promptRestore(user.id))}
       />
     </>
   );
@@ -258,6 +281,10 @@ export default function ChapterListScreen({ route, navigation }: Props) {
               <Text style={styles.bookMeta}>
                 {isEmpty ? 'empty' : `${bookChapters.length} chapter${bookChapters.length === 1 ? '' : 's'}`}
               </Text>
+              {/* The book's storyboard, one tap from the book itself. */}
+              <Pressable onPress={() => navigation.navigate('Storyboard', { projectId, book: bookIndex })} hitSlop={8}>
+                <Icon name="map" size={17} color={colors.gold} />
+              </Pressable>
               <Pressable style={styles.addChapterBtn} onPress={() => openAddChapter(bookIndex)} hitSlop={8}>
                 <Text style={styles.addChapterBtnText}>+</Text>
               </Pressable>
@@ -358,7 +385,7 @@ function BookChapterList({
 }) {
   const reorderChapters = useChapterStore((s) => s.reorderChapters);
   const sorted = useMemo(
-    () => [...chapters].sort((a, b) => a.act - b.act || a.order - b.order),
+    () => [...chapters].sort(byBookOrder),
     [chapters],
   );
   const [items, setItems] = useState(sorted);
@@ -517,6 +544,7 @@ function makeStyles(colors: ThemeColors) {
     epubError: { color: colors.error, fontSize: 12.5, lineHeight: 18 },
     epubCancel: { color: colors.textDim, fontSize: 14 },
     screen: { flex: 1, backgroundColor: colors.bg },
+    pendingPill: { color: colors.gold, fontFamily: FONTS.mono, fontSize: 11.5 },
     content: { padding: 16, paddingBottom: 40 },
     centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     error: { color: colors.error, fontSize: 13 },

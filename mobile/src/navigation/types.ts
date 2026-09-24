@@ -28,15 +28,16 @@ export type SignedInStackParamList = {
   Treatment: { projectId: string; treatmentId: string };
   /**
    * One book's chain of events with threads strung through them. `book` opens on that book;
-   * the screen offers every other one.
+   * `eventId` opens on that event's book with its sheet up (a search hit).
    */
-  Storyboard: { projectId: string; book?: number };
+  Storyboard: { projectId: string; book?: number; eventId?: string };
   /**
    * One page, open for writing. No `pageId` means a blank one -- and no database row is
    * created until the first character is typed, so opening a blank page costs nothing.
    */
   Page: { projectId: string; pageId?: string };
-  Search: { projectId: string };
+  /** No projectId searches every project -- the landing page's Explore tab. */
+  Search: { projectId?: string } | undefined;
   Documents: { projectId: string };
   DriveImport: { projectId: string };
   Assistant: { projectId: string; chapterId?: string };

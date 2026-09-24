@@ -25,7 +25,6 @@ type SceneState = {
   fetchScenes: (chapterId: string) => Promise<void>;
   createScene: (chapterId: string, projectId: string, order: number) => Promise<{ error: string | null }>;
   updateScene: (sceneId: string, patch: Partial<Pick<Scene, 'title' | 'status' | 'summary' | 'pov'>>) => Promise<{ error: string | null }>;
-  deleteScene: (sceneId: string) => Promise<{ error: string | null }>;
 };
 
 export const useSceneStore = create<SceneState>((set, get) => ({
@@ -76,12 +75,6 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     const { error } = await supabase.from('scenes').update(patch).eq('id', sceneId);
     if (error) return { error: error.message };
     set({ scenes: get().scenes.map((s) => (s.id === sceneId ? { ...s, ...patch } : s)) });
-    return { error: null };
-  },
-  deleteScene: async (sceneId) => {
-    const { error } = await supabase.from('scenes').delete().eq('id', sceneId);
-    if (error) return { error: error.message };
-    set({ scenes: get().scenes.filter((s) => s.id !== sceneId) });
     return { error: null };
   },
 }));
