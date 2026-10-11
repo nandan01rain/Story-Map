@@ -39,6 +39,9 @@ export type SignedInStackParamList = {
   /** No projectId searches every project -- the landing page's Explore tab. */
   Search: { projectId?: string } | undefined;
   Documents: { projectId: string };
+  /** The project's characters: picture, colour, flashcard lines, bible. Same rows as the storyboard's cast. */
+  Characters: { projectId: string };
+  Character: { projectId: string; characterId: string };
   /** One document, rendered for reading. Editing is DocumentEditor, as Reader is to Editor. */
   DocumentReader: { projectId: string; documentId: string };
   /** `at` is a raw-text offset; a long document opens on the section containing it. */

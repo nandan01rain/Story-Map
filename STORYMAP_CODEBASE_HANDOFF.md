@@ -5249,3 +5249,29 @@ Unsorted). **Rearrange** (header) is a mode, within one group, capped at 120 row
 Hand body, Caveat headings, emphasis as the hand's own bold/slant -- one weight ships, so Android
 emboldens it), title above. ✎ switches to the plain editor; Read switches back and flushes the save
 first. An empty sketch opens straight into writing.
+
+## 45. CHARACTERS: A WIKI PAGE, A TRADING CARD, AND NOTES THAT OPEN (2026-10-11)
+
+Needs **`20261011c_characters.sql`, unrun** (after 20261011b). `storyboard_cast` keeps its name but
+is now the project's characters: + `description` (the card's line), `image_path` (private
+`character-images` bucket, `<uid>/<castId>-<ts>.<ext>`, policy by first folder = auth.uid(),
+shown through 1-hour signed links cached in the store), `document_id` (their bible), `fields`
+jsonb (infobox values keyed by field id). New `character_fields` (project-wide infobox rows).
+`storyboard_events.character_ids uuid[]` = who is in the scene (separate from `cast_id`, the
+note's colour). Store reads the richest shape the DB has and degrades per migration.
+
+- **Characters** (Discover): list with pictures; *Gather from character bibles* creates/links a
+  character per "04 · Character — Name" (or Character Bible) document, matching by name.
+- **Character page** = wiki article: name + tagline, infobox (colour bar, picture -- tap to upload
+  via expo-document-picker `image/*`, read with expo-file-system `File.bytes()`, no new build --
+  "Biographical information" rows; *+ Add a field* adds a row for every character; hold a label
+  to rename/remove), then the linked bible rendered with a tappable Contents.
+- **Flashcard** = collectible card (black, gold double rule, corner stars, Cinzel Decorative
+  name, the tagline in small caps). Tap a name on the storyboard.
+- **Note tap** opens a popup over **fogged glass** (`FoggedSheet`: a translucent wash + haze; a
+  true blur needs expo-blur, i.e. a rebuild): editable heading, summary, *In this scene* chips
+  (tap to mark, hold for the flashcard), Read the scene, Edit note.
+- 24 character colours. Caveat's glyphs overhang their advance width on Android and were being
+  clipped ("Unsortea"); every handwriting style now carries `paddingRight: 4`.
+- Backup/restore carry `character_fields`. **Pictures are not in the backup** (they live in
+  Storage, not a table) -- a known gap.

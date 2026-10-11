@@ -14,6 +14,8 @@ import BraidScreen from '../screens/BraidScreen';
 import TrashScreen from '../screens/TrashScreen';
 import GraphReviewScreen from '../screens/GraphReviewScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
+import CharactersScreen from '../screens/CharactersScreen';
+import CharacterScreen from '../screens/CharacterScreen';
 import DocumentReaderScreen from '../screens/DocumentReaderScreen';
 import DocumentEditorScreen from '../screens/DocumentEditorScreen';
 import DriveImportScreen from '../screens/DriveImportScreen';
@@ -88,6 +90,8 @@ export default function RootNavigator() {
           <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Documents" component={DocumentsScreen} />
+          <Stack.Screen name="Characters" component={CharactersScreen} options={{ title: 'Characters' }} />
+          <Stack.Screen name="Character" component={CharacterScreen} options={{ title: '' }} />
           <Stack.Screen name="DocumentReader" component={DocumentReaderScreen} options={{ headerShown: false }} />
           <Stack.Screen name="DocumentEditor" component={DocumentEditorScreen} options={{ headerShown: false }} />
           <Stack.Screen name="DriveImport" component={DriveImportScreen} />

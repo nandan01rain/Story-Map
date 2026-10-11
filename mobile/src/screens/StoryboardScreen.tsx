@@ -26,6 +26,9 @@ import {
 import { useTrashStore } from '../store/trashStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 import BookChips from '../components/BookChips';
+import CharacterCard from '../components/CharacterCard';
+import FoggedSheet from '../components/FoggedSheet';
+import { useDocumentStore } from '../store/documentStore';
 import { EvidenceWall } from '../components/EvidenceWall';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Storyboard'>;
@@ -59,7 +62,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const fetchChapters = useChapterStore((s) => s.fetchChapters);
   const createChapter = useChapterStore((s) => s.createChapter);
   const {
-    events, threads, links, cast, loading, supported, wallSupported, error, fetch,
+    events, threads, links, cast, loading, supported, wallSupported, charactersSupported, error, fetch,
     addEvent, updateEvent, removeEvent, addThread, updateThread, removeThread, toggleLink,
     addCast, updateCast, removeCast,
   } = useStoryboardStore();
@@ -85,6 +88,11 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const [eventSheet, setEventSheet] = useState<{ id: string | null } | null>(null);
   const [threadSheet, setThreadSheet] = useState<{ id: string | null } | null>(null);
   const [castSheet, setCastSheet] = useState<{ id: string | null } | null>(null);
+  // Tapping a note opens it over fogged glass; tapping a character's name, their flashcard.
+  const [notePopup, setNotePopup] = useState<string | null>(null);
+  const [flashcard, setFlashcard] = useState<string | null>(null);
+  const documents = useDocumentStore((s) => s.documents);
+  const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
 
   useEffect(() => {
     navigation.setOptions({
@@ -175,13 +183,18 @@ export default function StoryboardScreen({ route, navigation }: Props) {
 
   // On the wall, a note that summarises a scene opens the scene itself; the ✎ corner (onEdit)
   // opens the note.
+  // A tap opens the note's popup -- heading, summary, who is in it -- unless a thread is being
+  // strung, when a tap still pins the thread. The full scene and the editing sheet are one step
+  // further, from the popup.
   function onNoteOpen(e: StoryEvent) {
-    if (!stringing && e.treatment_id) {
-      navigation.navigate('Treatment', { projectId, treatmentId: e.treatment_id });
-      return;
-    }
-    onEventPress(e);
+    if (stringing) return onEventPress(e);
+    setNotePopup(e.id);
   }
+
+  useEffect(() => {
+    if (documents.length === 0) void fetchDocuments(projectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   const warnedNoWall = useRef(false);
   const onNoteMoved = useCallback(
@@ -244,7 +257,12 @@ export default function StoryboardScreen({ route, navigation }: Props) {
       {wallSupported ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.stripContent}>
           {cast.map((c) => (
-            <Pressable key={c.id} onPress={() => setCastSheet({ id: c.id })} style={[styles.castChip, { backgroundColor: c.color }]}>
+            <Pressable
+              key={c.id}
+              onPress={() => setFlashcard(c.id)}
+              onLongPress={() => setCastSheet({ id: c.id })}
+              style={[styles.castChip, { backgroundColor: c.color }]}
+            >
               <Text style={styles.castChipText} numberOfLines={1}>
                 {c.name || 'Unnamed'}
               </Text>
@@ -506,6 +524,61 @@ export default function StoryboardScreen({ route, navigation }: Props) {
           }}
         />
       )}
+      {notePopup && (() => {
+        const e = events.find((x) => x.id === notePopup);
+        if (!e) return null;
+        return (
+          <FoggedSheet onClose={() => setNotePopup(null)}>
+            <NotePopup
+              key={e.id}
+              event={e}
+              cast={cast}
+              charactersSupported={charactersSupported}
+              number={items.findIndex((x) => x.id === e.id) + 1}
+              colors={colors}
+              onRename={(title) => void updateEvent(e.id, { title })}
+              onToggleCharacter={(id) => {
+                const now = e.character_ids ?? [];
+                void updateEvent(e.id, { character_ids: now.includes(id) ? now.filter((x) => x !== id) : [...now, id] });
+              }}
+              onOpenCharacter={(id) => setFlashcard(id)}
+              onOpenScene={
+                e.treatment_id
+                  ? () => {
+                      setNotePopup(null);
+                      navigation.navigate('Treatment', { projectId, treatmentId: e.treatment_id! });
+                    }
+                  : null
+              }
+              onEdit={() => {
+                setNotePopup(null);
+                onEventPress(e);
+              }}
+              onClose={() => setNotePopup(null)}
+            />
+          </FoggedSheet>
+        );
+      })()}
+
+      {flashcard && (() => {
+        const m = cast.find((c) => c.id === flashcard);
+        if (!m) return null;
+        const bible = documents.find((d) => d.id === m.document_id) ?? null;
+        return (
+          <FoggedSheet onClose={() => setFlashcard(null)}>
+            <CharacterCard
+              member={m}
+              bibleTitle={bible?.title ?? null}
+              onOpenBible={bible ? () => { setFlashcard(null); navigation.navigate('DocumentReader', { projectId, documentId: bible.id }); } : undefined}
+              onOpenCharacter={() => {
+                setFlashcard(null);
+                navigation.navigate('Character', { projectId, characterId: m.id });
+              }}
+            />
+          </FoggedSheet>
+        );
+      })()}
+
       {castSheet && user && (
         <ThreadSheet<StoryCast>
           key={castSheet.id ?? 'new-cast'}
@@ -795,6 +868,132 @@ function ThreadSheet<T extends { name: string; color: string }>({
   );
 }
 
+// A note, opened: its heading (edited in place), its summary, and the characters in its scene --
+// each a chip in their colour; tap one to put them in or take them out, hold one for their
+// flashcard. Shown over fogged glass.
+function NotePopup({
+  event,
+  cast,
+  charactersSupported,
+  number,
+  colors,
+  onRename,
+  onToggleCharacter,
+  onOpenCharacter,
+  onOpenScene,
+  onEdit,
+  onClose,
+}: {
+  event: StoryEvent;
+  cast: StoryCast[];
+  charactersSupported: boolean;
+  number: number;
+  colors: ThemeColors;
+  onRename: (title: string) => void;
+  onToggleCharacter: (id: string) => void;
+  onOpenCharacter: (id: string) => void;
+  onOpenScene: (() => void) | null;
+  onEdit: () => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(event.title);
+  const involved = event.character_ids ?? [];
+  const tint = cast.find((c) => c.id === event.cast_id)?.color ?? NOTE_DEFAULT;
+  const save = () => {
+    if (title.trim() !== event.title) onRename(title.trim());
+  };
+  return (
+    <View style={[popup.card, { backgroundColor: tint }]}>
+      <Text style={popup.number}>{`#${number}`}</Text>
+      <TextInput
+        style={popup.title}
+        value={title}
+        onChangeText={setTitle}
+        onEndEditing={save}
+        onBlur={save}
+        multiline
+        placeholder="Heading"
+        placeholderTextColor="#8a7458"
+      />
+      <ScrollView style={popup.summaryScroll}>
+        <Text style={popup.summary}>{event.summary || 'No summary yet.'}</Text>
+      </ScrollView>
+
+      <Text style={popup.label}>In this scene</Text>
+      {cast.length === 0 ? (
+        <Text style={popup.faint}>Add characters with + Character, then mark who is here.</Text>
+      ) : !charactersSupported ? (
+        <Text style={popup.faint}>Paste supabase/migrations/20261011c_characters.sql once to mark who is in each scene.</Text>
+      ) : (
+        <View style={popup.chips}>
+          {cast.map((c) => {
+            const on = involved.includes(c.id);
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => charactersSupported && onToggleCharacter(c.id)}
+                onLongPress={() => onOpenCharacter(c.id)}
+                style={[popup.chip, { backgroundColor: on ? c.color : 'rgba(255,255,255,0.35)', borderColor: on ? '#2a2119' : 'rgba(42,33,25,0.25)' }]}
+              >
+                <Text style={[popup.chipText, !on && { opacity: 0.55 }]}>{`${on ? '✓ ' : ''}${c.name || 'Unnamed'}`}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={popup.actions}>
+        {onOpenScene ? (
+          <Pressable onPress={onOpenScene} hitSlop={8}>
+            <Text style={popup.action}>Read the scene</Text>
+          </Pressable>
+        ) : null}
+        <Pressable onPress={onEdit} hitSlop={8}>
+          <Text style={popup.action}>Edit note</Text>
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          onPress={() => {
+            save();
+            onClose();
+          }}
+          hitSlop={8}
+        >
+          <Text style={popup.done}>Done</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const popup = StyleSheet.create({
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '86%',
+    borderRadius: 4,
+    padding: 18,
+    paddingTop: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 14,
+  },
+  number: { position: 'absolute', top: 8, right: 12, color: '#7a6248', fontFamily: FONTS.hand, fontSize: 17, paddingRight: 4 },
+  title: { color: '#2a2119', fontFamily: FONTS.handBold, fontSize: 30, lineHeight: 34, paddingVertical: 2, paddingRight: 6 },
+  summaryScroll: { maxHeight: 240, marginTop: 6 },
+  summary: { color: '#3d3226', fontFamily: FONTS.handBody, fontSize: 17.5, lineHeight: 24, paddingRight: 4 },
+  label: { color: '#7a6248', fontFamily: FONTS.hand, fontSize: 18, marginTop: 14, marginBottom: 6, paddingRight: 4 },
+  faint: { color: '#7a6248', fontFamily: FONTS.handBody, fontSize: 14, paddingRight: 4 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 3, borderWidth: 1.5 },
+  chipText: { color: '#2a2119', fontFamily: FONTS.hand, fontSize: 18, paddingRight: 3 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 18 },
+  action: { color: '#6b4a1e', fontFamily: FONTS.hand, fontSize: 20, paddingRight: 4 },
+  done: { color: '#2a2119', fontFamily: FONTS.handBold, fontSize: 22, paddingRight: 4 },
+});
+
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
@@ -822,15 +1021,15 @@ function makeStyles(colors: ThemeColors) {
       borderWidth: 1,
       maxWidth: 180,
     },
-    threadChipText: { color: colors.textDim, fontFamily: FONTS.hand, fontSize: 18 },
+    threadChipText: { color: colors.textDim, fontFamily: FONTS.hand, fontSize: 18 , paddingRight: 4 },
     castChip: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 3, maxWidth: 170, borderWidth: 2, borderColor: 'transparent' },
     castChipOn: { borderColor: colors.gold },
-    castChipText: { color: '#2a2119', fontFamily: FONTS.hand, fontSize: 18 },
+    castChipText: { color: '#2a2119', fontFamily: FONTS.hand, fontSize: 18 , paddingRight: 4 },
     wallNote: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, paddingHorizontal: 16, paddingBottom: 6 },
-    headerToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 20 },
+    headerToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 20 , paddingRight: 4 },
     swatch: { width: 10, height: 10, borderRadius: 5 },
     addChip: { paddingHorizontal: 10, paddingVertical: 5 },
-    addChipText: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 18 },
+    addChipText: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 18 , paddingRight: 4 },
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -862,8 +1061,8 @@ function makeStyles(colors: ThemeColors) {
     },
     cardHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
     ordinal: { color: colors.gold, fontFamily: FONTS.mono, fontSize: 11 },
-    cardTitle: { flex: 1, color: colors.text, fontFamily: FONTS.handBold, fontSize: 21 },
-    cardSummary: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 14, lineHeight: 18, marginTop: 2 },
+    cardTitle: { flex: 1, color: colors.text, fontFamily: FONTS.handBold, fontSize: 21, paddingRight: 4 },
+    cardSummary: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 14, lineHeight: 18, marginTop: 2, paddingRight: 4 },
     cardChapter: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 10.5, marginTop: 3 },
     newBtn: {
       position: 'absolute',

@@ -74,6 +74,7 @@ export default function NavDrawer({
   onOpenTreatments,
   onOpenStoryboard,
   onOpenDocuments,
+  onOpenCharacters,
   onOpenAssistant,
   onOpenBraid,
   onOpenTrash,
@@ -96,6 +97,7 @@ export default function NavDrawer({
   onOpenTreatments: () => void;
   onOpenStoryboard: () => void;
   onOpenDocuments: () => void;
+  onOpenCharacters: () => void;
   onOpenAssistant: () => void;
   onOpenBraid: () => void;
   onOpenTrash: () => void;
@@ -151,6 +153,7 @@ export default function NavDrawer({
     { key: 'search', icon: 'search', label: 'Search', onPress: onSearch },
     { key: 'braid', icon: 'link', label: 'The Braid', onPress: onOpenBraid },
     { key: 'documents', icon: 'books', label: 'Documents', onPress: onOpenDocuments },
+    { key: 'characters', icon: 'user', label: 'Characters', onPress: onOpenCharacters },
     { key: 'chronology', icon: 'sunset', label: 'Chronology', onPress: onOpenChronology },
     { key: 'report', icon: 'list', label: 'Prose report', onPress: onOpenReport },
     { key: 'assistant', icon: 'sparkle', label: 'Assistant', onPress: onOpenAssistant },

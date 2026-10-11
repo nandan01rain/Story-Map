@@ -469,7 +469,7 @@ function makeStyles(colors: ThemeColors) {
     chromeRight: { flexDirection: 'row', alignItems: 'center', gap: 18 },
     chromeToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 22, paddingHorizontal: 4 },
     readBody: { paddingHorizontal: 24, paddingTop: 6 },
-    readTitle: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 30, lineHeight: 34, marginBottom: 6 },
+    readTitle: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 30, lineHeight: 34, marginBottom: 6, paddingRight: 4 },
     chromeGlyph: { color: withOpacity(colors.textFaint, 0.75), fontSize: 26, lineHeight: 28, paddingHorizontal: 6 },
     // Handwriting (2026-10-11): a sketch should look like one. Patrick Hand rather than Caveat
     // for the body, because this is read and written at length.
@@ -528,8 +528,8 @@ function makeStyles(colors: ThemeColors) {
     },
     pinActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 22, marginTop: 12 },
     pinCancel: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 14 },
-    pinConfirm: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 21 },
-    versionText: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 15.5, lineHeight: 21 },
+    pinConfirm: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 21, paddingRight: 4 },
+    versionText: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 15.5, lineHeight: 21, paddingRight: 4 },
     versionEditing: { color: colors.text },
     versionMeta: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 9.5, marginTop: 3 },
     versionToggle: { color: colors.gold, fontFamily: FONTS.mono, fontSize: 10.5 },
