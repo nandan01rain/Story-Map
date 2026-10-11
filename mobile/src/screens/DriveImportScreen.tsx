@@ -15,7 +15,8 @@ import {
 } from '../lib/googleDrive';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
-import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, type DocumentType, useDocumentStore } from '../store/documentStore';
+import DocumentTypeChips from '../components/DocumentTypeChips';
+import { type DocumentType, useDocumentStore } from '../store/documentStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'DriveImport'>;
@@ -43,7 +44,7 @@ export default function DriveImportScreen({ route, navigation }: Props) {
   const [search, setSearch] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [docType, setDocType] = useState<DocumentType>('reference');
+  const [docType, setDocType] = useState<DocumentType>('Scene Reference');
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
@@ -306,19 +307,7 @@ export default function DriveImportScreen({ route, navigation }: Props) {
       {selected.size > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerLabel}>Import as</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
-            {DOCUMENT_TYPES.map((type) => (
-              <Pressable
-                key={type}
-                style={[styles.typeChip, docType === type && styles.typeChipOn]}
-                onPress={() => setDocType(type)}
-              >
-                <Text style={[styles.typeChipText, docType === type && styles.typeChipTextOn]}>
-                  {DOCUMENT_TYPE_LABELS[type]}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <DocumentTypeChips value={docType} onChange={setDocType} />
           {!!progress && <Text style={styles.progress}>{progress}</Text>}
           <Pressable style={styles.primaryBtn} onPress={handleImport} disabled={importing}>
             {importing ? (
@@ -408,17 +397,6 @@ function makeStyles(colors: ThemeColors) {
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
-    typeRow: { gap: 8 },
-    typeChip: {
-      paddingVertical: 7,
-      paddingHorizontal: 12,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    typeChipOn: { borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.14) },
-    typeChipText: { color: colors.textDim, fontSize: 12.5 },
-    typeChipTextOn: { color: colors.text },
     progress: { color: colors.textDim, fontSize: 12 },
     primaryBtn: {
       backgroundColor: colors.gold,

@@ -23,3 +23,6 @@ Desktop.ini
 graph/.local-project.json
 graph/.local-spine-prototype.html
 graph/.local-braid-3d.html
+
+# Private manuscript files and the one-off loader that reads them (2026-10-11). Never commit.
+canon-import/

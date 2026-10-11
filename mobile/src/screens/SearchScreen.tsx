@@ -216,7 +216,8 @@ export default function SearchScreen({ route, navigation }: Props) {
       page: (pid: string, id: string) => () => navigation.navigate('Page', { projectId: pid, pageId: id }),
       chapter: (_pid: string, id: string) => () => navigation.navigate('Editor', { chapterId: id }),
       scene: (pid: string, chapterId: string) => () => navigation.navigate('ChapterDrawer', { chapterId, projectId: pid }),
-      document: (pid: string) => () => navigation.navigate('Documents', { projectId: pid }),
+      // Straight into the document, rendered, rather than the library list it sits in.
+      document: (pid: string, documentId: string) => () => navigation.navigate('DocumentReader', { projectId: pid, documentId }),
       // parent_id is the treatment; the version id in `id` is what matched.
       treatment: (pid: string, treatmentId: string) => () => navigation.navigate('Treatment', { projectId: pid, treatmentId }),
       storyboard: (pid: string, eventId: string) => () => navigation.navigate('Storyboard', { projectId: pid, eventId }),
@@ -235,7 +236,7 @@ export default function SearchScreen({ route, navigation }: Props) {
           r.kind === 'scene'
             ? openers.scene(pid, r.parent_id ?? '')
             : r.kind === 'document'
-              ? openers.document(pid)
+              ? openers.document(pid, r.id)
               : r.kind === 'page'
                 ? openers.page(pid, r.id)
                 : r.kind === 'treatment'
@@ -302,7 +303,7 @@ export default function SearchScreen({ route, navigation }: Props) {
         title: d.title,
         meta: '',
         runs: substringRuns(d.content || d.title, debounced),
-        open: openers.document(projectId ?? ''),
+        open: openers.document(projectId ?? '', d.id),
       });
     }
 

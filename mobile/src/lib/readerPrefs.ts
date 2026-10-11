@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FONTS } from '../theme';
 
 // Local-only (AsyncStorage, not Supabase) reader state -- the PWA's own Reader persists
 // its two bookmark systems and Font/Layout prefs per-account in Supabase; this is a
@@ -75,4 +76,39 @@ export async function loadReaderPrefs(): Promise<ReaderPrefs> {
 
 export async function saveReaderPrefs(prefs: ReaderPrefs) {
   await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+}
+
+// The font and alignment choices, shared by the chapter Reader and the document reader so a
+// change made in either is the same setting in both.
+export const FONT_FAMILY_OPTIONS: { key: ReaderFontFamily; label: string; family: string }[] = [
+  { key: 'serif', label: 'Serif', family: FONTS.literary },
+  { key: 'sans', label: 'Sans', family: FONTS.body },
+  { key: 'mono', label: 'Mono', family: FONTS.mono },
+];
+export const ALIGN_OPTIONS: { key: ReaderTextAlign; icon: string }[] = [
+  { key: 'left', icon: 'align-left' },
+  { key: 'center', icon: 'align-center' },
+  { key: 'right', icon: 'align-right' },
+  { key: 'justify', icon: 'align-justify' },
+];
+export function resolveFontFamily(f: ReaderFontFamily): string {
+  return FONT_FAMILY_OPTIONS.find((o) => o.key === f)?.family ?? FONTS.literary;
+}
+
+// Where a document was last being read: the index of the first block on screen. Per
+// document, on this device -- the same scope as the chapter Reader's bookmarks.
+export async function loadDocumentPosition(documentId: string): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(`doc-position:${documentId}`);
+    return raw ? Number(raw) || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+export async function saveDocumentPosition(documentId: string, block: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(`doc-position:${documentId}`, String(block));
+  } catch {
+    // A lost reading position is an inconvenience, not a failure worth surfacing.
+  }
 }

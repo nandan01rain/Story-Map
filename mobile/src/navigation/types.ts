@@ -39,6 +39,10 @@ export type SignedInStackParamList = {
   /** No projectId searches every project -- the landing page's Explore tab. */
   Search: { projectId?: string } | undefined;
   Documents: { projectId: string };
+  /** One document, rendered for reading. Editing is DocumentEditor, as Reader is to Editor. */
+  DocumentReader: { projectId: string; documentId: string };
+  /** `at` is a raw-text offset; a long document opens on the section containing it. */
+  DocumentEditor: { projectId: string; documentId: string; at?: number };
   DriveImport: { projectId: string };
   Assistant: { projectId: string; chapterId?: string };
   /**

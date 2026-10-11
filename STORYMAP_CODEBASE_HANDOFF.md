@@ -5083,3 +5083,54 @@ Braid, Documents, Chronology, Prose report, Assistant.
   `{atEnd, notes}` options for this; the list's "+" still inserts at the top of the act as before.
 
 JS-only again: no native module, ships over the air on 1.2.0.
+
+## 39. DOCUMENTS: A READER AND AN EDITOR, AND MARKDOWN RENDERED (2026-10-11)
+
+**Why.** The saga's reference set went into Saga-01's library (70 documents, 4.3 MB, loaded by
+a one-off script kept out of git in `canon-import/`). On the phone the library was unusable for
+it: a document opened straight into an editable text box showing raw markdown, the type chips
+had the §36.3 stretched-ScrollView fault (so a tap almost anywhere retyped the document), and the
+list downloaded every document's full text to show titles.
+
+**Now.** Documents → tap a title → **DocumentReaderScreen**: rendered markdown (headings,
+bold/italic, nested bullet and numbered lists, tables, quotes, rules, inline code), full screen,
+controls that hide as you read on and return as you scroll back, a contents panel from the left
+edge built from the document's headings, the chapter Reader's Font & Layout settings (same
+stored prefs — `FONT_FAMILY_OPTIONS`/`ALIGN_OPTIONS`/`resolveFontFamily` moved into
+`readerPrefs.ts` for both), reopens where you left off (`doc-position:<id>`). The pencil →
+**DocumentEditorScreen**. Search hits on a document open the reader on it.
+
+**Why not the chapter Reader.** It lays prose out a measured line at a time to paginate and
+select word by word; a line model cannot hold a heading at 1.5× or a table. Documents scroll.
+Native long-press selection still copies.
+
+**The parser** is `lib/markdown.ts`, written for exactly what the documents use, plain JS (ships
+OTA). Every block carries `at`, its offset in the raw text. Tested on all 70 documents: the 726 KB
+Working Bible parses in ~20 ms into ~3,150 blocks; 3 unrendered `**` remain, all malformed in the
+source. **Trap fixed while testing:** the inline pattern was one shared `/g` regex and the parse
+recurses (italic inside bold), so the inner call reset the outer's `lastIndex` — an infinite loop.
+A fresh regex per call. Bold now admits single `*` inside it (italics within bold).
+Bold and italic use real bundled faces (`Spectral_600SemiBold`, `Spectral_400Regular_Italic`):
+Android does not reliably synthesise them for a custom font.
+
+**The editor** opens a long document (> 40,000 chars) on the **section** holding the reader's
+position — from its `#`/`##` heading to the next — and splices it back on save, the rest of the
+text untouched; "Whole document" opens everything. A phone text box stalls long before 726 KB.
+Saves debounce at 1.2 s and are forced on `beforeRemove`, from refs (§33.1). Progressions moved
+here with it.
+
+**Types unified.** Mobile wrote `bible/character/reference/timeline`; the PWA's `<select>` offers
+`Master Bible / Character Bible / Scene Reference / Progression / Timeline / Other` and blanks any
+other value when a document is opened and saved there. `DOCUMENT_TYPES` is now the PWA's list;
+`documentType()` reads legacy keys (and `Progression-Timeline`) as the label they meant.
+`DocumentTypeChips` is the one picker (editor and Drive import — which had the same stretch fault).
+
+**The list** selects no `content` (`LIST_COLUMNS`), orders by `created_at` desc (arrival order,
+stable under edits — the reference set's manifest order), filters by type instead of grouping.
+`StoryDocument.content` is optional accordingly: **anything that writes a whole document back
+must hold a fetched one** (`fetchDocument`), never a listing row — the editor's trash call passes
+its full text for this reason. `deleteDocument` was already gone (§38); `updateDocument` keeps text
+out of the listing.
+
+Still to do: the PWA re-uploads every document on every save (`saveData`), now 4.3 MB a save in
+the browser; its own document view also shows raw markdown.

@@ -26,11 +26,13 @@ import SlidePanel, { EdgeSwipeZone } from '../components/SlidePanel';
 import { buildLineWords, buildPagesFromLines, type ChapterPage, type LineWord } from '../lib/paginate';
 import { useSlidePanel } from '../lib/useSlidePanel';
 import {
+  ALIGN_OPTIONS,
   DEFAULT_READER_PREFS,
-  type ReaderFontFamily,
+  FONT_FAMILY_OPTIONS,
   type ReaderPrefs,
   type ReaderTextAlign,
   addPinnedBookmark,
+  resolveFontFamily,
   loadMovingBookmark,
   loadReaderPrefs,
   saveMovingBookmark,
@@ -112,17 +114,6 @@ type ReaderSpan = {
   end: number;
 };
 
-const FONT_FAMILY_OPTIONS: { key: ReaderFontFamily; label: string; family: string }[] = [
-  { key: 'serif', label: 'Serif', family: FONTS.literary },
-  { key: 'sans', label: 'Sans', family: FONTS.body },
-  { key: 'mono', label: 'Mono', family: FONTS.mono },
-];
-const ALIGN_OPTIONS: { key: ReaderTextAlign; icon: string }[] = [
-  { key: 'left', icon: 'align-left' },
-  { key: 'center', icon: 'align-center' },
-  { key: 'right', icon: 'align-right' },
-  { key: 'justify', icon: 'align-justify' },
-];
 
 // Finds the jumped-to text in the chapter. An exact match is the normal case; the
 // fallbacks cover a selection whose whitespace does not survive the round trip -- a
@@ -148,9 +139,6 @@ function findJumpOffset(content: string, needle: string): number {
   return match ? match.index : -1;
 }
 
-function resolveFontFamily(f: ReaderFontFamily): string {
-  return FONT_FAMILY_OPTIONS.find((o) => o.key === f)?.family ?? FONTS.literary;
-}
 
 type FlatPage = {
   chapterId: string;

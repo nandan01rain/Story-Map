@@ -225,6 +225,9 @@ chapter boundaries for pacing).
   browser of every scene in a given POV across the saga.
 - **📚 Documents library**: Master Bible / character bibles / scene
   references / timelines, each a free-text document in its own editor.
+  **Mobile (2026-10-11):** a library that opens each document in a reader that
+  renders its markdown (headings, lists, tables), with editing on its own screen —
+  the Reader/Editor split. Saga-01 holds the 70-document reference set. Handoff §39.
 - **🎬 Treatments (mobile, 2026-08-30)** — one scene described at plot-summary
   granularity, dialogue unwritten: the layer between a page and a chapter. Ordered
   **saga-wide by dragging**, never by date, and deliberately carrying no book, act or
