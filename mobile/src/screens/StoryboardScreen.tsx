@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { THREAD_COLORS, useStoryboardStore, type StoryEvent, type StoryThread } 
 import { useTrashStore } from '../store/trashStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 import BookChips from '../components/BookChips';
+import { EvidenceWall } from '../components/EvidenceWall';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Storyboard'>;
 
@@ -52,10 +53,13 @@ export default function StoryboardScreen({ route, navigation }: Props) {
     useStoryboardStore();
   const trashStoryEvent = useTrashStore((s) => s.trashStoryEvent);
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [book, setBook] = useState(route.params.book ?? 0);
+  // The wall is for seeing; Rearrange is the drag list, for changing the order.
+  const [arranging, setArranging] = useState(false);
+  const { width: winWidth } = useWindowDimensions();
   // With no book asked for, open on the one the writer last wrote in -- the storyboard is
   // most often consulted about the book in progress.
   useEffect(() => {
@@ -70,8 +74,15 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const [threadSheet, setThreadSheet] = useState<{ id: string | null } | null>(null);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Storyboard' });
-  }, [navigation]);
+    navigation.setOptions({
+      title: 'Storyboard',
+      headerRight: () => (
+        <Pressable onPress={() => setArranging((a) => !a)} hitSlop={10}>
+          <Text style={styles.headerToggle}>{arranging ? 'Wall' : 'Rearrange'}</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, arranging, styles]);
 
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => fetch(projectId));
@@ -192,7 +203,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
         <View style={[styles.banner, { borderColor: stringingThread.color }]}>
           <View style={[styles.swatch, { backgroundColor: stringingThread.color }]} />
           <Text style={styles.bannerText} numberOfLines={2}>
-            Stringing <Text style={{ color: colors.text }}>{stringingThread.name || 'this thread'}</Text> — tap events to add or remove them.
+            Stringing <Text style={{ color: colors.text }}>{stringingThread.name || 'this thread'}</Text> — tap snippets to pin it to them, or tap again to unpin.
           </Text>
           <Pressable onPress={() => setStringing(null)} hitSlop={10}>
             <Text style={styles.bannerDone}>Done</Text>
@@ -208,10 +219,23 @@ export default function StoryboardScreen({ route, navigation }: Props) {
             <ActivityIndicator color={colors.gold} />
           ) : (
             <Text style={styles.empty}>
-              {`No events in ${bookName(book)} yet. An event is one beat of the plot — add them in the order the book tells them, then string threads through the ones that carry each.`}
+              {`Nothing pinned up for ${bookName(book)} yet. Each snippet is one beat of the plot: add them in the order the book tells them, then run a thread through the ones that carry it.`}
             </Text>
           )}
         </View>
+      ) : !arranging ? (
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+          <EvidenceWall
+            events={items}
+            threads={bookThreads}
+            links={links}
+            width={winWidth}
+            night={mode === 'night'}
+            stringing={stringing}
+            chapterLabel={chapterLabel}
+            onPress={onEventPress}
+          />
+        </ScrollView>
       ) : (
         <DropProvider key={`${book}:${listKey}`} ref={dropProviderRef}>
           <Animated.ScrollView
@@ -652,10 +676,11 @@ function makeStyles(colors: ThemeColors) {
       borderWidth: 1,
       maxWidth: 180,
     },
-    threadChipText: { color: colors.textDim, fontFamily: FONTS.body, fontSize: 13 },
+    threadChipText: { color: colors.textDim, fontFamily: FONTS.hand, fontSize: 18 },
+    headerToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 20 },
     swatch: { width: 10, height: 10, borderRadius: 5 },
     addChip: { paddingHorizontal: 10, paddingVertical: 5 },
-    addChipText: { color: colors.gold, fontFamily: FONTS.body, fontSize: 13 },
+    addChipText: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 18 },
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -687,8 +712,8 @@ function makeStyles(colors: ThemeColors) {
     },
     cardHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
     ordinal: { color: colors.gold, fontFamily: FONTS.mono, fontSize: 11 },
-    cardTitle: { flex: 1, color: colors.text, fontFamily: FONTS.literaryMedium, fontSize: 15.5 },
-    cardSummary: { color: colors.textDim, fontFamily: FONTS.body, fontSize: 13, lineHeight: 18, marginTop: 2 },
+    cardTitle: { flex: 1, color: colors.text, fontFamily: FONTS.handBold, fontSize: 21 },
+    cardSummary: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 14, lineHeight: 18, marginTop: 2 },
     cardChapter: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 10.5, marginTop: 3 },
     newBtn: {
       position: 'absolute',
@@ -720,16 +745,16 @@ function makeStyles(colors: ThemeColors) {
     sheetLabel: { color: colors.gold, fontFamily: FONTS.heading, fontSize: 10.5, letterSpacing: 2, marginTop: 4 },
     titleInput: {
       color: colors.text,
-      fontFamily: FONTS.literaryMedium,
-      fontSize: 18,
+      fontFamily: FONTS.handBold,
+      fontSize: 26,
       paddingVertical: 6,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderDim,
     },
     summaryInput: {
       color: colors.text,
-      fontFamily: FONTS.body,
-      fontSize: 15,
+      fontFamily: FONTS.handBody,
+      fontSize: 17,
       lineHeight: 22,
       minHeight: 70,
       textAlignVertical: 'top',

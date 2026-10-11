@@ -300,7 +300,7 @@ function PageSheet({
                 }}
               >
                 <Text style={styles.sheetActionText}>
-                  Became a {page!.became_type} — open it
+                  Became a {page!.became_type === 'treatment' ? 'scene sketch' : page!.became_type} — open it
                 </Text>
               </Pressable>
             ) : (
@@ -318,7 +318,7 @@ function PageSheet({
                     if (treatment) onOpenTreatment(treatment.id);
                   }}
                 >
-                  <Text style={styles.sheetActionText}>Make this a treatment</Text>
+                  <Text style={styles.sheetActionText}>Make this a scene sketch</Text>
                 </Pressable>
                 <Pressable style={styles.sheetAction} onPress={() => setPromoting(true)}>
                   <Text style={styles.sheetActionText}>Make this a chapter</Text>

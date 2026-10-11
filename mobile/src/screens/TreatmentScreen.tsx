@@ -270,7 +270,7 @@ function TreatmentSheet({
                   ))}
                 </View>
                 <Text style={styles.sheetNote}>
-                  The chapter gets a copy. This treatment stays exactly as it is.
+                  The chapter gets a copy. This sketch stays exactly as it is.
                 </Text>
               </>
             ) : (
@@ -329,11 +329,13 @@ function makeStyles(colors: ThemeColors) {
     centered: { alignItems: 'center', justifyContent: 'center' },
     chrome: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 2 },
     chromeGlyph: { color: withOpacity(colors.textFaint, 0.75), fontSize: 26, lineHeight: 28, paddingHorizontal: 6 },
+    // Handwriting (2026-10-11): a sketch should look like one. Patrick Hand rather than Caveat
+    // for the body, because this is read and written at length.
     paper: {
       flex: 1,
       color: colors.text,
-      fontFamily: FONTS.literary,
-      fontSize: 18,
+      fontFamily: FONTS.handBody,
+      fontSize: 19,
       lineHeight: 30,
       paddingHorizontal: 26,
       paddingTop: 14,
@@ -355,8 +357,8 @@ function makeStyles(colors: ThemeColors) {
     sheetActionText: { color: colors.text, fontFamily: FONTS.body, fontSize: 15 },
     titleInput: {
       color: colors.text,
-      fontFamily: FONTS.literary,
-      fontSize: 16,
+      fontFamily: FONTS.handBold,
+      fontSize: 24,
       borderBottomWidth: 1,
       borderColor: colors.borderDim,
       paddingVertical: 6,
@@ -370,7 +372,7 @@ function makeStyles(colors: ThemeColors) {
       borderColor: colors.borderDim,
     },
     versionMain: { flex: 1, minWidth: 0 },
-    versionText: { color: colors.textDim, fontFamily: FONTS.literary, fontSize: 14, lineHeight: 20 },
+    versionText: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 15.5, lineHeight: 21 },
     versionEditing: { color: colors.text },
     versionMeta: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 9.5, marginTop: 3 },
     versionToggle: { color: colors.gold, fontFamily: FONTS.mono, fontSize: 10.5 },

@@ -34,6 +34,11 @@ export const FONTS = {
   literaryItalic: 'Spectral_400Regular_Italic',
   mono: 'JetBrainsMono_400Regular',
   monoMedium: 'JetBrainsMono_500Medium',
+  /** Handwritten display: storyboard snippets, scene sketch titles. */
+  hand: 'Caveat_600SemiBold',
+  handBold: 'Caveat_700Bold',
+  /** Handwritten body text, legible at length. */
+  handBody: 'PatrickHand_400Regular',
 } as const;
 
 // Full useFonts() map -- import into App.tsx so every weight actually used above is

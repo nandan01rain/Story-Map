@@ -5158,3 +5158,26 @@ it is the ONLY copy. The folder mirror (§34) exists for this and had three gaps
 generated `search` column on documents, scenes, treatment versions and storyboard events, and
 Postgres refuses writes to a generated column — restoring those tables would have failed.
 `withoutGenerated` strips it when snapshotting, and `retarget` strips it from older snapshots.
+
+## 41. THE EVIDENCE WALL, SCENE SKETCHES, AND HANDWRITING (2026-10-11)
+
+**Handwriting.** `@expo-google-fonts/caveat` (600, 700) and `@expo-google-fonts/patrick-hand`
+(400), registered in `useAppFonts` and named in `FONTS` as `hand`, `handBold`, `handBody`. Caveat
+for titles and labels; Patrick Hand for anything read or written at length, because Caveat's
+small x-height tires the eye over a paragraph. Font packages are JS plus assets, so this shipped
+over the air -- no native change, no rebuild.
+
+**The storyboard is an evidence wall** (`components/EvidenceWall.tsx`): a flecked cork board,
+each beat a paper snippet slightly askew (deterministic per id), each thread a coloured string
+sagging pin to pin. Snippets snake two to a row in book order (left→right, then right→left) so
+a string reads forward; positions are derived, nothing stored. A snippet on no thread gets one
+red pin; one on threads gets a pin per thread along its top edge, which the strings tie to.
+Stringing mode fades the snippets not on the thread and the other strings. **Rearrange** (header)
+switches to the old drag list, which is how order changes -- a pinned wall is for seeing.
+**Trap:** on Android an elevated view draws above any un-elevated sibling regardless of order,
+and every snippet is elevated for its shadow -- so the string/pin layer carries `elevation: 20`.
+
+**Treatments are "Scene Sketches" on screen** -- drawer, title, search label, the page's
+"Make this a scene sketch", backup wording. Only what is shown: the tables, routes, store and
+code keep the `treatment` name, and nothing was migrated. "Scenes" alone was taken (a chapter's
+scenes), and two different things under one name is worse than either.

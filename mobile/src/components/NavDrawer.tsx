@@ -143,7 +143,7 @@ export default function NavDrawer({
     { key: 'write', icon: 'feather', label: 'Write', onPress: onOpenWriter },
     { key: 'read', icon: 'bookmark', label: 'Read', onPress: onOpenReader },
     { key: 'notes', icon: 'pin', label: 'Pages', onPress: onOpenNotes },
-    { key: 'treatments', icon: 'book-open', label: 'Treatments', onPress: onOpenTreatments },
+    { key: 'treatments', icon: 'book-open', label: 'Scene Sketches', onPress: onOpenTreatments },
     { key: 'storyboard', icon: 'map', label: 'Storyboard', onPress: onOpenStoryboard },
   ];
 

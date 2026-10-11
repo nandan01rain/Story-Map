@@ -18,6 +18,8 @@ import {
   Spectral_500Medium,
   Spectral_600SemiBold,
 } from '@expo-google-fonts/spectral';
+import { Caveat_600SemiBold, Caveat_700Bold } from '@expo-google-fonts/caveat';
+import { PatrickHand_400Regular } from '@expo-google-fonts/patrick-hand';
 import { useFonts } from 'expo-font';
 
 // One place registering every weight FONTS (theme.ts) references -- keep the two files
@@ -36,5 +38,10 @@ export function useAppFonts() {
   Spectral_600SemiBold,
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
+    // Handwriting, for the storyboard wall and scene sketches (2026-10-11): Caveat for titles
+    // and labels, Patrick Hand -- the more legible of the two -- for anything read at length.
+    Caveat_600SemiBold,
+    Caveat_700Bold,
+    PatrickHand_400Regular,
   });
 }

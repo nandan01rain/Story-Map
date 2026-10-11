@@ -36,7 +36,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Treatments' });
+    navigation.setOptions({ title: 'Scene Sketches' });
   }, [navigation]);
 
   useEffect(() => {
@@ -82,8 +82,8 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
             <ActivityIndicator color={colors.gold} />
           ) : (
             <Text style={styles.empty}>
-              Nothing yet. A treatment is one scene described — what happens in it, before the
-              dialogue exists.
+              No scene sketches yet. A sketch is one scene described: everything that happens in
+              it, before the dialogue exists. Drag them into order as the story settles.
             </Text>
           )}
         </View>
@@ -141,10 +141,9 @@ function makeStyles(colors: ThemeColors) {
     note: { color: colors.error, fontFamily: FONTS.body, fontSize: 13, lineHeight: 20, textAlign: 'center' },
     empty: {
       color: colors.textFaint,
-      fontFamily: FONTS.literaryItalic,
-      fontStyle: 'italic',
-      fontSize: 14,
-      lineHeight: 22,
+      fontFamily: FONTS.handBody,
+      fontSize: 17,
+      lineHeight: 24,
       textAlign: 'center',
     },
     row: {
@@ -158,7 +157,7 @@ function makeStyles(colors: ThemeColors) {
     handle: { paddingHorizontal: 8, paddingVertical: 10 },
     handleText: { color: colors.textFaint, fontSize: 17 },
     rowMain: { flex: 1, justifyContent: 'center', minWidth: 0 },
-    rowTitle: { color: colors.text, fontFamily: FONTS.literary, fontSize: 16, lineHeight: 22 },
+    rowTitle: { color: colors.text, fontFamily: FONTS.handBold, fontSize: 23, lineHeight: 28 },
     newBtn: {
       position: 'absolute',
       right: 24,
