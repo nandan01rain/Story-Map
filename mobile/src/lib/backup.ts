@@ -289,17 +289,19 @@ export async function collectSnapshot(projectId: string, opts: { pictures?: bool
     characterImages = [];
     for (const c of storyboardCast as CastRow[]) {
       if (!c.image_path) continue;
-      const file = await localPicture(c.image_path);
-      if (!file) {
+      // A picture that cannot be had is named in `incomplete`; it never fails the backup.
+      try {
+        const file = await localPicture(c.image_path);
+        if (!file) throw new Error('unavailable');
+        characterImages.push({
+          castId: c.id,
+          path: c.image_path,
+          contentType: pictureType(c.image_path).contentType,
+          base64: await file.base64(),
+        });
+      } catch {
         if (!incomplete.includes('character pictures')) incomplete.push('character pictures');
-        continue;
       }
-      characterImages.push({
-        castId: c.id,
-        path: c.image_path,
-        contentType: pictureType(c.image_path).contentType,
-        base64: await file.base64(),
-      });
     }
   }
 
@@ -406,8 +408,9 @@ export const useBackup = create<BackupState>((set, get) => ({
 
       // Each character's picture as a real image file in Characters/, written once per picture:
       // a new picture has a new path, so a path already mirrored is already in the folder.
+      // Its own try: a picture that cannot be written must never cost the chapters below it.
       const pictured = (snapshot.storyboardCast as CastRow[]).filter((c) => c.image_path);
-      if (pictured.length > 0) {
+      if (pictured.length > 0) try {
         const picturesKey = PICTURES_MIRRORED_KEY + projectId;
         let mirrored: Record<string, string> = {};
         try {
@@ -431,6 +434,8 @@ export const useBackup = create<BackupState>((set, get) => ({
           }
           await AsyncStorage.setItem(picturesKey, JSON.stringify(mirrored));
         }
+      } catch {
+        // Retried on the next mirror: a picture not yet marked mirrored is still pending.
       }
 
       // One readable file per chapter, in its book's folder.
