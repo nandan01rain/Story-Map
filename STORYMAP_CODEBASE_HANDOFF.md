@@ -5370,3 +5370,79 @@ Make-this-a-chapter from a sketch.
 - **canon-import/ is private and git-ignored.** The loader prompts for the writer's login; never
   store credentials; ask before every database write.
 
+## 48. TWO SILENT FAULTS, PICTURES IN BACKUPS, AND THE STUDIO LEARNS TO WRITE (2026-10-12, later)
+
+Worked through §47.2's code items. Items 1-3 there (characters, studio against the live project,
+trash_types) need the writer signed in and are still open.
+
+### 48.1 The web app's chapter saves had been failing since 2026-08-25
+
+`buildChapterRows` has sent `story_time` since the braid commit (212c70c, 2026-08-25), but
+`20260825_spine_support.sql` was never run -- a read-only probe today returned 42703 for
+`chapters.story_time`. Every chapter upsert failed. The chapter upsert goes first and everything
+else waits on it, so any save that touched a chapter saved nothing; before 2026-10-11 (when every
+row was always sent) that was **every** web save. It reached only the console. Corollary: §46's
+"the web app reverted phone edits" could never actually have happened -- those saves never landed.
+
+Fix: `detectChapterTimeSchema` (the `detectPagesSchema` pattern -- from a loaded row, probe only
+on an empty project) and `story_time` is left out of the row when absent; the drawer's "When this
+happens" field is disabled and names the migration. A failed save now shows a fixed banner
+(`showSaveError`) until a save succeeds. **Rule: a column a client writes must be detected, not
+assumed** -- the phone's stores already do this per migration; index.html had one place that
+didn't.
+
+The probe, for next time (reads and writes nothing): `GET <url>/rest/v1/<table>?select=<col>&limit=0`
+with the anon key. 42703 = column missing, PGRST205 = table missing, `[]` = present. Results today:
+`chapters/scenes.story_time`, `project_settings.complexity`, `health_marks`,
+`document_progressions` all missing; `storyboard_events.character_ids, x` and
+`storyboard_cast.fields` present.
+
+### 48.2 Restore would have emptied the project it promised not to touch
+
+`restore.ts` kept every row id "because uuids do not collide". They do whenever the backed-up
+project still exists: the upsert on `id` UPDATED the original's rows and re-pointed `project_id`
+at "(restored)" -- while the confirm said "Nothing you have now is changed or deleted". Nobody had
+run a restore yet. Now ids are kept only when restoring a project into itself; otherwise
+`freshIds` mints a uuid per row and `remap` writes it through every reference by value -- columns,
+jsonb, arrays, object keys (a character's `fields` are keyed by field id) -- replacing only whole
+strings that are known ids. Tables restore from one `TABLES` list, parents first.
+
+### 48.3 Character pictures in backups
+
+Snapshot version 4. The share-sheet file carries each picture whole (`characterImages`, base64);
+the mirror folder writes them as real image files in `Characters/`, once per picture (paths are
+unique per upload, so a mirrored path is never stale; `backup-pictures-mirrored:<project>`).
+Pictures are fetched once into `Paths.document/backup-pictures/` via signed URL +
+`File.downloadFileAsync`. Restore re-uploads from the bytes, or copies inside Storage when the
+file has none (a mirror's project.json), under `<uid>/<newCastId>-<ts>.<ext>`; one that cannot be
+had is dropped from the row and named in the report. JS only -- ships over the air on 1.2.0.
+
+### 48.4 studio.html: Write, prose reports, sketch → chapter
+
+- **Write** (first tab; menu → Discover → Write): one book as one manuscript, chapter headings,
+  act labels from `project_settings.act_labels`, a contents list, scroll position per book. Saves
+  per chapter, debounced 1.2s, one version per visit (the phone's rule, same `{content, savedAt,
+  words}` shape as index.html). **Saves are conditional on `updated_at`**: if the phone saved the
+  chapter since it was read, nothing is written and the chapter asks *Keep what is here* / *Take
+  the other copy*; the one not kept goes into `versions`. Unsaved chapters flush on tab change,
+  book change and close; `beforeunload` warns. Words today = project prose now minus this
+  browser's first-open-today baseline (localStorage, per device like the phone's). "Flags &
+  history" opens index.html's Editor (`studio-open-chapter`, which refetches chapters first).
+  Textareas size with CSS `field-sizing: content` where supported -- measuring `scrollHeight`
+  gave 13,000px heights whenever the frame was laid out at no width.
+- **Prose report**: `analyseProse` ported from `lib/proseReport.ts`; compared against the phone's
+  on four texts, including a 12.5k-word drafted file -- identical JSON. Per chapter, or a book.
+- **Sketch → chapter**: copies the live version into a new chapter at the END of the chosen act
+  (the phone puts it at the start -- `createChapter`'s default; worth unifying), marks the sketch
+  `became_*`, points its storyboard notes at the chapter, opens it in Write.
+- index.html refetches + re-primes chapters on `studio-changed: chapters` (serialised, saving its
+  own pending edits first). The studio sends it at most once per 2.5s pause.
+
+Verified against the upgraded harness (`canon-import/studio-harness.html?tab=write`): typing
+saves with a conditional update and a prior-text version; `phoneEdit()` then a web edit raises
+the conflict and both answers work with nothing lost; tab switch flushes; sketch → chapter; no
+console errors. **Not yet against the live project.**
+
+Still not on the web: Chronology and progressions -- both need migrations confirmed missing
+above, so there is nothing for them to show until those are pasted.
+

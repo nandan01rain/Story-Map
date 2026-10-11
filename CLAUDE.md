@@ -1,6 +1,6 @@
 # StoryMap ("The Trail to Kailash")
 
-> **New session? Read "START HERE" below (2026-10-12) and handoff §47 first.**
+> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§48 first.**
 
 A personal writing tool for a five-book mythological saga called "The Trail
 to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
@@ -68,16 +68,17 @@ root); this repo is the migration of that sandbox into a real, independent app.
 ## START HERE — where things stand (2026-10-12)
 
 The rest of this file is the original brief with dated notes layered on; much of it is
-history. **This section and handoff §47 are the current picture.** Handoff §36–§46 hold the
-detail behind each item.
+history. **This section and handoff §47–§48 are the current picture.** Handoff §36–§46 hold
+the detail behind each item.
 
 **Two apps, one Supabase project (Saga-01 is the saga).**
 - **Phone** (`mobile/`, Expo SDK 57): installed **build 7, version 1.2.0** — the OTA runtime.
   Ship JS changes with `cd mobile && npx eas-cli update --branch preview --environment preview
   --non-interactive --message "…"`; the phone offers "An update is ready" on launch/resume.
   A NEW NATIVE MODULE needs `version` bumped (→ 1.3.0) and a rebuild + manual APK install.
-- **Web**: `index.html` (the original PWA) + **`studio.html`** (Storyboard as a wide evidence
-  wall, Scene Sketches, Characters, Documents + Import a patch), opened from the web app's menu.
+- **Web**: `index.html` (the original PWA) + **`studio.html`** (Write — a book as one
+  manuscript, with prose reports; Storyboard as a wide evidence wall; Scene Sketches, which can
+  become chapters; Characters; Documents + Import a patch), opened from the web app's menu.
   Runs locally: `python -m http.server 8080` in the repo root. Not hosted anywhere (§20, §38).
 
 **Saga content loaded (2026-10-11).** Saga-01 holds 70 reference documents (the 19-document
@@ -91,9 +92,13 @@ terminal and never stores it.
 
 **Migrations.** Applied: `20260826_pages`, `20260830b/c` (treatments), `20260924_storyboard`,
 `20261011b_storyboard_wall`, `20261011c_characters` (the writer pasted the last two
-2026-10-11). **Not confirmed:** `20261011_trash_types` (until it runs, deleting a storyboard
-note fails with a clear message), `20260824_graph_pairs`, `20260825_spine_support`
-(Chronology), `20260921_progressions`. Every screen degrades and says what to paste.
+2026-10-11). **Confirmed NOT run** (read-only REST probe, 2026-10-12):
+`20260825_spine_support` (no `chapters.story_time`, no `health_marks`) and
+`20260921_progressions` (no `document_progressions`). **Not confirmed:** `20261011_trash_types`
+(until it runs, deleting a storyboard note fails with a clear message) and
+`20260824_graph_pairs` (a function body; a probe cannot see it). Every screen degrades and says
+what to paste. The probe: `GET <url>/rest/v1/<table>?select=<column>&limit=0` with the anon key
+from `supabase-config.js` — 42703 / PGRST205 mean missing; it reads and writes nothing.
 
 **Next steps** (in the order they matter):
 1. **Finish the characters.** A loader run (`characters` mode) was left waiting at its email
@@ -102,17 +107,18 @@ note fails with a clear message), `20260824_graph_pairs`, `20260825_spine_suppor
    Coen, Kavi, Eva) linked to their "04 · Character —" bibles. Colours are placeholders; the
    writer will set them.
 2. **Exercise studio.html against the live project** — it was verified only against a
-   fake-client harness (`canon-import/studio-harness.html`). Open it from the web app's menu
-   while signed in; check drag-save, picture upload, Import a patch, and that edits show on the
-   phone.
-3. **Confirm `20261011_trash_types.sql` ran** (delete a test storyboard note).
-4. **Web parity still missing:** the Writer, Chronology, prose reports, progressions, and
-   "Make this a chapter" from a sketch.
-5. **Character pictures are not in backups** (they live in Storage, not a table). Add them to
-   the snapshot/mirror.
-6. **True blur** behind popups on the phone needs `expo-blur` → version 1.3.0 + a rebuild;
+   fake-client harness (`canon-import/studio-harness.html?tab=write`, now a real in-memory
+   query builder with `phoneEdit(id, text)` to fake a phone save). Open it from the web app's
+   menu while signed in; check Write (type, then edit the same chapter on the phone: the
+   studio must ask which to keep), drag-save, picture upload, Import a patch.
+3. **Check the web app's chapter saves now land** (handoff §48.1): they had failed since
+   2026-08-25 on a missing column. Edit a chapter in index.html, reload, see it stay.
+4. **Confirm `20261011_trash_types.sql` ran** (delete a test storyboard note). Paste
+   `20260825_spine_support.sql` and `20260921_progressions.sql` when Chronology/progressions
+   are wanted — then build their web halves (the last two parity gaps).
+5. **True blur** behind popups on the phone needs `expo-blur` → version 1.3.0 + a rebuild;
    today it is a fogged-glass wash (`FoggedSheet`). Bundle with any other native change.
-7. Longer standing (handoff §7, §15, §25): hosting the PWA, the dormant assistants (no API
+6. Longer standing (handoff §7, §15, §25): hosting the PWA, the dormant assistants (no API
    key), trimming bundled font weights, OAuth sign-in, ingesting someone else's manuscript.
 
 **Rules the writer has set, beyond the design principles below:** always commit AND push;
@@ -122,6 +128,12 @@ Archive.
 
 ## Current state
 
+> **2026-10-12, later: the studio gains Write** (a book as one manuscript, conditional saves that
+> ask before overwriting a phone edit, daily words), **prose reports** (identical numbers to the
+> phone's) and **sketch → chapter**. Backups carry **character pictures**; restore into a new
+> project mints fresh ids (it used to MOVE the original's rows). And the web app's chapter saves
+> had been failing since 2026-08-25 on a column the database lacks. Handoff §48.
+>
 > **2026-10-12: `studio.html`** (beside index.html) is the web app's Storyboard (wide evidence
 > wall), Scene Sketches, Characters and Documents (+ Import a patch), opened from the web app's
 > menu and using its sign-in. And the web app now saves **only rows it changed** -- it used to

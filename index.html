@@ -1959,6 +1959,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> The Braid</button>
         <button class="btn hdr-collapsible" id="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
         <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
+        <button class="btn hdr-collapsible" id="studio-write-btn"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Write</button>
         <button class="btn hdr-collapsible" id="studio-storyboard-btn"><svg class="nav-icon"><use href="#icon-map"></use></svg> Storyboard</button>
         <button class="btn hdr-collapsible" id="studio-sketches-btn"><svg class="nav-icon"><use href="#icon-pencil"></use></svg> Scene Sketches</button>
         <button class="btn hdr-collapsible" id="studio-characters-btn"><svg class="nav-icon"><use href="#icon-user"></use></svg> Characters</button>
@@ -5131,7 +5132,7 @@ function renderDocumentsList(){
 // Documents open in the studio now: rendered reading, editing, the Archive filter and
 // "Import a patch" (2026-10-11). The old modal stays in the page for the editor's own uses.
 document.getElementById('documents-btn').addEventListener('click', () => openStudio('documents'));
-['storyboard', 'sketches', 'characters'].forEach(tab => {
+['write', 'storyboard', 'sketches', 'characters'].forEach(tab => {
   document.getElementById('studio-' + tab + '-btn').addEventListener('click', () => openStudio(tab));
 });
 function openStudio(tab){
@@ -5147,6 +5148,16 @@ window.addEventListener('message', async (e) => {
     document.getElementById('studio-view').style.display = 'none';
     document.getElementById('studio-frame').src = 'about:blank';
   }
+  // A chapter heading in the studio's Writer opens this page's per-chapter Editor, which holds
+  // the flags, pairing and version history -- after taking the server's copy of the chapters,
+  // which the studio has just saved.
+  if(e.data.type === 'studio-open-chapter' && currentProjectId){
+    await refetchChaptersFromStudio();
+    if(!chapters.some(c => c.id === e.data.id)) return;
+    document.getElementById('studio-view').style.display = 'none';
+    document.getElementById('studio-frame').src = 'about:blank';
+    openEditor(e.data.id);
+  }
   // The studio changed documents: take the server's copy, so this page never holds (or
   // later saves) a stale one.
   if(e.data.type === 'studio-changed' && e.data.what === 'documents' && currentProjectId){
@@ -5156,25 +5167,31 @@ window.addEventListener('message', async (e) => {
       rememberRows('documents', buildDocumentRows(''));
     }
   }
-  // Likewise chapters (the studio's Writer, Chronology, and sketch -> chapter). Each changed
-  // chapter is replaced by the server's copy and re-primed, so this page cannot later save its
-  // own stale text over what was written there; chapters this page has unsaved edits to are
-  // saved first, so nothing typed here is dropped by the refetch.
   if(e.data.type === 'studio-changed' && e.data.what === 'chapters' && currentProjectId){
-    await saveData();
-    const { data } = await window.sbClient.from('chapters').select('*').eq('project_id', currentProjectId);
-    if(data){
-      chapters = data.map(row => ({
-        id: row.id, projectId: row.project_id, book: row.book, act: row.act, order: row.order,
-        title: row.title, status: row.status, content: row.content, notes: row.notes,
-        storyTime: row.story_time === null || row.story_time === undefined ? null : Number(row.story_time),
-        annotations: row.annotations || [], versions: row.versions || []
-      }));
-      rememberRows('chapters', buildChapterRows(''));
-      render();
-    }
+    await refetchChaptersFromStudio();
   }
 });
+/* Likewise chapters (the studio's Writer and sketch -> chapter). The server's copy replaces this
+   page's and is re-primed, so this page cannot later save its own stale text over what was
+   written there. Anything this page changed and has not saved is saved first, so nothing typed
+   here is dropped by the refetch. Serialised: the Writer says "changed" after every save. */
+let chapterRefetch = Promise.resolve();
+function refetchChaptersFromStudio(){
+  chapterRefetch = chapterRefetch.then(async () => {
+    await saveData();
+    const { data } = await window.sbClient.from('chapters').select('*').eq('project_id', currentProjectId);
+    if(!data) return;
+    chapters = data.map(row => ({
+      id: row.id, projectId: row.project_id, book: row.book, act: row.act, order: row.order,
+      title: row.title, status: row.status, content: row.content, notes: row.notes,
+      storyTime: row.story_time === null || row.story_time === undefined ? null : Number(row.story_time),
+      annotations: row.annotations || [], versions: row.versions || []
+    }));
+    rememberRows('chapters', buildChapterRows(''));
+    render();
+  }).catch(err => console.error('chapter refetch failed:', err));
+  return chapterRefetch;
+}
 document.getElementById('documents-modal-close').addEventListener('click', () => {
   document.getElementById('documents-modal').classList.remove('show');
 });

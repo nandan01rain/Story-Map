@@ -12,7 +12,8 @@
   (window.parent.sbClient) -- same origin, so no second sign-in. Opened on its own it makes a
   client of its own from supabase-config.js and uses whatever session the browser already holds.
 
-  Tabs: Storyboard (a wide evidence wall), Scene Sketches, Characters, Documents (with
+  Tabs: Write (one book as a continuous manuscript, with prose reports), Storyboard (a wide
+  evidence wall), Scene Sketches (which can become chapters), Characters, Documents (with
   "Import a patch"). Same tables and rules as the phone (handoff §37-§45); nothing here stores
   anything the phone does not also read.
 -->
@@ -173,6 +174,35 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
 .infobox td.v textarea{width:100%;border:none;background:none;min-height:34px;font-size:14px;padding:7px 9px;resize:vertical}
 .infobox .foot{padding:8px 10px;border-top:1px solid var(--border-dim);font-size:13px}
 
+/* ---------- write ---------- */
+.manuscript{max-width:760px}
+.wr-act{font-family:var(--heading);color:var(--gold);letter-spacing:.22em;text-align:center;font-size:13px;margin:34px 0 14px}
+.wr-act:first-child{margin-top:4px}
+.wr-ch{margin:0 0 40px;scroll-margin-top:12px}
+.wr-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border-dim);padding-bottom:6px;margin-bottom:12px}
+.wr-head h2{font-family:var(--heading);font-size:21px;margin:0;flex:1;min-width:200px;font-weight:600}
+.wr-n{font-family:var(--heading);font-size:11px;letter-spacing:.16em;color:var(--faint)}
+.wr-meta{font-size:13px;color:var(--faint)}
+textarea.wr-ta{field-sizing:content;width:100%;border:none;background:none;resize:none;overflow:hidden;font-family:var(--serif);font-size:18.5px;line-height:1.75;color:var(--text);padding:0;border-radius:0;outline:none;min-height:3.5em}
+.wr-conflict{border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:12px;background:color-mix(in srgb,var(--danger) 12%,transparent);font-size:15px;line-height:1.5}
+.wr-today{font-size:14px;color:var(--dim);line-height:1.6}
+.wr-today b{color:var(--text);font-size:17px}
+.wr-today a{font-size:13px}
+.meter{height:5px;border-radius:3px;background:var(--border-dim);overflow:hidden;margin:3px 0 2px}
+.meter i{display:block;height:100%;background:var(--gold)}
+/* the prose report */
+.report .rp-stats{display:flex;gap:10px;margin:12px 0}
+.report .rp-stats div{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;color:var(--dim);font-size:13px}
+.report .rp-stats b{display:block;color:var(--text);font-size:22px;font-family:var(--serif)}
+.rp-card{border-top:1px solid var(--border-dim);padding:4px 0 10px}
+.rp-hint{color:var(--dim);font-size:14px;margin:0 0 8px;line-height:1.5}
+.rp-list{display:grid;grid-template-columns:1fr auto;gap:3px 16px;font-size:15px}
+.rp-list b{font-weight:600;text-align:right} .rp-list i{color:var(--faint);font-weight:400;font-style:normal;font-size:12px}
+.rp-bar{display:grid;grid-template-columns:52px 1fr 40px;gap:10px;align-items:center;font-size:13px;color:var(--dim);margin:3px 0}
+.rp-bar div{height:9px;background:var(--border-dim);border-radius:4px;overflow:hidden}
+.rp-bar i{display:block;height:100%;background:var(--gold)}
+.rp-bar b{text-align:right;color:var(--text);font-weight:600}
+
 @media (max-width:860px){
   .split{grid-template-columns:1fr} .side{max-height:42vh;border-right:none;border-bottom:1px solid var(--border-dim)}
   .wiki{grid-template-columns:1fr} .infobox{position:static}
@@ -186,6 +216,7 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
 <body>
 <div id="bar">
   <span class="brand">STORYMAP STUDIO</span>
+  <button class="tab" data-tab="write">Write</button>
   <button class="tab" data-tab="storyboard">Storyboard</button>
   <button class="tab" data-tab="sketches">Scene Sketches</button>
   <button class="tab" data-tab="characters">Characters</button>
@@ -235,7 +266,11 @@ function syncTheme(){
 syncTheme();
 if (inFrame) try { new MutationObserver(syncTheme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
 
-document.getElementById('close').onclick = () => {
+document.getElementById('close').onclick = async () => {
+  // The Writer's unsaved chapters go first; a chapter that cannot be saved (changed on the phone
+  // meanwhile) keeps the studio open rather than losing what was typed.
+  if (typeof flushWrite === 'function' && !(await flushWrite()) && !confirm('A chapter could not be saved — it was changed somewhere else. Close anyway and lose what is unsaved here?')) return;
+  if (typeof notifyChapters === 'function') notifyChapters(true);
   if (inFrame) window.parent.postMessage({ type: 'studio-close' }, location.origin); else history.back();
 };
 const tellParent = (what) => { if (inFrame) window.parent.postMessage({ type: 'studio-changed', what }, location.origin); };
@@ -724,6 +759,7 @@ function drawSketch(){
       <button class="btn gold" id="sk-mode">${SK.editing ? 'Read' : '✎ Edit'}</button>
       <button class="btn" id="sk-rename">Rename</button>
       ${wall.ok ? (pinned ? `<button class="btn" id="sk-wall">On the storyboard, ${bookName(pinned.book)} — open</button>` : '<button class="btn" id="sk-pin">Pin to the storyboard</button>') : ''}
+      ${t.became_type === 'chapter' && t.became_id ? '<button class="btn" id="sk-became">Became a chapter — open it</button>' : '<button class="btn" id="sk-chapter">Make this a chapter</button>'}
       <span class="status" id="sk-status"></span>
     </div>
     <h1 class="hand" style="font-size:40px;color:var(--gold);margin:6px 0 10px;line-height:1.05">${esc(noPrefix(sketchTitle(t)))}</h1>
@@ -736,6 +772,8 @@ function drawSketch(){
   };
   const wallBtn = $('#sk-wall'); if (wallBtn) wallBtn.onclick = () => { SB.book = pinned.book; go('storyboard'); };
   const pinBtn = $('#sk-pin'); if (pinBtn) pinBtn.onclick = () => pinSketch(t);
+  const becameBtn = $('#sk-became'); if (becameBtn) becameBtn.onclick = () => go('write', { chapter: t.became_id });
+  const chapterBtn = $('#sk-chapter'); if (chapterBtn) chapterBtn.onclick = () => makeChapter(t);
   const ta = $('#sk-ta');
   if (ta && v) ta.oninput = () => {
     $('#sk-status').textContent = 'Editing…';
@@ -992,14 +1030,390 @@ function importPatch(){
   };
 }
 
+/* ====================================================================== WRITE */
+// The phone's continuous Writer (handoff §33), for the web: one book as one scrolling
+// manuscript, every chapter editable under its own heading, the previous chapter still above
+// the next sentence. The per-chapter Editor in the web app keeps the flags, pairing and
+// history; a heading's "Flags & history" opens it.
+//
+// Saving is per chapter, on the phone's rule: debounced, and the text the chapter had when it
+// was opened here is kept in `versions` (capped at 10) the first time it is overwritten -- one
+// version per visit, not per keystroke. Each save is CONDITIONAL on the chapter's updated_at
+// being what it was when this page read it. The phone writes the same rows, and an
+// unconditional save would silently put this page's copy over a paragraph typed there; instead
+// the chapter says it was changed elsewhere and asks which to keep, and the one not kept goes
+// into its version history. Nothing is lost either way.
+//
+// Words today: the project's finished prose now (chapters only, never pages) minus what it was
+// the first time this browser opened the Writer today -- the phone's rule, kept per device as
+// the phone keeps it.
+const WR = { book: null, chapters: [], drafts: new Map(), actLabels: {}, notify: null, savedAny: false };
+const WRITE_DEBOUNCE = 1200, MAX_VERSIONS = 10;
+const countWords = (t) => (t || '').trim().split(/\s+/).filter(Boolean).length;
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const local = {
+  get(k, fallback){ try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* a lost preference costs nothing */ } },
+};
+const byBookOrder = (a, b) => a.book - b.book || a.act - b.act || a.order - b.order;
+
+async function loadChapters(){
+  const [{ data, error }, st] = await Promise.all([
+    sb.from('chapters').select('id, book, act, order, title, status, content, versions, updated_at').eq('project_id', projectId),
+    sb.from('project_settings').select('act_labels').eq('project_id', projectId).maybeSingle(),
+  ]);
+  if (error) throw error;
+  WR.chapters = (data || []).sort(byBookOrder);
+  WR.actLabels = (st.data && st.data.act_labels) || {};
+  S.chapters = WR.chapters.map(({ id, book, act, order, title }) => ({ id, book, act, order, title }));
+  // A draft with unsaved text keeps it; a clean one adopts the server's copy.
+  for (const ch of WR.chapters) {
+    const d = WR.drafts.get(ch.id);
+    if (d && (d.content !== d.saved || d.conflict)) continue;
+    WR.drafts.set(ch.id, { content: ch.content || '', saved: ch.content || '', updatedAt: ch.updated_at, snapshotted: false, timer: null, inflight: null, conflict: null });
+  }
+}
+const dirty = () => [...WR.drafts.entries()].filter(([, d]) => d.content !== d.saved);
+
+// The web app refetches its chapters when told, and that is not free: once per pause, not per save.
+function notifyChapters(now = false){
+  clearTimeout(WR.notify);
+  if (now) { if (WR.savedAny) tellParent('chapters'); WR.savedAny = false; return; }
+  WR.notify = setTimeout(() => notifyChapters(true), 2500);
+}
+
+async function renderWrite(opts = {}){
+  await loadChapters();
+  if (!WR.chapters.length) {
+    view.innerHTML = '<div class="note-msg">No chapters yet. Add them from the web app\'s list, or make one from a scene sketch.</div>';
+    return;
+  }
+  const books = [...new Set(WR.chapters.map((c) => c.book))].sort((a, b) => a - b);
+  const target = opts.chapter && WR.chapters.find((c) => c.id === opts.chapter);
+  if (target) WR.book = target.book;
+  if (WR.book == null) WR.book = local.get(`studio-write-book:${projectId}`, books[0]);
+  if (!books.includes(WR.book)) WR.book = books[0];
+  const base = local.get(`studio-daily-baseline:${projectId}`, null);
+  if (!base || base.date !== todayKey()) local.set(`studio-daily-baseline:${projectId}`, { date: todayKey(), words: projectWords() });
+
+  view.innerHTML = `<div class="split wr"><div class="side"><div class="top">
+      <div class="groups" id="wr-books">${books.map((b) => `<button class="chip ${b === WR.book ? 'on' : ''}" data-b="${b}">${bookName(b)}</button>`).join('')}</div>
+      <div id="wr-today"></div>
+      <button class="btn" id="wr-report">Prose report — this book</button>
+    </div><div class="list" id="wr-toc"></div></div><div class="pane" id="wr-pane"></div></div>`;
+  $('#wr-books').onclick = async (e) => {
+    const b = e.target.closest('[data-b]'); if (!b || Number(b.dataset.b) === WR.book) return;
+    await flushWrite();
+    WR.book = Number(b.dataset.b); local.set(`studio-write-book:${projectId}`, WR.book);
+    document.querySelectorAll('#wr-books .chip').forEach((c) => c.classList.toggle('on', c === b));
+    drawWrite();
+  };
+  $('#wr-report').onclick = () => showReport(bookName(WR.book), bookChapters().map((c) => WR.drafts.get(c.id).content).join('\n\n'));
+  drawWrite(target ? target.id : null);
+}
+
+const bookChapters = () => WR.chapters.filter((c) => c.book === WR.book);
+function projectWords(){ return WR.chapters.reduce((n, c) => n + countWords(WR.drafts.get(c.id)?.content ?? c.content), 0); }
+
+function drawToday(){
+  const el = $('#wr-today'); if (!el) return;
+  const base = local.get(`studio-daily-baseline:${projectId}`, { words: projectWords() });
+  const today = Math.max(0, projectWords() - base.words);
+  const target = Number(local.get(`studio-daily-target:${projectId}`, 0)) || 0;
+  const pct = target ? Math.min(100, Math.round((today / target) * 100)) : 0;
+  el.innerHTML = `<div class="wr-today" title="Finished prose added since this browser first opened the Writer today. Counted per device, like the phone's.">
+      <div><b>${today.toLocaleString()}</b> ${target ? `of ${target.toLocaleString()} ` : ''}words today ${target && today >= target ? '✓' : ''}</div>
+      ${target ? `<div class="meter"><i style="width:${pct}%"></i></div>` : ''}
+      <a href="#" id="wr-target">${target ? 'Change the daily target' : 'Set a daily target'}</a>
+    </div>`;
+  $('#wr-target').onclick = (e) => {
+    e.preventDefault();
+    const v = prompt('Words a day (0 for none):', String(target || 1000)); if (v == null) return;
+    local.set(`studio-daily-target:${projectId}`, Math.max(0, Math.round(Number(v) || 0))); drawToday();
+  };
+}
+
+function drawWrite(focusId = null){
+  const list = bookChapters();
+  const number = (id) => list.indexOf(list.find((c) => c.id === id)) + 1;
+  $('#wr-toc').innerHTML = list.map((c) => `<button class="item" data-id="${c.id}"><div style="font-size:15px">${number(c.id)}. ${esc(c.title || 'Untitled')}</div><div class="status" data-toc-wc="${c.id}">${countWords(WR.drafts.get(c.id).content).toLocaleString()} words</div></button>`).join('');
+  $('#wr-toc').onclick = (e) => { const b = e.target.closest('[data-id]'); if (b) document.getElementById('ch-' + b.dataset.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  let act = null;
+  $('#wr-pane').innerHTML = `<div class="reader manuscript">${list.map((c) => {
+    const head = c.act !== act ? `<div class="wr-act">${esc(WR.actLabels[`${c.book}-${c.act}`] || 'Act ' + c.act)}</div>` : '';
+    act = c.act;
+    return `${head}<section class="wr-ch" id="ch-${c.id}" data-id="${c.id}">
+      <div class="wr-head"><span class="wr-n">CHAPTER ${number(c.id)}</span><h2>${esc(c.title || 'Untitled')}</h2>
+        <span class="wr-meta"><span data-wc>${countWords(WR.drafts.get(c.id).content).toLocaleString()} words</span> · <a href="#" data-a="report">Report</a>${inFrame ? ' · <a href="#" data-a="editor">Flags &amp; history</a>' : ''} <span class="status" data-st></span></span></div>
+      <div class="wr-conflict" hidden></div>
+      <textarea class="wr-ta" spellcheck="true" placeholder="Begin…">${esc(WR.drafts.get(c.id).content)}</textarea>
+    </section>`;
+  }).join('')}</div>`;
+  const pane = $('#wr-pane');
+  pane.querySelectorAll('.wr-ch').forEach((sec) => {
+    const id = sec.dataset.id; const ta = sec.querySelector('textarea');
+    ta.oninput = () => {
+      const d = WR.drafts.get(id); d.content = ta.value; fit(ta);
+      const n = countWords(ta.value).toLocaleString() + ' words';
+      sec.querySelector('[data-wc]').textContent = n;
+      const toc = document.querySelector(`[data-toc-wc="${id}"]`); if (toc) toc.textContent = n;
+      scheduleSave(id); drawToday();
+    };
+    sec.querySelector('[data-a="report"]').onclick = (e) => { e.preventDefault(); showReport(WR.chapters.find((c) => c.id === id).title, WR.drafts.get(id).content); };
+    const ed = sec.querySelector('[data-a="editor"]');
+    if (ed) ed.onclick = async (e) => {
+      e.preventDefault();
+      if (!(await flushWrite())) return alert('This chapter is not saved yet — settle it here first.');
+      notifyChapters(true);
+      window.parent.postMessage({ type: 'studio-open-chapter', id }, location.origin);
+    };
+    if (WR.drafts.get(id).conflict) drawConflict(id);
+  });
+  // Heights follow the text's wrapped length, so they are refit whenever the column's width is
+  // known or changes -- once at first layout is not enough: in a frame still being sized, or
+  // before the serif font arrives, the measurement is of a different column.
+  const refit = () => pane.querySelectorAll('.wr-ta').forEach(fit);
+  let lastWidth = 0;
+  WR.observer?.disconnect();
+  WR.observer = new ResizeObserver(() => { const w = pane.clientWidth; if (w && w !== lastWidth) { lastWidth = w; refit(); } });
+  WR.observer.observe(pane);
+  document.fonts?.ready.then(refit);
+  requestAnimationFrame(() => {
+    refit();
+    const key = `studio-write-scroll:${projectId}:${WR.book}`;
+    if (focusId) document.getElementById('ch-' + focusId)?.scrollIntoView({ block: 'start' });
+    else pane.scrollTop = local.get(key, 0);
+    let t = null;
+    pane.onscroll = () => { clearTimeout(t); t = setTimeout(() => local.set(key, pane.scrollTop), 400); };
+  });
+  drawToday();
+}
+// Where the browser can size a textarea to its content itself (field-sizing, Chromium 123+),
+// it does; elsewhere it is measured.
+const NATIVE_FIT = !!(window.CSS && CSS.supports('field-sizing', 'content'));
+function fit(ta){ if (NATIVE_FIT) return; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; }
+
+const sectionOf = (id) => document.getElementById('ch-' + id);
+function setStatus(id, text){ const s = sectionOf(id)?.querySelector('[data-st]'); if (s) s.textContent = text; }
+
+function scheduleSave(id){
+  const d = WR.drafts.get(id);
+  setStatus(id, 'Editing…');
+  clearTimeout(d.timer);
+  d.timer = setTimeout(() => { d.timer = null; saveChapter(id); }, WRITE_DEBOUNCE);
+}
+
+// One save at a time per chapter: a second would carry an updated_at the first is about to change.
+function saveChapter(id){
+  const d = WR.drafts.get(id);
+  clearTimeout(d.timer); d.timer = null;
+  const run = async () => {
+    if (d.content === d.saved) return true;
+    if (d.conflict) return false;
+    const ch = WR.chapters.find((c) => c.id === id);
+    const prior = d.saved;
+    const versions = !d.snapshotted && prior.trim()
+      ? [{ content: prior, savedAt: Date.now(), words: countWords(prior) }, ...(ch.versions || [])].slice(0, MAX_VERSIONS)
+      : (ch.versions || []);
+    const content = d.content;
+    setStatus(id, 'Saving…');
+    let q = sb.from('chapters').update({ content, versions, updated_at: new Date().toISOString() }).eq('id', id);
+    q = d.updatedAt ? q.eq('updated_at', d.updatedAt) : q.is('updated_at', null);
+    const { data, error } = await q.select('updated_at');
+    if (error) { setStatus(id, 'Not saved: ' + error.message); return false; }
+    if (!data || !data.length) { await openConflict(id); return false; }
+    d.saved = content; d.updatedAt = data[0].updated_at; d.snapshotted = true;
+    ch.content = content; ch.versions = versions; ch.updated_at = d.updatedAt;
+    WR.savedAny = true; notifyChapters();
+    setStatus(id, d.content === content ? 'Saved' : 'Editing…');
+    return true;
+  };
+  d.inflight = (d.inflight || Promise.resolve()).then(run, run);
+  return d.inflight;
+}
+
+/** Save every chapter with unsaved text. False if any could not be saved. */
+async function flushWrite(){
+  const results = await Promise.all(dirty().map(([id]) => saveChapter(id)));
+  return results.every(Boolean);
+}
+
+async function openConflict(id){
+  const { data } = await sb.from('chapters').select('content, versions, updated_at').eq('id', id).single();
+  WR.drafts.get(id).conflict = data || { content: '', versions: [], updated_at: null };
+  setStatus(id, 'Not saved');
+  drawConflict(id);
+}
+function drawConflict(id){
+  const box = sectionOf(id)?.querySelector('.wr-conflict'); if (!box) return;
+  const d = WR.drafts.get(id); const theirs = d.conflict;
+  box.hidden = false;
+  box.innerHTML = `<b>Changed somewhere else</b> (on the phone?) since it opened here — that copy has ${countWords(theirs.content).toLocaleString()} words, this one ${countWords(d.content).toLocaleString()}.
+    Whichever you do not keep goes into the chapter's version history.
+    <div class="row" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" data-k="mine">Keep what is here</button><button class="btn" data-k="theirs">Take the other copy</button></div>`;
+  box.querySelector('[data-k="mine"]').onclick = async () => {
+    // Their text becomes the version this save keeps; then save on top of their updated_at.
+    const ch = WR.chapters.find((c) => c.id === id);
+    ch.versions = theirs.versions || []; d.saved = theirs.content || ''; d.updatedAt = theirs.updated_at; d.snapshotted = false; d.conflict = null;
+    box.hidden = true;
+    if (!(await saveChapter(id))) return;
+  };
+  box.querySelector('[data-k="theirs"]').onclick = async () => {
+    const mine = d.content;
+    const versions = mine.trim() ? [{ content: mine, savedAt: Date.now(), words: countWords(mine) }, ...(theirs.versions || [])].slice(0, MAX_VERSIONS) : (theirs.versions || []);
+    let q = sb.from('chapters').update({ versions, updated_at: new Date().toISOString() }).eq('id', id);
+    q = theirs.updated_at ? q.eq('updated_at', theirs.updated_at) : q.is('updated_at', null);
+    const { data, error } = await q.select('updated_at');
+    if (error) return alert(error.message);
+    if (!data || !data.length) { await openConflict(id); return; } // changed yet again: ask again
+    const ch = WR.chapters.find((c) => c.id === id);
+    ch.content = theirs.content || ''; ch.versions = versions; ch.updated_at = data[0].updated_at;
+    Object.assign(d, { content: ch.content, saved: ch.content, updatedAt: ch.updated_at, snapshotted: true, conflict: null });
+    WR.savedAny = true; notifyChapters();
+    const ta = sectionOf(id).querySelector('textarea'); ta.value = ch.content; fit(ta);
+    box.hidden = true; setStatus(id, 'Took the other copy');
+    drawToday();
+  };
+}
+window.addEventListener('beforeunload', (e) => { if (dirty().length) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ====================================================================== PROSE REPORT */
+// lib/proseReport.ts, ported line for line so the two apps report the same numbers. No model,
+// no network. Heuristics over plain text, and worded as such.
+const STOPWORDS = new Set(('a an the and or but if then so of to in on at by for with from as is was were be been being ' +
+  'are am it its this that these those he she they them his her their we you i me my our your ' +
+  'him us who whom which what when where why how not no nor do does did done have has had ' +
+  'having will would shall should can could may might must there here than too very into onto ' +
+  'out up down over under again off about after before between through during without within ' +
+  'all any each few more most other some such only own same both either neither one two ' +
+  'said say says just like get got go went come came back made make take took see saw ' +
+  'know knew thought think felt feel look looked put let').split(/\s+/));
+const FILTER_WORDS = ['just','really','very','suddenly','somewhat','rather','quite','almost','seemed','seem','felt','feel','saw','see','heard','hear','noticed','notice','realized','realised','watched','watch','wondered','decided','knew','thought','began','started','somehow'];
+const DIALOGUE_TAGS = ['said','asked','replied','whispered','shouted','muttered','murmured','cried','called','answered','added','continued','snapped','hissed','growled','laughed','sighed','breathed','yelled','exclaimed','demanded','insisted','began','went on','told','repeated','agreed'];
+const NOT_ADVERB = new Set(['only','family','early','reply','supply','ally','belly','fly','holy','jolly','lily','silly','ugly','apply','rely','italy','july']);
+const BAND_LABEL = { short: '1–8', medium: '9–20', long: '21–35', 'very-long': '36+' };
+const bandOf = (n) => (n <= 8 ? 'short' : n <= 20 ? 'medium' : n <= 35 ? 'long' : 'very-long');
+const splitSentences = (text) => text.replace(/\r\n?/g, '\n').split(/(?<=[.!?]["”’']?)\s+|\n{2,}/).map((s) => s.trim()).filter((s) => /[A-Za-z]/.test(s));
+const wordsOf = (text) => (text.toLowerCase().match(/[a-z][a-z'’-]*/g) || []).map((w) => w.replace(/[’']s$/, ''));
+const tally = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+const top = (map, n) => [...map].sort((a, b) => b[1] - a[1]).slice(0, n);
+
+function analyseProse(text){
+  const paragraphsRaw = text.replace(/\r\n?/g, '\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const sentences = splitSentences(text);
+  const allWords = wordsOf(text);
+  const total = allWords.length;
+  const lengths = sentences.map((s) => wordsOf(s).length).filter((n) => n > 0);
+  const sorted = [...lengths].sort((a, b) => a - b);
+  const avg = lengths.length ? lengths.reduce((a, b) => a + b, 0) / lengths.length : 0;
+  const bands = { short: 0, medium: 0, long: 0, 'very-long': 0 };
+  let run = { band: 'medium', length: 0 }, cur = null;
+  for (const n of lengths) {
+    const b = bandOf(n); bands[b] += 1;
+    if (cur && cur.band === b) cur.length += 1; else cur = { band: b, length: 1 };
+    if (cur.length > run.length) run = { ...cur };
+  }
+  const openings = new Map();
+  for (const s of sentences) { const w = wordsOf(s); if (w.length >= 2) tally(openings, `${w[0]} ${w[1]}`); }
+  const freq = new Map();
+  for (const w of allWords) if (w.length >= 4 && !STOPWORDS.has(w)) tally(freq, w);
+  const per = (c) => (total ? (c / total) * 1000 : 0);
+  const adv = new Map(); let advCount = 0;
+  for (const w of allWords) if (w.endsWith('ly') && w.length > 4 && !NOT_ADVERB.has(w)) { advCount += 1; tally(adv, w); }
+  const fw = new Map();
+  for (const w of allWords) if (FILTER_WORDS.includes(w)) tally(fw, w);
+  const quoted = text.match(/["“][^"”]{1,600}["”]/g) || [];
+  const quotedWords = quoted.reduce((n, q) => n + wordsOf(q).length, 0);
+  const tags = new Map();
+  for (const m of text.match(/["”][,.]?\s+(?:[A-Z][a-z]+|he|she|they|I|we)\s+([a-z]+(?:\s+on)?)/g) || []) {
+    const verb = (m.split(/\s+/).slice(-1)[0] || '').toLowerCase();
+    if (DIALOGUE_TAGS.includes(verb)) tally(tags, verb);
+  }
+  const paraLens = paragraphsRaw.map((p) => wordsOf(p).length);
+  return {
+    words: total, sentences: lengths.length, paragraphs: paragraphsRaw.length,
+    avgSentence: Math.round(avg * 10) / 10, medianSentence: sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0,
+    bands, longestSameBandRun: run,
+    repeatedOpenings: [...openings].filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([opening, count]) => ({ opening, count })),
+    overusedWords: [...freq].filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([word, count]) => ({ word, count, perThousand: Math.round(per(count) * 10) / 10 })),
+    adverbs: { perThousand: Math.round(per(advCount) * 10) / 10, top: top(adv, 6).map(([word, count]) => ({ word, count })) },
+    filterWords: top(fw, 10).map(([word, count]) => ({ word, count })),
+    dialogue: { share: total ? Math.round((quotedWords / total) * 100) : 0, tags: top(tags, 8).map(([tag, count]) => ({ tag, count })) },
+    paragraphLength: { avg: paraLens.length ? Math.round(paraLens.reduce((a, b) => a + b, 0) / paraLens.length) : 0, longest: paraLens.length ? Math.max(...paraLens) : 0 },
+  };
+}
+
+function showReport(subject, text){
+  const r = (text || '').trim() ? analyseProse(text) : null;
+  const card = (title, hint, items, empty) => `<div class="rp-card"><h3>${esc(title).toUpperCase()}</h3><p class="rp-hint">${esc(hint)}</p>${items.length ? `<div class="rp-list">${items.map((x) => `<span>${esc(x.text)}</span><b>${x.count}${x.meta ? ` <i>${esc(x.meta)}</i>` : ''}</b>`).join('')}</div>` : `<p class="rp-hint">${esc(empty)}</p>`}</div>`;
+  const bandMax = r ? Math.max(1, ...Object.values(r.bands)) : 1;
+  const el = openOverlay(`<div class="sheet report" style="width:min(640px,100%)">
+    <div style="display:flex;align-items:center;gap:10px"><span class="hand" style="font-size:30px;color:var(--gold);flex:1;line-height:1.1;padding-right:4px">${esc(subject || 'Prose report')}</span><button class="x" data-a="close">&times;</button></div>
+    ${!r ? '<p class="hand-body" style="color:var(--dim)">Nothing written here yet.</p>' : `
+    <div class="rp-stats"><div><b>${r.words.toLocaleString()}</b>words</div><div><b>${r.sentences.toLocaleString()}</b>sentences</div><div><b>${r.paragraphs.toLocaleString()}</b>paragraphs</div></div>
+    <div class="rp-card"><h3>SENTENCE LENGTH</h3><p class="rp-hint">Average ${r.avgSentence} words, median ${r.medianSentence}. Longest run of one length: ${r.longestSameBandRun.length} ${r.longestSameBandRun.band.replace('-', ' ')} sentences in a row.</p>
+      ${Object.keys(r.bands).map((b) => `<div class="rp-bar"><span>${BAND_LABEL[b]}</span><div><i style="width:${Math.round((r.bands[b] / bandMax) * 100)}%"></i></div><b>${r.bands[b]}</b></div>`).join('')}</div>
+    ${card('Repeated openings', 'Sentences that begin with the same two words.', r.repeatedOpenings.map((o) => ({ text: `“${o.opening}…”`, count: o.count })), 'No sentence opening repeats.')}
+    ${card('Overused words', 'Content words, with how many per thousand.', r.overusedWords.map((w) => ({ text: w.word, count: w.count, meta: `${w.perThousand}‰` })), 'Nothing leans on one word.')}
+    ${card(`Adverbs · ${r.adverbs.perThousand} per thousand words`, '-ly words. Under 10 per thousand is spare; over 30 is a habit.', r.adverbs.top.map((w) => ({ text: w.word, count: w.count })), 'None.')}
+    ${card('Filter words', 'Words that put narration between the reader and the thing: felt, saw, suddenly, really…', r.filterWords.map((w) => ({ text: w.word, count: w.count })), 'None.')}
+    ${card(`Dialogue · ${r.dialogue.share}% of the words`, "Tags used after a closing quote. 'Said' disappearing is the goal; a spread of synonyms is not.", r.dialogue.tags.map((t) => ({ text: t.tag, count: t.count })), 'No tagged dialogue found.')}
+    <div class="rp-card"><h3>PARAGRAPHS</h3><p class="rp-hint">Average ${r.paragraphLength.avg} words; the longest is ${r.paragraphLength.longest}.</p></div>`}
+  </div>`);
+  el.querySelector('[data-a="close"]').onclick = closeOverlay;
+}
+
+/* ====================================================================== SKETCH -> CHAPTER */
+// The phone's rule: the chapter gets a COPY of the sketch's text and the sketch stays exactly
+// as it is, marked with what it became; its note on the storyboard follows it into the
+// manuscript. New chapters go at the end of the act chosen.
+function makeChapter(t){
+  const v = liveVersion(t.id);
+  const inUse = [...new Set(S.chapters.map((c) => c.book))];
+  const books = [...new Set([0, 1, 2, 3, 4, ...inUse, (inUse.length ? Math.max(...inUse) : -1) + 1])].sort((a, b) => a - b);
+  const actsOf = (b) => { const a = [...new Set(S.chapters.filter((c) => c.book === b).map((c) => c.act))].sort((x, y) => x - y); return a.length ? a : [1]; };
+  const el = openOverlay(`<div class="sheet"><h3>MAKE THIS A CHAPTER</h3>
+    <select data-k="book">${books.map((b) => `<option value="${b}">${bookName(b)}</option>`).join('')}</select>
+    <h3>ACT</h3><select data-k="act"></select>
+    <h3>CHAPTER TITLE</h3><input class="big" data-k="title" value="${esc(noPrefix(sketchTitle(t)).slice(0, 120))}">
+    <p class="hand-body" style="color:var(--dim);font-size:17px;margin:10px 0 0">The chapter gets a copy of the text. This sketch stays exactly as it is.</p>
+    <div class="row"><span style="flex:1"></span><button class="btn" data-a="cancel">Cancel</button><button class="btn solid" data-a="make">Make the chapter</button></div></div>`);
+  const bookSel = el.querySelector('[data-k="book"]'), actSel = el.querySelector('[data-k="act"]');
+  const fillActs = () => { const acts = actsOf(Number(bookSel.value)); actSel.innerHTML = acts.map((a) => `<option value="${a}">Act ${a}</option>`).join('') + `<option value="${acts[acts.length - 1] + 1}">A new act (${acts[acts.length - 1] + 1})</option>`; };
+  bookSel.onchange = fillActs; fillActs();
+  el.querySelector('[data-a="cancel"]').onclick = closeOverlay;
+  el.querySelector('[data-a="make"]').onclick = async (ev) => {
+    ev.target.disabled = true;
+    const book = Number(bookSel.value), act = Number(actSel.value);
+    const orders = S.chapters.filter((c) => c.book === book && c.act === act).map((c) => c.order);
+    const now = new Date().toISOString();
+    const row = { id: uuid(), user_id: userId, project_id: projectId, book, act, order: orders.length ? Math.max(...orders) + 1 : 0,
+      title: el.querySelector('[data-k="title"]').value.trim() || 'Untitled chapter', status: 'idea', content: v ? v.content : '', notes: '',
+      annotations: [], versions: [], updated_at: now };
+    const { error } = await sb.from('chapters').insert(row);
+    if (error) { ev.target.disabled = false; return alert(error.message); }
+    const mark = { became_type: 'chapter', became_id: row.id, became_at: now };
+    const { error: e2 } = await sb.from('treatments').update(mark).eq('id', t.id);
+    if (e2) alert('The chapter was made, but the sketch could not be marked: ' + e2.message);
+    else Object.assign(t, mark);
+    await sb.from('storyboard_events').update({ chapter_id: row.id }).eq('treatment_id', t.id);
+    S.events.forEach((e) => { if (e.treatment_id === t.id) e.chapter_id = row.id; });
+    S.chapters.push({ id: row.id, book, act, order: row.order, title: row.title });
+    tellParent('chapters');
+    closeOverlay(); go('write', { chapter: row.id });
+  };
+}
+
 /* ====================================================================== routing */
 async function go(next, opts = {}){
+  if (tab === 'write' && next !== 'write' && !(await flushWrite()) && !confirm('A chapter could not be saved — it was changed somewhere else. Leave the Writer anyway?')) return;
   tab = next;
   document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   history.replaceState(null, '', `?project=${projectId}&tab=${tab}`);
   view.innerHTML = '<div class="note-msg">Loading…</div>';
   try {
-    if (tab === 'storyboard') await renderStoryboard();
+    if (tab === 'write') await renderWrite(opts);
+    else if (tab === 'storyboard') await renderStoryboard();
     else if (tab === 'sketches') await renderSketches(opts);
     else if (tab === 'characters') await renderCharacters(opts);
     else await renderDocuments(opts);
