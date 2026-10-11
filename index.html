@@ -6917,13 +6917,18 @@ function renderTrashView(){
     body.innerHTML = '<div class="anno-empty" style="padding:60px 20px;text-align:center;font-size:14px;">Nothing in the trash.</div>';
     return;
   }
-  const typeMeta = {chapter:{icon:'📄',label:'Chapter'}, scene:{icon:'🎬',label:'Scene'}, document:{icon:'📚',label:'Document'}};
+  const typeMeta = {chapter:{icon:'📄',label:'Chapter'}, scene:{icon:'🎬',label:'Scene'}, document:{icon:'📚',label:'Document'},
+    storyboard_event:{icon:'🗺',label:'Storyboard event'}};
   body.innerHTML = trash.map(t => {
-    const m = typeMeta[t.type];
+    // The phone also trashes kinds this app cannot restore (storyboard events, from 2026-09-24).
+    // They are listed rather than allowed to break the view, and restored from the phone.
+    const known = ['chapter','scene','document'].includes(t.type);
+    const m = typeMeta[t.type] || {icon:'•', label: t.type || 'Item'};
     let title = '';
     if(t.type==='chapter') title = t.chapter.title;
     if(t.type==='scene') title = t.scene.title;
     if(t.type==='document') title = t.document.title || 'Untitled document';
+    if(!known) title = (t.event && t.event.title) || (t.node && t.node.label) || m.label;
     return `
     <div class="trash-row">
       <div class="tr-icon">${m.icon}</div>
@@ -6931,7 +6936,7 @@ function renderTrashView(){
         <div class="tr-title">${escapeHtml(title)}</div>
         <div class="tr-meta">${m.label} · deleted ${timeAgo(t.deletedAt)}</div>
       </div>
-      <button class="btn small" data-restore="${t.id}">Restore</button>
+      ${known ? `<button class="btn small" data-restore="${t.id}">Restore</button>` : '<span class="tr-meta" style="margin-right:8px;">Restore on the phone</span>'}
       <button class="btn small danger" data-forget="${t.id}">Delete forever</button>
     </div>`;
   }).join('');

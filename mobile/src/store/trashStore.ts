@@ -178,6 +178,14 @@ export const useTrashStore = create<TrashState>((set, get) => ({
       payload: { event, threadIds },
       deleted_at: new Date().toISOString(),
     });
+    // 23514: the trash table's type check predates the storyboard. The event is untouched --
+    // it is only deleted once this row exists -- so say what fixes it rather than the raw error.
+    if (error?.code === '23514') {
+      return {
+        error:
+          'The trash does not accept storyboard events yet. Paste supabase/migrations/20261011_trash_types.sql into the Supabase SQL editor once, then delete again. The event has not been touched.',
+      };
+    }
     if (error) return { error: error.message };
     // The row itself is deleted by the storyboard store, which also drops it from the board.
     get().fetchTrash(projectId);
