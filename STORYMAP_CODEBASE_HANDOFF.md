@@ -5211,3 +5211,21 @@ false): the wall still draws in book order, a drop says what to paste, nothing e
   Not prompted automatically on leaving a sketch: an unasked prompt is the nagging the pages
   build ruled out (§23); the summary is asked for at the moment of pinning.
 - Backup/restore carry `storyboard_cast` (restored before events, which reference it).
+
+## 43. AN ARCHIVE IN DOCUMENTS, AND THE DRAFTED SCENES AS SKETCHES (2026-10-11)
+
+**Archive** is a sixth document type in both apps (`DOCUMENT_TYPES`, and an `<option>` in both of
+the PWA's type selects, so neither app blanks it). Mobile's library leaves archived documents out
+of "All" and shows them only behind the Archive filter; nothing is deleted or hidden elsewhere.
+Saga-01's 29 "Older drafts · …" documents go there.
+
+**The drafted set is not partitioned by scene.** `05_DRAFTED_01–19` are organised by canon topic;
+their 1,334 entries are verbatim fragments (rulings, lore, character notes, craft rules) of which
+a minority are scenes. A heuristic (chapter-headed, "scene" in the heading, or ≥4 lines of quoted
+dialogue) found 93; reading them left **37 scenes** — Book One's CH 0–15 beats (CH 0 twice: two
+versions) and the named staged scenes from the Spine files plus three from the character files.
+Each becomes one Scene Sketch: title = its heading, one live version = the entry text exactly as in
+the 05 file (after its `▸` line, up to the next entry or topic heading), chapter beats in chapter
+order then the rest in file order. Done by `canon-import/load_reference_docs.mjs organise`
+(git-ignored, with `scenes_approved.json`), which verifies every sketch's text by SHA-256
+against the source.

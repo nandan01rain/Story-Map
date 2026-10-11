@@ -33,6 +33,8 @@ export const DOCUMENT_TYPES = [
   'Scene Reference',
   'Progression / Timeline',
   'Other',
+  // Kept, out of the way: hidden from the library's main list, one filter away (2026-10-11).
+  'Archive',
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
@@ -43,6 +45,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'Scene Reference': 'Reference',
   'Progression / Timeline': 'Timeline',
   Other: 'Other',
+  Archive: 'Archive',
 };
 
 // What mobile wrote before the labels were unified, read as the label it meant.

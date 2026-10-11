@@ -42,9 +42,11 @@ export default function DocumentsScreen({ route, navigation }: Props) {
     return c;
   }, [documents]);
 
+  // The archive is kept but out of the way: never in "All", only behind its own filter.
+  const live = useMemo(() => documents.filter((d) => documentType(d.type) !== 'Archive'), [documents]);
   const shown = useMemo(
-    () => (filter ? documents.filter((d) => documentType(d.type) === filter) : documents),
-    [documents, filter],
+    () => (filter ? documents.filter((d) => documentType(d.type) === filter) : live),
+    [documents, live, filter],
   );
 
   async function handleCreate() {
@@ -62,7 +64,7 @@ export default function DocumentsScreen({ route, navigation }: Props) {
       {documents.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
           <Pressable style={[styles.chip, filter === null && styles.chipOn]} onPress={() => setFilter(null)}>
-            <Text style={[styles.chipText, filter === null && styles.chipTextOn]}>{`All ${documents.length}`}</Text>
+            <Text style={[styles.chipText, filter === null && styles.chipTextOn]}>{`All ${live.length}`}</Text>
           </Pressable>
           {DOCUMENT_TYPES.filter((t) => counts.get(t)).map((t) => (
             <Pressable key={t} style={[styles.chip, filter === t && styles.chipOn]} onPress={() => setFilter(filter === t ? null : t)}>
