@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MarkdownBlock, type MarkdownLook } from '../components/MarkdownBlock';
+import { parseMarkdown } from '../lib/markdown';
 import { flush } from '../lib/outbox';
 import { bookIndices, bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
@@ -46,6 +48,14 @@ export default function TreatmentScreen({ route, navigation }: Props) {
   const [ready, setReady] = useState(false);
   // Which version the field is editing. Switching versions in the sheet re-seeds the field.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // A sketch with words in it opens to be READ, rendered, in handwriting; the pencil turns it
+  // into the plain editable text. An empty one opens straight into writing (2026-10-11).
+  const [reading, setReading] = useState(true);
+  const look: MarkdownLook = useMemo(
+    () => ({ colors, fontFamily: FONTS.handBody, fontSize: 18.5, lineHeight: 28, align: 'left', hand: true }),
+    [colors],
+  );
+  const blocks = useMemo(() => (reading ? parseMarkdown(content) : []), [reading, content]);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef('');
@@ -72,6 +82,7 @@ export default function TreatmentScreen({ route, navigation }: Props) {
     setEditingId(target.id);
     setContent(target.content);
     latest.current = target.content;
+    if (!target.content.trim()) setReading(false);
     setReady(true);
   }, [treatmentId, editingId, liveVersion, versionsOf]);
 
@@ -114,11 +125,30 @@ export default function TreatmentScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} hitSlop={14}>
           <Text style={styles.chromeGlyph}>‹</Text>
         </Pressable>
-        <Pressable onPress={() => setSheetOpen(true)} hitSlop={14}>
-          <Text style={styles.chromeGlyph}>·</Text>
-        </Pressable>
+        <View style={styles.chromeRight}>
+          <Pressable
+            onPress={() => {
+              if (!reading) flushRef.current(latest.current);
+              setReading(!reading);
+            }}
+            hitSlop={14}
+          >
+            <Text style={styles.chromeToggle}>{reading ? '✎' : 'Read'}</Text>
+          </Pressable>
+          <Pressable onPress={() => setSheetOpen(true)} hitSlop={14}>
+            <Text style={styles.chromeGlyph}>·</Text>
+          </Pressable>
+        </View>
       </View>
 
+      {reading ? (
+        <ScrollView contentContainerStyle={[styles.readBody, { paddingBottom: insets.bottom + 60 }]}>
+          {treatment.title ? <Text style={styles.readTitle}>{treatment.title}</Text> : null}
+          {blocks.map((b, i) => (
+            <MarkdownBlock key={`${i}:${b.at}`} block={b} look={look} />
+          ))}
+        </ScrollView>
+      ) : (
       <TextInput
         style={[styles.paper, { paddingBottom: insets.bottom + 40 }]}
         value={content}
@@ -129,6 +159,7 @@ export default function TreatmentScreen({ route, navigation }: Props) {
         textAlignVertical="top"
         selectionColor={colors.gold}
       />
+      )}
 
       <TreatmentSheet
         visible={sheetOpen}
@@ -435,6 +466,10 @@ function makeStyles(colors: ThemeColors) {
     screen: { flex: 1, backgroundColor: colors.bg },
     centered: { alignItems: 'center', justifyContent: 'center' },
     chrome: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 2 },
+    chromeRight: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+    chromeToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 22, paddingHorizontal: 4 },
+    readBody: { paddingHorizontal: 24, paddingTop: 6 },
+    readTitle: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 30, lineHeight: 34, marginBottom: 6 },
     chromeGlyph: { color: withOpacity(colors.textFaint, 0.75), fontSize: 26, lineHeight: 28, paddingHorizontal: 6 },
     // Handwriting (2026-10-11): a sketch should look like one. Patrick Hand rather than Caveat
     // for the body, because this is read and written at length.

@@ -5229,3 +5229,23 @@ the 05 file (after its `▸` line, up to the next entry or topic heading), chapt
 order then the rest in file order. Done by `canon-import/load_reference_docs.mjs organise`
 (git-ignored, with `scenes_approved.json`), which verifies every sketch's text by SHA-256
 against the source.
+
+## 44. THREE HUNDRED SKETCHES BROKE THE LIST; SKETCHES NOW READ RENDERED (2026-10-11)
+
+After §43 loaded 300 scene sketches, the list showed one row of overprinted black scribble and
+nothing else. **Two faults, both latent at two sketches:** the list *was* the drag list
+(react-native-reanimated-dnd), which positions every row absolutely from a value each row reads
+once at mount (`initialTopVal`) -- rows that mounted before the seeded positions were visible all
+sat at top 0, three hundred titles on one line; and it had `scrollEnabled={false}`, so nothing past
+the first screen was reachable even when placed correctly.
+
+**Now:** browsing is a virtualised `FlatList` (fixed row height via `getItemLayout`), with group
+chips derived from the title prefix the drafted load wrote (`B1 · `, `Backstory · `…; no prefix =
+Unsorted). **Rearrange** (header) is a mode, within one group, capped at 120 rows; it mounts a fresh
+`ArrangeList` keyed by group, so its rows mount with positions already seeded from full data.
+**Lesson: never make a drag list the only way to see a list that can grow.**
+
+**A sketch opens to be read:** its markdown rendered by `MarkdownBlock` with `look.hand` (Patrick
+Hand body, Caveat headings, emphasis as the hand's own bold/slant -- one weight ships, so Android
+emboldens it), title above. ✎ switches to the plain editor; Read switches back and flushes the save
+first. An empty sketch opens straight into writing.

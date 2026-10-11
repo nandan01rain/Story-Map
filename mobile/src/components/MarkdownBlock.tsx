@@ -18,6 +18,11 @@ export type MarkdownLook = {
   fontSize: number;
   lineHeight: number;
   align: TextStyle['textAlign'];
+  /**
+   * Handwriting (scene sketches): headings in Caveat instead of Cinzel, and emphasis drawn
+   * in the same hand rather than switching to Spectral mid-line.
+   */
+  hand?: boolean;
 };
 
 const HEADING_SCALE = [1.55, 1.32, 1.14, 1.02, 0.95, 0.9];
@@ -27,6 +32,11 @@ const HEADING_SCALE = [1.55, 1.32, 1.14, 1.02, 0.95, 0.9];
 // semibold and an italic for Spectral, a medium for JetBrains Mono. Bold italic has no file of
 // its own and takes the italic face, which still reads as emphasis.
 function emphasisFace(family: string, bold?: boolean, italic?: boolean): TextStyle {
+  // The handwriting faces ship one weight each, so emphasis is Android's own emboldening and
+  // slant of that face -- which, for a hand, reads as pressing harder and leaning.
+  if (family.startsWith('PatrickHand') || family.startsWith('Caveat')) {
+    return { ...(bold ? { fontWeight: '700' as const } : {}), ...(italic ? { fontStyle: 'italic' as const } : {}) };
+  }
   const mono = family.startsWith('JetBrainsMono');
   if (italic) return mono ? { fontStyle: 'italic' } : { fontFamily: 'Spectral_400Regular_Italic' };
   if (bold) return { fontFamily: mono ? 'JetBrainsMono_500Medium' : 'Spectral_600SemiBold' };
@@ -71,13 +81,13 @@ function MarkdownBlockInner({ block, look }: { block: Block; look: MarkdownLook 
             selectable
             style={{
               color: block.level <= 2 ? colors.gold : colors.text,
-              fontFamily: block.level <= 2 ? FONTS.headingBold : FONTS.bodySemiBold,
+              fontFamily: look.hand ? FONTS.handBold : block.level <= 2 ? FONTS.headingBold : FONTS.bodySemiBold,
               fontSize: size,
               lineHeight: size * 1.3,
               letterSpacing: block.level <= 2 ? 0.4 : 0,
             }}
           >
-            <Spans inline={block.inline} look={look} base={{ fontSize: size, fontFamily: block.level <= 2 ? FONTS.headingBold : FONTS.bodySemiBold }} />
+            <Spans inline={block.inline} look={look} base={{ fontSize: size, fontFamily: look.hand ? FONTS.handBold : block.level <= 2 ? FONTS.headingBold : FONTS.bodySemiBold }} />
           </Text>
           {block.level === 1 && <View style={[styles.headingRule, { backgroundColor: withOpacity(colors.gold, 0.4) }]} />}
         </View>
