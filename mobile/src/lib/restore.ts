@@ -1,10 +1,12 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { Alert } from 'react-native';
 
+import { uuid } from './outbox';
 import { supabase } from './supabase';
-import { type Snapshot, withoutGenerated } from './backup';
+import { type Snapshot, pictureType, withoutGenerated } from './backup';
 import { useProjectStore } from '../store/projectStore';
+import { CHARACTER_BUCKET } from '../store/storyboardStore';
 
 // Reading a backup back in. The half that makes the other half a plan rather than a hope.
 //
@@ -18,9 +20,14 @@ import { useProjectStore } from '../store/projectStore';
 // INTO A NEW PROJECT BY DEFAULT. Restoring over a live project is the dangerous shape, so
 // the caller passes the destination explicitly: a new project row is minted and every
 // foreign key rewritten to it, OR an existing project id is named and the rows go there.
-// Chapter, page and document ids are PRESERVED in both cases -- they are uuids, they do not
-// collide, and keeping them means annotations, progressions and graph rows that reference
-// them still resolve.
+//
+// IDS ARE KEPT ONLY WHEN RESTORING A PROJECT INTO ITSELF; anywhere else every row gets a fresh
+// id (2026-10-12). This file used to keep them in every case, on the reasoning that uuids do
+// not collide -- but they do whenever the original project still exists, and an upsert on the
+// primary key then UPDATES the original's row and re-points it at the new project: restoring a
+// backup of a living project would have quietly emptied it into "(restored)". Fresh ids are
+// written through every reference by value (see `remap`), so annotations, scene parents,
+// progressions, graph rows, character colours and trash payloads still resolve.
 //
 // Order matters: parents before children, because the foreign keys are real.
 
@@ -55,6 +62,7 @@ export function describeSnapshot(s: Snapshot): string {
     `${s.pages?.length ?? 0} pages`,
     `${s.treatments?.length ?? 0} treatments`,
     `${s.storyboardEvents?.length ?? 0} storyboard events`,
+    `${s.characterImages?.length ?? 0} character pictures`,
   ];
   const warn = s.incomplete?.length ? ` Incomplete when saved: ${s.incomplete.join(', ')}.` : '';
   return `${name}, saved ${when}. ${bits.join(', ')}.${warn}`;
@@ -68,6 +76,115 @@ function retarget(row: Row, projectId: string, userId: string): Row {
   const next: Row = { ...withoutGenerated(row), project_id: projectId };
   if ('user_id' in next) next.user_id = userId;
   return next;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Every table a snapshot carries, parents before children (the foreign keys are real). */
+const TABLES: [table: string, key: keyof Snapshot][] = [
+  ['chapters', 'chapters'],
+  ['documents', 'documents'],
+  ['scenes', 'scenes'],
+  ['sticky_notes', 'pages'],
+  ['treatments', 'treatments'],
+  ['treatment_versions', 'treatmentVersions'],
+  ['character_fields', 'characterFields'],
+  ['storyboard_cast', 'storyboardCast'],
+  ['storyboard_events', 'storyboardEvents'],
+  // Threads and events before the links that join them.
+  ['storyboard_threads', 'storyboardThreads'],
+  ['storyboard_links', 'storyboardLinks'],
+  ['graph_nodes', 'graphNodes'],
+  ['graph_edges', 'graphEdges'],
+  ['document_progressions', 'documentProgressions'],
+  ['trash', 'trash'],
+];
+
+/** A fresh uuid for every row id in the snapshot, and the new project's for the old one's. */
+function freshIds(snapshot: Snapshot, projectId: string): Map<string, string> {
+  const ids = new Map<string, string>();
+  const old = (snapshot.project as { id?: string } | undefined)?.id;
+  if (old) ids.set(old, projectId);
+  for (const [, key] of TABLES) {
+    for (const row of (snapshot[key] as Row[] | undefined) ?? []) {
+      const id = row?.id;
+      if (typeof id === 'string' && UUID.test(id) && !ids.has(id)) ids.set(id, uuid());
+    }
+  }
+  return ids;
+}
+
+/**
+ * Swap every old id for its new one wherever it appears: a column, inside jsonb (annotations'
+ * chapter links, a character's field values keyed by field id, a trashed row's payload), or in
+ * an array (who is in a scene). Only a WHOLE string that is a known id is replaced, and they are
+ * uuids, so nothing else can match by accident.
+ */
+function remap(value: unknown, ids: Map<string, string>): unknown {
+  if (typeof value === 'string') return ids.get(value) ?? value;
+  if (Array.isArray(value)) return value.map((v) => remap(v, ids));
+  if (value && typeof value === 'object') {
+    const out: Row = {};
+    for (const [k, v] of Object.entries(value as Row)) out[ids.get(k) ?? k] = remap(v, ids);
+    return out;
+  }
+  return value;
+}
+
+async function pictureExists(path: string): Promise<boolean> {
+  const { error } = await supabase.storage.from(CHARACTER_BUCKET).createSignedUrl(path, 60);
+  return !error;
+}
+
+/**
+ * Put each character's picture back BEFORE the character rows are written, and point the row
+ * at it. The bytes come from the backup when it carries them (share-sheet files since snapshot
+ * version 4); otherwise the picture is copied inside Storage, which works while the original
+ * still exists. One that cannot be had either way is dropped from the row and named in the
+ * report rather than left pointing at nothing. Paths start with the writer's own id -- the
+ * bucket's policy is by first folder.
+ */
+async function restorePictures(
+  snapshot: Snapshot,
+  castRows: Row[],
+  ids: Map<string, string> | null,
+  userId: string,
+  report: RestoreReport,
+): Promise<void> {
+  const bytes = new Map((snapshot.characterImages ?? []).map((img) => [ids?.get(img.castId) ?? img.castId, img]));
+  for (const row of castRows) {
+    const oldPath = row.image_path;
+    if (typeof oldPath !== 'string' || !oldPath) continue;
+    if (!ids && oldPath.startsWith(`${userId}/`) && (await pictureExists(oldPath))) continue;
+
+    const { ext, contentType } = pictureType(oldPath);
+    const path = `${userId}/${row.id as string}-${Date.now()}.${ext}`;
+    const img = bytes.get(row.id as string);
+    let error: string | null = null;
+    if (img) {
+      try {
+        const tmp = new File(Paths.cache, `restore-picture.${ext}`);
+        if (tmp.exists) tmp.delete();
+        tmp.create();
+        tmp.write(img.base64, { encoding: 'base64' });
+        const body = await tmp.bytes();
+        tmp.delete();
+        const res = await supabase.storage.from(CHARACTER_BUCKET).upload(path, body, { contentType, upsert: true });
+        error = res.error?.message ?? null;
+      } catch (e) {
+        error = e instanceof Error ? e.message : 'Could not write the picture.';
+      }
+    } else {
+      error = (await supabase.storage.from(CHARACTER_BUCKET).copy(oldPath, path)).error?.message ?? null;
+    }
+    if (error) {
+      row.image_path = null;
+      report.skipped.push({ table: `picture of ${(row.name as string) || 'a character'}`, reason: error });
+    } else {
+      row.image_path = path;
+      report.counts['character pictures'] = (report.counts['character pictures'] ?? 0) + 1;
+    }
+  }
 }
 
 async function upsert(table: string, rows: Row[], report: RestoreReport): Promise<void> {
@@ -110,25 +227,14 @@ export async function restoreSnapshot(
   }
 
   const report: RestoreReport = { project: projectId, counts: {}, skipped: [] };
-  const at = (rows: unknown[] | undefined) => (rows ?? []).map((r) => retarget(r as Row, projectId as string, userId));
+  const sourceId = (snapshot.project as { id?: string } | undefined)?.id;
+  const ids = projectId === sourceId ? null : freshIds(snapshot, projectId);
+  const at = (rows: unknown[] | undefined) =>
+    (rows ?? []).map((r) => retarget((ids ? remap(r, ids) : r) as Row, projectId as string, userId));
 
-  // Parents first: chapters and documents are referenced by everything below them.
-  await upsert('chapters', at(snapshot.chapters), report);
-  await upsert('documents', at(snapshot.documents), report);
-  await upsert('scenes', at(snapshot.scenes), report);
-  await upsert('sticky_notes', at(snapshot.pages), report);
-  await upsert('treatments', at(snapshot.treatments), report);
-  await upsert('treatment_versions', at(snapshot.treatmentVersions), report);
-  // Threads and events before the links that join them.
-  await upsert('character_fields', at(snapshot.characterFields), report);
-  await upsert('storyboard_cast', at(snapshot.storyboardCast), report);
-  await upsert('storyboard_events', at(snapshot.storyboardEvents), report);
-  await upsert('storyboard_threads', at(snapshot.storyboardThreads), report);
-  await upsert('storyboard_links', at(snapshot.storyboardLinks), report);
-  await upsert('graph_nodes', at(snapshot.graphNodes), report);
-  await upsert('graph_edges', at(snapshot.graphEdges), report);
-  await upsert('document_progressions', at(snapshot.documentProgressions), report);
-  await upsert('trash', at(snapshot.trash), report);
+  const rows = new Map(TABLES.map(([table, key]) => [table, at(snapshot[key] as unknown[] | undefined)]));
+  await restorePictures(snapshot, rows.get('storyboard_cast') ?? [], ids, userId, report);
+  for (const [table] of TABLES) await upsert(table, rows.get(table) ?? [], report);
 
   return { report, error: null };
 }

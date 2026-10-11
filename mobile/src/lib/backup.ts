@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { StorageAccessFramework as SAF, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
@@ -11,7 +11,7 @@ import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { usePageStore } from '../store/pageStore';
 import { useDocumentStore } from '../store/documentStore';
 import { useProjectStore } from '../store/projectStore';
-import { useStoryboardStore } from '../store/storyboardStore';
+import { CHARACTER_BUCKET, useStoryboardStore } from '../store/storyboardStore';
 import { useTreatmentStore } from '../store/treatmentStore';
 
 // A second copy of the whole project, somewhere Supabase is not.
@@ -48,9 +48,10 @@ import { useTreatmentStore } from '../store/treatmentStore';
 const FOLDER_KEY = 'backup-folder-uri';
 const LAST_KEY = 'backup-last:';
 const DOCS_MIRRORED_KEY = 'backup-docs-mirrored:';
+const PICTURES_MIRRORED_KEY = 'backup-pictures-mirrored:';
 const DEBOUNCE_MS = 20_000;
 /** Bumped when the snapshot's shape changes, so a restore can tell what it is reading. */
-export const SNAPSHOT_VERSION = 3;
+export const SNAPSHOT_VERSION = 4;
 
 export type Snapshot = {
   snapshotVersion: number;
@@ -70,12 +71,21 @@ export type Snapshot = {
   /** Since 2026-10-11 (20261011b). */
   storyboardCast?: unknown[];
   characterFields?: unknown[];
+  /**
+   * Since version 4, and only in the share-sheet file: each character's picture, whole. They
+   * live in Storage rather than a table, so a snapshot of the tables alone kept the path and
+   * lost the picture. The mirror folder carries them as real image files beside project.json
+   * instead, because project.json is rewritten after every pause in writing.
+   */
+  characterImages?: CharacterImage[];
   graphNodes: unknown[];
   graphEdges: unknown[];
   trash: unknown[];
   /** Tables the network or a missing migration prevented reading, so a restore knows. */
   incomplete: string[];
 };
+
+export type CharacterImage = { castId: string; path: string; contentType: string; base64: string };
 
 type BackupState = {
   folderUri: string | null;
@@ -106,10 +116,10 @@ async function ensureDir(parentUri: string, name: string): Promise<string> {
   return (await childByName(parentUri, name)) ?? (await SAF.makeDirectoryAsync(parentUri, name));
 }
 
-async function writeFile(parentUri: string, name: string, mime: string, contents: string): Promise<void> {
+async function writeFile(parentUri: string, name: string, mime: string, contents: string, base64 = false): Promise<void> {
   const existing = await childByName(parentUri, name);
   const uri = existing ?? (await SAF.createFileAsync(parentUri, name, mime));
-  await writeAsStringAsync(uri, contents);
+  await writeAsStringAsync(uri, contents, base64 ? { encoding: 'base64' } : undefined);
 }
 
 /** Characters Android's providers reject in names, replaced; length kept sane. */
@@ -205,12 +215,39 @@ function documentMarkdown(doc: DocRow): string {
   return [`# ${doc.title}`, '', `Type: ${doc.type}`, `Last edited: ${doc.updated_at}`, '', '---', '', doc.content ?? ''].join('\n');
 }
 
+type CastRow = { id: string; name?: string; image_path?: string | null };
+
+export function pictureType(path: string): { ext: string; contentType: string } {
+  const ext = (path.split('.').pop() ?? 'jpg').toLowerCase();
+  const contentType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'heic' ? 'image/heic' : `image/${ext}`;
+  return { ext, contentType };
+}
+
+/**
+ * A character's picture as a file on the device. Picture paths are unique per upload (a new
+ * picture gets a new name), so a copy already here is never stale and each picture is fetched
+ * from Storage once, however often the mirror runs.
+ */
+async function localPicture(path: string): Promise<File | null> {
+  const dir = new Directory(Paths.document, 'backup-pictures');
+  const file = new File(dir, path.split('/').pop() ?? path);
+  if (file.exists) return file;
+  const { data, error } = await supabase.storage.from(CHARACTER_BUCKET).createSignedUrl(path, 600);
+  if (error || !data) return null;
+  try {
+    if (!dir.exists) dir.create({ intermediates: true });
+    return await File.downloadFileAsync(data.signedUrl, file);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Everything the project is. Chapters and pages come from the stores, which are cache-backed
  * and therefore correct offline and ahead of the server when the outbox has not flushed; the
  * rest are read straight from the database, and are listed in `incomplete` if that fails.
  */
-export async function collectSnapshot(projectId: string): Promise<Snapshot> {
+export async function collectSnapshot(projectId: string, opts: { pictures?: boolean } = {}): Promise<Snapshot> {
   const incomplete: string[] = [];
   const chapters = useChapterStore.getState().chapters.filter((c) => c.project_id === projectId);
   const pages = usePageStore.getState().pages.filter((p) => p.project_id === projectId);
@@ -247,6 +284,25 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
       table('trash', projectId, incomplete),
     ]);
 
+  let characterImages: CharacterImage[] | undefined;
+  if (opts.pictures) {
+    characterImages = [];
+    for (const c of storyboardCast as CastRow[]) {
+      if (!c.image_path) continue;
+      const file = await localPicture(c.image_path);
+      if (!file) {
+        if (!incomplete.includes('character pictures')) incomplete.push('character pictures');
+        continue;
+      }
+      characterImages.push({
+        castId: c.id,
+        path: c.image_path,
+        contentType: pictureType(c.image_path).contentType,
+        base64: await file.base64(),
+      });
+    }
+  }
+
   return {
     snapshotVersion: SNAPSHOT_VERSION,
     exportedAt: new Date().toISOString(),
@@ -263,6 +319,7 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
     storyboardLinks,
     storyboardCast,
     characterFields,
+    characterImages,
     graphNodes,
     graphEdges,
     trash,
@@ -347,6 +404,35 @@ export const useBackup = create<BackupState>((set, get) => ({
         }
       }
 
+      // Each character's picture as a real image file in Characters/, written once per picture:
+      // a new picture has a new path, so a path already mirrored is already in the folder.
+      const pictured = (snapshot.storyboardCast as CastRow[]).filter((c) => c.image_path);
+      if (pictured.length > 0) {
+        const picturesKey = PICTURES_MIRRORED_KEY + projectId;
+        let mirrored: Record<string, string> = {};
+        try {
+          mirrored = JSON.parse((await AsyncStorage.getItem(picturesKey)) ?? '{}');
+        } catch {
+          mirrored = {};
+        }
+        const pending = pictured.filter((c) => mirrored[c.id] !== c.image_path);
+        if (pending.length > 0) {
+          const charDir = await ensureDir(projectDir, 'Characters');
+          const seen = new Map<string, number>();
+          for (const c of pictured) seen.set(safeName(c.name ?? ''), (seen.get(safeName(c.name ?? '')) ?? 0) + 1);
+          for (const c of pending) {
+            const file = await localPicture(c.image_path as string);
+            if (!file) continue; // tried again on the next mirror
+            const { ext, contentType } = pictureType(c.image_path as string);
+            const base = safeName(c.name ?? '');
+            const name = (seen.get(base) ?? 0) > 1 ? `${base} (${c.id.slice(0, 6)}).${ext}` : `${base}.${ext}`;
+            await writeFile(charDir, name, contentType, await file.base64(), true);
+            mirrored[c.id] = c.image_path as string;
+          }
+          await AsyncStorage.setItem(picturesKey, JSON.stringify(mirrored));
+        }
+      }
+
       // One readable file per chapter, in its book's folder.
       const byBook = new Map<number, Chapter[]>();
       for (const ch of chapters) {
@@ -379,7 +465,7 @@ export const useBackup = create<BackupState>((set, get) => ({
   shareSnapshot: async (projectId) => {
     set({ running: true, error: null });
     try {
-      const snapshot = await collectSnapshot(projectId);
+      const snapshot = await collectSnapshot(projectId, { pictures: true });
       const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
       const stamp = new Date().toISOString().slice(0, 10);
       const file = new File(Paths.cache, `${safeName(project?.name ?? 'StoryMap')} ${stamp}.json`);
