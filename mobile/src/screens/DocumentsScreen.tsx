@@ -109,11 +109,15 @@ export default function DocumentsScreen({ route, navigation }: Props) {
       <View style={styles.footer}>
         <Pressable style={styles.footerBtn} onPress={handleCreate}>
           <Icon name="plus" size={16} color={colors.gold} />
-          <Text style={styles.footerBtnText}>New document</Text>
+          <Text style={styles.footerBtnText}>New</Text>
+        </Pressable>
+        <Pressable style={styles.footerBtn} onPress={() => navigation.navigate('PatchImport', { projectId })}>
+          <Icon name="upload" size={16} color={colors.gold} />
+          <Text style={styles.footerBtnText}>Import a patch</Text>
         </Pressable>
         <Pressable style={styles.footerBtn} onPress={() => navigation.navigate('DriveImport', { projectId })}>
           <Icon name="download" size={16} color={colors.gold} />
-          <Text style={styles.footerBtnText}>Import from Drive</Text>
+          <Text style={styles.footerBtnText}>From Drive</Text>
         </Pressable>
       </View>
     </View>

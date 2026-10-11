@@ -15,6 +15,7 @@ import TrashScreen from '../screens/TrashScreen';
 import GraphReviewScreen from '../screens/GraphReviewScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import CharactersScreen from '../screens/CharactersScreen';
+import PatchImportScreen from '../screens/PatchImportScreen';
 import CharacterScreen from '../screens/CharacterScreen';
 import DocumentReaderScreen from '../screens/DocumentReaderScreen';
 import DocumentEditorScreen from '../screens/DocumentEditorScreen';
@@ -91,6 +92,7 @@ export default function RootNavigator() {
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Documents" component={DocumentsScreen} />
           <Stack.Screen name="Characters" component={CharactersScreen} options={{ title: 'Characters' }} />
+          <Stack.Screen name="PatchImport" component={PatchImportScreen} options={{ title: 'Import a patch' }} />
           <Stack.Screen name="Character" component={CharacterScreen} options={{ title: '' }} />
           <Stack.Screen name="DocumentReader" component={DocumentReaderScreen} options={{ headerShown: false }} />
           <Stack.Screen name="DocumentEditor" component={DocumentEditorScreen} options={{ headerShown: false }} />

@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StoryMap Studio</title>
+<!--
+  The web app's half of everything the phone gained in October 2026, in one page beside
+  index.html rather than inside it (index.html is ~430 KB and every surface added to it makes the
+  next one harder). index.html opens this full-screen in an iframe from its menu, the way it
+  embeds braid.html, and this page borrows the web app's own signed-in Supabase client
+  (window.parent.sbClient) -- same origin, so no second sign-in. Opened on its own it makes a
+  client of its own from supabase-config.js and uses whatever session the browser already holds.
+
+  Tabs: Storyboard (a wide evidence wall), Scene Sketches, Characters, Documents (with
+  "Import a patch"). Same tables and rules as the phone (handoff §37-§45); nothing here stores
+  anything the phone does not also read.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700&family=Spectral:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1533; --panel:#17224c; --panel-2:#1e2b5c; --border:#33447c; --border-dim:#1e2b5c;
+  --text:#e9e2ce; --dim:#9dabcd; --faint:#7c88a8; --gold:#c69a3a; --danger:#d06a45;
+  --cork:#7a5634; --paper:#f3ead6; --ink:#2a2119; --ink-soft:#45392b; --ink-faint:#7a6248;
+  --hand:'Caveat',cursive; --hand-body:'Patrick Hand',cursive; --serif:'Spectral',Georgia,serif;
+  --heading:'Cinzel',serif; --mono:'JetBrains Mono',monospace;
+}
+html[data-theme="day"]{
+  --bg:#faf3e0; --panel:#efe4c6; --panel-2:#e9dcb8; --border:#cdbb8e; --border-dim:#e2d5b0;
+  --text:#2c2011; --dim:#6b5d42; --faint:#8a7355; --cork:#b0814f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--serif)}
+button{font:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px}
+textarea{resize:vertical}
+a{color:var(--gold)}
+.hand{font-family:var(--hand)} .hand-body{font-family:var(--hand-body)}
+
+#bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border)}
+#bar .brand{font-family:var(--heading);letter-spacing:.08em;color:var(--gold);margin-right:14px;font-size:15px}
+.tab{background:none;border:1px solid transparent;color:var(--dim);font-family:var(--hand);font-size:22px;padding:2px 12px 2px 10px;border-radius:8px}
+.tab.on{color:var(--gold);border-color:var(--gold)}
+#bar .spacer{flex:1}
+.x{background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;width:34px;height:34px;font-size:18px}
+#view{height:calc(100% - 52px);overflow:hidden}
+.note-msg{padding:40px;text-align:center;color:var(--dim);max-width:640px;margin:auto;line-height:1.6}
+
+.btn{background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:4px 12px 4px 10px;font-family:var(--hand);font-size:19px}
+.btn.gold{border-color:var(--gold);color:var(--gold)}
+.btn.solid{background:var(--gold);color:#2b1a05;border-color:var(--gold)}
+.btn.danger{color:var(--danger);border-color:transparent}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-dim);border-radius:14px;padding:2px 12px 2px 10px;background:none;color:var(--dim);font-family:var(--hand);font-size:19px}
+.chip.on{border-color:var(--gold);color:var(--gold)}
+.sw{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+/* ---------- storyboard ---------- */
+.sb{display:flex;flex-direction:column;height:100%}
+.sb-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border-dim)}
+.sb-tools .group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sb-tools .label{font-family:var(--heading);font-size:11px;letter-spacing:.15em;color:var(--faint);margin:0 4px 0 10px}
+.cast-chip{border-radius:3px;padding:2px 12px 2px 10px;font-family:var(--hand);font-size:19px;color:var(--ink);border:1.5px solid transparent;cursor:pointer}
+.banner{margin:0 14px 8px;padding:8px 12px;border:1px solid;border-radius:8px;background:var(--panel);font-family:var(--hand-body);font-size:17px;display:flex;gap:12px;align-items:center}
+.wall-scroll{flex:1;overflow:auto}
+.wall{position:relative;min-width:100%;background-color:var(--cork);
+  background-image:radial-gradient(rgba(60,35,15,.30) 1px,transparent 1.6px),radial-gradient(rgba(255,235,200,.14) 1px,transparent 1.5px);
+  background-size:23px 23px,31px 31px;background-position:0 0,11px 7px;
+  box-shadow:inset 0 0 0 10px #4a3221,inset 0 0 0 12px #2e1f14}
+.wnote{position:absolute;width:196px;height:172px;padding:18px 12px 10px;border-radius:2px;color:var(--ink);
+  box-shadow:2px 4px 8px rgba(0,0,0,.35);cursor:grab;user-select:none;touch-action:none;transition:box-shadow .15s}
+.wnote.drag{cursor:grabbing;box-shadow:6px 14px 22px rgba(0,0,0,.45);z-index:50}
+.wnote .num{position:absolute;top:5px;right:10px;font-family:var(--hand);font-size:17px;color:var(--ink-faint)}
+.wnote .who{font-family:var(--hand);font-size:16px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:30px}
+.wnote .t{font-family:var(--hand);font-weight:700;font-size:25px;line-height:1.02;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:4px}
+.wnote .s{font-family:var(--hand-body);font-size:15px;line-height:1.2;color:var(--ink-soft);margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.wnote .f{position:absolute;left:12px;right:10px;bottom:7px;font-family:var(--hand-body);font-size:13.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wnote.faded{opacity:.55}
+svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
+
+/* ---------- overlays ---------- */
+#overlay{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:24px;
+  background:color-mix(in srgb,var(--bg) 45%,transparent);backdrop-filter:blur(9px) saturate(.85);-webkit-backdrop-filter:blur(9px) saturate(.85)}
+#overlay.show{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;width:min(560px,100%);max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.sheet h3{font-family:var(--heading);font-size:13px;letter-spacing:.15em;color:var(--gold);margin:14px 0 6px}
+.sheet .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.sheet input.big,.sheet textarea.big{width:100%}
+.notepop{border-radius:4px;color:var(--ink);padding:22px 22px 18px;width:min(520px,100%);max-height:88vh;overflow:auto;position:relative;box-shadow:0 16px 44px rgba(0,0,0,.45)}
+.notepop .num{position:absolute;top:8px;right:14px;font-family:var(--hand);font-size:19px;color:var(--ink-faint)}
+.notepop input.title{width:100%;background:none;border:none;color:var(--ink);font-family:var(--hand);font-weight:700;font-size:36px;padding:0 4px 0 0}
+.notepop textarea{width:100%;min-height:120px;background:rgba(255,255,255,.35);border:1px solid rgba(42,33,25,.2);color:var(--ink-soft);font-family:var(--hand-body);font-size:18px;line-height:1.35}
+.notepop h4{font-family:var(--hand);font-size:20px;color:var(--ink-faint);margin:14px 0 6px;font-weight:600}
+.notepop .pick{display:flex;flex-wrap:wrap;gap:6px}
+.notepop .pick button{border-radius:3px;padding:2px 12px 2px 10px;font-family:var(--hand);font-size:19px;color:var(--ink);border:1.5px solid rgba(42,33,25,.25);background:rgba(255,255,255,.35)}
+.notepop .pick button.on{border-color:var(--ink)}
+.notepop .acts{display:flex;gap:18px;align-items:center;margin-top:18px;flex-wrap:wrap}
+.notepop .acts button{background:none;border:none;font-family:var(--hand);font-size:22px;color:#6b4a1e}
+.notepop .acts .done{color:var(--ink);font-weight:700}
+.notepop select{background:rgba(255,255,255,.4);color:var(--ink);border-color:rgba(42,33,25,.25)}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.swatches button{width:28px;height:28px;border-radius:50%;border:2px solid transparent}
+.swatches button.on{border-color:var(--text)}
+
+/* the flashcard: a collectible card */
+.fcard{width:300px;height:486px;background:#15110b;border:2px solid #c9a24a;border-radius:16px;padding:6px;box-shadow:0 18px 40px rgba(0,0,0,.55);position:relative}
+.fcard .in{height:100%;border:1px solid #8a6d2e;border-radius:11px;display:flex;flex-direction:column;align-items:center;padding:10px 16px 14px}
+.fcard .rule{display:flex;align-items:center;gap:8px;width:100%;color:#c9a24a;margin-bottom:8px}
+.fcard .rule i{flex:1;height:1px;background:#8a6d2e}
+.fcard .pic{width:100%;height:272px;border:2px solid;border-radius:6px;background:#000;padding:2px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.fcard .pic img{width:100%;height:100%;object-fit:cover;border-radius:3px}
+.fcard .pic .ini{font-family:var(--hand);font-size:110px;color:var(--ink);width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.fcard .nm{font-family:'Cinzel Decorative',serif;color:#c9a24a;font-size:24px;letter-spacing:.06em;text-align:center;margin-top:12px;line-height:1.1}
+.fcard .mid{width:46%;height:1px;background:#8a6d2e;margin:8px 0}
+.fcard .ds{font-family:var(--heading);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:#e8d9b0;text-align:center;line-height:1.45}
+.fcard .ds.empty{color:#8f8068}
+.fcard .star{position:absolute;color:#c9a24a;font-size:13px}
+.fcard-acts{display:flex;gap:26px;justify-content:center;margin-top:14px}
+.fcard-acts button{background:none;border:none;color:var(--gold);font-family:var(--hand);font-size:22px}
+
+/* ---------- split panes (sketches, documents) ---------- */
+.split{display:grid;grid-template-columns:330px 1fr;height:100%}
+.side{border-right:1px solid var(--border-dim);display:flex;flex-direction:column;min-height:0}
+.side .top{padding:10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--border-dim)}
+.side .list{overflow:auto;flex:1}
+.side .item{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border-dim);color:var(--text);padding:9px 12px}
+.side .item.on{background:var(--panel)}
+.side .item .tt{font-family:var(--hand);font-weight:700;font-size:21px;line-height:1.1;padding-right:4px}
+.side .item .tg{font-family:var(--hand);font-size:15px;color:var(--faint)}
+.side .item .sn{font-family:var(--hand-body);font-size:14px;color:var(--dim);margin-top:2px}
+.side .item mark{background:color-mix(in srgb,var(--gold) 38%,transparent);color:inherit}
+.groups{display:flex;flex-wrap:wrap;gap:5px}
+.pane{overflow:auto;min-height:0}
+.reader{max-width:780px;margin:0 auto;padding:26px 34px 80px}
+.reader .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.md{font-size:17px;line-height:1.6}
+.md h1,.md h2{font-family:var(--heading);color:var(--gold);line-height:1.25}
+.md h1{border-bottom:1px solid color-mix(in srgb,var(--gold) 40%,transparent);padding-bottom:6px}
+.md h3,.md h4{font-family:var(--serif)}
+.md table{border-collapse:collapse;display:block;overflow:auto;margin:12px 0}
+.md th,.md td{border:1px solid var(--border);padding:6px 10px;vertical-align:top}
+.md th{background:color-mix(in srgb,var(--gold) 12%,transparent)}
+.md blockquote{border-left:3px solid color-mix(in srgb,var(--gold) 60%,transparent);margin:10px 0;padding:2px 14px;color:var(--dim);font-style:italic}
+.md code{font-family:var(--mono);font-size:.86em;background:color-mix(in srgb,var(--gold) 12%,transparent);padding:0 3px;border-radius:3px}
+.md hr{border:none;border-top:1px solid var(--border);margin:18px 0}
+.md.handwritten{font-family:var(--hand-body);font-size:20px;line-height:1.5}
+.md.handwritten h1,.md.handwritten h2,.md.handwritten h3{font-family:var(--hand);color:var(--gold);font-weight:700}
+.editor-ta{width:100%;min-height:70vh;font-family:var(--hand-body);font-size:19px;line-height:1.5}
+.contents{border:1px solid var(--border);border-radius:8px;padding:10px 14px;background:var(--panel);margin:10px 0 20px;display:inline-block;min-width:260px}
+.contents b{font-family:var(--serif)} .contents a{display:block;color:var(--dim);text-decoration:none;padding:2px 0}
+.contents a.l2{padding-left:16px}
+.status{font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* ---------- characters ---------- */
+.cgrid{padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;overflow:auto;height:100%;align-content:start}
+.ccell{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;text-align:center}
+.ccell .ph{height:190px;display:flex;align-items:center;justify-content:center;font-family:var(--hand);font-size:80px;color:var(--ink)}
+.ccell .ph img{width:100%;height:100%;object-fit:cover}
+.ccell .nm{font-family:var(--hand);font-weight:700;font-size:25px;padding:6px 8px 0;padding-right:12px}
+.ccell .mt{font-family:var(--hand-body);font-size:13px;color:var(--faint);padding:0 8px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wiki{display:grid;grid-template-columns:1fr 330px;gap:28px;max-width:1180px;margin:0 auto;padding:22px 30px 80px;overflow:auto;height:100%}
+.wiki .art h1{font-family:var(--heading);font-size:34px;margin:0 0 4px}
+.wiki .art .tagline{width:100%;font-style:italic;color:var(--dim);background:none;border:none;border-bottom:1px dashed var(--border);font-size:17px;padding:4px 0}
+.infobox{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--panel);align-self:start;position:sticky;top:0}
+.infobox .ih{padding:10px;text-align:center;font-family:var(--heading);font-weight:700;font-size:20px;color:var(--ink)}
+.infobox .ip{display:block;width:100%;aspect-ratio:5/6;background:#000;border:none;padding:0;cursor:pointer;position:relative}
+.infobox .ip img{width:100%;height:100%;object-fit:cover}
+.infobox .ip .hint{position:absolute;bottom:6px;left:0;right:0;font-size:12px;color:#ddd;text-shadow:0 1px 3px #000}
+.infobox .bar{background:var(--text);color:var(--bg);font-family:var(--heading);font-weight:700;text-align:center;padding:6px;font-size:14px}
+.infobox table{width:100%;border-collapse:collapse}
+.infobox td{border-top:1px solid var(--border-dim);padding:0;vertical-align:top}
+.infobox td.k{width:38%;padding:7px 9px;font-weight:600;font-size:14px}
+.infobox td.v textarea{width:100%;border:none;background:none;min-height:34px;font-size:14px;padding:7px 9px;resize:vertical}
+.infobox .foot{padding:8px 10px;border-top:1px solid var(--border-dim);font-size:13px}
+
+@media (max-width:860px){
+  .split{grid-template-columns:1fr} .side{max-height:42vh;border-right:none;border-bottom:1px solid var(--border-dim)}
+  .wiki{grid-template-columns:1fr} .infobox{position:static}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<div id="bar">
+  <span class="brand">STORYMAP STUDIO</span>
+  <button class="tab" data-tab="storyboard">Storyboard</button>
+  <button class="tab" data-tab="sketches">Scene Sketches</button>
+  <button class="tab" data-tab="characters">Characters</button>
+  <button class="tab" data-tab="documents">Documents</button>
+  <span class="spacer"></span>
+  <button class="x" id="close" title="Close">&times;</button>
+</div>
+<div id="view"></div>
+<div id="overlay"></div>
+<input type="file" id="file-pick" style="display:none">
+
+<script>
+(async function(){
+'use strict';
+/* ====================================================================== setup */
+const params = new URLSearchParams(location.search);
+const projectId = params.get('project');
+let tab = params.get('tab') || 'storyboard';
+const inFrame = window.parent !== window;
+const sb = (inFrame && window.parent.sbClient) || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const view = document.getElementById('view');
+const overlay = document.getElementById('overlay');
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uuid = () => crypto.randomUUID();
+const GAP = 1000;
+const positionBetween = (a, b) => (a == null && b == null ? GAP : a == null ? b - GAP : b == null ? a + GAP : (a + b) / 2);
+const byPos = (a, b) => Number(a.position) - Number(b.position);
+const BOOK_WORDS = ['One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve'];
+const bookName = (i) => 'Book ' + (BOOK_WORDS[i] || i + 1);
+const NOTE_DEFAULT = '#fbe7a1';
+const PLAIN_PIN = '#b8322a';
+const THREAD_COLORS = ['#c69a3a','#3f9b8a','#c0583c','#6f86d6','#a266bf','#6aa84f','#d0708c','#8a7a5c'];
+const CAST_COLORS = ['#f7c6d0','#c8ecd9','#c9dcf5','#dccbf2','#fbd3b0','#b9e4e1','#e3f0b5','#f2d4ec','#ffd6a5','#fdffb6','#caffbf','#9bf6ff','#a0c4ff','#bdb2ff','#ffc6ff','#e8d5c4','#f4a7a7','#a7d7c5','#d4c1ec','#f9e2ae','#c2e0f4','#e6c8a0','#cfd8dc','#ffe0e9'];
+const DOC_TYPES = ['Master Bible','Character Bible','Scene Reference','Progression / Timeline','Other','Archive'];
+const LEGACY_TYPES = { bible: 'Master Bible', character: 'Character Bible', reference: 'Scene Reference', timeline: 'Progression / Timeline', 'Progression-Timeline': 'Progression / Timeline' };
+const docType = (t) => (DOC_TYPES.includes(t) ? t : LEGACY_TYPES[t] || 'Other');
+const md = (text) => DOMPurify.sanitize(marked.parse(text || '', { gfm: true, breaks: false }));
+
+// Day/night follows the web app it sits in.
+function syncTheme(){
+  try {
+    const t = window.parent.document.documentElement.getAttribute('data-theme');
+    if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme');
+  } catch (e) { /* standalone */ }
+}
+syncTheme();
+if (inFrame) try { new MutationObserver(syncTheme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+
+document.getElementById('close').onclick = () => {
+  if (inFrame) window.parent.postMessage({ type: 'studio-close' }, location.origin); else history.back();
+};
+const tellParent = (what) => { if (inFrame) window.parent.postMessage({ type: 'studio-changed', what }, location.origin); };
+
+const { data: { user } } = await sb.auth.getUser();
+if (!user || !projectId) {
+  view.innerHTML = `<div class="note-msg">${!user ? 'Sign in to StoryMap first, then open the studio from its menu.' : 'Open the studio from inside a project.'}</div>`;
+  return;
+}
+const userId = user.id;
+
+function openOverlay(html){ overlay.innerHTML = html; overlay.classList.add('show'); return overlay.firstElementChild; }
+function closeOverlay(){ overlay.classList.remove('show'); overlay.innerHTML = ''; }
+overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) closeOverlay(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('show')) closeOverlay(); });
+
+// Signed links to character pictures (private bucket), cached for most of their hour.
+const imgCache = {};
+async function imageUrl(path){
+  if (!path) return null;
+  if (imgCache[path]) return imgCache[path];
+  const { data } = await sb.storage.from('character-images').createSignedUrl(path, 3600);
+  if (data) { imgCache[path] = data.signedUrl; setTimeout(() => delete imgCache[path], 50 * 60 * 1000); }
+  return data ? data.signedUrl : null;
+}
+function pickFile(accept, multiple = false){
+  return new Promise((resolve) => {
+    const input = document.getElementById('file-pick');
+    input.value = ''; input.accept = accept; input.multiple = multiple;
+    input.onchange = () => resolve([...input.files]);
+    input.click();
+  });
+}
+
+/* ====================================================================== shared data */
+const S = { events: [], threads: [], links: [], cast: [], fields: [], chapters: [], docs: [], treatments: [], versions: [] };
+const wall = { ok: true, chars: true };
+
+async function loadBoard(){
+  const [e, t, l, c, f, ch] = await Promise.all([
+    sb.from('storyboard_events').select('*').eq('project_id', projectId),
+    sb.from('storyboard_threads').select('*').eq('project_id', projectId),
+    sb.from('storyboard_links').select('*').eq('project_id', projectId),
+    sb.from('storyboard_cast').select('*').eq('project_id', projectId),
+    sb.from('character_fields').select('*').eq('project_id', projectId),
+    sb.from('chapters').select('id, book, act, order, title').eq('project_id', projectId),
+  ]);
+  if (e.error) throw e.error;
+  S.events = (e.data || []).map((x) => ({ ...x, position: Number(x.position) })).sort(byPos);
+  S.threads = (t.data || []).sort(byPos);
+  S.links = l.data || [];
+  wall.ok = !c.error; wall.chars = !c.error && !!(c.data || []).every((x) => 'fields' in x) && !f.error;
+  S.cast = (c.data || []).sort(byPos);
+  S.fields = (f.data || []).sort(byPos);
+  S.chapters = (ch.data || []).sort((a, b) => a.book - b.book || a.act - b.act || a.order - b.order);
+}
+async function loadDocs(){
+  const { data } = await sb.from('documents').select('id, title, type, created_at, updated_at').eq('project_id', projectId).order('created_at', { ascending: false });
+  S.docs = data || [];
+}
+async function loadSketches(){
+  const [t, v] = await Promise.all([
+    sb.from('treatments').select('*').eq('project_id', projectId),
+    sb.from('treatment_versions').select('id, treatment_id, content, status, created_at').eq('project_id', projectId),
+  ]);
+  S.treatments = (t.data || []).sort(byPos);
+  S.versions = v.data || [];
+}
+const liveVersion = (tid) => S.versions.filter((v) => v.treatment_id === tid).sort((a, b) => (a.status === 'live' ? -1 : 1) - (b.status === 'live' ? -1 : 1) || new Date(b.created_at) - new Date(a.created_at))[0];
+const sketchTitle = (t) => (t.title || '').trim() || ((liveVersion(t.id)?.content || '').split('\n').map((l) => l.trim()).find(Boolean) || 'Untitled scene');
+function chapterLabel(id){
+  const ch = S.chapters.find((c) => c.id === id);
+  if (!ch) return null;
+  const n = S.chapters.filter((c) => c.book === ch.book).indexOf(ch) + 1;
+  return `Ch ${n} · ${ch.title}`;
+}
+
+/* ====================================================================== flashcard */
+async function showFlashcard(member){
+  const bible = S.docs.find((d) => d.id === member.document_id);
+  const url = await imageUrl(member.image_path);
+  const el = openOverlay(`<div>
+    <div class="fcard">
+      <div class="in">
+        <div class="rule"><i></i>✦<i></i></div>
+        <div class="pic" style="border-color:${esc(member.color)}">${url ? `<img src="${esc(url)}" alt="">` : `<div class="ini" style="background:${esc(member.color)}">${esc((member.name || '?')[0].toUpperCase())}</div>`}</div>
+        <div class="nm">${esc((member.name || 'Unnamed').toUpperCase())}</div>
+        <div class="mid"></div>
+        <div class="ds ${member.description ? '' : 'empty'}">${esc(member.description || 'A few words about them, added on their page')}</div>
+      </div>
+      <span class="star" style="top:5px;left:8px">✦</span><span class="star" style="top:5px;right:8px">✦</span>
+      <span class="star" style="bottom:5px;left:8px">✦</span><span class="star" style="bottom:5px;right:8px">✦</span>
+    </div>
+    <div class="fcard-acts"><button data-a="page">Their page</button>${bible ? '<button data-a="bible">Character bible</button>' : ''}</div>
+  </div>`);
+  el.querySelector('[data-a="page"]').onclick = () => { closeOverlay(); go('characters', { character: member.id }); };
+  const b = el.querySelector('[data-a="bible"]');
+  if (b) b.onclick = () => { closeOverlay(); go('documents', { doc: bible.id }); };
+}
+
+/* ====================================================================== STORYBOARD */
+const SB = { book: 0, stringing: null };
+const NOTE_W = 196, NOTE_H = 172, M = 34, GX = 34, GY = 54, TOP = 34;
+
+function jitter(id, salt){
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 2001) / 1000 - 1;
+}
+
+async function renderStoryboard(){
+  await Promise.all([loadBoard(), S.docs.length ? null : loadDocs()]);
+  const books = [...new Set([0, 1, 2, 3, 4, ...S.chapters.map((c) => c.book), ...S.events.map((e) => e.book)])].sort((a, b) => a - b);
+  view.innerHTML = `<div class="sb">
+    <div class="sb-tools">
+      <div class="group" id="sb-books"></div>
+      <span class="label">THREADS</span><div class="group" id="sb-threads"></div>
+      <span class="label">CHARACTERS</span><div class="group" id="sb-cast"></div>
+      <span style="flex:1"></span>
+      <button class="btn" id="sb-order">Order</button>
+      <button class="btn" id="sb-tidy">Tidy up</button>
+      <button class="btn solid" id="sb-new">+ Note</button>
+    </div>
+    <div id="sb-banner"></div>
+    ${wall.ok ? '' : '<div class="note-msg" style="padding:8px">Paste supabase/migrations/20261011b_storyboard_wall.sql once to keep notes where you drop them.</div>'}
+    <div class="wall-scroll"><div class="wall" id="wall"></div></div>
+  </div>`;
+  $('#sb-books').innerHTML = books.map((b) => `<button class="chip ${b === SB.book ? 'on' : ''}" data-b="${b}">${bookName(b)}</button>`).join('');
+  $('#sb-books').onclick = (e) => { const b = e.target.closest('[data-b]'); if (b) { SB.book = Number(b.dataset.b); SB.stringing = null; drawStoryboard(); markBooks(); } };
+  function markBooks(){ document.querySelectorAll('#sb-books .chip').forEach((c) => c.classList.toggle('on', Number(c.dataset.b) === SB.book)); }
+  $('#sb-new').onclick = () => openNote(null);
+  $('#sb-order').onclick = openOrder;
+  $('#sb-tidy').onclick = async () => {
+    if (!confirm(`Put every note in ${bookName(SB.book)} back in book order? Where you placed them by hand is forgotten.`)) return;
+    const ids = S.events.filter((e) => e.book === SB.book).map((e) => e.id);
+    S.events.forEach((e) => { if (ids.includes(e.id)) { e.x = null; e.y = null; } });
+    if (ids.length) await sb.from('storyboard_events').update({ x: null, y: null }).in('id', ids);
+    drawStoryboard();
+  };
+  drawStoryboard();
+}
+
+function bookEvents(){ return S.events.filter((e) => e.book === SB.book).sort(byPos); }
+function bookThreads(){ return S.threads.filter((t) => t.book === SB.book).sort(byPos); }
+
+function drawStoryboard(){
+  const threads = bookThreads();
+  $('#sb-threads').innerHTML = threads.map((t) => `<button class="chip ${SB.stringing === t.id ? 'on' : ''}" data-t="${t.id}" title="Click to string it; double-click to rename" style="${SB.stringing === t.id ? `border-color:${t.color};color:var(--text)` : ''}"><span class="sw" style="background:${t.color}"></span>${esc(t.name || 'Unnamed')}</button>`).join('') + `<button class="chip" data-t="+">+ Thread</button>`;
+  $('#sb-cast').innerHTML = S.cast.map((c) => `<span class="cast-chip" data-c="${c.id}" title="Click for their card; double-click to edit" style="background:${c.color}">${esc(c.name || 'Unnamed')}</span>`).join('') + `<button class="chip" data-c="+">+ Character</button>`;
+  $('#sb-threads').onclick = (e) => {
+    const b = e.target.closest('[data-t]'); if (!b) return;
+    if (b.dataset.t === '+') return editNamed('thread', null);
+    SB.stringing = SB.stringing === b.dataset.t ? null : b.dataset.t; drawStoryboard();
+  };
+  $('#sb-threads').ondblclick = (e) => { const b = e.target.closest('[data-t]'); if (b && b.dataset.t !== '+') editNamed('thread', S.threads.find((t) => t.id === b.dataset.t)); };
+  $('#sb-cast').onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; if (b.dataset.c === '+') return editNamed('character', null); showFlashcard(S.cast.find((c) => c.id === b.dataset.c)); };
+  $('#sb-cast').ondblclick = (e) => { const b = e.target.closest('[data-c]'); if (b && b.dataset.c !== '+') { closeOverlay(); editNamed('character', S.cast.find((c) => c.id === b.dataset.c)); } };
+
+  const st = threads.find((t) => t.id === SB.stringing);
+  $('#sb-banner').innerHTML = st ? `<div class="banner" style="border-color:${st.color}"><span class="sw" style="background:${st.color}"></span><span style="flex:1">Stringing <b>${esc(st.name)}</b> — click notes to pin it to them, or click again to unpin.</span><button class="btn gold" id="sb-done">Done</button></div>` : '';
+  if (st) $('#sb-done').onclick = () => { SB.stringing = null; drawStoryboard(); };
+
+  const w = $('#wall');
+  const events = bookEvents();
+  const width = Math.max(w.parentElement.clientWidth, 900);
+  const cols = Math.max(3, Math.floor((width - M * 2 + GX) / (NOTE_W + GX)));
+  const spot = new Map();
+  events.forEach((e, i) => {
+    const auto = { x: M + (i % cols) * (NOTE_W + GX) + jitter(e.id, 1) * 6, y: TOP + Math.floor(i / cols) * (NOTE_H + GY) + jitter(e.id, 2) * 8 };
+    spot.set(e.id, e.x != null && e.y != null ? { x: Number(e.x), y: Number(e.y) } : auto);
+  });
+  const bw = Math.max(width, ...[...spot.values()].map((s) => s.x + NOTE_W + M));
+  const bh = Math.max(w.parentElement.clientHeight, ...[...spot.values()].map((s) => s.y + NOTE_H + 140), 500);
+  w.style.width = bw + 'px'; w.style.height = bh + 'px';
+  const castOf = new Map(S.cast.map((c) => [c.id, c]));
+  const onThread = (id) => SB.stringing && S.links.some((k) => k.thread_id === SB.stringing && k.event_id === id);
+
+  w.innerHTML = events.map((e, i) => {
+    const s = spot.get(e.id); const m = castOf.get(e.cast_id);
+    const ch = chapterLabel(e.chapter_id);
+    const on = onThread(e.id);
+    return `<div class="wnote ${SB.stringing && !on ? 'faded' : ''}" data-id="${e.id}" style="left:${s.x}px;top:${s.y}px;background:${m ? m.color : NOTE_DEFAULT};transform:rotate(${jitter(e.id, 3) * 2.4}deg);${on && st ? `outline:3px solid ${st.color};` : ''}">
+      <div class="num">#${i + 1}</div><div class="who">${esc(m ? m.name : '')}</div>
+      <div class="t">${esc(e.title || 'Untitled')}</div>
+      ${e.summary ? `<div class="s">${esc(e.summary)}</div>` : ''}
+      <div class="f">${e.treatment_id ? '↗ full scene' : ch ? '→ ' + esc(ch) : ''}</div>
+    </div>`;
+  }).join('') + `<svg class="strings" width="${bw}" height="${bh}"></svg>`;
+  drawStrings(spot);
+  wireNotes(spot);
+}
+
+function threadsOf(eventId){
+  const order = new Map(bookThreads().map((t, i) => [t.id, i]));
+  return S.links.filter((k) => k.event_id === eventId).map((k) => S.threads.find((t) => t.id === k.thread_id)).filter((t) => t && order.has(t.id)).sort((a, b) => order.get(a.id) - order.get(b.id));
+}
+function pinPoint(spot, eventId, threadId){
+  const s = spot.get(eventId); const carried = threadsOf(eventId);
+  if (!threadId || !carried.length) return { x: s.x + NOTE_W / 2, y: s.y + 8 };
+  const i = Math.max(0, carried.findIndex((t) => t.id === threadId));
+  return { x: s.x + NOTE_W * (0.2 + (0.6 * (i + 0.5)) / carried.length), y: s.y + 8 };
+}
+function drawStrings(spot){
+  const svg = $('#wall svg.strings'); if (!svg) return;
+  const events = bookEvents();
+  let out = '';
+  for (const t of bookThreads()) {
+    const members = events.filter((e) => threadsOf(e.id).some((x) => x.id === t.id));
+    for (let i = 0; i + 1 < members.length; i++) {
+      const a = pinPoint(spot, members[i].id, t.id), b = pinPoint(spot, members[i + 1].id, t.id);
+      const sag = 14 + Math.hypot(b.x - a.x, b.y - a.y) * 0.08;
+      const d = `M ${a.x} ${a.y} Q ${(a.x + b.x) / 2} ${(a.y + b.y) / 2 + sag} ${b.x} ${b.y}`;
+      const faded = SB.stringing && SB.stringing !== t.id ? 0.3 : 1;
+      out += `<path d="${d}" stroke="rgba(0,0,0,.25)" stroke-width="3" fill="none" transform="translate(1.5,2.5)" opacity="${faded}"/><path d="${d}" stroke="${t.color}" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="${0.95 * faded}"/>`;
+    }
+  }
+  for (const e of events) {
+    const carried = threadsOf(e.id);
+    const pins = carried.length ? carried.map((t) => ({ ...pinPoint(spot, e.id, t.id), c: t.color })) : [{ ...pinPoint(spot, e.id, null), c: PLAIN_PIN }];
+    for (const p of pins) out += `<circle cx="${p.x + 2}" cy="${p.y + 3}" r="8" fill="rgba(0,0,0,.3)"/><circle cx="${p.x}" cy="${p.y}" r="8" fill="${p.c}" stroke="rgba(0,0,0,.25)"/><circle cx="${p.x - 2.8}" cy="${p.y - 2.8}" r="2.6" fill="rgba(255,255,255,.55)"/>`;
+  }
+  svg.innerHTML = out;
+}
+
+// Drag a note anywhere; a click that did not move opens it (or, while stringing, pins it).
+function wireNotes(spot){
+  document.querySelectorAll('#wall .wnote').forEach((el) => {
+    el.onpointerdown = (ev) => {
+      if (ev.button !== 0) return;
+      const id = el.dataset.id; const start = { x: ev.clientX, y: ev.clientY }; const base = { ...spot.get(id) };
+      let moved = false;
+      el.setPointerCapture(ev.pointerId);
+      el.onpointermove = (mv) => {
+        const dx = mv.clientX - start.x, dy = mv.clientY - start.y;
+        if (!moved && Math.hypot(dx, dy) < 5) return;
+        if (SB.stringing) return;
+        moved = true; el.classList.add('drag');
+        const s = { x: Math.max(0, base.x + dx), y: Math.max(0, base.y + dy) };
+        spot.set(id, s); el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
+        drawStrings(spot);
+      };
+      el.onpointerup = async () => {
+        el.onpointermove = null; el.onpointerup = null; el.classList.remove('drag');
+        const e = S.events.find((x) => x.id === id);
+        if (moved) {
+          const s = spot.get(id); e.x = Math.round(s.x); e.y = Math.round(s.y);
+          if (wall.ok) await sb.from('storyboard_events').update({ x: e.x, y: e.y }).eq('id', id);
+          return;
+        }
+        if (SB.stringing) return toggleLink(SB.stringing, id);
+        openNote(e);
+      };
+    };
+  });
+}
+
+async function toggleLink(threadId, eventId){
+  const k = S.links.find((x) => x.thread_id === threadId && x.event_id === eventId);
+  if (k) { S.links = S.links.filter((x) => x !== k); await sb.from('storyboard_links').delete().eq('id', k.id); }
+  else { const row = { id: uuid(), user_id: userId, project_id: projectId, thread_id: threadId, event_id: eventId }; S.links.push(row); await sb.from('storyboard_links').insert(row); }
+  drawStoryboard();
+}
+
+// A note, opened over blurred glass: heading, summary, colour, who is in it, threads, chapter.
+function openNote(e){
+  const isNew = !e;
+  const draft = e ? { ...e } : { id: uuid(), project_id: projectId, book: SB.book, title: '', summary: '', chapter_id: null, cast_id: null, character_ids: [] };
+  const involved = new Set(draft.character_ids || []);
+  const tint = S.cast.find((c) => c.id === draft.cast_id)?.color || NOTE_DEFAULT;
+  const idx = bookEvents().findIndex((x) => x.id === draft.id);
+  const el = openOverlay(`<div class="notepop" style="background:${tint}">
+    ${idx >= 0 ? `<div class="num">#${idx + 1}</div>` : ''}
+    <input class="title" placeholder="Heading" value="${esc(draft.title)}">
+    <textarea placeholder="What happens — a few lines">${esc(draft.summary)}</textarea>
+    <h4>In this scene</h4>
+    <div class="pick" data-k="in">${S.cast.length ? S.cast.map((c) => `<button data-id="${c.id}" class="${involved.has(c.id) ? 'on' : ''}" style="${involved.has(c.id) ? `background:${c.color}` : ''}">${involved.has(c.id) ? '✓ ' : ''}${esc(c.name || 'Unnamed')}</button>`).join('') : '<span class="hand-body" style="color:var(--ink-faint)">Add characters with + Character.</span>'}</div>
+    <h4>Whose colour</h4>
+    <div class="pick" data-k="col"><button data-id="" class="${draft.cast_id ? '' : 'on'}" style="background:${NOTE_DEFAULT}">no one</button>${S.cast.map((c) => `<button data-id="${c.id}" class="${draft.cast_id === c.id ? 'on' : ''}" style="background:${c.color}">${esc(c.name)}</button>`).join('')}</div>
+    ${bookThreads().length && !isNew ? `<h4>Threads</h4><div class="pick" data-k="th">${bookThreads().map((t) => { const on = S.links.some((k) => k.thread_id === t.id && k.event_id === draft.id); return `<button data-id="${t.id}" class="${on ? 'on' : ''}"><span class="sw" style="background:${t.color}"></span> ${esc(t.name)}</button>`; }).join('')}</div>` : ''}
+    <h4>Became</h4>
+    <select data-k="ch"><option value="">no chapter yet</option>${S.chapters.filter((c) => c.book === draft.book).map((c) => `<option value="${c.id}" ${c.id === draft.chapter_id ? 'selected' : ''}>${esc(chapterLabel(c.id))}</option>`).join('')}</select>
+    <div class="acts">
+      ${draft.treatment_id ? '<button data-a="scene">Read the scene</button>' : ''}
+      ${isNew ? '' : '<button data-a="del" style="color:#a33">Delete</button>'}
+      <span style="flex:1"></span>
+      <button data-a="cancel">Cancel</button><button data-a="save" class="done">${isNew ? 'Pin it up' : 'Done'}</button>
+    </div>
+  </div>`);
+  el.querySelector('[data-k="in"]').onclick = (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const c = S.cast.find((x) => x.id === b.dataset.id);
+    if (involved.has(c.id)) { involved.delete(c.id); b.classList.remove('on'); b.style.background = ''; b.textContent = c.name; }
+    else { involved.add(c.id); b.classList.add('on'); b.style.background = c.color; b.textContent = '✓ ' + c.name; }
+  };
+  el.querySelector('[data-k="in"]').ondblclick = (ev) => { const b = ev.target.closest('button'); if (b) showFlashcard(S.cast.find((x) => x.id === b.dataset.id)); };
+  el.querySelector('[data-k="col"]').onclick = (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    draft.cast_id = b.dataset.id || null;
+    el.querySelectorAll('[data-k="col"] button').forEach((x) => x.classList.toggle('on', x === b));
+    el.style.background = S.cast.find((c) => c.id === draft.cast_id)?.color || NOTE_DEFAULT;
+  };
+  const th = el.querySelector('[data-k="th"]');
+  if (th) th.onclick = async (ev) => { const b = ev.target.closest('button'); if (!b) return; b.classList.toggle('on'); await toggleLink(b.dataset.id, draft.id); };
+  const scene = el.querySelector('[data-a="scene"]');
+  if (scene) scene.onclick = () => { closeOverlay(); go('sketches', { sketch: draft.treatment_id }); };
+  el.querySelector('[data-a="cancel"]').onclick = closeOverlay;
+  const del = el.querySelector('[data-a="del"]');
+  if (del) del.onclick = async () => {
+    if (!confirm('Delete this note? It goes to Trash and can be restored from the phone.')) return;
+    const threadIds = S.links.filter((k) => k.event_id === draft.id).map((k) => k.thread_id);
+    const { error } = await sb.from('trash').insert({ user_id: userId, project_id: projectId, type: 'storyboard_event', payload: { event: e, threadIds }, deleted_at: new Date().toISOString() });
+    if (error) return alert(error.code === '23514' ? 'The trash does not accept storyboard events yet: paste supabase/migrations/20261011_trash_types.sql once. The note has not been touched.' : error.message);
+    await sb.from('storyboard_events').delete().eq('id', draft.id);
+    S.events = S.events.filter((x) => x.id !== draft.id); S.links = S.links.filter((k) => k.event_id !== draft.id);
+    closeOverlay(); drawStoryboard();
+  };
+  el.querySelector('[data-a="save"]').onclick = async () => {
+    const patch = {
+      title: el.querySelector('input.title').value.trim(),
+      summary: el.querySelector('textarea').value.trim(),
+      chapter_id: el.querySelector('[data-k="ch"]').value || null,
+    };
+    if (wall.ok) patch.cast_id = draft.cast_id;
+    if (wall.chars) patch.character_ids = [...involved];
+    if (isNew) {
+      const last = bookEvents().slice(-1)[0];
+      const row = { ...draft, ...patch, user_id: userId, position: positionBetween(last ? last.position : null, null) };
+      if (!wall.ok) { delete row.cast_id; delete row.x; delete row.y; }
+      if (!wall.chars) delete row.character_ids;
+      const { error } = await sb.from('storyboard_events').insert(row);
+      if (error) return alert(error.message);
+      delete row.user_id; S.events.push(row);
+    } else {
+      const { error } = await sb.from('storyboard_events').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', draft.id);
+      if (error) return alert(error.message);
+      Object.assign(S.events.find((x) => x.id === draft.id), patch);
+    }
+    closeOverlay(); drawStoryboard();
+  };
+  if (isNew) el.querySelector('input.title').focus();
+}
+
+// Name + colour, for a thread or a character.
+function editNamed(kind, item){
+  const palette = kind === 'thread' ? THREAD_COLORS : CAST_COLORS;
+  let color = item ? item.color : null;
+  const el = openOverlay(`<div class="sheet">
+    <h3>${item ? '' : 'NEW '}${kind.toUpperCase()}</h3>
+    <input class="big" placeholder="${kind === 'thread' ? 'A subplot, an arc, a mystery…' : 'Who'}" value="${esc(item ? item.name : '')}">
+    <h3>COLOUR</h3>
+    <div class="swatches">${palette.map((c) => `<button data-c="${c}" class="${c === color ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div>
+    <div class="row">${item ? `<button class="btn danger" data-a="del">Remove ${kind}</button>` : ''}<span style="flex:1"></span><button class="btn" data-a="cancel">Cancel</button><button class="btn solid" data-a="save">Save</button></div>
+  </div>`);
+  el.querySelector('.swatches').onclick = (ev) => { const b = ev.target.closest('button'); if (!b) return; color = b.dataset.c; el.querySelectorAll('.swatches button').forEach((x) => x.classList.toggle('on', x === b)); };
+  el.querySelector('[data-a="cancel"]').onclick = closeOverlay;
+  const table = kind === 'thread' ? 'storyboard_threads' : 'storyboard_cast';
+  const list = kind === 'thread' ? S.threads : S.cast;
+  const del = el.querySelector('[data-a="del"]');
+  if (del) del.onclick = async () => {
+    if (!confirm(kind === 'thread' ? 'Remove this thread? The notes stay where they are.' : 'Remove this character? Their notes go back to plain yellow; their bible is untouched.')) return;
+    await sb.from(table).delete().eq('id', item.id);
+    list.splice(list.indexOf(item), 1);
+    if (kind === 'thread') S.links = S.links.filter((k) => k.thread_id !== item.id);
+    closeOverlay(); drawStoryboard();
+  };
+  el.querySelector('[data-a="save"]').onclick = async () => {
+    const name = el.querySelector('input').value.trim();
+    if (item) {
+      await sb.from(table).update({ name, color: color || item.color }).eq('id', item.id);
+      item.name = name; item.color = color || item.color;
+    } else {
+      const same = kind === 'thread' ? S.threads.filter((t) => t.book === SB.book) : S.cast;
+      const used = new Set(same.map((x) => x.color));
+      const row = { id: uuid(), user_id: userId, project_id: projectId, name, color: color || palette.find((c) => !used.has(c)) || palette[0], position: positionBetween(same.length ? Number(same[same.length - 1].position) : null, null) };
+      if (kind === 'thread') row.book = SB.book;
+      const { error } = await sb.from(table).insert(row);
+      if (error) return alert(error.message);
+      delete row.user_id; list.push(row);
+      if (kind === 'thread') SB.stringing = row.id;
+    }
+    closeOverlay(); drawStoryboard();
+  };
+  el.querySelector('input').focus();
+}
+
+// Book order, changed here (where a note hangs is the wall's business; when it happens is this).
+function openOrder(){
+  const el = openOverlay(`<div class="sheet"><h3>ORDER — ${bookName(SB.book).toUpperCase()}</h3><div id="ord"></div><div class="row"><span style="flex:1"></span><button class="btn solid" data-a="done">Done</button></div></div>`);
+  function draw(){
+    const ev = bookEvents();
+    el.querySelector('#ord').innerHTML = ev.map((e, i) => `<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border-dim);padding:5px 0"><span class="status">#${i + 1}</span><span class="hand" style="flex:1;font-size:21px;font-weight:700">${esc(e.title || 'Untitled')}</span><button class="btn" data-up="${e.id}" ${i === 0 ? 'disabled' : ''}>▲</button><button class="btn" data-dn="${e.id}" ${i === ev.length - 1 ? 'disabled' : ''}>▼</button></div>`).join('') || '<p class="hand-body">No notes in this book.</p>';
+  }
+  el.querySelector('#ord').onclick = async (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const list = bookEvents(); const id = b.dataset.up || b.dataset.dn; const i = list.findIndex((x) => x.id === id);
+    const j = b.dataset.up ? i - 1 : i + 1; if (j < 0 || j >= list.length) return;
+    const without = list.filter((x) => x.id !== id); const at = b.dataset.up ? j : j;
+    const before = without[at - 1], after = without[at];
+    const pos = positionBetween(before ? Number(before.position) : null, after ? Number(after.position) : null);
+    const e = S.events.find((x) => x.id === id); e.position = pos;
+    await sb.from('storyboard_events').update({ position: pos }).eq('id', id);
+    draw();
+  };
+  el.querySelector('[data-a="done"]').onclick = () => { closeOverlay(); drawStoryboard(); };
+  draw();
+}
+
+/* ====================================================================== SCENE SKETCHES */
+const GROUP_ORDER = ['Unsorted','Backstory','Prologue','B1','B2','Skip','B3','B4','B5','B6','After','Unplaced'];
+const GROUP_LABEL = { Unsorted: 'Unsorted', Backstory: 'Backstory', Prologue: 'Prologue', B1: 'Book One', B2: 'Book Two', Skip: 'The skip', B3: 'Book Three', B4: 'Book Four', B5: 'Book Five', B6: 'Book Six', After: 'After the war', Unplaced: 'Unplaced' };
+const PREFIX = /^(Backstory|Prologue|B\d+|Skip|After|Unplaced) · /;
+const groupOf = (t) => PREFIX.exec(t)?.[1] || 'Unsorted';
+const noPrefix = (t) => t.replace(PREFIX, '');
+const SK = { group: null, query: '', open: null, editing: false, arranging: false };
+
+async function renderSketches(opts = {}){
+  await Promise.all([loadSketches(), S.events.length ? null : loadBoard().catch(() => {})]);
+  if (opts.sketch) SK.open = opts.sketch;
+  view.innerHTML = `<div class="split"><div class="side"><div class="top">
+      <input id="sk-q" placeholder="Search every scene…" value="${esc(SK.query)}">
+      <div class="groups" id="sk-groups"></div>
+      <div style="display:flex;gap:8px"><button class="btn solid" id="sk-new">+ Sketch</button><button class="btn" id="sk-arr">${SK.arranging ? 'Done' : 'Rearrange'}</button></div>
+    </div><div class="list" id="sk-list"></div></div><div class="pane" id="sk-pane"></div></div>`;
+  $('#sk-q').oninput = (e) => { SK.query = e.target.value; drawSketchList(); };
+  $('#sk-new').onclick = async () => {
+    const last = S.treatments[S.treatments.length - 1];
+    const t = { id: uuid(), user_id: userId, project_id: projectId, title: null, position: positionBetween(last ? Number(last.position) : null, null) };
+    const v = { id: uuid(), treatment_id: t.id, user_id: userId, project_id: projectId, content: '', status: 'live' };
+    const { error } = await sb.from('treatments').insert(t); if (error) return alert(error.message);
+    await sb.from('treatment_versions').insert(v);
+    S.treatments.push(t); S.versions.push({ ...v, created_at: new Date().toISOString() });
+    SK.open = t.id; SK.editing = true; drawSketchList(); drawSketch();
+  };
+  $('#sk-arr').onclick = () => {
+    if (!SK.arranging && !SK.group) return alert('Choose a group first, then rearrange the sketches inside it.');
+    SK.arranging = !SK.arranging; $('#sk-arr').textContent = SK.arranging ? 'Done' : 'Rearrange'; drawSketchList();
+  };
+  drawSketchList(); drawSketch();
+}
+function drawSketchList(){
+  const all = S.treatments.map((t) => ({ t, title: sketchTitle(t) }));
+  const counts = {}; all.forEach((x) => { const g = groupOf(x.title); counts[g] = (counts[g] || 0) + 1; });
+  $('#sk-groups').innerHTML = `<button class="chip ${SK.group ? '' : 'on'}" data-g="">All ${all.length}</button>` + GROUP_ORDER.filter((g) => counts[g]).map((g) => `<button class="chip ${SK.group === g ? 'on' : ''}" data-g="${g}">${GROUP_LABEL[g]} ${counts[g]}</button>`).join('');
+  $('#sk-groups').onclick = (e) => { const b = e.target.closest('[data-g]'); if (!b) return; SK.group = b.dataset.g || null; SK.arranging = false; $('#sk-arr').textContent = 'Rearrange'; drawSketchList(); };
+  const words = SK.query.toLowerCase().split(/\s+/).filter(Boolean);
+  let rows = all.filter((x) => !SK.group || groupOf(x.title) === SK.group);
+  if (words.length) rows = rows.filter((x) => { const hay = (x.title + '\n' + (liveVersion(x.t.id)?.content || '')).toLowerCase(); return words.every((w) => hay.includes(w)); });
+  const snip = (text) => {
+    const plain = text.replace(/[*_`#>|]+/g, '').replace(/\s+/g, ' ');
+    const low = plain.toLowerCase(); let at = -1;
+    for (const w of words) { const i = low.indexOf(w); if (i !== -1 && (at === -1 || i < at)) at = i; }
+    const piece = (at > 46 ? '…' : '') + plain.slice(Math.max(0, at - 46), at + 140);
+    return words.reduce((h, w) => h.replace(new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>'), esc(piece));
+  };
+  $('#sk-list').innerHTML = rows.map((x, i) => `<button class="item ${SK.open === x.t.id ? 'on' : ''}" data-id="${x.t.id}">
+      <div class="tt">${esc(noPrefix(x.title))}</div>
+      ${words.length ? `<div class="sn">${snip(liveVersion(x.t.id)?.content || '')}</div>` : !SK.group && groupOf(x.title) !== 'Unsorted' ? `<div class="tg">${GROUP_LABEL[groupOf(x.title)]}</div>` : ''}
+      ${SK.arranging ? `<div><span class="btn" data-up="${x.t.id}" ${i === 0 ? 'style="opacity:.3"' : ''}>▲</span> <span class="btn" data-dn="${x.t.id}" ${i === rows.length - 1 ? 'style="opacity:.3"' : ''}>▼</span></div>` : ''}
+    </button>`).join('') || `<p class="note-msg">${words.length ? 'Nothing matches.' : 'No scene sketches yet.'}</p>`;
+  $('#sk-list').onclick = async (e) => {
+    const mv = e.target.closest('[data-up],[data-dn]');
+    if (mv) {
+      e.stopPropagation();
+      const ids = rows.map((x) => x.t.id); const id = mv.dataset.up || mv.dataset.dn; const i = ids.indexOf(id);
+      const j = mv.dataset.up ? i - 1 : i + 1; if (j < 0 || j >= ids.length) return;
+      const without = rows.filter((x) => x.t.id !== id).map((x) => x.t);
+      const before = without[j - 1], after = without[j];
+      const pos = positionBetween(before ? Number(before.position) : null, after ? Number(after.position) : null);
+      const t = S.treatments.find((x) => x.id === id); t.position = pos; S.treatments.sort(byPos);
+      await sb.from('treatments').update({ position: pos }).eq('id', id);
+      return drawSketchList();
+    }
+    const b = e.target.closest('[data-id]'); if (!b) return;
+    SK.open = b.dataset.id; SK.editing = false; drawSketchList(); drawSketch();
+  };
+}
+let skTimer = null;
+function drawSketch(){
+  const pane = $('#sk-pane');
+  const t = S.treatments.find((x) => x.id === SK.open);
+  if (!t) { pane.innerHTML = '<div class="note-msg">Choose a scene on the left.</div>'; return; }
+  const v = liveVersion(t.id);
+  const pinned = S.events.find((e) => e.treatment_id === t.id);
+  pane.innerHTML = `<div class="reader">
+    <div class="toolbar">
+      <button class="btn gold" id="sk-mode">${SK.editing ? 'Read' : '✎ Edit'}</button>
+      <button class="btn" id="sk-rename">Rename</button>
+      ${wall.ok ? (pinned ? `<button class="btn" id="sk-wall">On the storyboard, ${bookName(pinned.book)} — open</button>` : '<button class="btn" id="sk-pin">Pin to the storyboard</button>') : ''}
+      <span class="status" id="sk-status"></span>
+    </div>
+    <h1 class="hand" style="font-size:40px;color:var(--gold);margin:6px 0 10px;line-height:1.05">${esc(noPrefix(sketchTitle(t)))}</h1>
+    ${SK.editing ? `<textarea class="editor-ta" id="sk-ta">${esc(v ? v.content : '')}</textarea>` : `<div class="md handwritten">${md(v ? v.content : '')}</div>`}
+  </div>`;
+  $('#sk-mode').onclick = () => { SK.editing = !SK.editing; drawSketch(); };
+  $('#sk-rename').onclick = async () => {
+    const name = prompt('Sketch title', t.title || ''); if (name == null) return;
+    t.title = name.trim() || null; await sb.from('treatments').update({ title: t.title }).eq('id', t.id); drawSketchList(); drawSketch();
+  };
+  const wallBtn = $('#sk-wall'); if (wallBtn) wallBtn.onclick = () => { SB.book = pinned.book; go('storyboard'); };
+  const pinBtn = $('#sk-pin'); if (pinBtn) pinBtn.onclick = () => pinSketch(t);
+  const ta = $('#sk-ta');
+  if (ta && v) ta.oninput = () => {
+    $('#sk-status').textContent = 'Editing…';
+    clearTimeout(skTimer);
+    skTimer = setTimeout(async () => {
+      v.content = ta.value;
+      const { error } = await sb.from('treatment_versions').update({ content: ta.value, updated_at: new Date().toISOString() }).eq('id', v.id);
+      $('#sk-status').textContent = error ? 'Not saved: ' + error.message : 'Saved';
+    }, 900);
+  };
+}
+// The note on the wall is a SUMMARY written now -- the scene stays here, one click away.
+function pinSketch(t){
+  const books = [...new Set([0, 1, 2, 3, 4, ...S.chapters.map((c) => c.book)])].sort((a, b) => a - b);
+  const el = openOverlay(`<div class="sheet"><h3>PIN TO THE STORYBOARD</h3>
+    <select data-k="book">${books.map((b) => `<option value="${b}">${bookName(b)}</option>`).join('')}</select>
+    <h3>HEADING</h3><input class="big" data-k="title" value="${esc(noPrefix(sketchTitle(t)).slice(0, 80))}">
+    <h3>SUMMARY — WHAT GOES ON THE WALL</h3><textarea class="big" rows="5" data-k="sum" placeholder="Sum the scene up in a few lines. Clicking the note opens the full scene."></textarea>
+    <div class="row"><span style="flex:1"></span><button class="btn" data-a="cancel">Cancel</button><button class="btn solid" data-a="pin">Pin it up</button></div></div>`);
+  el.querySelector('[data-a="cancel"]').onclick = closeOverlay;
+  el.querySelector('[data-a="pin"]').onclick = async () => {
+    const summary = el.querySelector('[data-k="sum"]').value.trim();
+    if (!summary) return alert('Write the summary first — it is what goes on the wall.');
+    const book = Number(el.querySelector('[data-k="book"]').value);
+    const inBook = S.events.filter((e) => e.book === book).sort(byPos); const last = inBook[inBook.length - 1];
+    const row = { id: uuid(), user_id: userId, project_id: projectId, book, title: el.querySelector('[data-k="title"]').value.trim() || 'Untitled scene', summary, chapter_id: t.became_type === 'chapter' ? t.became_id : null, treatment_id: t.id, position: positionBetween(last ? last.position : null, null) };
+    const { error } = await sb.from('storyboard_events').insert(row);
+    if (error) return alert(error.message);
+    delete row.user_id; S.events.push(row); closeOverlay(); SB.book = book; go('storyboard');
+  };
+}
+
+/* ====================================================================== CHARACTERS */
+const BIBLE_TITLE = /^\s*\d*\s*·?\s*Character\s+—\s+(.+?)\s*$/i;
+async function renderCharacters(opts = {}){
+  await Promise.all([loadBoard(), loadDocs()]);
+  if (!wall.ok) { view.innerHTML = '<div class="note-msg">Characters need supabase/migrations/20261011b_storyboard_wall.sql and 20261011c_characters.sql pasted into the Supabase SQL editor once.</div>'; return; }
+  if (opts.character) return renderCharacter(opts.character);
+  const bibles = S.docs.filter((d) => docType(d.type) !== 'Archive').map((d) => ({ d, m: BIBLE_TITLE.exec(d.title) })).filter(({ m }) => m && !/supporting/i.test(m[1]));
+  const urls = await Promise.all(S.cast.map((c) => imageUrl(c.image_path)));
+  view.innerHTML = `<div class="cgrid">
+    <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><span class="hand" style="font-size:34px;color:var(--gold);flex:1">Characters</span>
+      ${bibles.length ? `<button class="btn gold" id="ch-gather">Gather from character bibles (${bibles.length})</button>` : ''}<button class="btn solid" id="ch-new">+ Character</button></div>
+    ${S.cast.map((c, i) => `<div class="ccell" data-id="${c.id}"><div class="ph" style="background:${c.color}">${urls[i] ? `<img src="${esc(urls[i])}" alt="">` : esc((c.name || '?')[0].toUpperCase())}</div><div class="nm">${esc(c.name || 'Unnamed')}</div><div class="mt">${esc(c.description || S.docs.find((d) => d.id === c.document_id)?.title || 'No bible linked')}</div></div>`).join('')}
+  </div>`;
+  view.querySelector('.cgrid').onclick = (e) => { const c = e.target.closest('.ccell'); if (c) renderCharacter(c.dataset.id); };
+  $('#ch-new').onclick = async () => {
+    const used = new Set(S.cast.map((c) => c.color));
+    const row = { id: uuid(), user_id: userId, project_id: projectId, name: 'New character', color: CAST_COLORS.find((c) => !used.has(c)) || CAST_COLORS[0], position: positionBetween(S.cast.length ? Number(S.cast[S.cast.length - 1].position) : null, null) };
+    const { error } = await sb.from('storyboard_cast').insert(row); if (error) return alert(error.message);
+    S.cast.push(row); renderCharacter(row.id);
+  };
+  const g = $('#ch-gather');
+  if (g) g.onclick = async () => {
+    if (!wall.chars) return alert('Paste supabase/migrations/20261011c_characters.sql into the Supabase SQL editor once first.');
+    let added = 0, linked = 0;
+    for (const { d, m } of bibles) {
+      const name = m[1].trim();
+      const ex = S.cast.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+      if (ex) { if (!ex.document_id) { await sb.from('storyboard_cast').update({ document_id: d.id }).eq('id', ex.id); ex.document_id = d.id; linked++; } continue; }
+      const used = new Set(S.cast.map((c) => c.color));
+      const row = { id: uuid(), user_id: userId, project_id: projectId, name, color: CAST_COLORS.find((c) => !used.has(c)) || CAST_COLORS[0], position: positionBetween(S.cast.length ? Number(S.cast[S.cast.length - 1].position) : null, null), document_id: d.id };
+      const { error } = await sb.from('storyboard_cast').insert(row); if (!error) { S.cast.push(row); added++; }
+    }
+    alert(added + linked ? `${added} added, ${linked} linked to their bible.` : 'Every character bible already has its character.');
+    renderCharacters();
+  };
+}
+
+async function renderCharacter(id){
+  const c = S.cast.find((x) => x.id === id); if (!c) return renderCharacters();
+  const url = await imageUrl(c.image_path);
+  let bible = null;
+  if (c.document_id) { const { data } = await sb.from('documents').select('id, title, content').eq('id', c.document_id).single(); bible = data; }
+  const html = bible ? md(bible.content) : '';
+  view.innerHTML = `<div class="wiki">
+    <div class="art">
+      <button class="btn" id="ch-back" style="margin-bottom:10px">← All characters</button>
+      <h1><input id="ch-name" value="${esc(c.name)}" style="font:inherit;background:none;border:none;color:var(--text);width:100%;padding:0"></h1>
+      <input class="tagline" id="ch-tag" placeholder="A few words — the line on their card" value="${esc(c.description || '')}">
+      <div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding-bottom:6px">
+        <span style="font-family:var(--heading);letter-spacing:.15em;color:var(--gold);font-size:13px;flex:1">CHARACTER BIBLE</span>
+        <select id="ch-bible"><option value="">— none linked —</option>${S.docs.filter((d) => docType(d.type) !== 'Archive' && (docType(d.type) === 'Character Bible' || /Character —/.test(d.title))).map((d) => `<option value="${d.id}" ${d.id === c.document_id ? 'selected' : ''}>${esc(d.title)}</option>`).join('')}</select>
+      </div>
+      ${bible ? `<div id="ch-contents"></div><div class="md" id="ch-article">${html}</div>` : '<p class="hand-body" style="color:var(--faint);font-size:18px">Link their bible above and it reads here as their article.</p>'}
+    </div>
+    <aside class="infobox">
+      <div class="ih" style="background:${c.color}">${esc(c.name || 'Unnamed')}</div>
+      <button class="ip" id="ch-pic">${url ? `<img src="${esc(url)}" alt="">` : `<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--hand);font-size:120px;color:var(--ink);background:${c.color}">${esc((c.name || '?')[0].toUpperCase())}</div>`}<span class="hint">Click to ${url ? 'change' : 'add'} the picture</span></button>
+      <div class="bar">Biographical information</div>
+      <table>${S.fields.map((f) => `<tr><td class="k" style="background:color-mix(in srgb,${c.color} 55%,transparent)" title="Double-click to rename or remove" data-f="${f.id}">${esc(f.name)}</td><td class="v"><textarea data-v="${f.id}" rows="1" placeholder="—">${esc((c.fields || {})[f.id] || '')}</textarea></td></tr>`).join('')}</table>
+      <div class="foot"><a href="#" id="ch-addf">+ Add a field (for every character)</a></div>
+      <div class="foot"><b style="font-size:13px">Colour on the storyboard</b><div class="swatches" style="margin-top:8px">${CAST_COLORS.map((x) => `<button data-c="${x}" class="${x === c.color ? 'on' : ''}" style="background:${x};width:22px;height:22px"></button>`).join('')}</div></div>
+      <div class="foot"><a href="#" id="ch-card">Show their card</a> · <a href="#" id="ch-del" style="color:var(--danger)">Remove</a></div>
+    </aside>
+  </div>`;
+  const save = async (patch) => {
+    if (!wall.chars && Object.keys(patch).some((k) => ['description','image_path','document_id','fields'].includes(k))) return alert('Paste supabase/migrations/20261011c_characters.sql into the Supabase SQL editor once first.');
+    Object.assign(c, patch); const { error } = await sb.from('storyboard_cast').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', c.id); if (error) alert(error.message);
+  };
+  $('#ch-back').onclick = () => renderCharacters();
+  $('#ch-name').onchange = (e) => save({ name: e.target.value.trim() });
+  $('#ch-tag').onchange = (e) => save({ description: e.target.value.trim() });
+  $('#ch-bible').onchange = (e) => save({ document_id: e.target.value || null }).then(() => renderCharacter(id));
+  view.querySelectorAll('[data-v]').forEach((ta) => { ta.onchange = () => save({ fields: { ...(c.fields || {}), [ta.dataset.v]: ta.value.trim() } }); });
+  view.querySelectorAll('td.k').forEach((td) => td.ondblclick = async () => {
+    const f = S.fields.find((x) => x.id === td.dataset.f);
+    const name = prompt('Rename this field for every character (leave empty to remove it):', f.name); if (name == null) return;
+    if (!name.trim()) { if (!confirm(`Remove "${f.name}" from every character?`)) return; await sb.from('character_fields').delete().eq('id', f.id); S.fields = S.fields.filter((x) => x !== f); }
+    else { await sb.from('character_fields').update({ name: name.trim() }).eq('id', f.id); f.name = name.trim(); }
+    renderCharacter(id);
+  });
+  $('#ch-addf').onclick = async (e) => {
+    e.preventDefault();
+    if (!wall.chars) return alert('Paste supabase/migrations/20261011c_characters.sql into the Supabase SQL editor once first.');
+    const name = prompt('New field, shown on every character (e.g. Alias, Age, Family):'); if (!name || !name.trim()) return;
+    const row = { id: uuid(), user_id: userId, project_id: projectId, name: name.trim(), position: positionBetween(S.fields.length ? Number(S.fields[S.fields.length - 1].position) : null, null) };
+    const { error } = await sb.from('character_fields').insert(row); if (error) return alert(error.message);
+    S.fields.push(row); renderCharacter(id);
+  };
+  view.querySelector('.infobox .swatches').onclick = async (e) => { const b = e.target.closest('button'); if (b) { await save({ color: b.dataset.c }); renderCharacter(id); } };
+  $('#ch-card').onclick = (e) => { e.preventDefault(); showFlashcard(c); };
+  $('#ch-del').onclick = async (e) => {
+    e.preventDefault(); if (!confirm(`Remove ${c.name}? Their notes go back to plain yellow; their bible is untouched.`)) return;
+    await sb.from('storyboard_cast').delete().eq('id', c.id); S.cast = S.cast.filter((x) => x !== c); renderCharacters();
+  };
+  // Pictures from this computer, to the same private bucket the phone uses.
+  $('#ch-pic').onclick = async () => {
+    if (!wall.chars) return alert('Paste supabase/migrations/20261011c_characters.sql into the Supabase SQL editor once first.');
+    const [file] = await pickFile('image/*'); if (!file) return;
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${userId}/${c.id}-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('character-images').upload(path, file, { contentType: file.type || 'image/' + ext, upsert: true });
+    if (error) return alert(error.message);
+    const old = c.image_path; await save({ image_path: path });
+    if (old) sb.storage.from('character-images').remove([old]);
+    renderCharacter(id);
+  };
+  const art = $('#ch-article');
+  if (art) buildContents(art, $('#ch-contents'));
+}
+
+function buildContents(article, box){
+  const heads = [...article.querySelectorAll('h1, h2')];
+  if (!box || heads.length < 3) return;
+  heads.forEach((h, i) => (h.id = 'h' + i));
+  box.innerHTML = `<div class="contents"><b>Contents</b>${heads.map((h, i) => `<a href="#h${i}" class="${h.tagName === 'H2' ? 'l2' : ''}">${i + 1}. ${esc(h.textContent)}</a>`).join('')}</div>`;
+  box.onclick = (e) => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); document.getElementById(a.getAttribute('href').slice(1))?.scrollIntoView({ behavior: 'smooth' }); };
+}
+
+/* ====================================================================== DOCUMENTS (+ import a patch) */
+const DC = { type: null, query: '', open: null, editing: false };
+async function renderDocuments(opts = {}){
+  await loadDocs();
+  if (opts.doc) DC.open = opts.doc;
+  view.innerHTML = `<div class="split"><div class="side"><div class="top">
+      <input id="dc-q" placeholder="Find a document…" value="${esc(DC.query)}">
+      <div class="groups" id="dc-types"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn solid" id="dc-import">Import a patch</button><button class="btn" id="dc-new">+ New</button></div>
+    </div><div class="list" id="dc-list"></div></div><div class="pane" id="dc-pane"></div></div>`;
+  $('#dc-q').oninput = (e) => { DC.query = e.target.value; drawDocList(); };
+  $('#dc-new').onclick = async () => {
+    const row = { id: uuid(), user_id: userId, project_id: projectId, title: 'Untitled', type: 'Other', content: '' };
+    const { error } = await sb.from('documents').insert(row); if (error) return alert(error.message);
+    await loadDocs(); DC.open = row.id; DC.editing = true; drawDocList(); drawDoc(); tellParent('documents');
+  };
+  $('#dc-import').onclick = importPatch;
+  drawDocList(); drawDoc();
+}
+function drawDocList(){
+  const counts = {}; S.docs.forEach((d) => { const t = docType(d.type); counts[t] = (counts[t] || 0) + 1; });
+  const live = S.docs.filter((d) => docType(d.type) !== 'Archive');
+  $('#dc-types').innerHTML = `<button class="chip ${DC.type ? '' : 'on'}" data-t="">All ${live.length}</button>` + DOC_TYPES.filter((t) => counts[t]).map((t) => `<button class="chip ${DC.type === t ? 'on' : ''}" data-t="${t}">${t} ${counts[t]}</button>`).join('');
+  $('#dc-types').onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; DC.type = b.dataset.t || null; drawDocList(); };
+  const q = DC.query.toLowerCase();
+  const rows = (DC.type ? S.docs.filter((d) => docType(d.type) === DC.type) : live).filter((d) => !q || d.title.toLowerCase().includes(q));
+  $('#dc-list').innerHTML = rows.map((d) => `<button class="item ${DC.open === d.id ? 'on' : ''}" data-id="${d.id}"><div style="font-size:15px">${esc(d.title)}</div><div class="status">${esc(docType(d.type))}</div></button>`).join('') || '<p class="note-msg">No documents.</p>';
+  $('#dc-list').onclick = (e) => { const b = e.target.closest('[data-id]'); if (!b) return; DC.open = b.dataset.id; DC.editing = false; drawDocList(); drawDoc(); };
+}
+let dcTimer = null;
+async function drawDoc(){
+  const pane = $('#dc-pane');
+  if (!DC.open) { pane.innerHTML = '<div class="note-msg">Choose a document, or import a patch from Claude.</div>'; return; }
+  const { data: d, error } = await sb.from('documents').select('*').eq('id', DC.open).single();
+  if (error || !d) { pane.innerHTML = '<div class="note-msg">Could not open that document.</div>'; return; }
+  pane.innerHTML = `<div class="reader">
+    <div class="toolbar">
+      <button class="btn gold" id="dc-mode">${DC.editing ? 'Read' : '✎ Edit'}</button>
+      <select id="dc-type">${DOC_TYPES.map((t) => `<option ${docType(d.type) === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <button class="btn danger" id="dc-del">Delete</button>
+      <span class="status" id="dc-status"></span>
+    </div>
+    ${DC.editing ? `<input id="dc-title" class="big" style="width:100%;font-family:var(--heading);font-size:20px;margin-bottom:10px" value="${esc(d.title)}"><textarea class="editor-ta" style="font-family:var(--serif);font-size:16px" id="dc-ta">${esc(d.content || '')}</textarea>`
+      : `<h1 style="font-family:var(--heading);margin:4px 0 6px">${esc(d.title)}</h1><div id="dc-contents"></div><div class="md" id="dc-md">${md(d.content || '')}</div>`}
+  </div>`;
+  $('#dc-mode').onclick = () => { DC.editing = !DC.editing; drawDoc(); };
+  $('#dc-type').onchange = async (e) => { await sb.from('documents').update({ type: e.target.value, updated_at: new Date().toISOString() }).eq('id', d.id); await loadDocs(); drawDocList(); tellParent('documents'); };
+  $('#dc-del').onclick = async () => {
+    if (!confirm(`Move "${d.title}" to the trash? It can be restored from Trash.`)) return;
+    const { error: e1 } = await sb.from('trash').insert({ user_id: userId, project_id: projectId, type: 'document', payload: { document: d }, deleted_at: new Date().toISOString() });
+    if (e1) return alert(e1.message);
+    await sb.from('documents').delete().eq('id', d.id); DC.open = null; await loadDocs(); drawDocList(); drawDoc(); tellParent('documents');
+  };
+  const ta = $('#dc-ta'), ti = $('#dc-title');
+  const schedule = () => {
+    $('#dc-status').textContent = 'Editing…'; clearTimeout(dcTimer);
+    dcTimer = setTimeout(async () => {
+      const { error: e2 } = await sb.from('documents').update({ title: ti.value, content: ta.value, updated_at: new Date().toISOString() }).eq('id', d.id);
+      $('#dc-status').textContent = e2 ? 'Not saved: ' + e2.message : 'Saved'; tellParent('documents');
+      const row = S.docs.find((x) => x.id === d.id); if (row) row.title = ti.value;
+    }, 1000);
+  };
+  if (ta) { ta.oninput = schedule; ti.oninput = schedule; }
+  const mdEl = $('#dc-md'); if (mdEl) buildContents(mdEl, $('#dc-contents'));
+}
+
+// A patch written in Claude: paste it, or drop / choose the .md files Claude gave you. Each
+// becomes a document, titled from its first heading, previewed before anything is saved.
+function importPatch(){
+  const pending = [];
+  const titleOf = (text, fallback) => (text.split('\n').map((l) => l.trim()).find((l) => /^#{1,3}\s+\S/.test(l)) || '').replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim() || fallback;
+  const el = openOverlay(`<div class="sheet" style="width:min(900px,100%)">
+    <h3>IMPORT A PATCH FROM CLAUDE</h3>
+    <p class="hand-body" style="margin:0 0 8px;color:var(--dim);font-size:17px">Paste the patch below, or drop the .md files Claude gave you here. Each becomes a document in the library, titled from its first heading.</p>
+    <textarea class="big" rows="9" id="ip-paste" placeholder="Paste a patch here…"></textarea>
+    <div class="row"><button class="btn" id="ip-add">Add pasted text</button><button class="btn" id="ip-files">Choose .md files…</button><span class="status">or drag files onto this box</span></div>
+    <div id="ip-list" style="margin-top:12px"></div>
+    <div class="row"><span style="flex:1"></span><button class="btn" data-a="cancel">Cancel</button><button class="btn solid" data-a="save">Add to Documents</button></div>
+  </div>`);
+  const draw = () => {
+    el.querySelector('#ip-list').innerHTML = pending.map((p, i) => `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;align-items:center"><input data-i="${i}" data-k="title" value="${esc(p.title)}" style="flex:1;font-family:var(--heading)">
+      <select data-i="${i}" data-k="type">${DOC_TYPES.filter((t) => t !== 'Archive').map((t) => `<option ${p.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <button class="btn danger" data-rm="${i}">×</button></div>
+      <details style="margin-top:6px"><summary class="status">Preview (${p.content.length.toLocaleString()} characters)</summary><div class="md" style="max-height:300px;overflow:auto;font-size:15px">${md(p.content)}</div></details></div>`).join('');
+  };
+  const add = (content, fallback) => { if (content.trim()) { pending.push({ content, title: titleOf(content, fallback), type: 'Other' }); draw(); } };
+  el.querySelector('#ip-add').onclick = () => { const ta = el.querySelector('#ip-paste'); add(ta.value, 'Patch ' + new Date().toISOString().slice(0, 10)); ta.value = ''; };
+  const readFiles = async (files) => { for (const f of files) add(await f.text(), f.name.replace(/\.(md|markdown|txt)$/i, '')); };
+  el.querySelector('#ip-files').onclick = async () => readFiles(await pickFile('.md,.markdown,.txt,text/markdown,text/plain', true));
+  el.ondragover = (e) => e.preventDefault();
+  el.ondrop = (e) => { e.preventDefault(); readFiles([...e.dataTransfer.files]); };
+  el.querySelector('#ip-list').oninput = (e) => { const t = e.target; if (t.dataset.i != null) pending[Number(t.dataset.i)][t.dataset.k] = t.value; };
+  el.querySelector('#ip-list').onchange = el.querySelector('#ip-list').oninput;
+  el.querySelector('#ip-list').onclick = (e) => { const b = e.target.closest('[data-rm]'); if (b) { pending.splice(Number(b.dataset.rm), 1); draw(); } };
+  el.querySelector('[data-a="cancel"]').onclick = closeOverlay;
+  el.querySelector('[data-a="save"]').onclick = async () => {
+    const ta = el.querySelector('#ip-paste'); if (ta.value.trim()) { add(ta.value, 'Patch ' + new Date().toISOString().slice(0, 10)); ta.value = ''; }
+    if (!pending.length) return alert('Paste a patch or choose a file first.');
+    const rows = pending.map((p) => ({ id: uuid(), user_id: userId, project_id: projectId, title: p.title.trim() || 'Untitled patch', type: p.type, content: p.content }));
+    const { error } = await sb.from('documents').insert(rows);
+    if (error) return alert(error.message);
+    closeOverlay(); DC.open = rows[0].id; await loadDocs(); drawDocList(); drawDoc(); tellParent('documents');
+  };
+}
+
+/* ====================================================================== routing */
+async function go(next, opts = {}){
+  tab = next;
+  document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+  history.replaceState(null, '', `?project=${projectId}&tab=${tab}`);
+  view.innerHTML = '<div class="note-msg">Loading…</div>';
+  try {
+    if (tab === 'storyboard') await renderStoryboard();
+    else if (tab === 'sketches') await renderSketches(opts);
+    else if (tab === 'characters') await renderCharacters(opts);
+    else await renderDocuments(opts);
+  } catch (e) {
+    view.innerHTML = `<div class="note-msg">${esc(e.message || String(e))}${/storyboard/.test(e.message || '') ? '<br>The storyboard needs supabase/migrations/20260924_storyboard.sql.' : ''}</div>`;
+  }
+}
+document.querySelectorAll('.tab').forEach((b) => (b.onclick = () => go(b.dataset.tab)));
+window.addEventListener('resize', () => { if (tab === 'storyboard' && $('#wall')) drawStoryboard(); });
+go(tab);
+})();
+</script>
+</body>
+</html>

@@ -41,6 +41,8 @@ export type SignedInStackParamList = {
   Documents: { projectId: string };
   /** The project's characters: picture, colour, flashcard lines, bible. Same rows as the storyboard's cast. */
   Characters: { projectId: string };
+  /** A patch from Claude, pasted or picked as a .md file, saved as a document. */
+  PatchImport: { projectId: string };
   Character: { projectId: string; characterId: string };
   /** One document, rendered for reading. Editing is DocumentEditor, as Reader is to Editor. */
   DocumentReader: { projectId: string; documentId: string };

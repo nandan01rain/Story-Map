@@ -64,6 +64,11 @@ root); this repo is the migration of that sandbox into a real, independent app.
 
 ## Current state
 
+> **2026-10-12: `studio.html`** (beside index.html) is the web app's Storyboard (wide evidence
+> wall), Scene Sketches, Characters and Documents (+ Import a patch), opened from the web app's
+> menu and using its sign-in. And the web app now saves **only rows it changed** -- it used to
+> re-upload everything and revert edits made on the phone. Handoff §46.
+
 Single self-contained HTML file (`index.html`) plus small static sidecar
 files (`manifest.json`, `service-worker.js`, `supabase-config.js`). All CSS,
 JS, and a base64-embedded map background image live inline in `index.html`.

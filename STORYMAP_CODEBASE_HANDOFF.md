@@ -5275,3 +5275,37 @@ note's colour). Store reads the richest shape the DB has and degrades per migrat
   clipped ("Unsortea"); every handwriting style now carries `paddingRight: 4`.
 - Backup/restore carry `character_fields`. **Pictures are not in the backup** (they live in
   Storage, not a table) -- a known gap.
+
+## 46. THE WEB APP CATCHES UP: studio.html, AND SAVING ONLY WHAT CHANGED (2026-10-12)
+
+**A data-loss bug found first.** The PWA's `saveData()` upserted EVERY chapter, scene, page,
+document and trash row from its in-memory copy on every save. With the phone editing the same
+rows, any save in an open browser tab (a chapter tweak) silently put back the tab's stale copy of
+everything else -- a document rewritten on the phone, reverted. Now the row builders are
+functions (`buildChapterRows`, …), each row's fingerprint (minus `updated_at`/`user_id`) is
+remembered when loaded (`primeSavedRows()` at the end of the load) and when saved, and
+`changedRows()` sends only rows this tab changed. **Never reintroduce a whole-state upsert.**
+
+**studio.html** (new, beside index.html; same origin): the October phone surfaces for the web --
+**Storyboard** as a wide evidence wall (as many columns as the screen holds; drag notes anywhere
+with the mouse, positions shared with the phone; strings in book order; blurred-glass popup with
+heading, summary, who's in it, colour, threads, chapter; Order list; Tidy up resets placement;
+flashcards; threads/characters), **Scene Sketches** (groups, search with highlighted snippets,
+handwritten rendered reading, edit, rename, rearrange within a group, Pin to storyboard),
+**Characters** (grid; wiki page with infobox, picture upload FROM THE LAPTOP into the same private
+bucket, project-wide fields, bible rendered with contents; Gather from bibles), **Documents**
+(rendered reading with contents, edit, type incl. Archive, delete to trash, **Import a patch**).
+index.html opens it in a full-screen iframe from the menu (Documents button now goes there) and it
+borrows `window.parent.sbClient` -- no second sign-in; standalone it makes its own client. It reads
+with `select('*')` so it adapts to whichever migrations have run. Markdown via marked + DOMPurify
+(jsdelivr). When it changes documents it posts `studio-changed`, and index.html refetches its
+documents and re-primes their fingerprints so it can never save a stale one. Verified against a
+fake-client harness (`canon-import/studio-harness.html`, git-ignored): every tab renders and the
+flows run without errors; not yet exercised against the live project.
+
+**Import a patch** (both apps): paste a patch from Claude, or pick its .md file(s) (web: several,
+or drag and drop) → previewed rendered → one document each, titled from the first heading. Phone:
+Documents → Import a patch (expo-document-picker + `File.text()`, no new build).
+
+Not on the web yet: the Writer, Chronology, prose reports and progressions (older phone features);
+Make-this-a-chapter from a sketch.
