@@ -4949,7 +4949,8 @@ are different postures.
 | 3 | 1.0.0 | 1.0.0 | compass-rose icon |
 | 4 | 1.0.0 | 1.0.0 | `fallbackToCacheTimeout: 0` (§31.7) |
 | 5 | 1.1.0 | 1.1.0 | `expo-notifications` — the daily reminder |
-| **6** | **1.2.0** | **1.2.0** | `expo-document-picker` — restore (§34.2) |
+| 6 | 1.2.0 | 1.2.0 | `expo-document-picker` — restore (§34.2). **Built, never installed; download expired.** |
+| **7** | **1.2.0** | **1.2.0** | Same native surface as 6, rebuilt 2026-10-11 and installed. The phone's current binary. |
 
 **The runtime version follows the app version** (`runtimeVersion: {policy: 'appVersion'}`), so
 adding a native module means bumping `version`, not only `versionCode`. Publishing a bundle that
@@ -5309,3 +5310,63 @@ Documents → Import a patch (expo-document-picker + `File.text()`, no new build
 
 Not on the web yet: the Writer, Chronology, prose reports and progressions (older phone features);
 Make-this-a-chapter from a sketch.
+
+## 47. WHERE THINGS STAND, AND WHAT IS NEXT (2026-10-12 — handover to a fresh chat)
+
+**Read CLAUDE.md's "START HERE" first**; this section is its detailed twin.
+
+### 47.1 What this two-day session built (§37–§46)
+- **Storyboard** (§37, §41, §42): per book, notes in book order with threads as string; on the
+  phone a cork wall with long-press drag, cast colours, Rearrange list; tap a note → fogged
+  popup (§45); scene sketches pin to it with a written summary; sketch → chapter carries the link.
+- **Redundancy pass** (§38): dead code out of both apps, duplicates merged, drawer rows all live,
+  Explore searches every project, "to sync" pill.
+- **Documents** (§39, §43): rendered markdown reader + separate editor (section-at-a-time for long
+  docs); one type vocabulary shared with the web; **Archive** type; list loads titles only.
+- **Backup** (§40): mirror runs on every kind of edit, documents as readable .md, incremental
+  fetch; restore no longer chokes on generated `search` columns. Route to Drive: a sync app
+  (e.g. Autosync for Google Drive) watching the mirror folder.
+- **Scene Sketches** (renamed Treatments; §41, §44): handwriting (Caveat + Patrick Hand),
+  virtualised list with book groups in a slide-in menu, search with snippets, rendered reading.
+- **Characters** (§45): wiki pages, project-wide infobox fields, pictures (phone + laptop) in a
+  private bucket, trading-card flashcards, "in this scene" on notes.
+- **Web** (§46): `studio.html`, and `saveData` now sends only changed rows (it used to revert
+  phone edits). **Import a patch** in both apps.
+- **Content** (§43): 70 reference documents + 300 drafted scenes loaded into Saga-01, verified
+  byte-for-byte against the source files.
+
+### 47.2 Open items, in order
+1. **Characters not yet created.** The `characters` loader run was left at its email prompt
+   (terminal tab "characters from bibles"). Re-run `node canon-import/load_reference_docs.mjs
+   characters 5b520c6d-eca1-4a13-9b3b-3d685a4bae76` and have the writer sign in, or use *Gather*
+   in either app. Expected: 11 characters, Amara linked rather than duplicated.
+2. **studio.html has not touched the live project.** Verified only against
+   `canon-import/studio-harness.html` (a fake client with canned rows). First real session: drag
+   a note and confirm the phone sees the move; upload a picture from the laptop; import a patch;
+   edit a document in the studio and confirm index.html neither shows nor re-saves a stale copy
+   (the `studio-changed` message refetches and re-primes).
+3. **`20261011_trash_types.sql` unconfirmed.** Also still unconfirmed from earlier:
+   `20260824_graph_pairs`, `20260825_spine_support`, `20260921_progressions`.
+4. **Web parity gaps:** Writer, Chronology, prose report, progressions, sketch → chapter.
+5. **Pictures missing from backups** (Storage, not a table).
+6. **expo-blur** for a true blur behind phone popups — native, so version 1.3.0 + rebuild; batch
+   it with any other native change. Remember §30.2/§36.4: after any rebuild, confirm the phone
+   actually runs the new version (App info) before trusting OTA.
+7. **Known rough edges worth a look:** the Storyboard's Rearrange list and Scene Sketches'
+   Rearrange use the drag library, which mis-positions rows if they mount before positions are
+   seeded (§44) — keep groups small; the web storyboard's auto layout differs from the phone's
+   (column count), harmless because hand-placed notes keep absolute coordinates; a sketch's
+   versions UI exists only on the phone.
+
+### 47.3 Things the next session must not re-learn
+- **The phone binary and runtime** (§30.2, §36.4, CLAUDE.md): build 7 / 1.2.0. OTA reaches only
+  a matching runtime. Expo deletes build downloads after a while — install promptly.
+- **Bash heredocs on this machine eat backslashes** in code passed to python/node; write scripts
+  to the scratchpad with the Write tool instead.
+- **Android quirks** (§36.3, §42, §45): horizontal ScrollViews need `flexGrow: 0`; elevated views
+  draw over un-elevated siblings regardless of order; Caveat overhangs its advance width (pad
+  right); custom fonts need real bold/italic files or `fontWeight` synthesis; a native Modal over
+  a remounting list strands.
+- **canon-import/ is private and git-ignored.** The loader prompts for the writer's login; never
+  store credentials; ask before every database write.
+

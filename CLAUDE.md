@@ -1,5 +1,7 @@
 # StoryMap ("The Trail to Kailash")
 
+> **New session? Read "START HERE" below (2026-10-12) and handoff §47 first.**
+
 A personal writing tool for a five-book mythological saga called "The Trail
 to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
 screen, page title, PWA manifest); the saga title is the content this tool
@@ -27,10 +29,10 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > created on the phone (2026-10-11). Every screen that needs one detects
 > its absence, degrades, and says what to paste; nothing else breaks.
 >
-> **The installed Android binary should be build 6, version 1.2.0** (2026-09-24), which is
-> also the OTA runtime. **It was not, until 2026-10-11:** build 6 was built but never
-> installed, the phone stayed on build 5 (1.1.0), and every update published since 24 Sept
-> (storyboard onward) went to a runtime the phone does not run. If an update "never arrives",
+> **The installed Android binary is build 7, version 1.2.0** (installed 2026-10-11), which is
+> also the OTA runtime. Build 6 (same version, 2026-09-24) was built but never installed --
+> its download had expired by the time this was found -- so the phone stayed on build 5
+> (1.1.0) and every update from 24 Sept until build 7 went to a runtime it did not run. If an update "never arrives",
 > check the phone's version in Android's App info against the update's runtime first. Adding a native module means bumping `version`, not only
 > `versionCode` — see handoff §36.4 for why, and for the builds ledger.
 >
@@ -61,6 +63,62 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > disagree, the handoff doc and the actual code win. Read this file for
 > background/intent; read the handoff doc for current architecture, feature
 > status, known bugs, and what's actually been built.
+
+
+## START HERE — where things stand (2026-10-12)
+
+The rest of this file is the original brief with dated notes layered on; much of it is
+history. **This section and handoff §47 are the current picture.** Handoff §36–§46 hold the
+detail behind each item.
+
+**Two apps, one Supabase project (Saga-01 is the saga).**
+- **Phone** (`mobile/`, Expo SDK 57): installed **build 7, version 1.2.0** — the OTA runtime.
+  Ship JS changes with `cd mobile && npx eas-cli update --branch preview --environment preview
+  --non-interactive --message "…"`; the phone offers "An update is ready" on launch/resume.
+  A NEW NATIVE MODULE needs `version` bumped (→ 1.3.0) and a rebuild + manual APK install.
+- **Web**: `index.html` (the original PWA) + **`studio.html`** (Storyboard as a wide evidence
+  wall, Scene Sketches, Characters, Documents + Import a patch), opened from the web app's menu.
+  Runs locally: `python -m http.server 8080` in the repo root. Not hosted anywhere (§20, §38).
+
+**Saga content loaded (2026-10-11).** Saga-01 holds 70 reference documents (the 19-document
+canon, the 22-file 05 drafted set, 29 "Older drafts" now typed **Archive**) and **302 Scene
+Sketches** — 300 drafted scenes, verbatim, from the 05 scene index (titles prefixed by book:
+`B1 · …`, `Backstory · …`; ⚠ = CONFLICT with canon), plus 2 of the writer's own. The source
+files and the one-off loader live in **`canon-import/` — git-ignored, private manuscript; never
+commit it.** Loader: `node canon-import/load_reference_docs.mjs <mode> <projectId>` (modes:
+inspect, plan, insert, verify, organise, characters); it prompts for the writer's login in the
+terminal and never stores it.
+
+**Migrations.** Applied: `20260826_pages`, `20260830b/c` (treatments), `20260924_storyboard`,
+`20261011b_storyboard_wall`, `20261011c_characters` (the writer pasted the last two
+2026-10-11). **Not confirmed:** `20261011_trash_types` (until it runs, deleting a storyboard
+note fails with a clear message), `20260824_graph_pairs`, `20260825_spine_support`
+(Chronology), `20260921_progressions`. Every screen degrades and says what to paste.
+
+**Next steps** (in the order they matter):
+1. **Finish the characters.** A loader run (`characters` mode) was left waiting at its email
+   prompt; run it again and sign in, or tap *Gather from character bibles* in Characters (phone
+   or web) — it creates the 11 major characters (Dev, Kal, Zia, Amara, Durga, Noah, Wren, Nadir,
+   Coen, Kavi, Eva) linked to their "04 · Character —" bibles. Colours are placeholders; the
+   writer will set them.
+2. **Exercise studio.html against the live project** — it was verified only against a
+   fake-client harness (`canon-import/studio-harness.html`). Open it from the web app's menu
+   while signed in; check drag-save, picture upload, Import a patch, and that edits show on the
+   phone.
+3. **Confirm `20261011_trash_types.sql` ran** (delete a test storyboard note).
+4. **Web parity still missing:** the Writer, Chronology, prose reports, progressions, and
+   "Make this a chapter" from a sketch.
+5. **Character pictures are not in backups** (they live in Storage, not a table). Add them to
+   the snapshot/mirror.
+6. **True blur** behind popups on the phone needs `expo-blur` → version 1.3.0 + a rebuild;
+   today it is a fogged-glass wash (`FoggedSheet`). Bundle with any other native change.
+7. Longer standing (handoff §7, §15, §25): hosting the PWA, the dormant assistants (no API
+   key), trimming bundled font weights, OAuth sign-in, ingesting someone else's manuscript.
+
+**Rules the writer has set, beyond the design principles below:** always commit AND push;
+commands include their `cd`; ask before any database write and dry-run first; never use the
+web app's JSON Import (it replaces the project); nothing is ever deleted outright — Trash or
+Archive.
 
 ## Current state
 
