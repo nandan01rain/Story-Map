@@ -290,7 +290,7 @@ export default function LandingScreen({ navigation, route }: Props) {
                 <Text style={styles.cardTitle}>{backup.folderUri ? 'Backup folder' : 'Mirror to a folder'}</Text>
                 <Text style={styles.cardMeta}>
                   {!backup.folderUri
-                    ? 'Pick a folder on this phone and every save mirrors there automatically. Google Drive can’t be picked here — use the backup file above for Drive.'
+                    ? 'Pick a folder on this phone and every save mirrors there: chapters and documents as readable files, plus a full backup. To keep it in Google Drive, have a sync app (e.g. Autosync for Google Drive) watch the folder.'
                     : backupBusy || backup.running
                       ? 'Backing up…'
                       : backup.error

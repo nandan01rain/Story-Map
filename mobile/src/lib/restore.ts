@@ -3,7 +3,7 @@ import { File } from 'expo-file-system';
 import { Alert } from 'react-native';
 
 import { supabase } from './supabase';
-import type { Snapshot } from './backup';
+import { type Snapshot, withoutGenerated } from './backup';
 import { useProjectStore } from '../store/projectStore';
 
 // Reading a backup back in. The half that makes the other half a plan rather than a hope.
@@ -64,7 +64,8 @@ type Row = Record<string, unknown>;
 
 /** Re-point a row at the destination project and owner, keeping its own id. */
 function retarget(row: Row, projectId: string, userId: string): Row {
-  const next: Row = { ...row, project_id: projectId };
+  // Older snapshots carry the generated `search` column, which Postgres will not accept.
+  const next: Row = { ...withoutGenerated(row), project_id: projectId };
   if ('user_id' in next) next.user_id = userId;
   return next;
 }

@@ -5134,3 +5134,27 @@ out of the listing.
 
 Still to do: the PWA re-uploads every document on every save (`saveData`), now 4.3 MB a save in
 the browser; its own document view also shows raw markdown.
+
+## 40. THE MIRROR, MADE A REAL SECOND COPY (2026-10-11)
+
+The writer's goal: a copy that keeps up with every edit and survives the phone. Supabase is
+already off the device (the outbox gets work there within seconds; only unsynced offline writes
+are at risk, which "↻ N to sync" shows), but on the free plan it keeps no backups of its own, so
+it is the ONLY copy. The folder mirror (§34) exists for this and had three gaps:
+
+1. **It only ran when a chapter changed.** Now `scheduleMirror` subscribes to the chapter, page,
+   document, treatment and storyboard stores; same 20 s trailing debounce.
+2. **Documents were only inside `project.json`.** Each is now also `Documents/<title>.md` (its
+   title, type, last-edited, then its markdown as stored), written only when its `updated_at`
+   differs from what was last mirrored (`backup-docs-mirrored:<project>`). First run writes all.
+3. **The folder is on the phone.** Drive refuses the folder picker (§34.1), so the route to Drive
+   is a sync app watching the folder — e.g. Autosync for Google Drive. The Profile card says so.
+
+**Documents are fetched incrementally** for every snapshot (mirror and share-sheet backup): ids +
+`updated_at` from the server, full rows only for new/changed ones, the rest from a device cache
+(`Paths.document/backup-documents-<project>.json`). Without this each mirror pulled 4.3 MB.
+
+**A restore bug, found reading this code:** snapshots took `select('*')`, which includes the
+generated `search` column on documents, scenes, treatment versions and storyboard events, and
+Postgres refuses writes to a generated column — restoring those tables would have failed.
+`withoutGenerated` strips it when snapshotting, and `retarget` strips it from older snapshots.

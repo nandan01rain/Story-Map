@@ -9,7 +9,10 @@ import { bookName, byBookOrder, chapterNumberInBook } from './storyData';
 import { supabase } from './supabase';
 import { type Chapter, useChapterStore } from '../store/chapterStore';
 import { usePageStore } from '../store/pageStore';
+import { useDocumentStore } from '../store/documentStore';
 import { useProjectStore } from '../store/projectStore';
+import { useStoryboardStore } from '../store/storyboardStore';
+import { useTreatmentStore } from '../store/treatmentStore';
 
 // A second copy of the whole project, somewhere Supabase is not.
 //
@@ -44,6 +47,7 @@ import { useProjectStore } from '../store/projectStore';
 
 const FOLDER_KEY = 'backup-folder-uri';
 const LAST_KEY = 'backup-last:';
+const DOCS_MIRRORED_KEY = 'backup-docs-mirrored:';
 const DEBOUNCE_MS = 20_000;
 /** Bumped when the snapshot's shape changes, so a restore can tell what it is reading. */
 export const SNAPSHOT_VERSION = 3;
@@ -123,6 +127,20 @@ function chapterMarkdown(ch: Chapter, all: Chapter[]): string {
   return head.join('\n');
 }
 
+/**
+ * A row as it can be written back. `search` is a GENERATED column on documents, scenes,
+ * chapters, pages, treatment versions and storyboard events, and Postgres refuses any write to
+ * one -- so a snapshot carrying it could never be restored into those tables (found
+ * 2026-10-11). It is derived from the text anyway, and regenerates on insert.
+ */
+export function withoutGenerated<T>(row: T): T {
+  if (row && typeof row === 'object' && 'search' in (row as object)) {
+    const { search: _search, ...rest } = row as Record<string, unknown>;
+    return rest as T;
+  }
+  return row;
+}
+
 /** One table, or [] plus a note in `incomplete` when it cannot be read. */
 async function table(name: string, projectId: string, incomplete: string[]): Promise<unknown[]> {
   const { data, error } = await supabase.from(name).select('*').eq('project_id', projectId);
@@ -130,7 +148,58 @@ async function table(name: string, projectId: string, incomplete: string[]): Pro
     incomplete.push(name);
     return [];
   }
-  return data ?? [];
+  return (data ?? []).map(withoutGenerated);
+}
+
+type DocRow = { id: string; title: string; type: string; content: string; created_at: string; updated_at: string };
+const DOC_COLUMNS = 'id, project_id, user_id, title, type, content, created_at, updated_at';
+
+/**
+ * Documents, fetched INCREMENTALLY. The reference set alone is 4.3 MB, and the mirror runs
+ * after every pause in writing; downloading all of it each time would be most of a mobile
+ * data plan. So a local copy is kept on the device, the server is asked only for each
+ * document's id and updated_at, and only the new or changed ones are fetched in full.
+ */
+async function documentsIncremental(projectId: string, incomplete: string[]): Promise<DocRow[]> {
+  const cacheFile = new File(Paths.document, `backup-documents-${projectId}.json`);
+  let cache: Record<string, DocRow> = {};
+  try {
+    if (cacheFile.exists) cache = JSON.parse(await cacheFile.text()) as Record<string, DocRow>;
+  } catch {
+    cache = {};
+  }
+
+  const { data: list, error } = await supabase.from('documents').select('id, updated_at').eq('project_id', projectId);
+  if (error || !list) {
+    incomplete.push('documents');
+    return Object.values(cache);
+  }
+  const changed = list.filter((d) => cache[d.id]?.updated_at !== d.updated_at).map((d) => d.id as string);
+  for (let i = 0; i < changed.length; i += 20) {
+    const { data, error: err } = await supabase.from('documents').select(DOC_COLUMNS).in('id', changed.slice(i, i + 20));
+    if (err || !data) {
+      incomplete.push('documents');
+      break;
+    }
+    for (const row of data as DocRow[]) cache[row.id] = row;
+  }
+  // Only what still exists on the server; a deleted document leaves the cache (its readable
+  // file stays in the folder -- a backup that deletes is not a backup).
+  const alive = new Set(list.map((d) => d.id as string));
+  const next: Record<string, DocRow> = {};
+  for (const [id, row] of Object.entries(cache)) if (alive.has(id)) next[id] = row;
+  try {
+    if (!cacheFile.exists) cacheFile.create();
+    cacheFile.write(JSON.stringify(next));
+  } catch {
+    // The cache only saves bandwidth next time; failing to write it costs nothing now.
+  }
+  return Object.values(next);
+}
+
+/** A document as a readable file: its title, its type, then its markdown exactly as stored. */
+function documentMarkdown(doc: DocRow): string {
+  return [`# ${doc.title}`, '', `Type: ${doc.type}`, `Last edited: ${doc.updated_at}`, '', '---', '', doc.content ?? ''].join('\n');
 }
 
 /**
@@ -158,7 +227,7 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
     trash,
   ] =
     await Promise.all([
-      table('documents', projectId, incomplete),
+      documentsIncremental(projectId, incomplete),
       table('document_progressions', projectId, incomplete),
       table('scenes', projectId, incomplete),
       table('treatments', projectId, incomplete),
@@ -241,6 +310,34 @@ export const useBackup = create<BackupState>((set, get) => ({
       const snapshot = await collectSnapshot(projectId);
       await writeFile(projectDir, 'project.json', 'application/json', JSON.stringify(snapshot, null, 2));
 
+      // One readable file per document, in Documents/, written only when it has changed since
+      // the last mirror -- the first run writes all of them, later runs only what was edited.
+      const docs = snapshot.documents as DocRow[];
+      if (docs.length > 0) {
+        const mirroredKey = DOCS_MIRRORED_KEY + projectId;
+        let mirrored: Record<string, string> = {};
+        try {
+          mirrored = JSON.parse((await AsyncStorage.getItem(mirroredKey)) ?? '{}');
+        } catch {
+          mirrored = {};
+        }
+        const pending = docs.filter((d) => mirrored[d.id] !== d.updated_at);
+        if (pending.length > 0) {
+          const docsDir = await ensureDir(projectDir, 'Documents');
+          // Names must be stable to overwrite in place, and unique: a repeated title gets the
+          // start of its id.
+          const seen = new Map<string, number>();
+          for (const d of docs) seen.set(safeName(d.title), (seen.get(safeName(d.title)) ?? 0) + 1);
+          for (const d of pending) {
+            const base = safeName(d.title);
+            const name = (seen.get(base) ?? 0) > 1 ? `${base} (${d.id.slice(0, 6)}).md` : `${base}.md`;
+            await writeFile(docsDir, name, 'text/markdown', documentMarkdown(d));
+            mirrored[d.id] = d.updated_at;
+          }
+          await AsyncStorage.setItem(mirroredKey, JSON.stringify(mirrored));
+        }
+      }
+
       // One readable file per chapter, in its book's folder.
       const byBook = new Map<number, Chapter[]>();
       for (const ch of chapters) {
@@ -313,7 +410,7 @@ let lastProjectId: string | null = null;
 export function watchForBackup(projectId: string) {
   lastProjectId = projectId;
 }
-useChapterStore.subscribe(() => {
+function scheduleMirror() {
   const { folderUri, ready } = useBackup.getState();
   if (!ready || !folderUri || !lastProjectId) return;
   if (timer) clearTimeout(timer);
@@ -321,4 +418,12 @@ useChapterStore.subscribe(() => {
     timer = null;
     if (lastProjectId) void useBackup.getState().backupProject(lastProjectId);
   }, DEBOUNCE_MS);
-});
+}
+// Every store that holds the writer's work, not only chapters (2026-10-11): editing a
+// document, a page, a treatment or the storyboard used to leave the mirror untouched until a
+// chapter happened to change.
+useChapterStore.subscribe(scheduleMirror);
+usePageStore.subscribe(scheduleMirror);
+useDocumentStore.subscribe(scheduleMirror);
+useTreatmentStore.subscribe(scheduleMirror);
+useStoryboardStore.subscribe(scheduleMirror);
