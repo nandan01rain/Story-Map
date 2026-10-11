@@ -2720,6 +2720,7 @@ function loadData(){
         if(res.error) throw res.error;
       });
 
+      detectChapterTimeSchema(chaptersRes.data);
       chapters = chaptersRes.data.map(row => ({
         id: row.id, projectId: row.project_id, book: row.book, act: row.act, order: row.order,
         title: row.title, status: row.status, content: row.content, notes: row.notes,
@@ -2823,15 +2824,31 @@ function changedRows(table, rows){
 function rememberRows(table, rows){
   rows.forEach(r => savedRowPrints.set(table + ':' + r.id, rowPrint(r)));
 }
+/* story_time arrives with 20260825_spine_support.sql, which the live project has NOT run
+   (probed 2026-10-12). Sending the column anyway made every chapter upsert fail with 42703 --
+   from 2026-08-25, when it was added here, until this check -- and because the chapter upsert
+   goes first and the rest wait on it, a save that touched a chapter saved nothing at all. The
+   failure only reached the console. Detected from a loaded row, the same way pages are. */
+let chapterTimeReady = true;
+async function detectChapterTimeSchema(rows){
+  if(rows && rows.length){ chapterTimeReady = ('story_time' in rows[0]); return; }
+  const probe = await window.sbClient.from('chapters').select('id, story_time').limit(1);
+  chapterTimeReady = !(probe.error && probe.error.code === '42703');
+}
 function buildChapterRows(userId){
-  return chapters.map(ch => ({
-    id: ch.id, user_id: userId, project_id: currentProjectId, book: ch.book, act: ch.act, order: ch.order,
-    title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
-    story_time: (ch.storyTime === undefined || ch.storyTime === '' || Number.isNaN(ch.storyTime))
-      ? null : ch.storyTime,
-    annotations: ch.annotations || [], versions: ch.versions || [],
-    updated_at: new Date().toISOString()
-  }));
+  return chapters.map(ch => {
+    const row = {
+      id: ch.id, user_id: userId, project_id: currentProjectId, book: ch.book, act: ch.act, order: ch.order,
+      title: ch.title, status: ch.status, content: ch.content || '', notes: ch.notes || '',
+      annotations: ch.annotations || [], versions: ch.versions || [],
+      updated_at: new Date().toISOString()
+    };
+    if(chapterTimeReady){
+      row.story_time = (ch.storyTime === undefined || ch.storyTime === '' || Number.isNaN(ch.storyTime))
+        ? null : ch.storyTime;
+    }
+    return row;
+  });
 }
 function buildSceneRows(userId){
   return scenes.map(s => ({
@@ -2937,9 +2954,27 @@ function saveData(){
         rememberRows('trash', trashRows);
       });
     });
+  }).then(() => {
+    showSaveError(null);
   }).catch(err => {
     console.error('saveData failed:', err);
+    showSaveError(err);
   });
+}
+/* A failed save used to reach only the console, which is how chapter saves could fail for
+   seven weeks unseen. Now it stays on screen until a save succeeds. */
+function showSaveError(err){
+  let el = document.getElementById('save-error');
+  if(!err){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'save-error';
+    el.setAttribute('role', 'alert');
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:100000;max-width:min(560px,calc(100% - 32px));'
+      + 'background:#5a1f14;color:#fbe9df;border:1px solid #d06a45;border-radius:10px;padding:10px 14px;font-size:14px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.4)';
+    document.body.appendChild(el);
+  }
+  el.textContent = 'Not saved: ' + ((err && err.message) || String(err)) + ' Your text is still here; the next save will try again.';
 }
 
 async function uploadLocalDataToSupabase(){
@@ -3493,8 +3528,12 @@ function openDrawer(id){
   document.getElementById('d-notes').value = ch.notes || '';
   // Nullable on purpose: a blank field means "wherever the previous marked chapter put us",
   // not zero. Writing 0 here would place the chapter at the dawn of the timeline.
-  document.getElementById('d-story-time').value =
-    (ch.storyTime === null || ch.storyTime === undefined) ? '' : ch.storyTime;
+  const storyTimeInput = document.getElementById('d-story-time');
+  storyTimeInput.value = (ch.storyTime === null || ch.storyTime === undefined) ? '' : ch.storyTime;
+  storyTimeInput.disabled = !chapterTimeReady;
+  storyTimeInput.placeholder = chapterTimeReady
+    ? 'leave blank to follow the chapter before it'
+    : 'needs supabase/migrations/20260825_spine_support.sql';
 
   const wc = wordCount(ch.content);
   const [cwMin, cwMax] = chapterWordTargets[ch.book] || [null,null];
@@ -5115,6 +5154,24 @@ window.addEventListener('message', async (e) => {
     if(data){
       documents = data.map(row => ({ id: row.id, projectId: row.project_id, title: row.title, type: row.type, content: row.content }));
       rememberRows('documents', buildDocumentRows(''));
+    }
+  }
+  // Likewise chapters (the studio's Writer, Chronology, and sketch -> chapter). Each changed
+  // chapter is replaced by the server's copy and re-primed, so this page cannot later save its
+  // own stale text over what was written there; chapters this page has unsaved edits to are
+  // saved first, so nothing typed here is dropped by the refetch.
+  if(e.data.type === 'studio-changed' && e.data.what === 'chapters' && currentProjectId){
+    await saveData();
+    const { data } = await window.sbClient.from('chapters').select('*').eq('project_id', currentProjectId);
+    if(data){
+      chapters = data.map(row => ({
+        id: row.id, projectId: row.project_id, book: row.book, act: row.act, order: row.order,
+        title: row.title, status: row.status, content: row.content, notes: row.notes,
+        storyTime: row.story_time === null || row.story_time === undefined ? null : Number(row.story_time),
+        annotations: row.annotations || [], versions: row.versions || []
+      }));
+      rememberRows('chapters', buildChapterRows(''));
+      render();
     }
   }
 });
