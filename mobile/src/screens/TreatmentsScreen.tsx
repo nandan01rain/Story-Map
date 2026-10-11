@@ -1,11 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import SlidePanel, { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSparseReorder } from '../lib/sparseOrder';
+import { useSlidePanel } from '../lib/useSlidePanel';
 import { useSortablePositions } from '../lib/useSortablePositions';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
@@ -16,6 +18,9 @@ type Props = NativeStackScreenProps<SignedInStackParamList, 'Treatments'>;
 
 // useSortableList requires a fixed row height for its drag arithmetic.
 const ITEM_HEIGHT = 62;
+// A search result carries a line of the scene under its title.
+const RESULT_HEIGHT = 86;
+const SNIPPET_PAD = 46;
 // Above this, a group is too long for the drag list (which lays out every row absolutely and
 // renders all of them), so Rearrange asks for a smaller group first.
 const MAX_ARRANGE = 120;
@@ -51,6 +56,30 @@ const GROUP_LABEL: Record<string, string> = {
 };
 const PREFIX = /^(Backstory|Prologue|B\d+|Skip|After|Unplaced) · /;
 
+/** Every word of the query, lower-cased; a sketch matches when its title or text has them all. */
+function terms(query: string): string[] {
+  return query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+}
+
+/**
+ * The stretch of text around the first matching word, markdown marks stripped so it reads, split
+ * into plain / matched runs for highlighting.
+ */
+function snippet(text: string, words: string[]): { text: string; hit: boolean }[] {
+  const plain = text.replace(/[*_`#>|]+/g, '').replace(/\s+/g, ' ').trim();
+  const lower = plain.toLowerCase();
+  let at = -1;
+  for (const w of words) {
+    const i = lower.indexOf(w);
+    if (i !== -1 && (at === -1 || i < at)) at = i;
+  }
+  if (at === -1) return [{ text: plain.slice(0, 120), hit: false }];
+  const start = Math.max(0, at - SNIPPET_PAD);
+  const piece = (start > 0 ? '…' : '') + plain.slice(start, at + 140);
+  const re = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  return piece.split(re).filter(Boolean).map((part) => ({ text: part, hit: words.includes(part.toLowerCase()) }));
+}
+
 function groupOf(title: string): string {
   return PREFIX.exec(title)?.[1] ?? 'Unsorted';
 }
@@ -69,6 +98,18 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
   const [creating, setCreating] = useState(false);
   const [group, setGroup] = useState<string | null>(null);
   const [arranging, setArranging] = useState(false);
+  const [query, setQuery] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const { width: winWidth } = useWindowDimensions();
+  // The book filters live in a panel from the left (☰, or an edge swipe), as the Reader's
+  // contents do -- the chip row took a band of the screen on every visit.
+  const menuWidth = Math.min(winWidth * 0.75, 320);
+  const menu = useSlidePanel(menuWidth);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(query.trim()), 150);
+    return () => clearTimeout(id);
+  }, [query]);
 
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => fetchTreatments(projectId));
@@ -86,7 +127,18 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
     for (const x of titled) c.set(groupOf(x.title), (c.get(groupOf(x.title)) ?? 0) + 1);
     return c;
   }, [titled]);
-  const shown = useMemo(() => (group ? titled.filter((x) => groupOf(x.title) === group) : titled), [titled, group]);
+  const inGroup = useMemo(() => (group ? titled.filter((x) => groupOf(x.title) === group) : titled), [titled, group]);
+  // Search runs over the title and the live version's whole text, in memory: the sketches are
+  // already loaded, so this is instant and works offline.
+  const words = useMemo(() => terms(debounced), [debounced]);
+  const searching = words.length > 0;
+  const shown = useMemo(() => {
+    if (!searching) return inGroup;
+    return inGroup.filter((x) => {
+      const hay = `${x.title}\n${liveVersion(x.t.id)?.content ?? ''}`.toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+  }, [inGroup, searching, words, liveVersion]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -96,7 +148,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
           hitSlop={10}
           onPress={() => {
             if (arranging) return setArranging(false);
-            if (shown.length > MAX_ARRANGE) {
+            if (inGroup.length > MAX_ARRANGE) {
               Alert.alert('Pick a group first', 'Choose a book above, then rearrange the sketches inside it.');
               return;
             }
@@ -107,7 +159,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
         </Pressable>
       ),
     });
-  }, [navigation, arranging, shown.length, styles]);
+  }, [navigation, arranging, inGroup.length, styles]);
 
   async function handleAdd() {
     if (!user || creating) return;
@@ -134,18 +186,32 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      {groups.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
-          <Pressable style={[styles.chip, group === null && styles.chipOn]} onPress={() => { setGroup(null); setArranging(false); }}>
-            <Text style={[styles.chipText, group === null && styles.chipTextOn]}>{`All ${titled.length}`}</Text>
+      {!arranging && titled.length > 0 && (
+        <View style={styles.searchRow}>
+          <Pressable onPress={menu.open} hitSlop={10} style={styles.menuBtn}>
+            <Text style={styles.menuGlyph}>☰</Text>
           </Pressable>
-          {groups.map((g) => (
-            <Pressable key={g} style={[styles.chip, group === g && styles.chipOn]} onPress={() => { setGroup(g); setArranging(false); }}>
-              <Text style={[styles.chipText, group === g && styles.chipTextOn]}>{`${GROUP_LABEL[g] ?? g} ${counts.get(g)}`}</Text>
+          <TextInput
+            style={styles.search}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={group ? `Search ${GROUP_LABEL[group] ?? group}…` : 'Search every scene…'}
+            placeholderTextColor={colors.textFaint}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {query ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={10}>
+              <Text style={styles.clear}>×</Text>
             </Pressable>
-          ))}
-        </ScrollView>
+          ) : null}
+        </View>
       )}
+      {!arranging && (group || searching) ? (
+        <Text style={styles.scope}>
+          {`${searching ? `${shown.length} found` : `${shown.length} sketches`}${group ? ` in ${GROUP_LABEL[group] ?? group}` : ''}`}
+        </Text>
+      ) : null}
 
       {titled.length === 0 ? (
         <View style={styles.centered}>
@@ -173,14 +239,27 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           initialNumToRender={20}
           windowSize={11}
-          getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+          keyboardShouldPersistTaps="handled"
+          getItemLayout={(_, index) => {
+            const h = searching ? RESULT_HEIGHT : ITEM_HEIGHT;
+            return { length: h, offset: h * index, index };
+          }}
+          ListEmptyComponent={searching ? <Text style={styles.empty}>{`Nothing matches "${debounced}".`}</Text> : null}
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => open(item.t.id)}>
+            <Pressable style={[styles.row, searching && styles.resultRow]} onPress={() => open(item.t.id)}>
               <View style={styles.rowMain}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
                   {withoutPrefix(item.title)}
                 </Text>
-                {group === null && groupOf(item.title) !== 'Unsorted' ? (
+                {searching ? (
+                  <Text style={styles.snippet} numberOfLines={2}>
+                    {snippet(liveVersion(item.t.id)?.content ?? item.title, words).map((r, i) => (
+                      <Text key={i} style={r.hit ? styles.hit : undefined}>
+                        {r.text}
+                      </Text>
+                    ))}
+                  </Text>
+                ) : group === null && groupOf(item.title) !== 'Unsorted' ? (
                   <Text style={styles.rowTag}>{GROUP_LABEL[groupOf(item.title)] ?? groupOf(item.title)}</Text>
                 ) : null}
               </View>
@@ -188,6 +267,30 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
           )}
         />
       )}
+
+      {!arranging && <EdgeSwipeZone controller={menu} />}
+      <SlidePanel controller={menu} width={menuWidth}>
+        <ScrollView contentContainerStyle={styles.menuInner}>
+          <Text style={styles.menuTitle}>Scene Sketches</Text>
+          {[null, ...groups].map((g) => {
+            const on = group === g;
+            return (
+              <Pressable
+                key={g ?? 'all'}
+                style={[styles.menuRow, on && styles.menuRowOn]}
+                onPress={() => {
+                  setGroup(g);
+                  setArranging(false);
+                  menu.close();
+                }}
+              >
+                <Text style={[styles.menuText, on && styles.menuTextOn]}>{g ? GROUP_LABEL[g] ?? g : 'All sketches'}</Text>
+                <Text style={styles.menuCount}>{g ? counts.get(g) : titled.length}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </SlidePanel>
 
       {!arranging && (
         <Pressable style={[styles.newBtn, { bottom: insets.bottom + 24 }]} onPress={handleAdd} disabled={creating}>
@@ -270,6 +373,41 @@ function makeStyles(colors: ThemeColors) {
     handleText: { color: colors.textFaint, fontSize: 17 },
     rowMain: { flex: 1, justifyContent: 'center', minWidth: 0 },
     rowTitle: { color: colors.text, fontFamily: FONTS.handBold, fontSize: 21, lineHeight: 25 },
+    resultRow: { height: RESULT_HEIGHT },
+    snippet: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 14, lineHeight: 18, marginTop: 2 },
+    hit: { color: colors.text, backgroundColor: withOpacity(colors.gold, 0.35) },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginHorizontal: 12,
+      marginTop: 10,
+      marginBottom: 4,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.panel,
+    },
+    menuBtn: { paddingVertical: 8, paddingRight: 4 },
+    menuGlyph: { color: colors.gold, fontSize: 20 },
+    search: { flex: 1, color: colors.text, fontFamily: FONTS.handBody, fontSize: 17, paddingVertical: 9 },
+    clear: { color: colors.textFaint, fontSize: 22, paddingHorizontal: 4 },
+    scope: { color: colors.textFaint, fontFamily: FONTS.hand, fontSize: 16, paddingHorizontal: 18, paddingVertical: 4 },
+    menuInner: { paddingTop: 40, paddingHorizontal: 16, paddingBottom: 40 },
+    menuTitle: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 28, marginBottom: 12 },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+    },
+    menuRowOn: { backgroundColor: withOpacity(colors.gold, 0.14) },
+    menuText: { color: colors.text, fontFamily: FONTS.hand, fontSize: 21 },
+    menuTextOn: { color: colors.gold },
+    menuCount: { color: colors.textFaint, fontFamily: FONTS.hand, fontSize: 17 },
     rowTag: { color: colors.textFaint, fontFamily: FONTS.hand, fontSize: 14, lineHeight: 16 },
     newBtn: {
       position: 'absolute',
