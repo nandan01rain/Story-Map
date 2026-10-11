@@ -25,7 +25,10 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > its absence, degrades, and says what to paste; nothing else breaks.
 >
 > **The installed Android binary should be build 6, version 1.2.0** (2026-09-24), which is
-> also the OTA runtime. Adding a native module means bumping `version`, not only
+> also the OTA runtime. **It was not, until 2026-10-11:** build 6 was built but never
+> installed, the phone stayed on build 5 (1.1.0), and every update published since 24 Sept
+> (storyboard onward) went to a runtime the phone does not run. If an update "never arrives",
+> check the phone's version in Android's App info against the update's runtime first. Adding a native module means bumping `version`, not only
 > `versionCode` — see handoff §36.4 for why, and for the builds ledger.
 >
 > **As of 2026-08-30, §20's claim that the phone takes changes over the air was
