@@ -20,7 +20,8 @@ root); this repo is the migration of that sandbox into a real, independent app.
 > loss of capability. And **four migrations are outstanding** (2026-09-24):
 > `20260824_graph_pairs.sql` (supersedes the three graph migrations before it),
 > `20260825_spine_support.sql` (story time — Chronology needs it),
-> `20260921_progressions.sql` (progressions) and `20261011_trash_types.sql` (lets the
+> `20260921_progressions.sql` (progressions), `20261011b_storyboard_wall.sql` (dragging
+> notes, character colours, pinning scenes to the wall) and `20261011_trash_types.sql` (lets the
 > trash hold storyboard events — deleting an event fails with a check-constraint error
 > until it runs). `20260924_storyboard.sql` has evidently been applied: events are being
 > created on the phone (2026-10-11). Every screen that needs one detects

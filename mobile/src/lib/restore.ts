@@ -120,6 +120,7 @@ export async function restoreSnapshot(
   await upsert('treatments', at(snapshot.treatments), report);
   await upsert('treatment_versions', at(snapshot.treatmentVersions), report);
   // Threads and events before the links that join them.
+  await upsert('storyboard_cast', at(snapshot.storyboardCast), report);
   await upsert('storyboard_events', at(snapshot.storyboardEvents), report);
   await upsert('storyboard_threads', at(snapshot.storyboardThreads), report);
   await upsert('storyboard_links', at(snapshot.storyboardLinks), report);

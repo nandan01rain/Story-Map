@@ -5181,3 +5181,33 @@ and every snippet is elevated for its shadow -- so the string/pin layer carries 
 "Make this a scene sketch", backup wording. Only what is shown: the tables, routes, store and
 code keep the `treatment` name, and nothing was migrated. "Scenes" alone was taken (a chapter's
 scenes), and two different things under one name is worse than either.
+
+## 42. THE WALL YOU ARRANGE, THE CAST, AND SKETCH → WALL → CHAPTER (2026-10-11)
+
+Second form of §41's wall, from two reference photos the writer sent (an evidence board; a
+foam board of sticky notes in rows, a colour per character). Needs
+**`20261011b_storyboard_wall.sql`, unrun**: `storyboard_events.x/y/treatment_id/cast_id` and a
+`storyboard_cast` table. Without it the store falls back (`isMissingColumn` → `wallSupported`
+false): the wall still draws in book order, a drop says what to paste, nothing else breaks.
+
+- **Drag.** Long-press a note (260 ms) and drag; x/y saved on drop. Position lives in shared
+  values and the drop folds the translation into the base BEFORE the store updates, so the
+  saved value arrives where the note already is (no jump). Strings follow live: the note
+  reports its spot through `runOnJS` and the wall redraws its strings from it. The board grows
+  to fit whatever is furthest out. Scroll views are gesture-handler ones, so a drag that has
+  activated takes over from them. Unmoved notes (x/y null) sit in book order, three a row.
+  **Order and placement are separate**: the number on a note is its book order, the strings
+  follow that order, and Rearrange is still where order changes.
+- **Tap** opens the full scene when the note summarises a sketch, otherwise the note's sheet;
+  the ✎ corner always opens the sheet (hit-tested in the tap, since a Pressable inside a
+  GestureDetector is unreliable).
+- **Cast.** Per project (not per book): name + pastel colour. A note's colour is its
+  character's; none is plain yellow. Removing a character un-colours, moves nothing.
+- **Sketch → wall → chapter.** A scene sketch's sheet has *Pin to the storyboard*: pick the
+  book, give the note a heading, and write a **summary** (required) — the summary is the note;
+  the scene stays in the sketch, one tap away. Already pinned → "On the storyboard, Book N —
+  open it". *Make this a chapter* now also points the sketch's notes at the new chapter
+  (`followSketchToChapter`, after a `flush()` so the chapter row exists server-side).
+  Not prompted automatically on leaving a sketch: an unasked prompt is the nagging the pages
+  build ruled out (§23); the summary is asked for at the moment of pinning.
+- Backup/restore carry `storyboard_cast` (restored before events, which reference it).

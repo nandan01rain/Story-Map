@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,9 +15,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { flush } from '../lib/outbox';
 import { bookIndices, bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
+import { useAuthStore } from '../store/authStore';
 import { useChapterStore } from '../store/chapterStore';
+import { useStoryboardStore } from '../store/storyboardStore';
 import { treatmentTitle, useTreatmentStore, type TreatmentVersion } from '../store/treatmentStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
@@ -147,6 +151,10 @@ export default function TreatmentScreen({ route, navigation }: Props) {
           setSheetOpen(false);
           navigation.navigate('Editor', { chapterId });
         }}
+        onOpenStoryboard={(book) => {
+          setSheetOpen(false);
+          navigation.navigate('Storyboard', { projectId, book });
+        }}
       />
     </KeyboardAvoidingView>
   );
@@ -163,6 +171,7 @@ function TreatmentSheet({
   onClose,
   onEditVersion,
   onOpenChapter,
+  onOpenStoryboard,
 }: {
   visible: boolean;
   treatmentId: string;
@@ -174,8 +183,15 @@ function TreatmentSheet({
   onClose: () => void;
   onEditVersion: (id: string) => void;
   onOpenChapter: (chapterId: string) => void;
+  onOpenStoryboard: (book: number) => void;
 }) {
   const { treatments, versionsOf, setVersionStatus, addVersion, setTitle, markBecame } = useTreatmentStore();
+  const user = useAuthStore((s) => s.user);
+  const board = useStoryboardStore();
+  const [pinning, setPinning] = useState(false);
+  const [pinBook, setPinBook] = useState(0);
+  const [pinTitle, setPinTitle] = useState('');
+  const [pinSummary, setPinSummary] = useState('');
   const { chapters, fetchChapters, createChapter, updateChapter } = useChapterStore();
   const treatment = treatments.find((t) => t.id === treatmentId);
   const [promoting, setPromoting] = useState(false);
@@ -186,6 +202,9 @@ function TreatmentSheet({
   useEffect(() => {
     if (visible && chapters.length === 0) fetchChapters(projectId);
     if (visible && treatment) setTitleDraft(treatment.title ?? '');
+    // The storyboard, to know whether this sketch is already pinned up.
+    if (visible && board.projectId !== projectId) void board.fetch(projectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, chapters.length, fetchChapters, projectId, treatment]);
 
   if (!treatment) return null;
@@ -202,9 +221,45 @@ function TreatmentSheet({
       // The chapter gets a COPY. The treatment is untouched and stays in the list.
       await updateChapter(chapter.id, { content: liveText });
       await markBecame(treatment!.id, 'chapter', chapter.id);
+      // Its note on the storyboard follows it into the manuscript. The chapter row must reach
+      // the server before anything can point at it.
+      await flush();
+      await board.followSketchToChapter(treatment!.id, chapter.id);
     }
     setBusy(false);
     if (chapter) onOpenChapter(chapter.id);
+  }
+
+  const pinned = board.events.find((e) => e.treatment_id === treatmentId) ?? null;
+
+  function startPin() {
+    const t = treatment!;
+    setPinTitle(treatmentTitle(t, versions.find((v) => v.id === editingId)).slice(0, 80));
+    setPinSummary('');
+    setPinning(true);
+  }
+
+  // The note on the wall is a SUMMARY, written now, by hand -- not the scene. The scene stays
+  // here, and the note opens it.
+  async function pin() {
+    if (!user || !pinSummary.trim()) return;
+    setBusy(true);
+    const { error } = await board.addEvent({
+      projectId,
+      userId: user.id,
+      book: pinBook,
+      title: pinTitle.trim() || 'Untitled scene',
+      summary: pinSummary.trim(),
+      chapterId: treatment!.became_type === 'chapter' ? treatment!.became_id : null,
+      treatmentId,
+    });
+    setBusy(false);
+    if (error) {
+      Alert.alert('Not pinned', error);
+      return;
+    }
+    setPinning(false);
+    onOpenStoryboard(pinBook);
   }
 
   return (
@@ -242,6 +297,58 @@ function TreatmentSheet({
             <Pressable style={styles.sheetAction} onPress={() => addVersion(treatmentId, '')}>
               <Text style={styles.sheetActionText}>Start another version</Text>
             </Pressable>
+
+            <View style={styles.sheetRule} />
+
+            {!board.wallSupported ? (
+              <Text style={styles.sheetNote}>
+                To pin scenes to the storyboard, paste supabase/migrations/20261011b_storyboard_wall.sql
+                into the Supabase SQL editor once.
+              </Text>
+            ) : pinned ? (
+              <Pressable style={styles.sheetAction} onPress={() => onOpenStoryboard(pinned.book)}>
+                <Text style={styles.sheetActionText}>{`On the storyboard, ${bookName(pinned.book)} — open it`}</Text>
+              </Pressable>
+            ) : pinning ? (
+              <>
+                <Text style={styles.sheetLabel}>Pin to the storyboard</Text>
+                <View style={styles.chipRow}>
+                  {bookIndices(chapters, true).map((i) => (
+                    <Pressable key={i} style={[styles.chip, pinBook === i && styles.chipOn]} onPress={() => setPinBook(i)}>
+                      <Text style={[styles.chipText, pinBook === i && styles.chipTextOn]}>{bookName(i)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  style={styles.titleInput}
+                  value={pinTitle}
+                  onChangeText={setPinTitle}
+                  placeholder="The note's heading"
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TextInput
+                  style={styles.summaryInput}
+                  value={pinSummary}
+                  onChangeText={setPinSummary}
+                  multiline
+                  autoFocus
+                  placeholder="Sum the scene up in a few lines. This is what goes on the wall; tapping it opens the full scene."
+                  placeholderTextColor={colors.textFaint}
+                />
+                <View style={styles.pinActions}>
+                  <Pressable onPress={() => setPinning(false)} hitSlop={8}>
+                    <Text style={styles.pinCancel}>Cancel</Text>
+                  </Pressable>
+                  <Pressable onPress={pin} disabled={busy || !pinSummary.trim()} hitSlop={8}>
+                    <Text style={[styles.pinConfirm, !pinSummary.trim() && { opacity: 0.4 }]}>Pin it up</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <Pressable style={styles.sheetAction} onPress={startPin}>
+                <Text style={styles.sheetActionText}>Pin to the storyboard</Text>
+              </Pressable>
+            )}
 
             <View style={styles.sheetRule} />
 
@@ -372,6 +479,21 @@ function makeStyles(colors: ThemeColors) {
       borderColor: colors.borderDim,
     },
     versionMain: { flex: 1, minWidth: 0 },
+    summaryInput: {
+      color: colors.text,
+      fontFamily: FONTS.handBody,
+      fontSize: 17,
+      lineHeight: 23,
+      minHeight: 90,
+      textAlignVertical: 'top',
+      borderBottomWidth: 1,
+      borderColor: colors.borderDim,
+      paddingVertical: 6,
+      marginTop: 8,
+    },
+    pinActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 22, marginTop: 12 },
+    pinCancel: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 14 },
+    pinConfirm: { color: colors.gold, fontFamily: FONTS.handBold, fontSize: 21 },
     versionText: { color: colors.textDim, fontFamily: FONTS.handBody, fontSize: 15.5, lineHeight: 21 },
     versionEditing: { color: colors.text },
     versionMeta: { color: colors.textFaint, fontFamily: FONTS.mono, fontSize: 9.5, marginTop: 3 },

@@ -67,6 +67,8 @@ export type Snapshot = {
   storyboardEvents?: unknown[];
   storyboardThreads?: unknown[];
   storyboardLinks?: unknown[];
+  /** Since 2026-10-11 (20261011b). */
+  storyboardCast?: unknown[];
   graphNodes: unknown[];
   graphEdges: unknown[];
   trash: unknown[];
@@ -222,6 +224,7 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
     storyboardEvents,
     storyboardThreads,
     storyboardLinks,
+    storyboardCast,
     graphNodes,
     graphEdges,
     trash,
@@ -235,6 +238,7 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
       table('storyboard_events', projectId, incomplete),
       table('storyboard_threads', projectId, incomplete),
       table('storyboard_links', projectId, incomplete),
+      table('storyboard_cast', projectId, incomplete),
       table('graph_nodes', projectId, incomplete),
       table('graph_edges', projectId, incomplete),
       table('trash', projectId, incomplete),
@@ -254,6 +258,7 @@ export async function collectSnapshot(projectId: string): Promise<Snapshot> {
     storyboardEvents,
     storyboardThreads,
     storyboardLinks,
+    storyboardCast,
     graphNodes,
     graphEdges,
     trash,

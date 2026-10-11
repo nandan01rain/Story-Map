@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +14,15 @@ import { flush } from '../lib/outbox';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { useChapterStore } from '../store/chapterStore';
-import { THREAD_COLORS, useStoryboardStore, type StoryEvent, type StoryThread } from '../store/storyboardStore';
+import {
+  CAST_COLORS,
+  NOTE_DEFAULT,
+  THREAD_COLORS,
+  useStoryboardStore,
+  type StoryCast,
+  type StoryEvent,
+  type StoryThread,
+} from '../store/storyboardStore';
 import { useTrashStore } from '../store/trashStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 import BookChips from '../components/BookChips';
@@ -49,8 +58,11 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const chapters = useChapterStore((s) => s.chapters);
   const fetchChapters = useChapterStore((s) => s.fetchChapters);
   const createChapter = useChapterStore((s) => s.createChapter);
-  const { events, threads, links, loading, supported, error, fetch, addEvent, updateEvent, removeEvent, addThread, updateThread, removeThread, toggleLink } =
-    useStoryboardStore();
+  const {
+    events, threads, links, cast, loading, supported, wallSupported, error, fetch,
+    addEvent, updateEvent, removeEvent, addThread, updateThread, removeThread, toggleLink,
+    addCast, updateCast, removeCast,
+  } = useStoryboardStore();
   const trashStoryEvent = useTrashStore((s) => s.trashStoryEvent);
   const insets = useSafeAreaInsets();
   const { colors, mode } = useTheme();
@@ -59,7 +71,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const [book, setBook] = useState(route.params.book ?? 0);
   // The wall is for seeing; Rearrange is the drag list, for changing the order.
   const [arranging, setArranging] = useState(false);
-  const { width: winWidth } = useWindowDimensions();
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
   // With no book asked for, open on the one the writer last wrote in -- the storyboard is
   // most often consulted about the book in progress.
   useEffect(() => {
@@ -72,6 +84,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   const [stringing, setStringing] = useState<string | null>(null);
   const [eventSheet, setEventSheet] = useState<{ id: string | null } | null>(null);
   const [threadSheet, setThreadSheet] = useState<{ id: string | null } | null>(null);
+  const [castSheet, setCastSheet] = useState<{ id: string | null } | null>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -160,6 +173,34 @@ export default function StoryboardScreen({ route, navigation }: Props) {
     setEventSheet({ id: e.id });
   }
 
+  // On the wall, a note that summarises a scene opens the scene itself; the ✎ corner (onEdit)
+  // opens the note.
+  function onNoteOpen(e: StoryEvent) {
+    if (!stringing && e.treatment_id) {
+      navigation.navigate('Treatment', { projectId, treatmentId: e.treatment_id });
+      return;
+    }
+    onEventPress(e);
+  }
+
+  const warnedNoWall = useRef(false);
+  const onNoteMoved = useCallback(
+    (e: StoryEvent, x: number, y: number) => {
+      if (!wallSupported) {
+        if (!warnedNoWall.current) {
+          warnedNoWall.current = true;
+          Alert.alert(
+            'Not kept yet',
+            'To keep notes where you drop them, paste supabase/migrations/20261011b_storyboard_wall.sql into the Supabase SQL editor once.',
+          );
+        }
+        return;
+      }
+      void updateEvent(e.id, { x: Math.round(x), y: Math.round(y) });
+    },
+    [wallSupported, updateEvent],
+  );
+
   const stringingThread = bookThreads.find((t) => t.id === stringing) ?? null;
 
   if (!supported) {
@@ -199,11 +240,31 @@ export default function StoryboardScreen({ route, navigation }: Props) {
         </Pressable>
       </ScrollView>
 
+      {/* The cast: whose colour a note wears. Project-wide, so it is the same on every book. */}
+      {wallSupported ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.stripContent}>
+          {cast.map((c) => (
+            <Pressable key={c.id} onPress={() => setCastSheet({ id: c.id })} style={[styles.castChip, { backgroundColor: c.color }]}>
+              <Text style={styles.castChipText} numberOfLines={1}>
+                {c.name || 'Unnamed'}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => setCastSheet({ id: null })} style={styles.addChip}>
+            <Text style={styles.addChipText}>+ Character</Text>
+          </Pressable>
+        </ScrollView>
+      ) : (
+        <Text style={styles.wallNote}>
+          Paste supabase/migrations/20261011b_storyboard_wall.sql once to drag notes, colour them by character and pin scenes.
+        </Text>
+      )}
+
       {stringingThread && (
         <View style={[styles.banner, { borderColor: stringingThread.color }]}>
           <View style={[styles.swatch, { backgroundColor: stringingThread.color }]} />
           <Text style={styles.bannerText} numberOfLines={2}>
-            Stringing <Text style={{ color: colors.text }}>{stringingThread.name || 'this thread'}</Text> — tap snippets to pin it to them, or tap again to unpin.
+            Stringing <Text style={{ color: colors.text }}>{stringingThread.name || 'this thread'}</Text> — tap notes to pin it to them, or tap again to unpin.
           </Text>
           <Pressable onPress={() => setStringing(null)} hitSlop={10}>
             <Text style={styles.bannerDone}>Done</Text>
@@ -219,23 +280,31 @@ export default function StoryboardScreen({ route, navigation }: Props) {
             <ActivityIndicator color={colors.gold} />
           ) : (
             <Text style={styles.empty}>
-              {`Nothing pinned up for ${bookName(book)} yet. Each snippet is one beat of the plot: add them in the order the book tells them, then run a thread through the ones that carry it.`}
+              {`Nothing pinned up for ${bookName(book)} yet. Each note is one beat of the plot: add them with +, or pin a finished scene from Scene Sketches. Long-press a note to move it.`}
             </Text>
           )}
         </View>
       ) : !arranging ? (
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
-          <EvidenceWall
-            events={items}
-            threads={bookThreads}
-            links={links}
-            width={winWidth}
-            night={mode === 'night'}
-            stringing={stringing}
-            chapterLabel={chapterLabel}
-            onPress={onEventPress}
-          />
-        </ScrollView>
+        // Gesture-handler scroll views, so a note's long-press drag takes over from them cleanly.
+        <GHScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+          <GHScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <EvidenceWall
+              events={items}
+              threads={bookThreads}
+              links={links}
+              cast={cast}
+              minWidth={winWidth}
+              minHeight={winHeight - 260}
+              night={mode === 'night'}
+              stringing={stringing}
+              canMove
+              chapterLabel={chapterLabel}
+              onOpen={onNoteOpen}
+              onEdit={onEventPress}
+              onMoved={onNoteMoved}
+            />
+          </GHScrollView>
+        </GHScrollView>
       ) : (
         <DropProvider key={`${book}:${listKey}`} ref={dropProviderRef}>
           <Animated.ScrollView
@@ -322,13 +391,18 @@ export default function StoryboardScreen({ route, navigation }: Props) {
           chapterLabel={chapterLabel}
           threads={bookThreads}
           links={links}
+          cast={wallSupported ? cast : []}
           colors={colors}
           styles={styles}
           onClose={() => setEventSheet(null)}
+          onOpenScene={(treatmentId) => {
+            setEventSheet(null);
+            navigation.navigate('Treatment', { projectId, treatmentId });
+          }}
           onSave={async (draft) => {
             const res = eventSheet.id
-              ? await updateEvent(eventSheet.id, { title: draft.title, summary: draft.summary, chapter_id: draft.chapterId })
-              : await addEvent({ projectId, userId: user.id, book, title: draft.title, summary: draft.summary, chapterId: draft.chapterId });
+              ? await updateEvent(eventSheet.id, { title: draft.title, summary: draft.summary, chapter_id: draft.chapterId, cast_id: draft.castId })
+              : await addEvent({ projectId, userId: user.id, book, title: draft.title, summary: draft.summary, chapterId: draft.chapterId, castId: draft.castId });
             if (res.error) Alert.alert('Not saved', res.error);
             else setEventSheet(null);
           }}
@@ -432,6 +506,45 @@ export default function StoryboardScreen({ route, navigation }: Props) {
           }}
         />
       )}
+      {castSheet && user && (
+        <ThreadSheet<StoryCast>
+          key={castSheet.id ?? 'new-cast'}
+          kind="character"
+          thread={castSheet.id ? cast.find((c) => c.id === castSheet.id) ?? null : null}
+          colors={colors}
+          styles={styles}
+          onClose={() => setCastSheet(null)}
+          onSave={async (draft) => {
+            if (castSheet.id) {
+              const res = await updateCast(castSheet.id, draft.color ? { name: draft.name, color: draft.color } : { name: draft.name });
+              if (res.error) Alert.alert('Not saved', res.error);
+              else setCastSheet(null);
+              return;
+            }
+            const res = await addCast({ projectId, userId: user.id, name: draft.name });
+            if (res.error || !res.member) {
+              Alert.alert('Not saved', res.error ?? 'Unknown error');
+              return;
+            }
+            if (draft.color && draft.color !== res.member.color) await updateCast(res.member.id, { color: draft.color });
+            setCastSheet(null);
+          }}
+          onDelete={(c) => {
+            Alert.alert(`Remove "${c.name || 'this character'}"?`, 'Their notes stay on the wall and go back to plain yellow.', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: async () => {
+                  setCastSheet(null);
+                  const res = await removeCast((c as StoryCast).id);
+                  if (res.error) Alert.alert('Not removed', res.error);
+                },
+              },
+            ]);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -468,12 +581,14 @@ function EventSheet({
   chapterLabel,
   threads,
   links,
+  cast,
   colors,
   styles,
   onClose,
   onSave,
   onToggleThread,
   onOpenChapter,
+  onOpenScene,
   onStartChapter,
   onDelete,
 }: {
@@ -482,10 +597,12 @@ function EventSheet({
   chapterLabel: (id: string | null) => string | null;
   threads: StoryThread[];
   links: { thread_id: string; event_id: string }[];
+  cast: StoryCast[];
   colors: ThemeColors;
   styles: Styles;
   onClose: () => void;
-  onSave: (draft: { title: string; summary: string; chapterId: string | null }) => void;
+  onOpenScene: (treatmentId: string) => void;
+  onSave: (draft: { title: string; summary: string; chapterId: string | null; castId: string | null }) => void;
   onToggleThread: (threadId: string) => void;
   onOpenChapter: (chapterId: string) => void;
   onStartChapter: (event: StoryEvent, draft: { title: string; summary: string }) => void;
@@ -494,6 +611,7 @@ function EventSheet({
   const [title, setTitle] = useState(event?.title ?? '');
   const [summary, setSummary] = useState(event?.summary ?? '');
   const [chapterId, setChapterId] = useState<string | null>(event?.chapter_id ?? null);
+  const [castId, setCastId] = useState<string | null>(event?.cast_id ?? null);
 
   return (
     <View style={styles.backdrop}>
@@ -516,6 +634,22 @@ function EventSheet({
           placeholder="More, if it needs it…"
           placeholderTextColor={colors.textFaint}
         />
+
+        {cast.length > 0 && (
+          <>
+            <Text style={styles.sheetLabel}>WHOSE BEAT</Text>
+            <View style={styles.wrapChips}>
+              <Pressable onPress={() => setCastId(null)} style={[styles.castChip, { backgroundColor: NOTE_DEFAULT }, castId === null && styles.castChipOn]}>
+                <Text style={styles.castChipText}>no one in particular</Text>
+              </Pressable>
+              {cast.map((c) => (
+                <Pressable key={c.id} onPress={() => setCastId(c.id)} style={[styles.castChip, { backgroundColor: c.color }, castId === c.id && styles.castChipOn]}>
+                  <Text style={styles.castChipText}>{c.name || 'Unnamed'}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
 
         <Text style={styles.sheetLabel}>BECAME</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroller} contentContainerStyle={styles.chips}>
@@ -560,6 +694,11 @@ function EventSheet({
               <Text style={styles.danger}>Delete</Text>
             </Pressable>
           )}
+          {event?.treatment_id && (
+            <Pressable onPress={() => onOpenScene(event.treatment_id!)} hitSlop={8}>
+              <Text style={styles.link}>Full scene</Text>
+            </Pressable>
+          )}
           {event?.chapter_id ? (
             <Pressable onPress={() => onOpenChapter(event.chapter_id!)} hitSlop={8}>
               <Text style={styles.link}>Open chapter</Text>
@@ -573,7 +712,7 @@ function EventSheet({
           <Pressable onPress={onClose} hitSlop={8}>
             <Text style={styles.cancel}>Cancel</Text>
           </Pressable>
-          <Pressable onPress={() => onSave({ title: title.trim(), summary: summary.trim(), chapterId })} hitSlop={8}>
+          <Pressable onPress={() => onSave({ title: title.trim(), summary: summary.trim(), chapterId, castId })} hitSlop={8}>
             <Text style={styles.confirm}>Save</Text>
           </Pressable>
         </View>
@@ -582,23 +721,28 @@ function EventSheet({
   );
 }
 
-function ThreadSheet({
+// Names a thread or a character: both are a name and a colour. `kind` picks the palette and
+// the words.
+function ThreadSheet<T extends { name: string; color: string }>({
   thread,
+  kind = 'thread',
   colors,
   styles,
   onClose,
   onSave,
   onDelete,
 }: {
-  thread: StoryThread | null;
+  thread: T | null;
+  kind?: 'thread' | 'character';
   colors: ThemeColors;
   styles: Styles;
   onClose: () => void;
   onSave: (draft: { name: string; color: string | null }) => void;
-  onDelete: (thread: StoryThread) => void;
+  onDelete: (thread: T) => void;
 }) {
+  const palette = kind === 'character' ? CAST_COLORS : THREAD_COLORS;
   const [name, setName] = useState(thread?.name ?? '');
-  const [color, setColor] = useState(thread?.color ?? THREAD_COLORS[0]);
+  const [color, setColor] = useState(thread?.color ?? palette[0]);
   // A new thread takes the store's next unused colour unless one is picked here.
   const [picked, setPicked] = useState(!!thread);
 
@@ -606,17 +750,19 @@ function ThreadSheet({
     <View style={styles.backdrop}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={[styles.sheet, styles.sheetContent]}>
-        <Text style={styles.sheetLabel}>{thread ? 'THREAD' : 'NEW THREAD'}</Text>
+        <Text style={styles.sheetLabel}>
+          {kind === 'character' ? (thread ? 'CHARACTER' : 'NEW CHARACTER') : thread ? 'THREAD' : 'NEW THREAD'}
+        </Text>
         <TextInput
           style={styles.titleInput}
           value={name}
           onChangeText={setName}
-          placeholder="A subplot, an arc, a mystery…"
+          placeholder={kind === 'character' ? 'Who — their notes take this colour' : 'A subplot, an arc, a mystery…'}
           placeholderTextColor={colors.textFaint}
           autoFocus={!thread}
         />
         <View style={styles.swatches}>
-          {THREAD_COLORS.map((c) => (
+          {palette.map((c) => (
             <Pressable
               key={c}
               onPress={() => {
@@ -630,7 +776,7 @@ function ThreadSheet({
         <View style={styles.actions}>
           {thread && (
             <Pressable onPress={() => onDelete(thread)} hitSlop={8}>
-              <Text style={styles.danger}>Remove thread</Text>
+              <Text style={styles.danger}>{kind === 'character' ? 'Remove character' : 'Remove thread'}</Text>
             </Pressable>
           )}
           <View style={{ flex: 1 }} />
@@ -641,7 +787,7 @@ function ThreadSheet({
             onPress={() => onSave({ name: name.trim(), color: picked ? color : null })}
             hitSlop={8}
           >
-            <Text style={styles.confirm}>{thread ? 'Save' : 'Start stringing'}</Text>
+            <Text style={styles.confirm}>{thread || kind === 'character' ? 'Save' : 'Start stringing'}</Text>
           </Pressable>
         </View>
       </View>
@@ -677,6 +823,10 @@ function makeStyles(colors: ThemeColors) {
       maxWidth: 180,
     },
     threadChipText: { color: colors.textDim, fontFamily: FONTS.hand, fontSize: 18 },
+    castChip: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 3, maxWidth: 170, borderWidth: 2, borderColor: 'transparent' },
+    castChipOn: { borderColor: colors.gold },
+    castChipText: { color: '#2a2119', fontFamily: FONTS.hand, fontSize: 18 },
+    wallNote: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, paddingHorizontal: 16, paddingBottom: 6 },
     headerToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 20 },
     swatch: { width: 10, height: 10, borderRadius: 5 },
     addChip: { paddingHorizontal: 10, paddingVertical: 5 },
