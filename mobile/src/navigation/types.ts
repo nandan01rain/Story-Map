@@ -50,6 +50,7 @@ export type SignedInStackParamList = {
   DocumentEditor: { projectId: string; documentId: string; at?: number };
   DriveImport: { projectId: string };
   Assistant: { projectId: string; chapterId?: string };
+  Proposals: { projectId: string };
   /**
    * `focusNodeId` opens the web on one thing rather than on the saga.
    *

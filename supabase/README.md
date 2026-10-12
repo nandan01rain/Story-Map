@@ -12,7 +12,11 @@ supabase/
     assistant/  the Icarus + Daedalus Edge Function
 ```
 
-## 1. Run the migration
+## 1. Run the migrations
+
+Two files, in this order: `migrations/20260821_assistant_retrieval.sql` (the search index),
+then `migrations/20261012_assistant_library.sql` (lets the index hold scenes, pages, storyboard
+notes and characters, and creates the proposal queue the assistants write their suggestions to).
 
 You need DDL rights, which the app's anon key does not have and never should. Two ways to
 get them, both using access you already own as the project's owner:
@@ -21,7 +25,8 @@ get them, both using access you already own as the project's owner:
 
 1. Open [supabase.com/dashboard](https://supabase.com/dashboard) and pick the StoryMap project.
 2. **SQL Editor** in the left sidebar → **New query**.
-3. Paste the whole of `migrations/20260821_assistant_retrieval.sql` and press **Run**.
+3. Paste the whole of `migrations/20260821_assistant_retrieval.sql` and press **Run**; then the
+   same with `migrations/20261012_assistant_library.sql`.
 
 The editor connects as `postgres`, the database superuser, so it can create extensions and
 tables. The migration is written to be safe to run twice — every statement is guarded with
@@ -101,5 +106,21 @@ Chunks on paragraph boundaries, embeds only what changed, returns `{ indexed, to
 { "projectId": "...", "agent": "daedalus", "question": "...", "history": [], "currentChapter": "..." }
 ```
 
-Returns `{ agent, text, sources, usage }`. `sources` is what the answer was actually built
-from, so the writer can check it rather than take it on faith.
+Returns `{ agent, contract, text, sources, toolCalls, proposals, usage }`. `sources` is what the
+first retrieval found; `toolCalls` is every tool the agent then used (searches, reads, checks),
+so the writer can see what the answer rests on rather than take it on faith. Icarus (the
+librarian) answers with `contract: "cited"` -- `text` is JSON `{ answer, citations, findings }`;
+Daedalus (the editor) in prose.
+
+### Tools and proposals (2026-10-12)
+
+The agents work through a tool loop (`call-model.ts`, both dialects). Their tools are in
+`tools.ts`, with each agent's permissions enforced there rather than in a prompt: the library
+(`library.ts` -- search by meaning or by exact words, read any document, chapter, scene, page,
+storyboard or character, the outline) and six deterministic checks (unpaid plants, unmet scene
+requirements, idle threads, POV gaps, old unread pages, unplaced scenes) for both; proposals
+(`proposals.ts`) for filing a page as a scene, a storyboard note, a scene's chapter, a
+character's fields -- both -- and an exact text edit, Daedalus only. **Proposals change nothing**:
+they wait in `assistant_proposals` until the writer accepts in the app (Assistant →
+Proposals), which re-checks them against the current text and applies them through the app's
+own stores.

@@ -10,6 +10,7 @@ import WritingGoalsScreen from '../screens/WritingGoalsScreen';
 import ProseReportScreen from '../screens/ProseReportScreen';
 import ChronologyScreen from '../screens/ChronologyScreen';
 import AssistantScreen from '../screens/AssistantScreen';
+import ProposalsScreen from '../screens/ProposalsScreen';
 import BraidScreen from '../screens/BraidScreen';
 import TrashScreen from '../screens/TrashScreen';
 import GraphReviewScreen from '../screens/GraphReviewScreen';
@@ -98,6 +99,7 @@ export default function RootNavigator() {
           <Stack.Screen name="DocumentEditor" component={DocumentEditorScreen} options={{ headerShown: false }} />
           <Stack.Screen name="DriveImport" component={DriveImportScreen} />
           <Stack.Screen name="Assistant" component={AssistantScreen} />
+          <Stack.Screen name="Proposals" component={ProposalsScreen} />
           <Stack.Screen name="Braid" component={BraidScreen} />
           <Stack.Screen name="Trash" component={TrashScreen} />
           <Stack.Screen name="GraphReview" component={GraphReviewScreen} />

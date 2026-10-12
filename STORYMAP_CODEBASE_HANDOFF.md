@@ -5538,3 +5538,79 @@ Checked in the browser pane with made-up chapters (no sign-in): night and day, d
 closed, 1440×900 and 375×812, `applyPresentationConfig()` run to confirm the blue holds after the
 step that used to paint it brown. No console errors.
 
+## 51. THE ASSISTANTS BECOME LIBRARIAN, EDITOR AND ASSISTANT (2026-10-12)
+
+The writer's brief for Icarus and Daedalus: librarian + editor + assistant. The audit (asked
+first) found the configuration did not meet it, and found why most of it could not have: **the
+agents' tools were declared and never offered.** `handleAsk` made one model call with web
+search and nothing else, so Icarus's six checks, Daedalus's `propose_document_edit` and `arachne`
+existed only as names; neither agent could read a document, run a check or propose anything —
+they saw the 12–18 passages retrieval happened to pick. The SQL checks and the proposal queue
+were "designed, not written" (§15.7). Still not deployed and no key bought: everything below is
+built and tested without one.
+
+**Roles.** Icarus is the LIBRARIAN: finds, reads, cites, checks and organises; never touches
+prose (no text-edit tool at all — enforced in `tools.ts AGENT_TOOLS`, not the prompt; runTool
+refuses anything off the list). Answers in a fixed JSON shape `{answer, citations, findings}`
+(`CITED_SCHEMA`; the app's contract name is `cited`). Daedalus is the EDITOR: craft judgment as
+before, plus `propose_text_edit` — an exact, unique passage and what it becomes — which reverses
+the old "never produce prose" line, by the writer's decision. The ASSISTANT is not a third agent:
+it is the proposal tools both can use. Arachne is still a module, not wired (needs
+`graph/arachne.mjs` bundled into the function).
+
+**Canon authority**, shared by both prompts (`agents.ts CANON`), from the project's own 00 Canon
+Index and 06 index: 02 Rulings > 01 Spine > 03 World > 04 Characters; 06 [AUTHOR] entries are the
+latest word once 06 is added to the 00 index, and 06 EXT-09 conflicts are reported, not decided;
+drafted scenes stand unless a Ruling or 00 §5 names them; Archive and 00 §5 material is history;
+the tag meanings; the four standing rules (six books; no invented names; emergence; no saints).
+
+**The function** (`supabase/functions/assistant/`):
+- `call-model.ts` — a real tool loop in both dialects. Anthropic: streaming + `finalMessage()`,
+  full assistant content appended each round (thinking blocks preserved), all results in one
+  user message, `pause_turn` handled, `eager_input_streaming` with every input validated, an
+  unparseable streamed input re-issued (max 2). The last round keeps the tools defined (a history
+  with tool calls must) and adds a note to answer now. Also fixed: `effort` and the JSON schema
+  were two spreads of `output_config`, the second erasing the first. OpenAI-compatible: function
+  calling, bad JSON returned as a tool error, schema stated in the system message when tools are
+  on (hosts vary on tools + response_format).
+- `library.ts` — read tools (search by meaning, by exact words via `search_everything`, the
+  outline, list/read documents, chapters, scenes, pages, storyboard, characters; long texts paged
+  at 40k chars) and six checks (unpaid plants by the braid's paid/open rule; unmet scene
+  requirements by index.html's `isMatched` rule; idle threads; POV gaps; old unread pages;
+  scenes neither pinned nor made chapters). Ids or titles accepted; ambiguity is an error listing
+  candidates.
+- `proposals.ts` — the only writes, all to `assistant_proposals`: text edit (find must occur
+  exactly once, else refused with the count), new scene (template; optionally from a page),
+  storyboard note (book 1–6), scene → chapter link, character card line and fields (new field
+  names flagged — they become rows for every character).
+- Typed loosely on purpose (`SupabaseClient<any, any, any>`): `ReturnType<typeof createClient>`
+  typed every row `never`, which is why the function had dozens of type errors nobody saw — it
+  had never been checked. `npx deno@2.9.6 check index.ts` is clean now.
+
+**Migration `20261012_assistant_library.sql`** (unrun; run after `20260821_assistant_retrieval`):
+widens `content_chunks.source_type` to scene/page/storyboard/character and creates
+`assistant_proposals` (pending/accepted/rejected/stale; never deleted).
+
+**The phone:** indexing covers all six kinds (`assistantStore.indexProject`); the Assistant
+screen renders the librarian's answer with its citations, a "Looked at:" line from the tool trace,
+and the proposals a turn made, with a header link to **Proposals** (`ProposalsScreen`). There the
+writer sees each proposal — a text edit as before/after in context — and accepts or rejects.
+`lib/proposals.ts` applies an accepted one through the stores the writer's own edits use, after
+re-checking it: a passage edited since (or now appearing twice) marks it STALE, never forced. A
+chapter edit pushes the replaced text into the chapter's version history; documents and scenes
+keep no history of their own, so the proposal row keeps what it replaced.
+
+**Tested** with no key: a Deno script drove the real loop through the OpenAI-compatible path
+against a fake model server and a fake Supabase client — every check, title resolution, the
+permission wall (Icarus refused and not even offered text edits), ambiguous/missing passages
+refused, a book outside 1–6 refused, broken tool JSON returned as an error, three results in one
+round, the final answer and the trace: 25/25. The Anthropic path, the app's applier and the
+Proposals screen have not run against a live model or database.
+
+**Six books.** The 00 index's first standing rule is "Six books. Never five." Both apps listed
+five (`BOOKS`); both now list six, as do the studio's book pickers.
+
+To switch it on: buy a key (Anthropic) and decide embeddings (Voyage is wired, §15.6); run both
+migrations; `supabase secrets set`; `supabase functions deploy assistant`; turn the Assistant
+toggle on (project page, top right); Index now.
+

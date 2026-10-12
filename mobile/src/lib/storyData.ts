@@ -8,8 +8,9 @@
 // first five NAMES; `bookName` continues the sequence indefinitely, and `bookIndices` gives
 // each screen the range to draw: at least the saga's five, plus whatever the chapters reach,
 // plus (where the screen creates chapters) one more for the book that does not exist yet.
-export const BOOKS = ['Book One', 'Book Two', 'Book Three', 'Book Four', 'Book Five'];
-/** How many books every project shows even when empty -- the saga is five. */
+export const BOOKS = ['Book One', 'Book Two', 'Book Three', 'Book Four', 'Book Five', 'Book Six'];
+/** How many books every project shows even when empty -- the saga is SIX (00 Canon Index,
+ *  standing rule 1: "Six books. Never five."; it was five here until 2026-10-12). */
 export const MIN_BOOKS = BOOKS.length;
 
 const ORDINAL_WORDS = [

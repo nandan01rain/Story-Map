@@ -1,4 +1,9 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+
+// No generated Database types in this project, so the client is typed loosely on purpose:
+// ReturnType<typeof createClient> resolved every row to `never`.
+// deno-lint-ignore no-explicit-any
+type Db = SupabaseClient<any, any, any>;
 
 import { chunkText, hashChunk } from './chunk.ts';
 import { callModel } from './call-model.ts';
@@ -112,7 +117,7 @@ type ExtractionResult = {
 
 export async function handleExtractGraph(
   req: Request,
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   userId: string,
   json: (body: unknown, status?: number) => Response,
 ): Promise<Response> {
@@ -210,6 +215,10 @@ export async function handleExtractGraph(
       thinking: false,
       webSearch: false,
       schema: EXTRACTION_SCHEMA,
+      // A single structured reply: no tools, one round.
+      tools: [],
+      runTool: async () => ({ text: 'No tools here.', isError: true }),
+      maxSteps: 1,
     });
 
     let result: ExtractionResult;
@@ -292,7 +301,7 @@ export async function handleExtractGraph(
 }
 
 async function upsertEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   userId: string,
   projectId: string,
   e: {
@@ -337,7 +346,7 @@ async function upsertEvent(
 }
 
 async function upsertCharacter(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   userId: string,
   projectId: string,
   label: string,
@@ -374,7 +383,7 @@ async function upsertCharacter(
 }
 
 async function upsertFact(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   userId: string,
   projectId: string,
   description: string,
@@ -399,7 +408,7 @@ async function upsertFact(
 }
 
 async function upsertEdge(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   userId: string,
   projectId: string,
   e: {

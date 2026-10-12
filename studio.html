@@ -395,7 +395,7 @@ async function renderStoryboard(opts = {}){
   // A book's map button on the project page opens its own storyboard.
   if (opts.book != null && opts.book !== '' && !Number.isNaN(Number(opts.book))) SB.book = Number(opts.book);
   await Promise.all([loadBoard(), S.docs.length ? null : loadDocs()]);
-  const books = [...new Set([0, 1, 2, 3, 4, ...S.chapters.map((c) => c.book), ...S.events.map((e) => e.book)])].sort((a, b) => a - b);
+  const books = [...new Set([0, 1, 2, 3, 4, 5, ...S.chapters.map((c) => c.book), ...S.events.map((e) => e.book)])].sort((a, b) => a - b);
   view.innerHTML = `<div class="sb">
     <div class="sb-tools">
       <div class="group" id="sb-books"></div>
@@ -802,7 +802,7 @@ function drawSketch(){
 }
 // The note on the wall is a SUMMARY written now -- the scene stays here, one click away.
 function pinSketch(t){
-  const books = [...new Set([0, 1, 2, 3, 4, ...S.chapters.map((c) => c.book)])].sort((a, b) => a - b);
+  const books = [...new Set([0, 1, 2, 3, 4, 5, ...S.chapters.map((c) => c.book)])].sort((a, b) => a - b);
   const el = openOverlay(`<div class="sheet"><h3>PIN TO THE STORYBOARD</h3>
     <select data-k="book">${books.map((b) => `<option value="${b}">${bookName(b)}</option>`).join('')}</select>
     <h3>HEADING</h3><input class="big" data-k="title" value="${esc(noPrefix(sketchTitle(t)).slice(0, 80))}">
@@ -1397,7 +1397,7 @@ function showReport(subject, text){
 function makeChapter(t){
   const v = liveVersion(t.id);
   const inUse = [...new Set(S.chapters.map((c) => c.book))];
-  const books = [...new Set([0, 1, 2, 3, 4, ...inUse, (inUse.length ? Math.max(...inUse) : -1) + 1])].sort((a, b) => a - b);
+  const books = [...new Set([0, 1, 2, 3, 4, 5, ...inUse, (inUse.length ? Math.max(...inUse) : -1) + 1])].sort((a, b) => a - b);
   const actsOf = (b) => { const a = [...new Set(S.chapters.filter((c) => c.book === b).map((c) => c.act))].sort((x, y) => x - y); return a.length ? a : [1]; };
   const el = openOverlay(`<div class="sheet"><h3>MAKE THIS A CHAPTER</h3>
     <select data-k="book">${books.map((b) => `<option value="${b}">${bookName(b)}</option>`).join('')}</select>

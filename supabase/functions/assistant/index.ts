@@ -12,13 +12,20 @@
 // Every request runs as the calling user: their Supabase JWT is forwarded to PostgREST, so
 // row-level security decides what they can read. The function never uses the service role
 // key, which means a bug here cannot leak one account's manuscript to another.
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+
+// No generated Database types in this project, so the client is typed loosely on purpose:
+// ReturnType<typeof createClient> resolved every row to `never`.
+// deno-lint-ignore no-explicit-any
+type Db = SupabaseClient<any, any, any>;
 
 import { type Chunk, chunkText, hashChunk } from './chunk.ts';
-import { AGENTS, type AgentName, FINDINGS_SCHEMA } from './agents.ts';
+import { AGENTS, type AgentName, CITED_SCHEMA } from './agents.ts';
 import { callModel } from './call-model.ts';
 import { findModel } from './models.ts';
 import { handleExtractGraph } from './extract-graph.ts';
+import type { ToolContext } from './library.ts';
+import { runTool, toolSpecs } from './tools.ts';
 
 const EMBEDDING_MODEL = 'voyage-3.5';
 const EMBEDDING_URL = 'https://api.voyageai.com/v1/embeddings';
@@ -59,7 +66,7 @@ Deno.serve(async (req) => {
 
   try {
     if (route === 'index') return await handleIndex(req, supabase, userId);
-    if (route === 'ask') return await handleAsk(req, supabase);
+    if (route === 'ask') return await handleAsk(req, supabase, userId);
     if (route === 'extract-graph') return await handleExtractGraph(req, supabase, userId, json);
     return json({ error: `Unknown route: ${route}` }, 404);
   } catch (e) {
@@ -70,7 +77,7 @@ Deno.serve(async (req) => {
 
 // ---------------------------------------------------------------- indexing
 
-async function handleIndex(req: Request, supabase: ReturnType<typeof createClient>, userId: string) {
+async function handleIndex(req: Request, supabase: Db, userId: string) {
   const { projectId, sourceType, sourceId, title, content } = await req.json();
   if (!projectId || !sourceType || !sourceId) {
     return json({ error: 'projectId, sourceType and sourceId are required.' }, 400);
@@ -169,7 +176,7 @@ async function embedQuery(text: string): Promise<number[]> {
 
 // ---------------------------------------------------------------- asking
 
-async function handleAsk(req: Request, supabase: ReturnType<typeof createClient>) {
+async function handleAsk(req: Request, supabase: Db, userId: string) {
   const { projectId, agent, question, history, currentChapter, model: requestedModel } =
     await req.json();
   // Validated against the roster rather than trusted, same reasoning as the model lookup
@@ -233,6 +240,9 @@ ${question}`
 
 (No indexed material matched this question.)`;
 
+  // Everything a tool needs, and the place proposals made this turn are collected for the reply.
+  const ctx: ToolContext = { supabase, projectId, userId, agent: name, embedQuery, proposals: [] };
+
   try {
     const reply = await callModel({
       model,
@@ -244,8 +254,11 @@ ${question}`
       thinking: config.preferThinking,
       // Web search is a per-agent capability, not a per-model one, and only the Anthropic
       // dialect exposes it as a server tool here.
-      webSearch: config.tools.includes('web_search') && model.provider === 'anthropic',
-      schema: config.contract === 'findings' ? FINDINGS_SCHEMA : undefined,
+      webSearch: config.webSearch && model.provider === 'anthropic',
+      schema: config.contract === 'cited' ? CITED_SCHEMA : undefined,
+      tools: toolSpecs(name),
+      runTool: (tool, input) => runTool(ctx, tool, input),
+      maxSteps: config.maxSteps,
     });
 
     return json({
@@ -253,6 +266,8 @@ ${question}`
       contract: config.contract,
       model: model.id,
       text: reply.text,
+      toolCalls: reply.toolCalls,
+      proposals: ctx.proposals,
       sources: (matches ?? []).map(
         (m: { source_type: string; source_id: string; source_title: string }) => ({
           type: m.source_type,
@@ -271,7 +286,7 @@ ${question}`
 // shape -- it shows fragments. This assembles the outline: every chapter's position, title
 // and status, plus the canon documents' titles. Cheap, and it is what lets the model answer
 // "what structure should this adopt" instead of only "what does this passage say".
-async function buildDigest(supabase: ReturnType<typeof createClient>, projectId: string): Promise<string> {
+async function buildDigest(supabase: Db, projectId: string): Promise<string> {
   const [{ data: chapters }, { data: documents }] = await Promise.all([
     supabase
       .from('chapters')

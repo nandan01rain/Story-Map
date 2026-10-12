@@ -4,15 +4,25 @@ import { supabase } from './supabase';
 // holds an API key -- the function does, which is the entire reason it exists.
 export type AgentName = 'icarus' | 'daedalus';
 
-export type AssistantSource = { type: 'chapter' | 'document'; id: string; title: string };
+/** Every kind the library indexes (supabase/migrations/20261012_assistant_library.sql). */
+export type SourceType = 'chapter' | 'document' | 'scene' | 'page' | 'storyboard' | 'character';
+
+export type AssistantSource = { type: SourceType; id: string; title: string };
+
+/** A change an assistant proposed this turn; nothing is applied until the writer accepts. */
+export type ProposalRef = { id: string; kind: string; summary: string };
 
 export type AssistantReply = {
   agent: AgentName;
-  // 'findings' means text is JSON matching the findings schema; 'prose' is a plain reply.
-  contract?: 'findings' | 'prose';
+  // 'cited' (Icarus, the librarian) means text is JSON: { answer, citations, findings }.
+  // 'prose' (Daedalus, the editor) is a plain reply. 'findings' is the shape before 2026-10-12.
+  contract?: 'cited' | 'findings' | 'prose';
   model?: string;
   text: string;
   sources: AssistantSource[];
+  /** The tools it called, in order: what the answer rests on. */
+  toolCalls?: string[];
+  proposals?: ProposalRef[];
   usage?: { input_tokens: number; output_tokens: number };
 };
 
@@ -66,7 +76,7 @@ async function readFunctionError(error: unknown): Promise<string | null> {
 
 export async function indexSource(params: {
   projectId: string;
-  sourceType: 'chapter' | 'document';
+  sourceType: SourceType;
   sourceId: string;
   title: string;
   content: string;

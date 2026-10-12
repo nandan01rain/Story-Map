@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 
 import Icon from '../components/Icon';
-import { type AgentName, type AssistantSource, type ChatTurn, askAssistant } from '../lib/assistant';
+import { type AgentName, type AssistantSource, type ChatTurn, type ProposalRef, askAssistant } from '../lib/assistant';
 import { MODELS, PROVIDER_LABELS, estimateCostPerQuestion, findModel } from '../lib/assistantModels';
 import type { SignedInStackParamList } from '../navigation/types';
 import { indexStatus, useAssistantStore } from '../store/assistantStore';
@@ -29,10 +29,17 @@ type Finding = {
   needs?: string;
 };
 
+type Citation = { quote: string; source?: string };
+
 type Message = ChatTurn & {
   sources?: AssistantSource[];
   agent?: AgentName;
+  /** The librarian's reply, parsed: an answer, what it rests on, and verdicts when it checked. */
+  answer?: string;
+  citations?: Citation[];
   findings?: Finding[];
+  toolCalls?: string[];
+  proposals?: ProposalRef[];
 };
 
 const VERDICT_LABEL: Record<Finding['verdict'], string> = {
@@ -41,21 +48,34 @@ const VERDICT_LABEL: Record<Finding['verdict'], string> = {
   inconclusive: 'Inconclusive',
 };
 
-// Icarus answers under a schema, so its reply is JSON rather than prose. If a model ignores
-// the schema -- open-model hosts vary on how strictly they honour it -- fall back to showing
-// whatever came back as text rather than an empty bubble.
-function parseFindings(text: string): Finding[] | null {
+// Icarus answers under a schema, so its reply is JSON rather than prose: { answer, citations,
+// findings } since 2026-10-12, { findings } before. If a model ignores the schema -- open-model
+// hosts vary on how strictly they honour it -- fall back to showing whatever came back as text
+// rather than an empty bubble.
+function parseCited(text: string): { answer?: string; citations?: Citation[]; findings?: Finding[] } | null {
   try {
     const parsed = JSON.parse(text);
-    return Array.isArray(parsed?.findings) ? parsed.findings : null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      answer: typeof parsed.answer === 'string' ? parsed.answer : undefined,
+      citations: Array.isArray(parsed.citations) ? parsed.citations : undefined,
+      findings: Array.isArray(parsed.findings) ? parsed.findings : undefined,
+    };
   } catch {
     return null;
   }
 }
 
+/** "search_library ×2 · read_document" -- what the answer rests on, briefly. */
+function describeTools(calls: string[]): string {
+  const counts = new Map<string, number>();
+  for (const c of calls) counts.set(c, (counts.get(c) ?? 0) + 1);
+  return [...counts].map(([name, n]) => `${name.replace(/_/g, ' ')}${n > 1 ? ` ×${n}` : ''}`).join(' · ');
+}
+
 const AGENT_BLURB: Record<AgentName, string> = {
-  icarus: 'Checks the manuscript against itself — contradictions, unpaid plants, arcs gone quiet. Cites what it finds.',
-  daedalus: 'Thinks about craft — structure, parallels, technique, what comparable books did and why it worked.',
+  icarus: 'The librarian. Finds anything you have written, knows which canon governs, checks the manuscript against itself, and files things — always with its sources. Never touches your prose.',
+  daedalus: 'The editor. Structure, parallels, technique and comparable books — and exact edits, proposed for you to accept or reject.',
 };
 
 // The two assistants share one conversation surface; which one answers is a deliberate
@@ -86,9 +106,17 @@ export default function AssistantScreen({ route, navigation }: Props) {
   const [coverage, setCoverage] = useState<{ total: number; embedded: number } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Proposals wait in their own queue; the header leads to it from any conversation.
   useEffect(() => {
-    navigation.setOptions({ title: 'Assistant' });
-  }, [navigation]);
+    navigation.setOptions({
+      title: 'Assistant',
+      headerRight: () => (
+        <Pressable onPress={() => navigation.navigate('Proposals', { projectId })} hitSlop={10}>
+          <Text style={styles.headerLink}>Proposals</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, projectId, styles]);
 
   useEffect(() => {
     if (enabled) indexStatus(projectId).then(setCoverage);
@@ -118,6 +146,7 @@ export default function AssistantScreen({ route, navigation }: Props) {
       setError(err ?? 'No answer came back.');
       return;
     }
+    const cited = reply.contract === 'cited' || reply.contract === 'findings' ? parseCited(reply.text) : null;
     setMessages((prev) => [
       ...prev,
       {
@@ -125,7 +154,11 @@ export default function AssistantScreen({ route, navigation }: Props) {
         content: reply.text,
         sources: reply.sources,
         agent: reply.agent,
-        findings: reply.contract === 'findings' ? parseFindings(reply.text) ?? undefined : undefined,
+        answer: cited?.answer,
+        citations: cited?.citations,
+        findings: cited?.findings,
+        toolCalls: reply.toolCalls,
+        proposals: reply.proposals,
       },
     ]);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -137,11 +170,11 @@ export default function AssistantScreen({ route, navigation }: Props) {
         <Icon name="sparkle" size={30} color={colors.gold} />
         <Text style={styles.offTitle}>The assistant is off</Text>
         <Text style={styles.offBody}>
-          Turn it on in Settings. It stays off by default, and while it is off nothing is sent anywhere and
-          nothing is billed.
+          Turn it on with the Assistant switch at the top of the project page. It stays off by default,
+          and while it is off nothing is sent anywhere and nothing is billed.
         </Text>
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('Settings')}>
-          <Text style={styles.primaryBtnText}>Open Settings</Text>
+        <Pressable style={styles.primaryBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.primaryBtnText}>Back</Text>
         </Pressable>
       </View>
     );
@@ -229,8 +262,8 @@ export default function AssistantScreen({ route, navigation }: Props) {
         {messages.length === 0 && (
           <Text style={styles.hint}>
             {agent === 'icarus'
-              ? 'Ask what does not add up. "Does anything in this chapter contradict the character bibles?"'
-              : 'Ask what you are weighing. "Would an Icarus parallel work for Dev here, and where should it stop?"'}
+              ? 'Ask where something is, what canon says, or what does not add up. "Where do I say how old Kal was in the ditch?" · "Turn my newest page into a scene." · "Fill in Wren\'s infobox from her bible."'
+              : 'Ask what you are weighing, or for an edit. "Would an Icarus parallel work for Dev here, and where should it stop?" · "Tighten the opening of this chapter."'}
           </Text>
         )}
 
@@ -243,9 +276,15 @@ export default function AssistantScreen({ route, navigation }: Props) {
               <Text style={styles.bubbleAuthor}>{message.agent === 'daedalus' ? 'Daedalus' : 'Icarus'}</Text>
             )}
 
+            {message.answer !== undefined && <Text style={styles.bubbleText}>{message.answer}</Text>}
+            {message.citations?.map((c, ci) => (
+              <Text key={`c${ci}`} style={styles.evidence}>
+                “{c.quote}”{c.source ? ` — ${c.source}` : ''}
+              </Text>
+            ))}
             {message.findings ? (
               message.findings.length === 0 ? (
-                <Text style={styles.bubbleText}>Nothing to flag.</Text>
+                message.answer === undefined ? <Text style={styles.bubbleText}>Nothing to flag.</Text> : null
               ) : (
                 message.findings.map((finding, fi) => (
                   <View key={fi} style={styles.finding}>
@@ -262,8 +301,21 @@ export default function AssistantScreen({ route, navigation }: Props) {
                   </View>
                 ))
               )
-            ) : (
+            ) : message.answer === undefined ? (
               <Text style={styles.bubbleText}>{message.content}</Text>
+            ) : null}
+            {message.proposals && message.proposals.length > 0 && (
+              <Pressable onPress={() => navigation.navigate('Proposals', { projectId })} style={styles.proposed}>
+                <Text style={styles.proposedTitle}>
+                  {`Proposed ${message.proposals.length} change${message.proposals.length === 1 ? '' : 's'} — review`}
+                </Text>
+                {message.proposals.map((p) => (
+                  <Text key={p.id} style={styles.proposedItem}>· {p.summary}</Text>
+                ))}
+              </Pressable>
+            )}
+            {message.toolCalls && message.toolCalls.length > 0 && (
+              <Text style={styles.sources}>Looked at: {describeTools(message.toolCalls)}</Text>
             )}
             {message.sources && message.sources.length > 0 && (
               <Text style={styles.sources}>
@@ -400,6 +452,10 @@ function makeStyles(colors: ThemeColors) {
     modelMeta: { color: colors.textFaint, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
     pickerFoot: { color: colors.textFaint, fontSize: 11, lineHeight: 16, marginTop: 4 },
     sources: { color: colors.textFaint, fontSize: 11, marginTop: 8, lineHeight: 16 },
+    headerLink: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+    proposed: { marginTop: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.gold, backgroundColor: withOpacity(colors.gold, 0.08) },
+    proposedTitle: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 13 },
+    proposedItem: { color: colors.textDim, fontSize: 12.5, lineHeight: 18, marginTop: 3 },
     error: { color: '#e0764a', fontSize: 12.5, marginTop: 10, lineHeight: 18 },
     composer: {
       flexDirection: 'row',

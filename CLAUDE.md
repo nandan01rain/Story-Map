@@ -1,6 +1,6 @@
 # StoryMap ("The Trail to Kailash")
 
-> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§50 first.**
+> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§51 first.**
 
 A personal writing tool for a five-book mythological saga called "The Trail
 to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
@@ -68,7 +68,7 @@ root); this repo is the migration of that sandbox into a real, independent app.
 ## START HERE — where things stand (2026-10-12)
 
 The rest of this file is the original brief with dated notes layered on; much of it is
-history. **This section and handoff §47–§50 are the current picture.** Handoff §36–§46 hold
+history. **This section and handoff §47–§51 are the current picture.** Handoff §36–§46 hold
 the detail behind each item.
 
 **Two apps, one Supabase project (Saga-01 is the saga).**
@@ -124,6 +124,13 @@ from `supabase-config.js` — 42703 / PGRST205 mean missing; it reads and writes
    today it is a fogged-glass wash (`FoggedSheet`). Bundle with any other native change.
 6. Longer standing (handoff §7, §15, §25): hosting the PWA, the dormant assistants (no API
    key), trimming bundled font weights, OAuth sign-in, ingesting someone else's manuscript.
+
+**The assistants (handoff §51):** Icarus = librarian (finds, cites, checks, organises; never
+touches prose), Daedalus = editor (craft + exact text edits); both act only through PROPOSALS the
+writer accepts in Assistant → Proposals. Tools, checks and the proposal queue are built and
+tested with no key; still undeployed. Needs `20261012_assistant_library.sql` (after
+`20260821_assistant_retrieval.sql`). **The saga is six books** (00 Canon Index) — both apps now
+list six.
 
 **Rules the writer has set, beyond the design principles below:** always commit AND push;
 commands include their `cd`; ask before any database write and dry-run first; never use the

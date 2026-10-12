@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { indexSource, indexStatus } from '../lib/assistant';
+import { type SourceType, indexSource, indexStatus } from '../lib/assistant';
 import { extractGraphForChapter } from '../lib/characterGraph';
 import { supabase } from '../lib/supabase';
 
@@ -88,15 +88,37 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     if (!get().enabled || get().indexing) return;
     set({ indexing: true, lastError: null, indexProgress: null });
 
-    const [{ data: chapters }, { data: documents }] = await Promise.all([
-      supabase.from('chapters').select('id, title, content').eq('project_id', projectId),
-      supabase.from('documents').select('id, title, content').eq('project_id', projectId),
+    // Everything the writer keeps, not only chapters and documents (2026-10-12): the librarian
+    // cannot find a drafted scene, a page, a storyboard beat or a character it was never shown.
+    // Each kind is read separately and a missing table just contributes nothing, so this works
+    // on whichever migrations the project has run. Needs 20261012_assistant_library.sql, which
+    // lets content_chunks hold the new kinds.
+    const read = async <T,>(q: PromiseLike<{ data: T[] | null }>) => (await q).data ?? [];
+    const [chapters, documents, treatments, versions, pages, events, cast] = await Promise.all([
+      read(supabase.from('chapters').select('id, title, content').eq('project_id', projectId)),
+      read(supabase.from('documents').select('id, title, content').eq('project_id', projectId)),
+      read(supabase.from('treatments').select('id, title').eq('project_id', projectId)),
+      read(supabase.from('treatment_versions').select('treatment_id, content, status, created_at').eq('project_id', projectId)),
+      read(supabase.from('sticky_notes').select('id, content').eq('project_id', projectId)),
+      read(supabase.from('storyboard_events').select('id, book, title, summary').eq('project_id', projectId)),
+      read(supabase.from('storyboard_cast').select('*').eq('project_id', projectId)),
     ]);
-
-    const sources = [
-      ...(chapters ?? []).map((c) => ({ type: 'chapter' as const, ...c })),
-      ...(documents ?? []).map((d) => ({ type: 'document' as const, ...d })),
-    ].filter((s) => (s.content ?? '').trim().length > 0);
+    const liveText = (id: string) =>
+      versions
+        .filter((v) => v.treatment_id === id)
+        .sort((a, b) => (a.status === 'live' ? -1 : 1) - (b.status === 'live' ? -1 : 1) || String(b.created_at).localeCompare(String(a.created_at)))[0]?.content ?? '';
+    type Source = { type: SourceType; id: string; title: string | null; content: string | null };
+    const sources: Source[] = ([
+      ...chapters.map((c) => ({ type: 'chapter' as const, ...c })),
+      ...documents.map((d) => ({ type: 'document' as const, ...d })),
+      ...treatments.map((t) => ({ type: 'scene' as const, id: t.id, title: t.title, content: liveText(t.id) })),
+      ...pages.map((p) => ({ type: 'page' as const, id: p.id, title: (p.content ?? '').split('\n')[0]?.slice(0, 80) ?? '', content: p.content })),
+      ...events.map((e) => ({ type: 'storyboard' as const, id: e.id, title: `Book ${Number(e.book) + 1} storyboard: ${e.title ?? ''}`, content: `${e.title ?? ''}\n${e.summary ?? ''}` })),
+      ...cast.map((c) => ({
+        type: 'character' as const, id: c.id, title: c.name,
+        content: [c.name, c.description, ...Object.values((c.fields ?? {}) as Record<string, string>)].filter(Boolean).join('\n'),
+      })),
+    ] as Source[]).filter((s) => (s.content ?? '').trim().length > 0);
 
     set({ indexProgress: { done: 0, total: sources.length } });
 
