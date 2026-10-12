@@ -5503,3 +5503,38 @@ existing link (`became_*`, `chapter_id`) -- nothing new stored.
 page once linked, a one-time choice made there. The storyboard's document fetch existed only for
 the removed link and went with it.
 
+## 50. THE WEB APP WEARS THE PHONE'S DESIGN (2026-10-12)
+
+The writer: the web should mirror the phone, laid out for landscape -- and on a laptop it was
+still August. Two causes, both fixed in index.html:
+
+- **The night was brown because of the presentation preset.** `the-atlas` (§9) carried the old
+  leather surface tokens and `applyPresentationConfig` writes them INLINE after sign-in, so they
+  beat the stylesheet's royal-blue `:root` -- the blue night of 2026-08-30 never showed once a
+  project loaded. The preset now carries accents only; surfaces belong to the theme.
+- **Wide screens had their own shell** (`@media (min-width:1000px)`): a fixed rail (whose labels
+  were cream on cream), the menu drawn as a row of outlined buttons, the braid as the opening
+  view and a dock of three cards under it. Removed with its script (`DESKTOP_SHELL`,
+  `shellActive`, `titleTheRail`, `splitRailTitle`, `homeTheBraid`, `setPane`, `renderDock`
+  and its helpers) and its markup (`#sidebar`, `#workspace`, `#main`, `#dock`).
+
+What replaces it, at every width:
+- **The bar**: `--chrome` (the plates' sky, as theme.ts), ☰ on the left, the project name, the
+  assistant toggle on the right. No gilt frame round the app.
+- **The drawer** is NavDrawer.tsx: parchment rail, the phone's own header plate
+  (`assets/drawer-{day,night}-header.webp`, copied from mobile/assets) with the project name in
+  its clear band, the four sections with the phone's glyphs and chevrons, the double-ruled
+  epigraph, and the city plate pinned to the foot (a background of the scrolling panel, so the
+  menu scrolls over it). Slides in over a scrim; Escape, the ×, the scrim or any item closes it;
+  every section folds back up on close.
+- **The project page** is ChapterListScreen: a card per book (name, chapter count, storyboard
+  button -- opens the studio on that book via `&book=` -- a + for a chapter, an arrow), act
+  labels in small mono capitals, rows of handle · status dot · title · words. Every book to the
+  fifth is drawn, empty ones faded with their +. Landscape: closed books tile across the width
+  and an opened book takes the whole row with its acts in columns. The + opens the add-chapter
+  sheet aimed at that book and its last act.
+
+Checked in the browser pane with made-up chapters (no sign-in): night and day, drawer open and
+closed, 1440×900 and 375×812, `applyPresentationConfig()` run to confirm the blue holds after the
+step that used to paint it brown. No console errors.
+

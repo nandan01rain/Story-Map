@@ -1,6 +1,6 @@
 # StoryMap ("The Trail to Kailash")
 
-> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§49 first.**
+> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§50 first.**
 
 A personal writing tool for a five-book mythological saga called "The Trail
 to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
@@ -68,7 +68,7 @@ root); this repo is the migration of that sandbox into a real, independent app.
 ## START HERE — where things stand (2026-10-12)
 
 The rest of this file is the original brief with dated notes layered on; much of it is
-history. **This section and handoff §47–§49 are the current picture.** Handoff §36–§46 hold
+history. **This section and handoff §47–§50 are the current picture.** Handoff §36–§46 hold
 the detail behind each item.
 
 **Two apps, one Supabase project (Saga-01 is the saga).**

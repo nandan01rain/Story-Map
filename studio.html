@@ -237,7 +237,7 @@ textarea.wr-ta{field-sizing:content;width:100%;border:none;background:none;resiz
 const params = new URLSearchParams(location.search);
 const projectId = params.get('project');
 let tab = params.get('tab') || 'storyboard';
-const startOpts = { sketch: params.get('sketch'), chapter: params.get('chapter'), report: tab === 'report' };
+const startOpts = { sketch: params.get('sketch'), chapter: params.get('chapter'), report: tab === 'report', book: params.get('book') };
 if (tab === 'report') tab = 'write'; // the menu's "Prose report": Prose, with the book's report open
 const inFrame = window.parent !== window;
 const sb = (inFrame && window.parent.sbClient) || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -391,7 +391,9 @@ function jitter(id, salt){
   return ((h >>> 0) % 2001) / 1000 - 1;
 }
 
-async function renderStoryboard(){
+async function renderStoryboard(opts = {}){
+  // A book's map button on the project page opens its own storyboard.
+  if (opts.book != null && opts.book !== '' && !Number.isNaN(Number(opts.book))) SB.book = Number(opts.book);
   await Promise.all([loadBoard(), S.docs.length ? null : loadDocs()]);
   const books = [...new Set([0, 1, 2, 3, 4, ...S.chapters.map((c) => c.book), ...S.events.map((e) => e.book)])].sort((a, b) => a - b);
   view.innerHTML = `<div class="sb">
@@ -1438,7 +1440,7 @@ async function go(next, opts = {}){
   view.innerHTML = '<div class="note-msg">Loading…</div>';
   try {
     if (tab === 'write') await renderWrite(opts);
-    else if (tab === 'storyboard') await renderStoryboard();
+    else if (tab === 'storyboard') await renderStoryboard(opts);
     else if (tab === 'sketches') await renderSketches(opts);
     else if (tab === 'characters') await renderCharacters(opts);
     else await renderDocuments(opts);
