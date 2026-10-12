@@ -271,7 +271,7 @@ export default function ChapterListScreen({ route, navigation }: Props) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {/* Every book up to the count -- the saga's five, or as far as the chapters reach. An
+      {/* Every book the chapters reach (at least Book One; there is no fixed number). An
           EMPTY book is drawn too, quietly, with its "+": it used to be hidden, which left no
           way on this screen to start Book Two until Book Two somehow had a chapter. */}
       {bookIndices(chapters).map((bookIndex) => {

@@ -5614,3 +5614,27 @@ To switch it on: buy a key (Anthropic) and decide embeddings (Voyage is wired, �
 migrations; `supabase secrets set`; `supabase functions deploy assistant`; turn the Assistant
 toggle on (project page, top right); Index now.
 
+## 52. NO FIXED NUMBER OF BOOKS (2026-10-12)
+
+The writer: the number of books should not be hardcoded. (§51 had just raised it from five to six,
+to match the 00 index -- the same mistake with a different number.) A book was never stored: a
+chapter carries an integer `book`, and books are inferred from chapters as acts are. So:
+
+- **Phone** (`storyData.ts`): `BOOKS` is gone; `MIN_BOOKS` is 1 (a new project shows Book One, to
+  start in). `bookName` names any index, `bookIndices` is the books the chapters reach, plus the
+  next where a screen creates chapters.
+- **Web** (`index.html`): `BOOKS` is gone; `bookName(i)` and `bookList(withNext)` replace it in
+  all ~30 uses (list view, every book picker, the reader's book list, targets, export scope, every
+  "Book N ·" label). The list shows the books in use and always offers "+ Add" the next.
+  `BOOK_TARGETS` (five fixed ranges nothing read) removed. Word targets were a five-entry default
+  table, so a sixth book had none: now `bookTarget(i)` falls back to 2,500–4,500 for any book
+  not set, and the phone's chapter drawer does the same.
+- **Studio**: `booksInUse(withNext)` -- chapters' and storyboard notes' books, plus the next --
+  replaces the fixed 0..5 lists.
+- **Assistants**: book names for any index; a storyboard note's book is any whole number from 1.
+  The "six books, never five" line stays in their canon rules: it is the author's rule about the
+  story, quoted, not a limit in the app.
+
+Checked: phone tsc, `deno check`, the 25 assistant tests (book 0 refused, any book from 1
+accepted), and the web list with no chapters, two books and a chapter in Book Nine.
+

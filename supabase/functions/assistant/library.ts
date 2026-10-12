@@ -23,8 +23,10 @@ export type ToolContext = {
 type Row = Record<string, unknown>;
 
 const PAGE_CHARS = 40_000;
-const BOOK_NAMES = ['Book One', 'Book Two', 'Book Three', 'Book Four', 'Book Five', 'Book Six'];
-export const bookName = (i: number) => BOOK_NAMES[i] ?? `Book ${i + 1}`;
+// Names for any book index -- the app sets no number of books, and neither does this.
+const BOOK_WORDS = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+  'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty'];
+export const bookName = (i: number) => (BOOK_WORDS[i] ? `Book ${BOOK_WORDS[i]}` : `Book ${i + 1}`);
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
 async function rows(ctx: ToolContext, table: string, columns: string, extra?: (q: any) => any): Promise<Row[]> {

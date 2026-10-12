@@ -84,8 +84,10 @@ export default function ChapterDrawerScreen({ route, navigation }: Props) {
       .maybeSingle()
       .then(({ data }) => {
         const targets = data?.chapter_word_targets as [number, number][] | undefined;
+        // A book without its own target takes the default, as on the web -- there is no fixed
+        // number of books, so a target table can never be assumed to cover them all.
         const range = targets?.[chapter.book];
-        setWordTarget(range ?? [null, null]);
+        setWordTarget(range ?? [2500, 4500]);
       });
   }, [chapter, projectId]);
 

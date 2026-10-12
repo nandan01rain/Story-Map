@@ -68,7 +68,7 @@ const TOOLS: Record<string, { spec: ToolSpec; run: Run }> = {
   },
   read_storyboard: {
     spec: { name: 'read_storyboard', description: "A book's storyboard in order: each note's id, heading, summary, who is in it, its threads, the chapter it became and the scene it came from.",
-      input_schema: obj({ book: n('1 to 6. Omit for every book.') }) },
+      input_schema: obj({ book: n('1 = Book One. Omit for every book.') }) },
     run: lib.readStoryboard,
   },
   read_character: {
@@ -98,7 +98,7 @@ const TOOLS: Record<string, { spec: ToolSpec; run: Run }> = {
   },
   propose_storyboard_note: {
     spec: { name: 'propose_storyboard_note', description: "Propose a note for a book's storyboard: a heading and a few lines summing the beat up, optionally tied to the scene or chapter it stands for.",
-      input_schema: obj({ book: n('1 to 6.'), title: s('The note heading.'), summary: s('A few lines.'), scene: s('Optional scene id or title.'), chapter: s('Optional chapter id or title.'), rationale: s('Why.') }, ['book', 'title', 'summary', 'rationale']) },
+      input_schema: obj({ book: n('1 = Book One.'), title: s('The note heading.'), summary: s('A few lines.'), scene: s('Optional scene id or title.'), chapter: s('Optional chapter id or title.'), rationale: s('Why.') }, ['book', 'title', 'summary', 'rationale']) },
     run: prop.proposeStoryboardNote,
   },
   propose_scene_chapter_link: {

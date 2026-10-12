@@ -92,7 +92,7 @@ export async function proposeNewScene(ctx: ToolContext, input: Row) {
 
 export async function proposeStoryboardNote(ctx: ToolContext, input: Row) {
   const book = Number(input.book) - 1;
-  if (!Number.isInteger(book) || book < 0 || book > 5) throw new Error('book is 1 to 6 (Book One to Book Six).');
+  if (!Number.isInteger(book) || book < 0) throw new Error('book is a whole number from 1 (1 = Book One).');
   const title = str(input.title).trim(), summary = str(input.summary).trim();
   if (!title || !summary) throw new Error('title and summary are both required: the note is a heading and a few lines.');
   let sceneId: string | null = null, chapterId: string | null = null;

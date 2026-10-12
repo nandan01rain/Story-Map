@@ -2159,9 +2159,23 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 </div>
 
 <script>
-// Six: the 00 Canon Index's first standing rule is "Six books. Never five."
-const BOOKS = ["Book One","Book Two","Book Three","Book Four","Book Five","Book Six"];
-const BOOK_TARGETS = [[110000,130000],[120000,140000],[120000,140000],[110000,135000],[140000,170000]];
+/* NO FIXED NUMBER OF BOOKS (2026-10-12). A book is whatever a chapter's `book` says -- books
+   are inferred from chapters exactly as acts are -- so how many there are is the project's
+   business, not this file's. bookName() names any index; bookList() is the books in use (at
+   least Book One, so a new project has somewhere to start) and, with `withNext`, the one after
+   the last, for anything that creates a chapter. This used to be a constant of five names, then
+   six; every list in the app mapped over it, so a book past the end existed in the data and
+   nowhere on screen. (BOOK_TARGETS, five fixed word ranges nothing read any more, went with it.) */
+const BOOK_WORDS = ['One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+  'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen','Twenty'];
+function bookName(i){
+  const n = Number(i);
+  return BOOK_WORDS[n] ? 'Book ' + BOOK_WORDS[n] : 'Book ' + (n + 1);
+}
+function bookList(withNext){
+  const last = Math.max(0, ...chapters.map(c => c.book));
+  return Array.from({ length: last + 1 + (withNext ? 1 : 0) }, (_, i) => i);
+}
 // Real-device finding (Phase 1a): rendering the world at literal native-pixel scale (1 world
 // unit = 1 CSS px) reads as too zoomed-in on a phone — the source art was always previously
 // shown scaled down via background-size:cover, never at true native size. This scales the
@@ -2286,7 +2300,7 @@ function applyPresentationConfig(){
   });
   Object.entries(config.typography || {}).forEach(([k, v]) => root.style.setProperty(k, v));
 }
-let chapterWordTargets = [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
+let chapterWordTargets = [];
 let trash = [];
 
 let chapters = [];
@@ -2316,7 +2330,10 @@ let dragState = null;
 
 
 /* ---------- STORAGE ---------- */
-const DEFAULT_CHAPTER_WORD_TARGETS = [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
+// Per book, and only for the books a writer has set; any other book takes the default. This was
+// a table of five entries, so a sixth book (or later) silently had no target at all.
+const DEFAULT_CHAPTER_WORD_TARGET = [2500,4500];
+function bookTarget(i){ return chapterWordTargets[i] || DEFAULT_CHAPTER_WORD_TARGET; }
 
 function loadData(){
   return window.sbClient.auth.getUser().then(({ data, error: userError }) => {
@@ -2385,7 +2402,7 @@ function loadData(){
 
       return settingsPromise.then(settings => {
         actLabels = settings.act_labels || {};
-        chapterWordTargets = settings.chapter_word_targets || DEFAULT_CHAPTER_WORD_TARGETS;
+        chapterWordTargets = settings.chapter_word_targets || [];
         aiEnabled = settings.ai_enabled || false;
         // `bookmarks` used to be a flat {bookIndex: page} map (the single moving
         // bookmark). It's now {current: {...}, pinned: {bookIndex: [page, ...]}} to also
@@ -2414,7 +2431,7 @@ function loadData(){
   }).catch(err => {
     console.error('loadData failed:', err);
     chapters = []; scenes = []; documents = []; stickyNotes = []; trash = [];
-    actLabels = {}; chapterWordTargets = DEFAULT_CHAPTER_WORD_TARGETS;
+    actLabels = {}; chapterWordTargets = [];
     aiEnabled = false; nextId = 1;
     projectBookmarks = {};
     projectPinnedBookmarks = {};
@@ -2544,7 +2561,7 @@ function saveData(){
 
       const settingsRow = {
         project_id: currentProjectId, act_labels: actLabels || {},
-        chapter_word_targets: chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS,
+        chapter_word_targets: chapterWordTargets || [],
         ai_enabled: !!aiEnabled,
         // Map view is gone; the column stays so an older client reading this row still
         // finds what it expects rather than a null it does not handle.
@@ -2641,7 +2658,7 @@ async function uploadLocalDataToSupabase(){
   });
 
   actLabels = local.actLabels || {};
-  chapterWordTargets = local.chapterWordTargets || DEFAULT_CHAPTER_WORD_TARGETS;
+  chapterWordTargets = local.chapterWordTargets || [];
   aiEnabled = !!local.aiEnabled;
 
   // An imported file predating groupings still speaks linkedPlant. Convert before saving,
@@ -2738,26 +2755,25 @@ function render(){
   if(menuEl) menuEl.textContent = saga;
 })();
 let expandedBooks = new Set([0]);
-/* ChapterListScreen.tsx, for a wide screen. Every book up to the saga's five (or as far as the
-   chapters reach) is drawn -- an empty one quietly, with its + -- because hiding it left no way
-   to start Book Two from here. Tapping a chapter opens its drawer; the handle drags it within
+/* ChapterListScreen.tsx, for a wide screen. Every book the chapters reach is drawn (at least
+   Book One), with "+ Add" for the next -- there is no fixed number of books. Tapping a chapter opens its drawer; the handle drags it within
    its act (wireListDrag below). */
 function renderListView(){
   const container = document.getElementById('list-view');
-  const last = Math.max(BOOKS.length - 1, ...chapters.map(c => c.book));
+  const last = bookList(false).length - 1;
   let html = '<div class="lv-wrap">';
   for(let bi = 0; bi <= last; bi++){
-    const bookName = BOOKS[bi] || ('Book ' + (bi + 1));
+    const name = bookName(bi);
     const bookChapters = chapters.filter(c => c.book === bi);
     const empty = bookChapters.length === 0;
     const isOpen = !empty && expandedBooks.has(bi);
     const acts = [...new Set(bookChapters.map(c => c.act))].sort((a,b) => a - b);
     html += `<div class="lv-book${empty ? ' empty' : ''}${isOpen ? ' open' : ''}">
       <div class="lv-book-header" data-toggle-book="${bi}">
-        <span class="lv-book-title">${escapeHtml(bookName)}</span>
+        <span class="lv-book-title">${escapeHtml(name)}</span>
         <span class="lv-book-meta">${empty ? 'empty' : bookChapters.length + (bookChapters.length === 1 ? ' chapter' : ' chapters')}</span>
         <button class="lv-book-map" data-board="${bi}" title="This book's storyboard"><svg class="nav-icon"><use href="#icon-map"></use></svg></button>
-        <button class="lv-add" data-add-chapter="${bi}" title="New chapter in ${escapeHtml(bookName)}">+</button>
+        <button class="lv-add" data-add-chapter="${bi}" title="New chapter in ${escapeHtml(name)}">+</button>
         ${empty ? '<span class="lv-arrow"></span>' : `<span class="lv-arrow">${isOpen ? '▼' : '▶'}</span>`}
       </div>`;
     if(isOpen){
@@ -2779,10 +2795,8 @@ function renderListView(){
     }
     html += '</div>';
   }
-  // A book is its chapters; the next one begins with its first (the web keeps the saga's five).
-  if(last + 1 < BOOKS.length){
-    html += `<button class="lv-add-book" data-add-chapter="${last + 1}">+ Add ${escapeHtml(BOOKS[last + 1])}</button>`;
-  }
+  // A book is its chapters; the next one begins with its first. There is no last book.
+  html += `<button class="lv-add-book" data-add-chapter="${last + 1}">+ Add ${escapeHtml(bookName(last + 1))}</button>`;
   html += '</div>';
   container.innerHTML = html;
 
@@ -2923,10 +2937,10 @@ function truncate(str, n){ return str.length>n ? str.slice(0,n-1)+'…' : str; }
 function openDrawer(id){
   selectedChapterId = id;
   const ch = chapters.find(c=>c.id===id);
-  document.getElementById('d-book').textContent = `${BOOKS[ch.book]} · ${chapterLabel(ch.book, ch.act)}`;
+  document.getElementById('d-book').textContent = `${bookName(ch.book)} · ${chapterLabel(ch.book, ch.act)}`;
   document.getElementById('d-title').value = ch.title;
   const bookSel = document.getElementById('d-book-select');
-  bookSel.innerHTML = BOOKS.map((b,i)=>`<option value="${i}">${b}</option>`).join('');
+  bookSel.innerHTML = bookList(true).map(i=>`<option value="${i}">${bookName(i)}</option>`).join('');
   bookSel.value = ch.book;
   document.getElementById('d-act-input').value = ch.act;
   document.querySelectorAll('#d-status .status-pill').forEach(p=>p.classList.toggle('active', p.dataset.s===ch.status));
@@ -2941,7 +2955,7 @@ function openDrawer(id){
     : 'needs supabase/migrations/20260825_spine_support.sql';
 
   const wc = wordCount(ch.content);
-  const [cwMin, cwMax] = chapterWordTargets[ch.book] || [null,null];
+  const [cwMin, cwMax] = bookTarget(ch.book);
   document.getElementById('d-wc-count').textContent = wc + (wc===1?' word':' words');
   document.getElementById('d-wc-target').textContent = `book target: ${cwMin||'—'}–${cwMax||'—'} per chapter`;
   const flag = wcFlag(wc, cwMin, cwMax);
@@ -3110,8 +3124,10 @@ document.getElementById('d-open-thread').addEventListener('click', ()=>{
 /* ---------- ADD CHAPTER ---------- */
 function openAddChapter(book){
   const sel = document.getElementById('new-ch-book');
-  sel.innerHTML = BOOKS.map((b,i)=>`<option value="${i}">${b}</option>`).join('');
-  if(book !== undefined && book !== null && book < BOOKS.length) sel.value = String(book);
+  const offered = bookList(true);
+  if(book !== undefined && book !== null && !offered.includes(book)) offered.push(book);
+  sel.innerHTML = offered.map(i=>`<option value="${i}">${bookName(i)}</option>`).join('');
+  if(book !== undefined && book !== null) sel.value = String(book);
   const acts = chapters.filter(c => c.book === Number(sel.value)).map(c => c.act);
   document.getElementById('new-ch-act').value = acts.length ? Math.max(...acts) : 1;
   document.getElementById('add-modal').classList.add('show');
@@ -3134,7 +3150,7 @@ document.getElementById('add-modal').addEventListener('click', e=>{ if(e.target.
 
 /* ---------- ACT MODAL ---------- */
 function openActModal(book, act){
-  document.getElementById('act-modal-title').textContent = `${BOOKS[book]} — ${chapterLabel(book, act)}`;
+  document.getElementById('act-modal-title').textContent = `${bookName(book)} — ${chapterLabel(book, act)}`;
   const list = document.getElementById('act-modal-list');
   const chs = chapters.filter(c=>c.book===book && c.act===act).sort((a,b)=>a.order-b.order);
   list.innerHTML = chs.map(c => {
@@ -3227,7 +3243,7 @@ function renderContinuity(){
         <div class="mark ${markCls}" style="${it.deferred?'color:var(--text-dim);':''}">${mark}</div>
         <div>
           <div class="req">${escapeHtml(it.req)}</div>
-          <div class="meta">needed by <b>${escapeHtml(it.chapter?it.chapter.title:it.scene.title)}</b> (${it.chapter?BOOKS[it.chapter.book]:''})${status}</div>
+          <div class="meta">needed by <b>${escapeHtml(it.chapter?it.chapter.title:it.scene.title)}</b> (${it.chapter?bookName(it.chapter.book):''})${status}</div>
         </div>
       </div>`;
     }).join('');
@@ -3242,7 +3258,7 @@ function renderContinuity(){
         <div class="mark" style="color:var(--gold);">◌</div>
         <div>
           <div class="req">${escapeHtml(o.text)}</div>
-          <div class="meta">sown in <b>${escapeHtml(o.chapter?o.chapter.title:o.scene.title)}</b> (${o.chapter?BOOKS[o.chapter.book]:''}) — no scene claims it yet. Might just be unwritten, or might be forgotten.</div>
+          <div class="meta">sown in <b>${escapeHtml(o.chapter?o.chapter.title:o.scene.title)}</b> (${o.chapter?bookName(o.chapter.book):''}) — no scene claims it yet. Might just be unwritten, or might be forgotten.</div>
         </div>
       </div>`).join('');
   }
@@ -3297,7 +3313,7 @@ function openEditor(chapterId){
   const ch = chapters.find(c=>c.id===chapterId);
   if(!ch.annotations) ch.annotations = [];
   closeEditorAnnoPanel();
-  document.getElementById('editor-title').textContent = `${ch.title} — ${BOOKS[ch.book]}, ${chapterLabel(ch.book, ch.act)}`;
+  document.getElementById('editor-title').textContent = `${ch.title} — ${bookName(ch.book)}, ${chapterLabel(ch.book, ch.act)}`;
   setEditorContent(ch.content || '');
   updateEditorWC();
   updateMarkCounts(ch);
@@ -3313,7 +3329,7 @@ function updateEditorWC(){
   const ch = chapters.find(c=>c.id===editorChapterId);
   const text = document.getElementById('editor-content').textContent;
   const wc = wordCount(text);
-  const [cwMin, cwMax] = chapterWordTargets[ch.book] || [null,null];
+  const [cwMin, cwMax] = bookTarget(ch.book);
   const flag = wcFlag(wc, cwMin, cwMax);
   let html = `${wc} word${wc===1?'':'s'}`;
   if(flag.label) html += ` <span class="flag" style="background:${flag.cls==='ok'?'rgba(63,128,121,0.2)':flag.cls==='low'?'rgba(201,162,39,0.2)':'rgba(193,81,45,0.2)'};color:${flag.cls==='ok'?'var(--teal)':flag.cls==='low'?'var(--gold)':'var(--ember)'}">${flag.label}</span>`;
@@ -3603,7 +3619,7 @@ async function runSearchFullText(q){
     return {
       type: r.kind.charAt(0).toUpperCase() + r.kind.slice(1),
       title: (r.title || '').trim() || (r.kind === 'page' ? 'Untitled page' : 'Untitled'),
-      meta: r.kind === 'page' ? pageWhen(Date.parse(r.at)) : (ch ? BOOKS[ch.book] + ' · ' + ch.title : ''),
+      meta: r.kind === 'page' ? pageWhen(Date.parse(r.at)) : (ch ? bookName(ch.book) + ' · ' + ch.title : ''),
       snippet: sanitizeHeadline(r.snippet),
       open: openers[r.kind] || (() => {})
     };
@@ -3623,14 +3639,14 @@ function runSearch(query){
   chapters.forEach(ch => {
     const hay = ch.title + ' ' + (ch.content||'');
     if(hay.toLowerCase().includes(q.toLowerCase())){
-      hits.push({type:'Chapter', title:ch.title, meta:`${BOOKS[ch.book]} · ${chapterLabel(ch.book, ch.act)}`, snippet: snippetAround(ch.content||ch.title, q, 50), open:()=>openEditor(ch.id)});
+      hits.push({type:'Chapter', title:ch.title, meta:`${bookName(ch.book)} · ${chapterLabel(ch.book, ch.act)}`, snippet: snippetAround(ch.content||ch.title, q, 50), open:()=>openEditor(ch.id)});
     }
   });
   scenes.forEach(s => {
     const hay = s.title + ' ' + (s.summary||'');
     if(hay.toLowerCase().includes(q.toLowerCase())){
       const ch = chapters.find(c=>c.id===s.chapterId);
-      hits.push({type:'Scene', title:s.title, meta: ch ? `${BOOKS[ch.book]} · ${ch.title}` : '', snippet: snippetAround(s.summary||s.title, q, 50), open:()=>{ if(ch) openDrawer(ch.id); }});
+      hits.push({type:'Scene', title:s.title, meta: ch ? `${bookName(ch.book)} · ${ch.title}` : '', snippet: snippetAround(s.summary||s.title, q, 50), open:()=>{ if(ch) openDrawer(ch.id); }});
     }
   });
   documents.forEach(d => {
@@ -3916,11 +3932,11 @@ function jumpToTextInEditor(chapterId, text){
 /* ---------- CHAPTER-LENGTH TARGETS (book-level) ---------- */
 function renderTargetsModal(){
   const list = document.getElementById('targets-list');
-  list.innerHTML = BOOKS.map((b, i) => {
-    const [min, max] = chapterWordTargets[i] || [null, null];
+  list.innerHTML = bookList(false).map((i) => {
+    const [min, max] = bookTarget(i);
     return `
     <div class="target-row">
-      <div class="tr-book">${b}</div>
+      <div class="tr-book">${bookName(i)}</div>
       <input type="number" data-min="${i}" value="${min||''}" placeholder="min">
       <span>–</span>
       <input type="number" data-max="${i}" value="${max||''}" placeholder="max">
@@ -3935,7 +3951,7 @@ document.getElementById('targets-modal').addEventListener('click', e => {
   if(e.target.id === 'targets-modal') e.target.classList.remove('show');
 });
 document.getElementById('targets-save-btn').addEventListener('click', async () => {
-  BOOKS.forEach((b, i) => {
+  bookList(false).forEach((i) => {
     const min = parseInt(document.querySelector(`[data-min="${i}"]`).value) || null;
     const max = parseInt(document.querySelector(`[data-max="${i}"]`).value) || null;
     chapterWordTargets[i] = [min, max];
@@ -4211,7 +4227,7 @@ function renderLinkCandidates(query){
     const isSel = selectedLinkedPlant && selectedLinkedPlant.chapterId===p.chapter.id && selectedLinkedPlant.annotationId===p.annotation.id;
     return `<div class="link-candidate ${isSel?'selected':''}" data-link-chapter="${p.chapter.id}" data-link-anno="${p.annotation.id}">
       <div class="lc-snippet">"${escapeHtml(truncate(p.annotation.text,80))}"${p.annotation.label?' — '+escapeHtml(truncate(p.annotation.label,60)):''}</div>
-      <div class="lc-loc">${BOOKS[p.chapter.book]} · ${escapeHtml(p.chapter.title)}</div>
+      <div class="lc-loc">${bookName(p.chapter.book)} · ${escapeHtml(p.chapter.title)}</div>
     </div>`;
   }).join('');
   if(ranked.length === 0) html += `<div class="link-candidate lc-skip">No plants flagged anywhere yet.</div>`;
@@ -4816,7 +4832,7 @@ function loomFlagRow(entry, selectable){
     <span class="flag-kind ${a.type}">${a.type}</span>
     <div class="flag-text">
       <div class="flag-quote">"${escapeHtml(truncate(a.text || a.label || '(whole chapter)', 130))}"</div>
-      <div class="flag-loc">${escapeHtml(BOOKS[ch.book]||'')} · ${escapeHtml(ch.title)}${a.label?' — '+escapeHtml(truncate(a.label,60)):''}</div>
+      <div class="flag-loc">${escapeHtml(bookName(ch.book))} · ${escapeHtml(ch.title)}${a.label?' — '+escapeHtml(truncate(a.label,60)):''}</div>
     </div>
   </div>`;
 }
@@ -4849,7 +4865,7 @@ function renderLoom(){
             <span class="flag-kind ${m.annotation.type}">${m.annotation.type}</span>
             <div class="flag-text">
               <div class="flag-quote">"${escapeHtml(truncate(m.annotation.text || m.annotation.label || '', 130))}"</div>
-              <div class="flag-loc">${escapeHtml(BOOKS[m.chapter.book]||'')} · ${escapeHtml(m.chapter.title)}</div>
+              <div class="flag-loc">${escapeHtml(bookName(m.chapter.book))} · ${escapeHtml(m.chapter.title)}</div>
             </div>
             <button class="g-leave" data-leave-grouping="${escapeAttr(g.id)}" data-leave-chapter="${escapeAttr(m.chapter.id)}" data-leave-anno="${m.annotation.id}" title="Take this flag out of the grouping">&#215;</button>
           </div>`).join('')}
@@ -5104,9 +5120,9 @@ function renderPageActions(){
     const acts = [...new Set(chapters.filter(c=>c.book===pagePromoteBook).map(c=>c.act))].sort((a,b)=>a-b);
     const actList = acts.length ? acts : [1];
     junction = '<div class="pa-label">Make this a chapter</div>' +
-      '<div class="pa-chips">' + BOOKS.map((b,i) =>
+      '<div class="pa-chips">' + bookList(true).map((i) =>
         '<button class="pa-chip' + (pagePromoteBook===i?' on':'') + '" data-book="' + i + '">' +
-        escapeHtml(b) + '</button>').join('') + '</div>' +
+        escapeHtml(bookName(i)) + '</button>').join('') + '</div>' +
       '<div class="pa-chips" style="margin-top:8px;">' + actList.map(a =>
         '<button class="pa-chip" data-act="' + a + '">' + escapeHtml(chapterLabel(pagePromoteBook, a)) +
         '</button>').join('') + '</div>' +
@@ -5323,7 +5339,7 @@ function openPovBrowser(povName){
         <div class="pov-scene-num">${i+1}.</div>
         <div class="pov-scene-meta">
           <div class="pov-scene-title">${escapeHtml(m.scene.title)}</div>
-          <div class="pov-scene-location">${BOOKS[m.chapter.book]} · ${escapeHtml(chapterLabel(m.chapter.book, m.chapter.act))} · ${escapeHtml(m.chapter.title)}</div>
+          <div class="pov-scene-location">${bookName(m.chapter.book)} · ${escapeHtml(chapterLabel(m.chapter.book, m.chapter.act))} · ${escapeHtml(m.chapter.title)}</div>
         </div>
       </div>`).join('');
   body.querySelectorAll('[data-open-chapter]').forEach(el => {
@@ -5608,7 +5624,7 @@ function renderThreadView(chapterId){
         : it.providers.map(p => `
           <div class="thread-item" data-jump-drawer="${p.chapter.id}">
             <div class="thread-item-mark ok">✓</div>
-            <div><div class="thread-item-text">${escapeHtml(it.text)}</div><div class="thread-item-loc">planted in ${BOOKS[p.chapter.book]} · ${escapeHtml(p.chapter.title)}</div></div>
+            <div><div class="thread-item-text">${escapeHtml(it.text)}</div><div class="thread-item-loc">planted in ${bookName(p.chapter.book)} · ${escapeHtml(p.chapter.title)}</div></div>
           </div>`).join('')
       ).join('');
 
@@ -5619,7 +5635,7 @@ function renderThreadView(chapterId){
         : it.consumers.map(c => `
           <div class="thread-item" data-jump-drawer="${c.chapter.id}">
             <div class="thread-item-mark ok">✓</div>
-            <div><div class="thread-item-text">${escapeHtml(it.text)}</div><div class="thread-item-loc">feeds ${BOOKS[c.chapter.book]} · ${escapeHtml(c.chapter.title)}</div></div>
+            <div><div class="thread-item-text">${escapeHtml(it.text)}</div><div class="thread-item-loc">feeds ${bookName(c.chapter.book)} · ${escapeHtml(c.chapter.title)}</div></div>
           </div>`).join('')
       ).join('');
 
@@ -5674,7 +5690,7 @@ function compileBook(bookIndices){
         const summaryFallback = summaries.length ? summaries.join('\n\n') : 'No summary written yet.';
         return { id: ch.id, title: ch.title, content: '', isOutlineOnly: true, summaryFallback, highlights };
       });
-    return { bookName: BOOKS[bookIndex], chapters: bookChapters };
+    return { bookName: bookName(bookIndex), chapters: bookChapters };
   });
   return { title, sections };
 }
@@ -5741,10 +5757,10 @@ let projectPinnedBookmarks = {};
 
 function openReaderBookSelect(){
   const body = document.getElementById('reader-select-body');
-  body.innerHTML = BOOKS.map((b, i) => {
+  body.innerHTML = bookList(false).map((i) => {
     const count = chapters.filter(c => c.book === i).length;
     return `<div class="reader-select-row" data-book-index="${i}">
-      <div class="reader-select-row-name">${escapeHtml(b)}</div>
+      <div class="reader-select-row-name">${escapeHtml(bookName(i))}</div>
       <div class="reader-select-row-meta">${count} chapter${count===1?'':'s'}</div>
     </div>`;
   }).join('');
@@ -6417,7 +6433,7 @@ ${navPoints.map(x=>'    '+x).join('\n')}
 document.getElementById('export-epub-btn').addEventListener('click', () => {
   const scopeSelect = document.getElementById('epub-export-scope');
   scopeSelect.innerHTML = `<option value="all">Whole project (all books)</option>` +
-    BOOKS.map((b,i) => `<option value="${i}">${escapeHtml(b)}</option>`).join('');
+    bookList(false).map(i => `<option value="${i}">${escapeHtml(bookName(i))}</option>`).join('');
   document.getElementById('epub-export-modal').classList.add('show');
 });
 document.getElementById('epub-export-modal').addEventListener('click', e => {
@@ -6425,7 +6441,7 @@ document.getElementById('epub-export-modal').addEventListener('click', e => {
 });
 document.getElementById('epub-export-confirm-btn').addEventListener('click', async () => {
   const scopeVal = document.getElementById('epub-export-scope').value;
-  const bookIndices = scopeVal === 'all' ? BOOKS.map((_,i)=>i) : [parseInt(scopeVal)];
+  const bookIndices = scopeVal === 'all' ? bookList(false) : [parseInt(scopeVal)];
   const btn = document.getElementById('epub-export-confirm-btn');
   btn.disabled = true;
   btn.textContent = 'Building…';
@@ -6493,7 +6509,7 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
         type: null, status: 'raw', versions: [], becameType: null, becameId: null,
         becameAt: null, updatedAt: n.createdAt, ...n
       }));
-      chapterWordTargets = parsed.chapterWordTargets || [[2500,4500],[2500,4500],[2500,4500],[2500,4500],[2500,4500]];
+      chapterWordTargets = parsed.chapterWordTargets || [];
       trash = parsed.trash || [];
       await saveData();
       refreshPovSuggestions();

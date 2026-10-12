@@ -1,17 +1,14 @@
 // Ported directly from the PWA (index.html) -- statusColor's palette matches the PWA's CSS
 // custom properties (--gray/--gold/--ember/--teal).
 //
-// BOOKS IS NOT A LIMIT ANY MORE (2026-09-21). A book was never a stored thing: a chapter
-// carries an integer `book`, and books are inferred from chapters exactly as acts are. What
-// was fixed at five was the UI -- every list mapped over this constant -- so a sixth book
-// could exist in the data and be invisible on screen. The constant now only supplies the
-// first five NAMES; `bookName` continues the sequence indefinitely, and `bookIndices` gives
-// each screen the range to draw: at least the saga's five, plus whatever the chapters reach,
-// plus (where the screen creates chapters) one more for the book that does not exist yet.
-export const BOOKS = ['Book One', 'Book Two', 'Book Three', 'Book Four', 'Book Five', 'Book Six'];
-/** How many books every project shows even when empty -- the saga is SIX (00 Canon Index,
- *  standing rule 1: "Six books. Never five."; it was five here until 2026-10-12). */
-export const MIN_BOOKS = BOOKS.length;
+// NO FIXED NUMBER OF BOOKS (2026-10-12). A book was never a stored thing: a chapter carries an
+// integer `book`, and books are inferred from chapters exactly as acts are. The UI used to map
+// over a constant of five names (briefly six), so it drew empty books up to that number and a
+// book past it was invisible. Now `bookName` names any index and `bookIndices` gives each screen
+// the books the project actually has -- at least Book One, so a new project has somewhere to
+// start -- plus, where the screen creates chapters, the one after the last.
+/** A new project still shows Book One, to start in. Not a count of the saga. */
+export const MIN_BOOKS = 1;
 
 const ORDINAL_WORDS = [
   'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
