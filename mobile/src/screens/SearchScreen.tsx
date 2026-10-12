@@ -52,7 +52,7 @@ const KIND_LABEL: Record<Hit['kind'], string> = {
   chapter: 'Chapter',
   scene: 'Scene',
   document: 'Document',
-  treatment: 'Scene sketch',
+  treatment: 'Scene',
   storyboard: 'Storyboard',
 };
 

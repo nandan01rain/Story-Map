@@ -12,9 +12,11 @@
   (window.parent.sbClient) -- same origin, so no second sign-in. Opened on its own it makes a
   client of its own from supabase-config.js and uses whatever session the browser already holds.
 
-  Tabs: Write (one book as a continuous manuscript, with prose reports), Storyboard (a wide
-  evidence wall), Scene Sketches (which can become chapters), Characters, Documents (with
-  "Import a patch"). Same tables and rules as the phone (handoff §37-§45); nothing here stores
+  Tabs, the writing pipeline first and in its order (2026-10-12): Scenes (which can become
+  chapters; new ones start from the scene template), Storyboard (a wide evidence wall), Prose (one
+  book as a continuous manuscript, with prose reports) -- each linking to the next stage and back
+  -- then Characters and Documents (with "Import a patch"). Pages live in index.html, the stage
+  before Scenes. Same tables and rules as the phone (handoff §37-§45); nothing here stores
   anything the phone does not also read.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -216,9 +218,9 @@ textarea.wr-ta{field-sizing:content;width:100%;border:none;background:none;resiz
 <body>
 <div id="bar">
   <span class="brand">STORYMAP STUDIO</span>
-  <button class="tab" data-tab="write">Write</button>
+  <button class="tab" data-tab="sketches">Scenes</button>
   <button class="tab" data-tab="storyboard">Storyboard</button>
-  <button class="tab" data-tab="sketches">Scene Sketches</button>
+  <button class="tab" data-tab="write">Prose</button>
   <button class="tab" data-tab="characters">Characters</button>
   <button class="tab" data-tab="documents">Documents</button>
   <span class="spacer"></span>
@@ -235,6 +237,8 @@ textarea.wr-ta{field-sizing:content;width:100%;border:none;background:none;resiz
 const params = new URLSearchParams(location.search);
 const projectId = params.get('project');
 let tab = params.get('tab') || 'storyboard';
+const startOpts = { sketch: params.get('sketch'), chapter: params.get('chapter'), report: tab === 'report' };
+if (tab === 'report') tab = 'write'; // the menu's "Prose report": Prose, with the book's report open
 const inFrame = window.parent !== window;
 const sb = (inFrame && window.parent.sbClient) || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const view = document.getElementById('view');
@@ -340,7 +344,14 @@ async function loadSketches(){
   S.versions = v.data || [];
 }
 const liveVersion = (tid) => S.versions.filter((v) => v.treatment_id === tid).sort((a, b) => (a.status === 'live' ? -1 : 1) - (b.status === 'live' ? -1 : 1) || new Date(b.created_at) - new Date(a.created_at))[0];
-const sketchTitle = (t) => (t.title || '').trim() || ((liveVersion(t.id)?.content || '').split('\n').map((l) => l.trim()).find(Boolean) || 'Untitled scene');
+// The phone's rule (treatmentStore.treatmentTitle): the first line that says something, its
+// heading marks stripped, skipping an empty heading and the template's bare field labels.
+const plainHeading = (l) => l.trim().replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
+const TEMPLATE_STUB = /^(Chapter|POV|Purpose|Events|Characters & reactions|Ends on|Draft):?\s*(·\s*Status:.*)?$|^-+$/;
+const sketchTitle = (t) => (t.title || '').trim() || ((liveVersion(t.id)?.content || '').split('\n').map(plainHeading).find((l) => l && !TEMPLATE_STUB.test(l)) || 'Untitled scene');
+// lib/sceneTemplate.ts, the same text: a reference for writing a scene, not a rule.
+const sceneTemplate = () => ['##', '', '**Chapter:** ', '**POV:**  · **Status:** Idea', '', '**Purpose:** ', '', '**Events**', '- ', '',
+  '**Characters & reactions:** ', '', '**Ends on:** ', '', '---', '', '**Draft**', '', ''].join('\n');
 function chapterLabel(id){
   const ch = S.chapters.find((c) => c.id === id);
   if (!ch) return null;
@@ -350,7 +361,6 @@ function chapterLabel(id){
 
 /* ====================================================================== flashcard */
 async function showFlashcard(member){
-  const bible = S.docs.find((d) => d.id === member.document_id);
   const url = await imageUrl(member.image_path);
   const el = openOverlay(`<div>
     <div class="fcard">
@@ -364,11 +374,11 @@ async function showFlashcard(member){
       <span class="star" style="top:5px;left:8px">✦</span><span class="star" style="top:5px;right:8px">✦</span>
       <span class="star" style="bottom:5px;left:8px">✦</span><span class="star" style="bottom:5px;right:8px">✦</span>
     </div>
-    <div class="fcard-acts"><button data-a="page">Their page</button>${bible ? '<button data-a="bible">Character bible</button>' : ''}</div>
+    <div class="fcard-acts"><button data-a="page">Character wiki</button></div>
   </div>`);
+  // One way on: their wiki page reads their bible inline once it is linked -- a one-time choice
+  // made there -- so the card needs no separate route to the bible.
   el.querySelector('[data-a="page"]').onclick = () => { closeOverlay(); go('characters', { character: member.id }); };
-  const b = el.querySelector('[data-a="bible"]');
-  if (b) b.onclick = () => { closeOverlay(); go('documents', { doc: bible.id }); };
 }
 
 /* ====================================================================== STORYBOARD */
@@ -554,6 +564,7 @@ function openNote(e){
     <select data-k="ch"><option value="">no chapter yet</option>${S.chapters.filter((c) => c.book === draft.book).map((c) => `<option value="${c.id}" ${c.id === draft.chapter_id ? 'selected' : ''}>${esc(chapterLabel(c.id))}</option>`).join('')}</select>
     <div class="acts">
       ${draft.treatment_id ? '<button data-a="scene">Read the scene</button>' : ''}
+      ${draft.chapter_id ? '<button data-a="prose">Read the prose</button>' : ''}
       ${isNew ? '' : '<button data-a="del" style="color:#a33">Delete</button>'}
       <span style="flex:1"></span>
       <button data-a="cancel">Cancel</button><button data-a="save" class="done">${isNew ? 'Pin it up' : 'Done'}</button>
@@ -576,6 +587,8 @@ function openNote(e){
   if (th) th.onclick = async (ev) => { const b = ev.target.closest('button'); if (!b) return; b.classList.toggle('on'); await toggleLink(b.dataset.id, draft.id); };
   const scene = el.querySelector('[data-a="scene"]');
   if (scene) scene.onclick = () => { closeOverlay(); go('sketches', { sketch: draft.treatment_id }); };
+  const prose = el.querySelector('[data-a="prose"]');
+  if (prose) prose.onclick = () => { closeOverlay(); go('write', { chapter: draft.chapter_id }); };
   el.querySelector('[data-a="cancel"]').onclick = closeOverlay;
   const del = el.querySelector('[data-a="del"]');
   if (del) del.onclick = async () => {
@@ -692,20 +705,20 @@ async function renderSketches(opts = {}){
   view.innerHTML = `<div class="split"><div class="side"><div class="top">
       <input id="sk-q" placeholder="Search every scene…" value="${esc(SK.query)}">
       <div class="groups" id="sk-groups"></div>
-      <div style="display:flex;gap:8px"><button class="btn solid" id="sk-new">+ Sketch</button><button class="btn" id="sk-arr">${SK.arranging ? 'Done' : 'Rearrange'}</button></div>
+      <div style="display:flex;gap:8px"><button class="btn solid" id="sk-new">+ Scene</button><button class="btn" id="sk-arr">${SK.arranging ? 'Done' : 'Rearrange'}</button></div>
     </div><div class="list" id="sk-list"></div></div><div class="pane" id="sk-pane"></div></div>`;
   $('#sk-q').oninput = (e) => { SK.query = e.target.value; drawSketchList(); };
   $('#sk-new').onclick = async () => {
     const last = S.treatments[S.treatments.length - 1];
     const t = { id: uuid(), user_id: userId, project_id: projectId, title: null, position: positionBetween(last ? Number(last.position) : null, null) };
-    const v = { id: uuid(), treatment_id: t.id, user_id: userId, project_id: projectId, content: '', status: 'live' };
+    const v = { id: uuid(), treatment_id: t.id, user_id: userId, project_id: projectId, content: sceneTemplate(), status: 'live' };
     const { error } = await sb.from('treatments').insert(t); if (error) return alert(error.message);
     await sb.from('treatment_versions').insert(v);
     S.treatments.push(t); S.versions.push({ ...v, created_at: new Date().toISOString() });
     SK.open = t.id; SK.editing = true; drawSketchList(); drawSketch();
   };
   $('#sk-arr').onclick = () => {
-    if (!SK.arranging && !SK.group) return alert('Choose a group first, then rearrange the sketches inside it.');
+    if (!SK.arranging && !SK.group) return alert('Choose a group first, then rearrange the scenes inside it.');
     SK.arranging = !SK.arranging; $('#sk-arr').textContent = SK.arranging ? 'Done' : 'Rearrange'; drawSketchList();
   };
   drawSketchList(); drawSketch();
@@ -729,7 +742,7 @@ function drawSketchList(){
       <div class="tt">${esc(noPrefix(x.title))}</div>
       ${words.length ? `<div class="sn">${snip(liveVersion(x.t.id)?.content || '')}</div>` : !SK.group && groupOf(x.title) !== 'Unsorted' ? `<div class="tg">${GROUP_LABEL[groupOf(x.title)]}</div>` : ''}
       ${SK.arranging ? `<div><span class="btn" data-up="${x.t.id}" ${i === 0 ? 'style="opacity:.3"' : ''}>▲</span> <span class="btn" data-dn="${x.t.id}" ${i === rows.length - 1 ? 'style="opacity:.3"' : ''}>▼</span></div>` : ''}
-    </button>`).join('') || `<p class="note-msg">${words.length ? 'Nothing matches.' : 'No scene sketches yet.'}</p>`;
+    </button>`).join('') || `<p class="note-msg">${words.length ? 'Nothing matches.' : 'No scenes yet.'}</p>`;
   $('#sk-list').onclick = async (e) => {
     const mv = e.target.closest('[data-up],[data-dn]');
     if (mv) {
@@ -767,7 +780,7 @@ function drawSketch(){
   </div>`;
   $('#sk-mode').onclick = () => { SK.editing = !SK.editing; drawSketch(); };
   $('#sk-rename').onclick = async () => {
-    const name = prompt('Sketch title', t.title || ''); if (name == null) return;
+    const name = prompt('Scene title', t.title || ''); if (name == null) return;
     t.title = name.trim() || null; await sb.from('treatments').update({ title: t.title }).eq('id', t.id); drawSketchList(); drawSketch();
   };
   const wallBtn = $('#sk-wall'); if (wallBtn) wallBtn.onclick = () => { SB.book = pinned.book; go('storyboard'); };
@@ -1082,10 +1095,19 @@ function notifyChapters(now = false){
   WR.notify = setTimeout(() => notifyChapters(true), 2500);
 }
 
+// Where a chapter came from: the scenes that became it and the storyboard notes that point at
+// it, each found from the other side's link, so nothing new is stored.
+function trailLinks(chapterId){
+  const scenes = S.treatments.filter((t) => t.became_type === 'chapter' && t.became_id === chapterId);
+  const notes = S.events.filter((e) => e.chapter_id === chapterId);
+  return scenes.map((t) => ` · <a href="#" data-trail-scene="${t.id}" title="${esc(sketchTitle(t))}">Scene</a>`).join('')
+    + notes.map((e) => ` · <a href="#" data-trail-note="${e.book}" title="${esc(e.title || 'Untitled note')}">Storyboard</a>`).join('');
+}
+
 async function renderWrite(opts = {}){
-  await loadChapters();
+  await Promise.all([loadChapters(), loadSketches().catch(() => {}), loadBoard().catch(() => {})]);
   if (!WR.chapters.length) {
-    view.innerHTML = '<div class="note-msg">No chapters yet. Add them from the web app\'s list, or make one from a scene sketch.</div>';
+    view.innerHTML = '<div class="note-msg">No chapters yet. Add them from the web app\'s list, or make one from a scene.</div>';
     return;
   }
   const books = [...new Set(WR.chapters.map((c) => c.book))].sort((a, b) => a - b);
@@ -1110,6 +1132,7 @@ async function renderWrite(opts = {}){
   };
   $('#wr-report').onclick = () => showReport(bookName(WR.book), bookChapters().map((c) => WR.drafts.get(c.id).content).join('\n\n'));
   drawWrite(target ? target.id : null);
+  if (opts.report) $('#wr-report').click();
 }
 
 const bookChapters = () => WR.chapters.filter((c) => c.book === WR.book);
@@ -1144,7 +1167,7 @@ function drawWrite(focusId = null){
     act = c.act;
     return `${head}<section class="wr-ch" id="ch-${c.id}" data-id="${c.id}">
       <div class="wr-head"><span class="wr-n">CHAPTER ${number(c.id)}</span><h2>${esc(c.title || 'Untitled')}</h2>
-        <span class="wr-meta"><span data-wc>${countWords(WR.drafts.get(c.id).content).toLocaleString()} words</span> · <a href="#" data-a="report">Report</a>${inFrame ? ' · <a href="#" data-a="editor">Flags &amp; history</a>' : ''} <span class="status" data-st></span></span></div>
+        <span class="wr-meta"><span data-wc>${countWords(WR.drafts.get(c.id).content).toLocaleString()} words</span>${trailLinks(c.id)} · <a href="#" data-a="report">Report</a>${inFrame ? ' · <a href="#" data-a="editor">Flags &amp; history</a>' : ''} <span class="status" data-st></span></span></div>
       <div class="wr-conflict" hidden></div>
       <textarea class="wr-ta" spellcheck="true" placeholder="Begin…">${esc(WR.drafts.get(c.id).content)}</textarea>
     </section>`;
@@ -1159,6 +1182,8 @@ function drawWrite(focusId = null){
       const toc = document.querySelector(`[data-toc-wc="${id}"]`); if (toc) toc.textContent = n;
       scheduleSave(id); drawToday();
     };
+    sec.querySelectorAll('[data-trail-scene]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); go('sketches', { sketch: a.dataset.trailScene }); }));
+    sec.querySelectorAll('[data-trail-note]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); SB.book = Number(a.dataset.trailNote); go('storyboard'); }));
     sec.querySelector('[data-a="report"]').onclick = (e) => { e.preventDefault(); showReport(WR.chapters.find((c) => c.id === id).title, WR.drafts.get(id).content); };
     const ed = sec.querySelector('[data-a="editor"]');
     if (ed) ed.onclick = async (e) => {
@@ -1376,7 +1401,7 @@ function makeChapter(t){
     <select data-k="book">${books.map((b) => `<option value="${b}">${bookName(b)}</option>`).join('')}</select>
     <h3>ACT</h3><select data-k="act"></select>
     <h3>CHAPTER TITLE</h3><input class="big" data-k="title" value="${esc(noPrefix(sketchTitle(t)).slice(0, 120))}">
-    <p class="hand-body" style="color:var(--dim);font-size:17px;margin:10px 0 0">The chapter gets a copy of the text. This sketch stays exactly as it is.</p>
+    <p class="hand-body" style="color:var(--dim);font-size:17px;margin:10px 0 0">The chapter gets a copy of the text. This scene stays exactly as it is.</p>
     <div class="row"><span style="flex:1"></span><button class="btn" data-a="cancel">Cancel</button><button class="btn solid" data-a="make">Make the chapter</button></div></div>`);
   const bookSel = el.querySelector('[data-k="book"]'), actSel = el.querySelector('[data-k="act"]');
   const fillActs = () => { const acts = actsOf(Number(bookSel.value)); actSel.innerHTML = acts.map((a) => `<option value="${a}">Act ${a}</option>`).join('') + `<option value="${acts[acts.length - 1] + 1}">A new act (${acts[acts.length - 1] + 1})</option>`; };
@@ -1394,7 +1419,7 @@ function makeChapter(t){
     if (error) { ev.target.disabled = false; return alert(error.message); }
     const mark = { became_type: 'chapter', became_id: row.id, became_at: now };
     const { error: e2 } = await sb.from('treatments').update(mark).eq('id', t.id);
-    if (e2) alert('The chapter was made, but the sketch could not be marked: ' + e2.message);
+    if (e2) alert('The chapter was made, but the scene could not be marked: ' + e2.message);
     else Object.assign(t, mark);
     await sb.from('storyboard_events').update({ chapter_id: row.id }).eq('treatment_id', t.id);
     S.events.forEach((e) => { if (e.treatment_id === t.id) e.chapter_id = row.id; });
@@ -1423,7 +1448,7 @@ async function go(next, opts = {}){
 }
 document.querySelectorAll('.tab').forEach((b) => (b.onclick = () => go(b.dataset.tab)));
 window.addEventListener('resize', () => { if (tab === 'storyboard' && $('#wall')) drawStoryboard(); });
-go(tab);
+go(tab, startOpts);
 })();
 </script>
 </body>

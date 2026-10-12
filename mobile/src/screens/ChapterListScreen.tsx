@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 
 import type { SignedInStackParamList } from '../navigation/types';
+import { AssistantToggle } from '../components/AssistantButton';
 import Icon from '../components/Icon';
 import NavDrawer from '../components/NavDrawer';
 import { EdgeSwipeZone } from '../components/SlidePanel';
@@ -88,20 +89,24 @@ export default function ChapterListScreen({ route, navigation }: Props) {
   const drawerWidth = Math.min(winWidth * 0.78, 360);
   const drawerPanel = useSlidePanel(drawerWidth);
 
-  // Top right, and only while something written here has not reached the server: offline
-  // work used to look exactly like saved work. Tapping it tries now rather than waiting.
+  // Top right: the assistant's own on/off (it left the drawer, 2026-10-12), and -- only while
+  // something written here has not reached the server -- the sync pill: offline work used to
+  // look exactly like saved work. Tapping the pill tries now rather than waiting.
   useEffect(() => {
     navigation.setOptions({
       title: projectName,
-      headerRight: pending > 0
-        ? () => (
+      headerRight: () => (
+        <View style={styles.headerRight}>
+          {pending > 0 ? (
             <Pressable onPress={() => void syncNow()} hitSlop={10}>
               <Text style={styles.pendingPill}>{`↻ ${pending} to sync`}</Text>
             </Pressable>
-          )
-        : undefined,
+          ) : null}
+          <AssistantToggle projectId={projectId} />
+        </View>
+      ),
     });
-  }, [navigation, projectName, pending, syncNow, styles]);
+  }, [navigation, projectName, projectId, pending, syncNow, styles]);
 
   async function saveBackup() {
     const { error: err } = await useBackup.getState().shareSnapshot(projectId);
@@ -228,7 +233,6 @@ export default function ChapterListScreen({ route, navigation }: Props) {
       onOpenStoryboard={() => navigateFromDrawer(() => navigation.navigate('Storyboard', { projectId }))}
       onOpenDocuments={() => navigateFromDrawer(() => navigation.navigate('Documents', { projectId }))}
       onOpenCharacters={() => navigateFromDrawer(() => navigation.navigate('Characters', { projectId }))}
-      onOpenAssistant={() => navigateFromDrawer(() => navigation.navigate('Assistant', { projectId }))}
       onOpenBraid={() => navigateFromDrawer(() => navigation.navigate('Braid', { projectId }))}
       onOpenTrash={() => navigateFromDrawer(() => navigation.navigate('Trash', { projectId }))}
       onExportEpub={() => navigateFromDrawer(() => setEpubOpen(true))}
@@ -545,6 +549,7 @@ function makeStyles(colors: ThemeColors) {
     epubError: { color: colors.error, fontSize: 12.5, lineHeight: 18 },
     epubCancel: { color: colors.textDim, fontSize: 14 },
     screen: { flex: 1, backgroundColor: colors.bg },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     pendingPill: { color: colors.gold, fontFamily: FONTS.mono, fontSize: 11.5 },
     content: { padding: 16, paddingBottom: 40 },
     centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },

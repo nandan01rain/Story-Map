@@ -1,6 +1,6 @@
 # StoryMap ("The Trail to Kailash")
 
-> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§48 first.**
+> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§49 first.**
 
 A personal writing tool for a five-book mythological saga called "The Trail
 to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
@@ -68,7 +68,7 @@ root); this repo is the migration of that sandbox into a real, independent app.
 ## START HERE — where things stand (2026-10-12)
 
 The rest of this file is the original brief with dated notes layered on; much of it is
-history. **This section and handoff §47–§48 are the current picture.** Handoff §36–§46 hold
+history. **This section and handoff §47–§49 are the current picture.** Handoff §36–§46 hold
 the detail behind each item.
 
 **Two apps, one Supabase project (Saga-01 is the saga).**
@@ -76,9 +76,13 @@ the detail behind each item.
   Ship JS changes with `cd mobile && npx eas-cli update --branch preview --environment preview
   --non-interactive --message "…"`; the phone offers "An update is ready" on launch/resume.
   A NEW NATIVE MODULE needs `version` bumped (→ 1.3.0) and a rebuild + manual APK install.
-- **Web**: `index.html` (the original PWA) + **`studio.html`** (Write — a book as one
-  manuscript, with prose reports; Storyboard as a wide evidence wall; Scene Sketches, which can
-  become chapters; Characters; Documents + Import a patch), opened from the web app's menu.
+- **Web**: `index.html` (the original PWA) + **`studio.html`** (Scenes, which can become
+  chapters; Storyboard as a wide evidence wall; Prose — a book as one manuscript, with prose
+  reports; Characters; Documents + Import a patch), opened from the web app's menu.
+- **The Write pipeline (both apps, handoff §49):** Pages → Scenes → Storyboard → Prose → Read,
+  linked both ways. Scenes have a template (`mobile/src/lib/sceneTemplate.ts`). The assistant is a
+  toggle top right of the project page and a ✦ on every stage while on. Menus: Write · Discover ·
+  Manage · Project, folding up when closed. "Scene Sketches" is "Scenes" in the UI only.
   Runs locally: `python -m http.server 8080` in the repo root. Not hosted anywhere (§20, §38).
 
 **Saga content loaded (2026-10-11).** Saga-01 holds 70 reference documents (the 19-document

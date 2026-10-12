@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import type { SignedInStackParamList } from '../navigation/types';
 import { pageTitle, usePageStore, type Page } from '../store/pageStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
@@ -28,8 +29,8 @@ export default function PagesScreen({ route, navigation }: Props) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Pages' });
-  }, [navigation]);
+    navigation.setOptions({ title: 'Pages', headerRight: () => <AssistantButton projectId={projectId} /> });
+  }, [navigation, projectId]);
 
   // Refetch on every focus: a page written on the phone and a page written in the PWA are
   // the same row, and this list is the one place both are supposed to show up.

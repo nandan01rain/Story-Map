@@ -15,6 +15,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { bookName, byBookOrder, wordCount } from '../lib/storyData';
@@ -450,6 +451,13 @@ export default function WriterScreen({ route, navigation }: Props) {
   const scratchChapterId = focusedChapterId ?? scrolledChapterId ?? bookChapters[0]?.id ?? null;
   const scratchChapter = scratchChapterId ? bookChapters.find((c) => c.id === scratchChapterId) : undefined;
   const scratchChapterNumber = scratchChapter ? bookChapters.indexOf(scratchChapter) + 1 : null;
+
+  // The assistant, asked about the chapter being worked on.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <AssistantButton projectId={projectId} chapterId={scratchChapterId ?? undefined} />,
+    });
+  }, [navigation, projectId, scratchChapterId]);
 
   function onScroll(e: { nativeEvent: { contentOffset: { y: number } } }) {
     lastScrollY.current = e.nativeEvent.contentOffset.y;

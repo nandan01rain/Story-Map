@@ -18,7 +18,7 @@ import SlidePanel from './SlidePanel';
 // marks, Icarus), not waiting on a port, so they were promises nothing would keep. Export
 // and Import were in the same state while Profile already had a working backup and restore;
 // they now ARE that backup and restore.
-type SectionKey = 'write' | 'discover' | 'manage' | 'assist';
+type SectionKey = 'write' | 'discover' | 'manage' | 'project';
 
 // The reference sets a drawn mark beside each group -- a compass, stacked books, a quill.
 //
@@ -48,7 +48,7 @@ const SECTION_GLYPH: Record<SectionKey, SectionGlyphName> = {
   write: 'write',
   discover: 'discover',
   manage: 'manage',
-  assist: 'assist',
+  project: 'project',
 };
 
 type DrawerItem = {
@@ -75,7 +75,6 @@ export default function NavDrawer({
   onOpenStoryboard,
   onOpenDocuments,
   onOpenCharacters,
-  onOpenAssistant,
   onOpenBraid,
   onOpenTrash,
   onExportEpub,
@@ -98,7 +97,6 @@ export default function NavDrawer({
   onOpenStoryboard: () => void;
   onOpenDocuments: () => void;
   onOpenCharacters: () => void;
-  onOpenAssistant: () => void;
   onOpenBraid: () => void;
   onOpenTrash: () => void;
   onExportEpub: () => void;
@@ -130,6 +128,11 @@ export default function NavDrawer({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const onClose = controller.close;
 
+  // Every section folds back up when the drawer closes, so it always opens the same way.
+  useEffect(() => {
+    if (!controller.mounted) setExpanded(new Set());
+  }, [controller.mounted]);
+
   function toggleSection(key: SectionKey) {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -139,24 +142,26 @@ export default function NavDrawer({
     });
   }
 
-  // Everything about writing first and together: the manuscript, the reader, and the capture
-  // and planning stages beneath it.
+  // The writing pipeline in its own order (2026-10-12): a PAGE for a stray thought, a SCENE
+  // for that thought made into a scene, the STORYBOARD to place the scene in the larger story,
+  // and PROSE for the written chapter. Any stage can be started from; each links to the next
+  // and back. Reading comes last -- it is what the pipeline produces.
   const writeItems: DrawerItem[] = [
-    { key: 'write', icon: 'feather', label: 'Write', onPress: onOpenWriter },
-    { key: 'read', icon: 'bookmark', label: 'Read', onPress: onOpenReader },
     { key: 'notes', icon: 'pin', label: 'Pages', onPress: onOpenNotes },
-    { key: 'treatments', icon: 'book-open', label: 'Scene Sketches', onPress: onOpenTreatments },
+    { key: 'treatments', icon: 'book-open', label: 'Scenes', onPress: onOpenTreatments },
     { key: 'storyboard', icon: 'map', label: 'Storyboard', onPress: onOpenStoryboard },
+    { key: 'write', icon: 'feather', label: 'Prose', onPress: onOpenWriter },
+    { key: 'read', icon: 'bookmark', label: 'Read', onPress: onOpenReader },
   ];
 
+  // The assistant is not here: it is a toggle on the project's own page, and a button on every
+  // stage of the pipeline once it is on.
   const discoverItems: DrawerItem[] = [
     { key: 'search', icon: 'search', label: 'Search', onPress: onSearch },
-    { key: 'braid', icon: 'link', label: 'The Braid', onPress: onOpenBraid },
     { key: 'documents', icon: 'books', label: 'Documents', onPress: onOpenDocuments },
     { key: 'characters', icon: 'user', label: 'Characters', onPress: onOpenCharacters },
     { key: 'chronology', icon: 'sunset', label: 'Chronology', onPress: onOpenChronology },
-    { key: 'report', icon: 'list', label: 'Prose report', onPress: onOpenReport },
-    { key: 'assistant', icon: 'sparkle', label: 'Assistant', onPress: onOpenAssistant },
+    { key: 'braid', icon: 'link', label: 'The Braid', onPress: onOpenBraid },
   ];
 
   const manageItems: DrawerItem[] = [
@@ -166,7 +171,8 @@ export default function NavDrawer({
     { key: 'trash', icon: 'trash', label: 'Trash', onPress: onOpenTrash },
   ];
 
-  const ASSIST: DrawerItem[] = [
+  const projectItems: DrawerItem[] = [
+    { key: 'report', icon: 'list', label: 'Prose report', onPress: onOpenReport },
     { key: 'switch-project', icon: 'swap', label: 'Switch project', onPress: onSwitchProject },
     { key: 'settings', icon: 'gear', label: 'Settings', onPress: onOpenSettings },
     { key: 'sign-out', icon: 'exit', label: 'Sign out', onPress: onSignOut },
@@ -253,11 +259,11 @@ export default function NavDrawer({
           styles={styles}
         />
         <Section
-          title="Assist & Project"
-          sectionKey="assist"
-          expanded={expanded.has('assist')}
+          title="Project"
+          sectionKey="project"
+          expanded={expanded.has('project')}
           onToggle={toggleSection}
-          items={ASSIST}
+          items={projectItems}
           colors={colors}
           styles={styles}
         />

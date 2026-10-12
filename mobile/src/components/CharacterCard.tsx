@@ -50,13 +50,9 @@ const CARD_BLACK = '#15110b';
  */
 export default function CharacterCard({
   member,
-  bibleTitle,
-  onOpenBible,
   onOpenCharacter,
 }: {
   member: StoryCast;
-  bibleTitle: string | null;
-  onOpenBible?: () => void;
   onOpenCharacter?: () => void;
 }) {
   const { colors } = useTheme();
@@ -96,14 +92,11 @@ export default function CharacterCard({
       </View>
 
       <View style={s.actions}>
+        {/* One way on: their wiki page, which reads their bible inline once it is linked --
+            a one-time choice made there, so the card needs no separate route to it. */}
         {onOpenCharacter ? (
           <Pressable onPress={onOpenCharacter} hitSlop={8}>
-            <Text style={s.action}>Their page</Text>
-          </Pressable>
-        ) : null}
-        {bibleTitle && onOpenBible ? (
-          <Pressable onPress={onOpenBible} hitSlop={8}>
-            <Text style={s.action}>Character bible</Text>
+            <Text style={s.action}>Character wiki</Text>
           </Pressable>
         ) : null}
       </View>

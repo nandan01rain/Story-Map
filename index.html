@@ -1932,6 +1932,16 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
   <header>
     <h1><span id="app-project-name">StoryMap</span><span class="header-tagline" id="header-tagline-text"></span></h1>
     <div class="header-right">
+    <!-- The assistant's on/off, top right of the project page rather than inside the menu
+         (2026-10-12): it is reachable from every stage of the writing once it is on. -->
+    <div id="ai-toggle-wrap">
+      <label id="ai-toggle-label" for="ai-toggle-input" title="The AI assistant: on or off for this project">
+        <svg class="nav-icon"><use href="#icon-sparkle"></use></svg>
+        <span id="ai-toggle-dot"></span>
+        Assistant
+      </label>
+      <input type="checkbox" id="ai-toggle-input" style="display:none;">
+    </div>
     <button class="btn" id="header-menu-btn" aria-label="Menu" aria-expanded="false">☰</button>
     <div class="header-actions" id="header-actions">
       <button class="btn" id="hdr-menu-close-btn" aria-label="Close menu">✕</button>
@@ -1951,21 +1961,32 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
       <!-- Grouping wrappers only affect layout on the mobile hamburger panel
            (display:contents on desktop keeps every item a direct flex child
            of .header-actions, so desktop's existing row layout is unchanged). -->
-      <div class="hdr-section" data-section="discover">
-        <div class="hdr-section-label" data-toggle-section="discover"><span class="hdr-section-label-text">Discover</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
-        <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
-        <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
-        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-nib"></use></svg> Continuity Check</button>
-        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> The Braid</button>
-        <button class="btn hdr-collapsible" id="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
-        <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
-        <button class="btn hdr-collapsible" id="studio-write-btn"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Write</button>
+      <!-- The same four groups as the phone's drawer (2026-10-12). WRITE is the pipeline in its
+           order -- a page for a stray thought, a scene, its place on the storyboard, the prose --
+           with reading last. Every group starts folded and folds back up when the menu closes. -->
+      <div class="hdr-section collapsed" data-section="write">
+        <div class="hdr-section-label" data-toggle-section="write"><span class="hdr-section-label-text">Write</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
+        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Pages <span id="notes-count-badge">0</span></button>
+        <button class="btn hdr-collapsible" id="studio-sketches-btn"><svg class="nav-icon"><use href="#icon-pencil"></use></svg> Scenes</button>
         <button class="btn hdr-collapsible" id="studio-storyboard-btn"><svg class="nav-icon"><use href="#icon-map"></use></svg> Storyboard</button>
-        <button class="btn hdr-collapsible" id="studio-sketches-btn"><svg class="nav-icon"><use href="#icon-pencil"></use></svg> Scene Sketches</button>
-        <button class="btn hdr-collapsible" id="studio-characters-btn"><svg class="nav-icon"><use href="#icon-user"></use></svg> Characters</button>
+        <button class="btn hdr-collapsible" id="studio-write-btn"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Prose</button>
+        <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Read</button>
       </div>
 
-      <div class="hdr-section" data-section="manage">
+      <!-- Search, Documents, Characters, the Braid in the phone's order (Chronology has no web
+           half yet). POV, Continuity and the Loom are the web's own and follow. -->
+      <div class="hdr-section collapsed" data-section="discover">
+        <div class="hdr-section-label" data-toggle-section="discover"><span class="hdr-section-label-text">Discover</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
+        <button class="btn hdr-collapsible" id="search-btn"><svg class="nav-icon"><use href="#icon-search"></use></svg> Search</button>
+        <button class="btn hdr-collapsible" id="documents-btn"><svg class="nav-icon"><use href="#icon-page"></use></svg> Documents</button>
+        <button class="btn hdr-collapsible" id="studio-characters-btn"><svg class="nav-icon"><use href="#icon-user"></use></svg> Characters</button>
+        <button class="btn hdr-collapsible" id="web-btn"><svg class="nav-icon"><use href="#icon-users"></use></svg> The Braid</button>
+        <button class="btn hdr-collapsible" id="pov-index-btn"><svg class="nav-icon"><use href="#icon-eye"></use></svg> POV</button>
+        <button class="btn hdr-collapsible" id="continuity-btn"><svg class="nav-icon"><use href="#icon-nib"></use></svg> Continuity Check</button>
+        <button class="btn hdr-collapsible" id="loom-btn"><svg class="nav-icon"><use href="#icon-link"></use></svg> The Loom</button>
+      </div>
+
+      <div class="hdr-section collapsed" data-section="manage">
         <div class="hdr-section-label" data-toggle-section="manage"><span class="hdr-section-label-text">Manage</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
         <div class="theme-row">
           <button class="theme-choice" data-theme-choice="day" title="Day">&#9788;</button>
@@ -1975,21 +1996,12 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="export-btn"><svg class="nav-icon"><use href="#icon-download"></use></svg> Export</button>
         <button class="btn hdr-collapsible" id="export-epub-btn"><svg class="nav-icon"><use href="#icon-book-closed"></use></svg> Export as eBook</button>
         <button class="btn hdr-collapsible" id="import-btn"><svg class="nav-icon"><use href="#icon-upload"></use></svg> Import</button>
-        <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Read</button>
-        <button class="btn hdr-collapsible" id="notes-board-btn"><svg class="nav-icon"><use href="#icon-bookmark"></use></svg> Pages <span id="notes-count-badge">0</span></button>
         <button class="btn hdr-collapsible" id="trash-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Trash <span id="trash-count-badge" class="zero">0</span></button>
       </div>
 
-      <div class="hdr-section" data-section="assist">
-        <div class="hdr-section-label" data-toggle-section="assist"><span class="hdr-section-label-text">Assist &amp; Project</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
-        <div id="ai-toggle-wrap" class="hdr-collapsible">
-          <label id="ai-toggle-label" for="ai-toggle-input">
-            <svg class="nav-icon"><use href="#icon-sparkle"></use></svg>
-            <span id="ai-toggle-dot"></span>
-            AI Assistant
-          </label>
-          <input type="checkbox" id="ai-toggle-input" style="display:none;">
-        </div>
+      <div class="hdr-section collapsed" data-section="project">
+        <div class="hdr-section-label" data-toggle-section="project"><span class="hdr-section-label-text">Project</span><span class="hdr-section-rule"></span><span class="hdr-section-arrow">▾</span></div>
+        <button class="btn hdr-collapsible" id="studio-report-btn"><svg class="nav-icon"><use href="#icon-list"></use></svg> Prose report</button>
         <button class="btn primary hdr-collapsible" id="upload-local-data-btn" style="display:none;">Upload my saved data</button>
         <button class="btn hdr-collapsible" id="switch-project-btn" style="display:none;"><svg class="nav-icon"><use href="#icon-swap"></use></svg> Switch Project</button>
         <button class="btn hdr-collapsible" id="app-settings-btn" style="display:none;">⚙ Settings</button>
@@ -4261,6 +4273,12 @@ document.addEventListener('click', (e) => {
     document.getElementById('header-menu-btn').setAttribute('aria-expanded', 'false');
   }
 });
+new MutationObserver(() => {
+  const actions = document.getElementById('header-actions');
+  if(!actions.classList.contains('menu-open')){
+    actions.querySelectorAll('.hdr-section').forEach(sec => sec.classList.add('collapsed'));
+  }
+}).observe(document.getElementById('header-actions'), { attributes: true, attributeFilter: ['class'] });
 document.querySelectorAll('[data-toggle-section]').forEach(label => {
   label.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -5132,7 +5150,7 @@ function renderDocumentsList(){
 // Documents open in the studio now: rendered reading, editing, the Archive filter and
 // "Import a patch" (2026-10-11). The old modal stays in the page for the editor's own uses.
 document.getElementById('documents-btn').addEventListener('click', () => openStudio('documents'));
-['write', 'storyboard', 'sketches', 'characters'].forEach(tab => {
+['write', 'storyboard', 'sketches', 'characters', 'report'].forEach(tab => {
   document.getElementById('studio-' + tab + '-btn').addEventListener('click', () => openStudio(tab));
 });
 function openStudio(tab){
@@ -5677,7 +5695,7 @@ function renderPageActions(){
   let junction;
   if(note.becameType && note.becameId){
     junction = '<button class="pa-action" data-open-became="1">Became a ' +
-      escapeHtml(note.becameType) + ' &mdash; open it</button>';
+      escapeHtml(note.becameType === 'treatment' ? 'scene' : note.becameType) + ' &mdash; open it</button>';
   } else if(pagePromoteOpen){
     const acts = [...new Set(chapters.filter(c=>c.book===pagePromoteBook).map(c=>c.act))].sort((a,b)=>a-b);
     const actList = acts.length ? acts : [1];
@@ -5691,7 +5709,9 @@ function renderPageActions(){
       '<div class="pa-note">The chapter gets a copy. This page stays exactly as it is, and ' +
       'remembers where its words went.</div>';
   } else {
-    junction = '<button class="pa-action" data-promote="1">Make this a chapter</button>';
+    // Scene first: most of what lands on a page is scene-level, as on the phone.
+    junction = '<button class="pa-action" data-to-scene="1">Turn this into a scene</button>' +
+      '<button class="pa-action" data-promote="1">Make this a chapter</button>';
   }
 
   const versions = note.versions || [];
@@ -5737,12 +5757,54 @@ function renderPageActions(){
   el.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
     promotePageToChapter(note, pagePromoteBook, parseInt(b.dataset.act));
   }));
+  el.querySelectorAll('[data-to-scene]').forEach(b => b.addEventListener('click', () => turnPageIntoScene(note, b)));
   el.querySelectorAll('[data-open-became]').forEach(b => b.addEventListener('click', () => {
     const target = note.becameId;
     closeNoteEditor();
     document.getElementById('notes-board').classList.remove('show');
-    if(chapters.some(c => c.id === target)) openEditor(target);
+    if(note.becameType === 'treatment') openStudio('sketches&sketch=' + encodeURIComponent(target));
+    else if(chapters.some(c => c.id === target)) openEditor(target);
   }));
+}
+
+/* A page turned into a scene (2026-10-12), the same as the phone's lib/sceneTemplate.ts: the
+   first line becomes the heading, the rest is kept word for word beneath it, and the template's
+   parts follow -- Chapter, POV · Status, Purpose, Events, Characters & reactions, Ends on, then a
+   Draft section for the full scene if it gets written out. A reference, not a rule. The page is
+   untouched and remembers where its words went. Scenes are their own tables, written directly
+   (saveData does not carry them). */
+function sceneTemplateFromPage(text){
+  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  const first = lines.findIndex(l => l.trim().length > 0);
+  const heading = first === -1 ? '' : lines[first].trim().replace(/^#+\s*/, '').replace(/^\*\*(.*)\*\*$/, '$1');
+  const description = first === -1 ? '' : lines.slice(first + 1).join('\n').replace(/^\n+|\n+$/g, '');
+  return [
+    ('## ' + heading).trimEnd(),
+    ...(description.trim() ? [description.trim()] : []),
+    '', '**Chapter:** ', '**POV:**  · **Status:** Idea', '', '**Purpose:** ', '', '**Events**', '- ', '',
+    '**Characters & reactions:** ', '', '**Ends on:** ', '', '---', '', '**Draft**', '', '',
+  ].join('\n');
+}
+async function turnPageIntoScene(note, button){
+  if(button) button.disabled = true;
+  const text = document.getElementById('note-editor-textarea').value;
+  note.content = text; note.updatedAt = Date.now();
+  const { data: { user } } = await window.sbClient.auth.getUser();
+  const { data: last } = await window.sbClient.from('treatments').select('position')
+    .eq('project_id', currentProjectId).order('position', { ascending: false }).limit(1);
+  const id = crypto.randomUUID();
+  const position = (last && last.length ? Number(last[0].position) : 0) + 1000;
+  const { error } = await window.sbClient.from('treatments').insert({ id, user_id: user.id, project_id: currentProjectId, title: null, position });
+  if(error){ if(button) button.disabled = false; alert('The scene was not made: ' + error.message); return; }
+  const { error: e2 } = await window.sbClient.from('treatment_versions').insert({
+    id: crypto.randomUUID(), treatment_id: id, user_id: user.id, project_id: currentProjectId,
+    content: sceneTemplateFromPage(text), status: 'live' });
+  if(e2){ alert('The scene was made, but its text was not saved: ' + e2.message); }
+  note.becameType = 'treatment'; note.becameId = id; note.becameAt = new Date().toISOString();
+  await saveData();
+  closeNoteEditor();
+  document.getElementById('notes-board').classList.remove('show');
+  openStudio('sketches&sketch=' + encodeURIComponent(id));
 }
 
 /* One junction, one action. The page's text is COPIED into a new chapter; the page itself is

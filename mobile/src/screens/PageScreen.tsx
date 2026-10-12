@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { pageToScene } from '../lib/sceneTemplate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import { bookIndices, bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
@@ -140,9 +142,12 @@ export default function PageScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} hitSlop={14}>
           <Text style={styles.chromeGlyph}>‹</Text>
         </Pressable>
-        <Pressable onPress={() => setSheetOpen(true)} hitSlop={14} disabled={!page}>
-          <Text style={[styles.chromeGlyph, !page && styles.chromeGlyphOff]}>·</Text>
-        </Pressable>
+        <View style={styles.chromeRight}>
+          <AssistantButton projectId={projectId} />
+          <Pressable onPress={() => setSheetOpen(true)} hitSlop={14} disabled={!page}>
+            <Text style={[styles.chromeGlyph, !page && styles.chromeGlyphOff]}>·</Text>
+          </Pressable>
+        </View>
       </View>
 
       <TextInput
@@ -300,25 +305,27 @@ function PageSheet({
                 }}
               >
                 <Text style={styles.sheetActionText}>
-                  Became a {page!.became_type === 'treatment' ? 'scene sketch' : page!.became_type} — open it
+                  Became a {page!.became_type === 'treatment' ? 'scene' : page!.became_type} — open it
                 </Text>
               </Pressable>
             ) : (
               <>
-                {/* Treatment first: most of what gets deposited here is scene-level, so this
-                    is the common landing and a chapter is the rarer one. */}
+                {/* Scene first: most of what gets deposited here is scene-level, so this is the
+                    common landing and a chapter is the rarer one. The page's text becomes the
+                    scene template's heading and description (lib/sceneTemplate.ts); the page
+                    itself is untouched and remembers where it went. */}
                 <Pressable
                   style={styles.sheetAction}
                   onPress={async () => {
                     if (!page || busy) return;
                     setBusy(true);
-                    const { treatment } = await createTreatment(page.user_id, projectId, content);
+                    const { treatment } = await createTreatment(page.user_id, projectId, pageToScene(content));
                     if (treatment) await markBecame(page.id, 'treatment', treatment.id);
                     setBusy(false);
                     if (treatment) onOpenTreatment(treatment.id);
                   }}
                 >
-                  <Text style={styles.sheetActionText}>Make this a scene sketch</Text>
+                  <Text style={styles.sheetActionText}>Turn this into a scene</Text>
                 </Pressable>
                 <Pressable style={styles.sheetAction} onPress={() => setPromoting(true)}>
                   <Text style={styles.sheetActionText}>Make this a chapter</Text>
@@ -378,6 +385,7 @@ function makeStyles(colors: ThemeColors) {
       paddingHorizontal: 18,
       paddingBottom: 2,
     },
+    chromeRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     chromeGlyph: { color: withOpacity(colors.textFaint, 0.75), fontSize: 26, lineHeight: 28, paddingHorizontal: 6 },
     chromeGlyphOff: { opacity: 0.25 },
     // Room to sprawl: a book face, wide leading, and margins closer to a printed page than

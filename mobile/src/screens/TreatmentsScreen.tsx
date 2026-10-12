@@ -1,10 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { sceneTemplate } from '../lib/sceneTemplate';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import SlidePanel, { EdgeSwipeZone } from '../components/SlidePanel';
 import { useSparseReorder } from '../lib/sparseOrder';
 import { useSlidePanel } from '../lib/useSlidePanel';
@@ -142,14 +144,16 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     navigation.setOptions({
-      title: 'Scene Sketches',
+      title: 'Scenes',
       headerRight: () => (
+        <View style={styles.headerRight}>
+        <AssistantButton projectId={projectId} />
         <Pressable
           hitSlop={10}
           onPress={() => {
             if (arranging) return setArranging(false);
             if (inGroup.length > MAX_ARRANGE) {
-              Alert.alert('Pick a group first', 'Choose a book above, then rearrange the sketches inside it.');
+              Alert.alert('Pick a group first', 'Choose a book above, then rearrange the scenes inside it.');
               return;
             }
             setArranging(true);
@@ -157,6 +161,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
         >
           <Text style={styles.headerToggle}>{arranging ? 'Done' : 'Rearrange'}</Text>
         </Pressable>
+        </View>
       ),
     });
   }, [navigation, arranging, inGroup.length, styles]);
@@ -164,7 +169,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
   async function handleAdd() {
     if (!user || creating) return;
     setCreating(true);
-    const { treatment } = await createTreatment(user.id, projectId);
+    const { treatment } = await createTreatment(user.id, projectId, sceneTemplate());
     setCreating(false);
     if (treatment) navigation.navigate('Treatment', { projectId, treatmentId: treatment.id });
   }
@@ -176,7 +181,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
       <View style={[styles.screen, styles.centered]}>
         <Text style={styles.note}>
           This project's database predates 20260830b_treatments.sql. Run it in the Supabase SQL
-          editor and scene sketches will appear here.
+          editor and scenes will appear here.
         </Text>
       </View>
     );
@@ -209,7 +214,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
       )}
       {!arranging && (group || searching) ? (
         <Text style={styles.scope}>
-          {`${searching ? `${shown.length} found` : `${shown.length} sketches`}${group ? ` in ${GROUP_LABEL[group] ?? group}` : ''}`}
+          {`${searching ? `${shown.length} found` : `${shown.length} scenes`}${group ? ` in ${GROUP_LABEL[group] ?? group}` : ''}`}
         </Text>
       ) : null}
 
@@ -219,8 +224,8 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
             <ActivityIndicator color={colors.gold} />
           ) : (
             <Text style={styles.empty}>
-              No scene sketches yet. A sketch is one scene described: everything that happens in
-              it, before the dialogue exists.
+              No scenes yet. A scene can be a few lines of what happens or the whole draft with its
+              dialogue. Start one here, or turn a page into one.
             </Text>
           )}
         </View>
@@ -271,7 +276,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
       {!arranging && <EdgeSwipeZone controller={menu} />}
       <SlidePanel controller={menu} width={menuWidth}>
         <ScrollView contentContainerStyle={styles.menuInner}>
-          <Text style={styles.menuTitle}>Scene Sketches</Text>
+          <Text style={styles.menuTitle}>Scenes</Text>
           {[null, ...groups].map((g) => {
             const on = group === g;
             return (
@@ -284,7 +289,7 @@ export default function TreatmentsScreen({ route, navigation }: Props) {
                   menu.close();
                 }}
               >
-                <Text style={[styles.menuText, on && styles.menuTextOn]}>{g ? GROUP_LABEL[g] ?? g : 'All sketches'}</Text>
+                <Text style={[styles.menuText, on && styles.menuTextOn]}>{g ? GROUP_LABEL[g] ?? g : 'All scenes'}</Text>
                 <Text style={styles.menuCount}>{g ? counts.get(g) : titled.length}</Text>
               </Pressable>
             );
@@ -352,6 +357,7 @@ function makeStyles(colors: ThemeColors) {
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
     note: { color: colors.error, fontFamily: FONTS.body, fontSize: 13, lineHeight: 20, textAlign: 'center' },
     empty: { color: colors.textFaint, fontFamily: FONTS.handBody, fontSize: 17, lineHeight: 24, textAlign: 'center', paddingRight: 4 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     headerToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 20, paddingRight: 4 },
     // flexGrow 0: a horizontal ScrollView in a column otherwise stretches its chips (§36.3).
     chipScroll: { flexGrow: 0, flexShrink: 0 },

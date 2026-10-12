@@ -277,8 +277,8 @@ export default function LandingScreen({ navigation, route }: Props) {
                     : backupBusy || backup.running
                       ? 'Building…'
                       : lastBackupAt
-                        ? `Everything in one .json — chapters, documents, pages, scene sketches, the storyboard. Last saved ${new Date(lastBackupAt).toLocaleString()}.`
-                        : 'Everything in one .json — chapters, documents, pages, scene sketches, the storyboard. Send it to Drive, email it, anywhere.'}
+                        ? `Everything in one .json — chapters, documents, pages, scenes, the storyboard. Last saved ${new Date(lastBackupAt).toLocaleString()}.`
+                        : 'Everything in one .json — chapters, documents, pages, scenes, the storyboard. Send it to Drive, email it, anywhere.'}
                 </Text>
               </View>
             </Pressable>

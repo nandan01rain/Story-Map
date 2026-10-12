@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import { MarkdownBlock, type MarkdownLook } from '../components/MarkdownBlock';
 import { parseMarkdown } from '../lib/markdown';
 import { flush } from '../lib/outbox';
@@ -22,6 +23,7 @@ import { bookIndices, bookName } from '../lib/storyData';
 import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { useChapterStore } from '../store/chapterStore';
+import { usePageStore } from '../store/pageStore';
 import { useStoryboardStore } from '../store/storyboardStore';
 import { treatmentTitle, useTreatmentStore, type TreatmentVersion } from '../store/treatmentStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
@@ -126,6 +128,7 @@ export default function TreatmentScreen({ route, navigation }: Props) {
           <Text style={styles.chromeGlyph}>‹</Text>
         </Pressable>
         <View style={styles.chromeRight}>
+          <AssistantButton projectId={projectId} chapterId={treatment?.became_type === 'chapter' ? treatment.became_id ?? undefined : undefined} />
           <Pressable
             onPress={() => {
               if (!reading) flushRef.current(latest.current);
@@ -186,6 +189,10 @@ export default function TreatmentScreen({ route, navigation }: Props) {
           setSheetOpen(false);
           navigation.navigate('Storyboard', { projectId, book });
         }}
+        onOpenPage={(pageId) => {
+          setSheetOpen(false);
+          navigation.navigate('Page', { projectId, pageId });
+        }}
       />
     </KeyboardAvoidingView>
   );
@@ -203,6 +210,7 @@ function TreatmentSheet({
   onEditVersion,
   onOpenChapter,
   onOpenStoryboard,
+  onOpenPage,
 }: {
   visible: boolean;
   treatmentId: string;
@@ -215,6 +223,7 @@ function TreatmentSheet({
   onEditVersion: (id: string) => void;
   onOpenChapter: (chapterId: string) => void;
   onOpenStoryboard: (book: number) => void;
+  onOpenPage: (pageId: string) => void;
 }) {
   const { treatments, versionsOf, setVersionStatus, addVersion, setTitle, markBecame } = useTreatmentStore();
   const user = useAuthStore((s) => s.user);
@@ -229,8 +238,12 @@ function TreatmentSheet({
   const [book, setBook] = useState(0);
   const [busy, setBusy] = useState(false);
   const [title, setTitleDraft] = useState('');
+  // The page this scene was turned from, if any: the pipeline's link back a stage.
+  const pages = usePageStore((s) => s.pages);
+  const sourcePage = pages.find((p) => p.became_type === 'treatment' && p.became_id === treatmentId);
 
   useEffect(() => {
+    if (visible && !pages.some((p) => p.project_id === projectId)) void usePageStore.getState().fetchPages(projectId);
     if (visible && chapters.length === 0) fetchChapters(projectId);
     if (visible && treatment) setTitleDraft(treatment.title ?? '');
     // The storyboard, to know whether this sketch is already pinned up.
@@ -307,6 +320,11 @@ function TreatmentSheet({
               placeholder="Optional — the first line stands in"
               placeholderTextColor={colors.textFaint}
             />
+            {sourcePage ? (
+              <Pressable style={styles.sheetAction} onPress={() => onOpenPage(sourcePage.id)}>
+                <Text style={styles.sheetActionText}>Turned from a page — open it</Text>
+              </Pressable>
+            ) : null}
 
             <View style={styles.sheetRule} />
 
@@ -408,7 +426,7 @@ function TreatmentSheet({
                   ))}
                 </View>
                 <Text style={styles.sheetNote}>
-                  The chapter gets a copy. This sketch stays exactly as it is.
+                  The chapter gets a copy. This scene stays exactly as it is.
                 </Text>
               </>
             ) : (

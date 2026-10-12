@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { plainHeading } from '../lib/sceneTemplate';
 import { isOffline, readCache, writeCache } from '../lib/offlineCache';
 import { enqueue, flush, uuid } from '../lib/outbox';
 import { supabase } from '../lib/supabase';
@@ -66,12 +67,16 @@ const UNDEFINED_TABLE = '42P01';
 export function treatmentTitle(t: Treatment, live: TreatmentVersion | undefined): string {
   const named = (t.title || '').trim();
   if (named) return named;
+  // The first line that says something: a templated scene opens with a markdown heading (its
+  // words are the title, not its #), and an empty heading or a bare field label is skipped,
+  // so a scene with no heading is titled by the first thing written in it.
   const first = (live?.content ?? '')
     .split('\n')
-    .map((l) => l.trim())
-    .find((l) => l.length > 0);
+    .map(plainHeading)
+    .find((l) => l.length > 0 && !TEMPLATE_STUB.test(l));
   return first ?? '';
 }
+const TEMPLATE_STUB = /^(Chapter|POV|Purpose|Events|Characters & reactions|Ends on|Draft):?\s*(·\s*Status:.*)?$|^-+$/;
 
 
 type TreatmentState = {

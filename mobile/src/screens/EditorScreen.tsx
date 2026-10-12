@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import Icon from '../components/Icon';
 import type { SignedInStackParamList } from '../navigation/types';
 import { ANNOTATION_COLORS, bookName, chapterNumberInBook, wordCount } from '../lib/storyData';
@@ -25,6 +26,9 @@ import { diffSummary, diffWords, type DiffPart } from '../lib/textDiff';
 import { fetchCharacterGraph, type GraphNode } from '../lib/characterGraph';
 import { useAssistantStore } from '../store/assistantStore';
 import { type Annotation, type FlagType, useChapterStore } from '../store/chapterStore';
+import { pageTitle, usePageStore } from '../store/pageStore';
+import { useStoryboardStore } from '../store/storyboardStore';
+import { treatmentTitle, useTreatmentStore } from '../store/treatmentStore';
 import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Editor'>;
@@ -87,6 +91,7 @@ export default function EditorScreen({ route, navigation }: Props) {
   const [annotations, setAnnotations] = useState<Annotation[]>(chapter?.annotations ?? []);
   const [status, setStatus] = useState('');
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [trailVisible, setTrailVisible] = useState(false);
   const [flagsVisible, setFlagsVisible] = useState(false);
   const [flagPickerVisible, setFlagPickerVisible] = useState(false);
   const [pendingFlag, setPendingFlag] = useState<{ type: FlagType; text: string } | null>(null);
@@ -133,8 +138,11 @@ export default function EditorScreen({ route, navigation }: Props) {
   // Header shows just the back arrow, nothing else -- per explicit feedback, no title
   // text (the chapter's position/title already appear in the in-page `position` line).
   useLayoutEffect(() => {
-    navigation.setOptions({ title: '' });
-  }, [navigation]);
+    navigation.setOptions({
+      title: '',
+      headerRight: chapter ? () => <AssistantButton projectId={chapter.project_id} chapterId={chapterId} /> : undefined,
+    });
+  }, [navigation, chapter?.project_id, chapterId]);
 
   // ONE snapshot per editing session, not one per autosave. Snapshotting on every 1.2s
   // autosave filled the ten slots with near-identical copies inside a minute of typing, so
@@ -570,6 +578,9 @@ export default function EditorScreen({ route, navigation }: Props) {
           <Text style={styles.toolbarBtn}>Web</Text>
         </Pressable>
         <Text style={styles.status}>{status}</Text>
+        <Pressable onPress={() => setTrailVisible(true)}>
+          <Text style={styles.toolbarBtn}>Trail</Text>
+        </Pressable>
         <Pressable onPress={() => setFlagsVisible(true)}>
           <Text style={styles.toolbarBtn}>Flags{flagAnnotations.length > 0 ? ` (${flagAnnotations.length})` : ''}</Text>
         </Pressable>
@@ -992,7 +1003,107 @@ export default function EditorScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      <ChapterTrail
+        visible={trailVisible}
+        chapterId={chapterId}
+        projectId={chapter.project_id}
+        styles={styles}
+        onClose={() => setTrailVisible(false)}
+        onOpenPage={(pageId) => {
+          setTrailVisible(false);
+          navigation.navigate('Page', { projectId: chapter.project_id, pageId });
+        }}
+        onOpenScene={(treatmentId) => {
+          setTrailVisible(false);
+          navigation.navigate('Treatment', { projectId: chapter.project_id, treatmentId });
+        }}
+        onOpenNote={(book, eventId) => {
+          setTrailVisible(false);
+          navigation.navigate('Storyboard', { projectId: chapter.project_id, book, eventId });
+        }}
+      />
     </KeyboardAvoidingView>
+  );
+}
+
+// The chapter's way back up the pipeline (2026-10-12): the page it was written from, the
+// scene it was made from, and the storyboard notes that point at it. Each is found from the
+// other side's link -- a page or scene records what it BECAME, a note records its chapter --
+// so nothing new is stored and nothing can disagree.
+function ChapterTrail({
+  visible,
+  chapterId,
+  projectId,
+  styles,
+  onClose,
+  onOpenPage,
+  onOpenScene,
+  onOpenNote,
+}: {
+  visible: boolean;
+  chapterId: string;
+  projectId: string;
+  styles: ReturnType<typeof makeStyles>;
+  onClose: () => void;
+  onOpenPage: (pageId: string) => void;
+  onOpenScene: (treatmentId: string) => void;
+  onOpenNote: (book: number, eventId: string) => void;
+}) {
+  const pages = usePageStore((s) => s.pages);
+  const treatments = useTreatmentStore((s) => s.treatments);
+  const liveVersion = useTreatmentStore((s) => s.liveVersion);
+  const events = useStoryboardStore((s) => s.events);
+  const boardProject = useStoryboardStore((s) => s.projectId);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (!pages.some((p) => p.project_id === projectId)) void usePageStore.getState().fetchPages(projectId);
+    if (!treatments.some((t) => t.project_id === projectId)) void useTreatmentStore.getState().fetchTreatments(projectId);
+    if (boardProject !== projectId) void useStoryboardStore.getState().fetch(projectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, projectId]);
+
+  const fromPages = pages.filter((p) => p.became_type === 'chapter' && p.became_id === chapterId);
+  const fromScenes = treatments.filter((t) => t.became_type === 'chapter' && t.became_id === chapterId);
+  const notes = boardProject === projectId ? events.filter((e) => e.chapter_id === chapterId) : [];
+  const none = fromPages.length + fromScenes.length + notes.length === 0;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Where this chapter came from</Text>
+          {none ? (
+            <Text style={styles.modalEmpty}>
+              Nothing leads here yet. A page or a scene becomes a chapter with “Make this a chapter”,
+              and a storyboard note points here from its “Became” chapter.
+            </Text>
+          ) : (
+            <ScrollView style={{ maxHeight: 360 }}>
+              {fromPages.map((p) => (
+                <Pressable key={p.id} onPress={() => onOpenPage(p.id)} style={{ paddingVertical: 8 }}>
+                  <Text style={styles.toolbarBtn}>{`Page · ${pageTitle(p) || 'Untitled page'}`}</Text>
+                </Pressable>
+              ))}
+              {fromScenes.map((t) => (
+                <Pressable key={t.id} onPress={() => onOpenScene(t.id)} style={{ paddingVertical: 8 }}>
+                  <Text style={styles.toolbarBtn}>{`Scene · ${treatmentTitle(t, liveVersion(t.id)) || 'Untitled scene'}`}</Text>
+                </Pressable>
+              ))}
+              {notes.map((e) => (
+                <Pressable key={e.id} onPress={() => onOpenNote(e.book, e.id)} style={{ paddingVertical: 8 }}>
+                  <Text style={styles.toolbarBtn}>{`Storyboard · ${bookName(e.book)} · ${e.title || 'Untitled note'}`}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+          <Pressable onPress={onClose} style={{ marginTop: 14, alignSelf: 'flex-end' }}>
+            <Text style={styles.modalCancel}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

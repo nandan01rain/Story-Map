@@ -5446,3 +5446,60 @@ console errors. **Not yet against the live project.**
 Still not on the web: Chronology and progressions -- both need migrations confirmed missing
 above, so there is nothing for them to show until those are pasted.
 
+## 49. THE PIPELINE: PAGE → SCENE → STORYBOARD → PROSE (2026-10-12, later still)
+
+The writer's model of the Write section, in order: a **page** for a stray thought, a **scene**
+for that thought made into a scene, the **storyboard** to place the scene in the larger story,
+**prose** for the written chapter. Any stage can be the starting point; each links forward and
+back. Reading comes last. Both apps, no migration, JS only (OTA on 1.2.0).
+
+**Menus.** Phone drawer and web menu now share four groups:
+- **Write**: Pages, Scenes, Storyboard, Prose (was "Write"), Read.
+- **Discover**: Search, Documents, Characters, Chronology, The Braid (web: no Chronology yet;
+  its own POV, Continuity, Loom follow).
+- **Manage**: unchanged (web: Read and Pages moved to Write).
+- **Project** (was "Assist & Project"): Prose report first, then Switch project, Settings, Sign
+  out. The drawer glyph is a folio now; the star went with the assistant.
+Every group starts folded and **folds back up when the menu closes** (phone: reset on
+`controller.mounted` going false; web: a MutationObserver on `menu-open`).
+
+**"Scene Sketches" is "Scenes"** in everything the writer reads. Code, tables and routes keep
+`treatment`/`sketch` names -- renaming storage for a label would buy nothing.
+
+**The assistant** left the Discover menu. Its on/off is a toggle top right of the project page
+(phone: `AssistantToggle` in ChapterListScreen's header -- the same account flag
+`assistant_enabled` Settings carries; web: `#ai-toggle-wrap` moved out of the menu into
+`.header-right`, still the project's `ai_enabled`). While on, a ✦ (`AssistantButton`) shows on
+Pages, a page, Scenes, a scene, the Storyboard, the Writer and the Editor, opening the assistant
+with the chapter in front of the writer as context. Off, it shows nowhere else. The assistant is
+still undeployed (§15): the button reaches the screen that says so.
+
+**The scene template** (`mobile/src/lib/sceneTemplate.ts`; identical text in index.html's
+`sceneTemplateFromPage` and studio's `sceneTemplate`, verified equal): heading (the first line
+stands in if none), Chapter (optional number), POV · Status, Purpose, Events, Characters &
+reactions, Ends on, then `---` and **Draft** for the full scene with dialogue. Markdown, read by
+the same renderer as every scene -- a reference, not a schema. *Turn this into a scene* on a page
+(both apps) makes the page's first line the heading and keeps the rest verbatim as the
+description; nothing is guessed into Purpose or Events. New blank scenes start from it.
+A scene's title skips an empty heading and bare field labels, so an untitled scene is named by
+the first thing written in it (`treatmentTitle`, mirrored in studio's `sketchTitle`).
+
+**Do the 300 loaded scenes follow it? No -- 16 do.** Surveyed from the local source (identical to
+the database): the 16 are the "CH 0–15" chapter breakdowns of 01_SPINE_A_1, which use exactly
+these parts (the template was taken from them). The other 284 are canon notes ABOUT a scene --
+a heading like "B5. The cheek kiss, restated [CANON]", then bold claims, rationale and sometimes
+beats; 116 carry none of the six fields, 120 one. Median 176 words; 33 contain real dialogue.
+They were left verbatim. Restructuring them is a content decision for the writer, not a format
+fix, and was not done.
+
+**Two-way links.** Page → scene (existing) and scene → page (*Turned from a page — open it* in
+the scene's sheet). Scene → storyboard and back (existing). Storyboard → prose: a note with a
+chapter shows *Read the prose* (phone popup, web popup). Prose → back: phone Editor toolbar
+**Trail** lists the page, scene and storyboard notes that lead to the chapter; web Prose shows
+*Scene* / *Storyboard* links in each chapter's heading line. All found from the other side's
+existing link (`became_*`, `chapter_id`) -- nothing new stored.
+
+**Flashcard**: one link, **Character wiki** (both apps). The bible is read inline on the wiki
+page once linked, a one-time choice made there. The storyboard's document fetch existed only for
+the removed link and went with it.
+

@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AssistantButton } from '../components/AssistantButton';
 import { bookIndices, bookName, byReadingOrder, chapterNumberInBook } from '../lib/storyData';
 import { useSparseReorder } from '../lib/sparseOrder';
 import { useSortablePositions } from '../lib/useSortablePositions';
@@ -28,7 +29,6 @@ import { FONTS, type ThemeColors, useTheme, withOpacity } from '../theme';
 import BookChips from '../components/BookChips';
 import CharacterCard from '../components/CharacterCard';
 import FoggedSheet from '../components/FoggedSheet';
-import { useDocumentStore } from '../store/documentStore';
 import { EvidenceWall } from '../components/EvidenceWall';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'Storyboard'>;
@@ -91,19 +91,20 @@ export default function StoryboardScreen({ route, navigation }: Props) {
   // Tapping a note opens it over fogged glass; tapping a character's name, their flashcard.
   const [notePopup, setNotePopup] = useState<string | null>(null);
   const [flashcard, setFlashcard] = useState<string | null>(null);
-  const documents = useDocumentStore((s) => s.documents);
-  const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
 
   useEffect(() => {
     navigation.setOptions({
       title: 'Storyboard',
       headerRight: () => (
-        <Pressable onPress={() => setArranging((a) => !a)} hitSlop={10}>
-          <Text style={styles.headerToggle}>{arranging ? 'Wall' : 'Rearrange'}</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <AssistantButton projectId={projectId} />
+          <Pressable onPress={() => setArranging((a) => !a)} hitSlop={10}>
+            <Text style={styles.headerToggle}>{arranging ? 'Wall' : 'Rearrange'}</Text>
+          </Pressable>
+        </View>
       ),
     });
-  }, [navigation, arranging, styles]);
+  }, [navigation, arranging, styles, projectId]);
 
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => fetch(projectId));
@@ -190,11 +191,6 @@ export default function StoryboardScreen({ route, navigation }: Props) {
     if (stringing) return onEventPress(e);
     setNotePopup(e.id);
   }
-
-  useEffect(() => {
-    if (documents.length === 0) void fetchDocuments(projectId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
 
   const warnedNoWall = useRef(false);
   const onNoteMoved = useCallback(
@@ -298,7 +294,7 @@ export default function StoryboardScreen({ route, navigation }: Props) {
             <ActivityIndicator color={colors.gold} />
           ) : (
             <Text style={styles.empty}>
-              {`Nothing pinned up for ${bookName(book)} yet. Each note is one beat of the plot: add them with +, or pin a finished scene from Scene Sketches. Long-press a note to move it.`}
+              {`Nothing pinned up for ${bookName(book)} yet. Each note is one beat of the plot: add them with +, or pin a scene from Scenes. Long-press a note to move it.`}
             </Text>
           )}
         </View>
@@ -550,6 +546,14 @@ export default function StoryboardScreen({ route, navigation }: Props) {
                     }
                   : null
               }
+              onOpenProse={
+                e.chapter_id
+                  ? () => {
+                      setNotePopup(null);
+                      navigation.navigate('Editor', { chapterId: e.chapter_id! });
+                    }
+                  : null
+              }
               onEdit={() => {
                 setNotePopup(null);
                 onEventPress(e);
@@ -563,13 +567,10 @@ export default function StoryboardScreen({ route, navigation }: Props) {
       {flashcard && (() => {
         const m = cast.find((c) => c.id === flashcard);
         if (!m) return null;
-        const bible = documents.find((d) => d.id === m.document_id) ?? null;
         return (
           <FoggedSheet onClose={() => setFlashcard(null)}>
             <CharacterCard
               member={m}
-              bibleTitle={bible?.title ?? null}
-              onOpenBible={bible ? () => { setFlashcard(null); navigation.navigate('DocumentReader', { projectId, documentId: bible.id }); } : undefined}
               onOpenCharacter={() => {
                 setFlashcard(null);
                 navigation.navigate('Character', { projectId, characterId: m.id });
@@ -881,6 +882,7 @@ function NotePopup({
   onToggleCharacter,
   onOpenCharacter,
   onOpenScene,
+  onOpenProse,
   onEdit,
   onClose,
 }: {
@@ -893,6 +895,8 @@ function NotePopup({
   onToggleCharacter: (id: string) => void;
   onOpenCharacter: (id: string) => void;
   onOpenScene: (() => void) | null;
+  /** The chapter this note became, if it has one -- the storyboard's link onward to prose. */
+  onOpenProse: (() => void) | null;
   onEdit: () => void;
   onClose: () => void;
 }) {
@@ -948,6 +952,11 @@ function NotePopup({
             <Text style={popup.action}>Read the scene</Text>
           </Pressable>
         ) : null}
+        {onOpenProse ? (
+          <Pressable onPress={onOpenProse} hitSlop={8}>
+            <Text style={popup.action}>Read the prose</Text>
+          </Pressable>
+        ) : null}
         <Pressable onPress={onEdit} hitSlop={8}>
           <Text style={popup.action}>Edit note</Text>
         </Pressable>
@@ -989,7 +998,7 @@ const popup = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 3, borderWidth: 1.5 },
   chipText: { color: '#2a2119', fontFamily: FONTS.hand, fontSize: 18, paddingRight: 3 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 18 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 20, rowGap: 10, marginTop: 18 },
   action: { color: '#6b4a1e', fontFamily: FONTS.hand, fontSize: 20, paddingRight: 4 },
   done: { color: '#2a2119', fontFamily: FONTS.handBold, fontSize: 22, paddingRight: 4 },
 });
@@ -1026,6 +1035,7 @@ function makeStyles(colors: ThemeColors) {
     castChipOn: { borderColor: colors.gold },
     castChipText: { color: '#2a2119', fontFamily: FONTS.hand, fontSize: 18 , paddingRight: 4 },
     wallNote: { color: colors.textFaint, fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, paddingHorizontal: 16, paddingBottom: 6 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     headerToggle: { color: colors.gold, fontFamily: FONTS.hand, fontSize: 20 , paddingRight: 4 },
     swatch: { width: 10, height: 10, borderRadius: 5 },
     addChip: { paddingHorizontal: 10, paddingVertical: 5 },
