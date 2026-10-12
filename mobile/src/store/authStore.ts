@@ -57,8 +57,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const { error } = await supabase.auth.signUp({ email, password });
       return { error: error?.message ?? null };
     },
+    // scope 'local': sign out this phone only. supabase-js defaults to 'global', which ended the
+    // session on every device; the writer is signed in on the phone and the laptop at once.
     signOut: async () => {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     },
     // Sends a real Supabase reset email. As in the PWA, there is still no page for that
     // email's link to land on, so the mail arrives but cannot yet complete the reset.

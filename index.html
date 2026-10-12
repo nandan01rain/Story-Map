@@ -7843,12 +7843,14 @@ function requestGeoRefresh(){
 
   toggleBtn.addEventListener('click', () => setMode(mode === 'signin' ? 'signup' : 'signin'));
 
+  // scope 'local': sign out THIS browser only. supabase-js defaults to 'global', which ended the
+  // session on every device -- the phone and the laptop are meant to stay signed in together.
   signOutBtn.addEventListener('click', async () => {
-    await sbClient.auth.signOut();
+    await sbClient.auth.signOut({ scope: 'local' });
   });
 
   projectHomeSignOutBtn.addEventListener('click', async () => {
-    await sbClient.auth.signOut();
+    await sbClient.auth.signOut({ scope: 'local' });
   });
 
   switchProjectBtn.addEventListener('click', () => {
