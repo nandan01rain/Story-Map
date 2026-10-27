@@ -254,8 +254,10 @@
       if (gesture.moved) opts.onChange(gesture.page.id);
       gesture = null;
     };
-    container.addEventListener('pointerup', end);
-    container.addEventListener('pointercancel', end);
+    // On the window, not the page: a mouse let go outside the page would otherwise leave the
+    // gesture running, and the item would follow the pointer with no button held.
+    global.addEventListener('pointerup', end);
+    global.addEventListener('pointercancel', end);
 
     container.addEventListener('dblclick', (ev) => {
       const el = ev.target.closest('.jk-item'); const sheet = ev.target.closest('.jk-sheet');
