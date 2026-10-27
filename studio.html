@@ -176,6 +176,63 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
   .herald .front{grid-template-columns:1fr} .herald .front > * + *{border-left:none;border-top:1px solid var(--news-rule)}
 }
 
+
+/* ---------- the journal (2026-10-27) ----------
+   A traveller's notebook open on a wooden desk. The pages themselves (papers, items, the scanner)
+   are styled by journal/journal-kit.css, shared with the phone; this is the studio around them. */
+.jr{position:relative;display:grid;grid-template-columns:230px 1fr 300px;height:100%}
+.jr-side{border-right:1px solid var(--border-dim);display:flex;flex-direction:column;min-height:0}
+.jr-side-top{padding:10px;border-bottom:1px solid var(--border-dim);display:flex;gap:8px;flex-wrap:wrap}
+.jr-list{overflow:auto;flex:1}
+.jr-list .item{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border-dim);color:var(--text);padding:9px 12px}
+.jr-list .item.on{background:var(--panel)}
+.jr-list .tt{font-family:var(--hand);font-weight:700;font-size:21px;line-height:1.1;padding-right:4px}
+.jr-list .tg{font-family:var(--hand);font-size:15px;color:var(--faint)}
+.jr-main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.jr-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border-dim)}
+.jr-tools{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sw-b{width:22px;height:22px;border-radius:50%;border:2px solid transparent;padding:0}
+.sw-b.on{border-color:var(--text)}
+.jr-desk{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background-color:#6b4a2f;
+  background-image:repeating-linear-gradient(92deg,rgba(255,220,170,.05) 0 3px,transparent 3px 9px,rgba(40,20,5,.08) 9px 11px,transparent 11px 23px),var(--jk-fibres),linear-gradient(180deg,#7a553a,#5a3c25)}
+.jr-empty{font-family:var(--hand);font-size:28px;color:#f1e3c6;text-align:center;padding:20px}
+.jr-book{position:relative;display:flex;padding:12px;background:#4a2f1b;border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.55),inset 0 0 0 2px #2c1a0e}
+.jr-ring{position:absolute;left:50%;top:6%;bottom:6%;width:14px;transform:translateX(-50%);background:linear-gradient(90deg,#2a1a0c,#4b311b 50%,#2a1a0c);border-radius:7px;opacity:.9;pointer-events:none}
+.jr-page{position:relative;overflow:hidden}
+.jr-page.left{border-radius:4px 0 0 4px}
+.jr-page.right{border-radius:0 4px 4px 0}
+.jr-page.left::after,.jr-page.right::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:500}
+.jr-page.left::after{box-shadow:inset -22px 0 30px -18px rgba(60,35,10,.45)}
+.jr-page.right::after{box-shadow:inset 22px 0 30px -18px rgba(60,35,10,.45)}
+.jr-page.blank{opacity:.7}
+.jr-scanner{position:absolute;inset:0;z-index:60}
+/* The palette. */
+.jr-palette{border-left:1px solid var(--border-dim);display:flex;flex-direction:column;min-height:0}
+.pal-tabs{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--border-dim)}
+.pal-body{overflow:auto;padding:10px 12px 30px}
+.pal-body h4{font-family:var(--heading);font-size:11px;letter-spacing:.15em;color:var(--gold);margin:14px 0 6px;text-transform:uppercase}
+.pal-hint{font-family:var(--hand-body);font-size:15px;color:var(--faint);margin:6px 0}
+.pal-row{display:flex;flex-wrap:wrap;gap:6px}
+.pal-text{background:#fbf6ea;color:#2b2118;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:19px}
+.pal-tapes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pal-tape{height:22px;border:none;opacity:.88;clip-path:polygon(0 10%,4% 0,8% 10%,92% 0,96% 10%,100% 0,100% 90%,96% 100%,92% 90%,8% 100%,4% 90%,0 100%)}
+.pal-stamp{background:#fbf6ea;border:2px solid;border-radius:4px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;letter-spacing:.1em;padding:4px 7px}
+.pal-stamp.circle{border-radius:50%;border-style:double;border-width:4px;padding:8px 6px}
+.pal-stamp.date{border-style:double;border-width:4px}
+.pal-stamp.letters{border:none;background:none;padding:0;display:inline-flex;gap:2px}
+.pal-stamp.letters .jk-sl{width:20px;height:26px;font-size:15px}
+.pal-stickers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pal-sticker{background:#fbf6ea;border:1px solid var(--border);border-radius:6px;aspect-ratio:1;padding:6px}
+.pal-imgs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.pal-img{padding:0;border:1px solid var(--border);border-radius:4px;aspect-ratio:1;overflow:hidden;background:#222}
+.pal-img img{width:100%;height:100%;object-fit:cover}
+.pal-list{display:flex;flex-direction:column;gap:3px;max-height:180px;overflow:auto}
+.pal-list button{text-align:left;background:none;border:1px solid var(--border-dim);color:var(--text);border-radius:6px;padding:5px 8px;font-size:13.5px;display:flex;align-items:center;gap:6px}
+.pal-list button:hover{border-color:var(--gold)}
+@media (max-width:1100px){ .jr{grid-template-columns:180px 1fr 250px} }
+@media (max-width:860px){ .jr{grid-template-columns:1fr} .jr-side,.jr-palette{max-height:30vh} }
+
 /* ---------- overlays ---------- */
 #overlay{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:24px;
   background:color-mix(in srgb,var(--bg) 45%,transparent);backdrop-filter:blur(9px) saturate(.85);-webkit-backdrop-filter:blur(9px) saturate(.85)}
@@ -309,6 +366,9 @@ textarea.wr-ta{field-sizing:content;width:100%;border:none;background:none;resiz
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="supabase-config.js"></script>
+<!-- The journal page, its editing and its scanner: one source with the phone (journal/). -->
+<link rel="stylesheet" href="journal/journal-kit.css">
+<script src="journal/journal-kit.js"></script>
 </head>
 <body>
 <div id="bar">
@@ -316,6 +376,7 @@ textarea.wr-ta{field-sizing:content;width:100%;border:none;background:none;resiz
   <button class="tab" data-tab="sketches">Scenes</button>
   <button class="tab" data-tab="storyboard">Storyboard</button>
   <button class="tab" data-tab="write">Prose</button>
+  <button class="tab" data-tab="journal">Journal</button>
   <button class="tab" data-tab="characters">Characters</button>
   <button class="tab" data-tab="documents">Documents</button>
   <span class="spacer"></span>
@@ -1676,6 +1737,296 @@ function makeChapter(t){
   };
 }
 
+/* ====================================================================== JOURNAL */
+// The writing journal (2026-10-27): the writer's own diary of making the saga, kept in the
+// project. Pages made here are free canvases; pages SCANNED from the paper notebook are stored as
+// photographs of the page, straightened and otherwise exactly as written. How a page is drawn and
+// edited, and the scanner, live in journal/journal-kit.js -- shared with the phone. This section
+// is the studio's half: the notebook, the palette, saving.
+const JK = window.JournalKit;
+const J = { pages: [], current: null, selected: null, missing: false, palette: 'kit', saveTimers: new Map(), uploads: null, projectQuery: '' };
+
+async function loadJournal(){
+  const { data, error } = await sb.from('journal_pages').select('*').eq('project_id', projectId);
+  J.missing = !!error;
+  J.pages = (data || []).map((p) => ({ ...p, items: Array.isArray(p.items) ? p.items : [] }))
+    .sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position));
+}
+const jPage = (id) => J.pages.find((p) => p.id === id);
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+// Pictures in either private bucket, through signed links cached for most of their hour.
+const bucketCache = {};
+async function bucketUrl(bucket, path){
+  if (!path) return null;
+  if (bucket === 'character-images') return imageUrl(path);
+  const k = bucket + ':' + path;
+  if (bucketCache[k]) return bucketCache[k];
+  const { data } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
+  if (data) { bucketCache[k] = data.signedUrl; setTimeout(() => delete bucketCache[k], 50 * 60 * 1000); }
+  return data ? data.signedUrl : null;
+}
+
+function saveJournalPage(page, fields = ['items']){
+  clearTimeout(J.saveTimers.get(page.id));
+  const st = $('#jr-status'); if (st) st.textContent = 'Saving…';
+  J.saveTimers.set(page.id, setTimeout(async () => {
+    const patch = { updated_at: new Date().toISOString() };
+    for (const f of fields) patch[f] = page[f];
+    const { error } = await sb.from('journal_pages').update(patch).eq('id', page.id);
+    const s2 = $('#jr-status'); if (s2) s2.textContent = error ? 'Not saved: ' + error.message : 'Saved';
+  }, 700));
+}
+
+async function newJournalPage(fields = {}){
+  const last = J.pages[J.pages.length - 1];
+  const page = { id: uuid(), user_id: userId, project_id: projectId, day: todayISO(), title: '', paper: last ? last.paper : 'lined', scan_path: null, items: [], position: positionBetween(last ? Number(last.position) : null, null), ...fields };
+  const { error } = await sb.from('journal_pages').insert(page);
+  if (error) { alert(error.message); return null; }
+  J.pages.push(page);
+  J.pages.sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position));
+  return page;
+}
+
+async function renderJournal(){
+  await loadJournal();
+  if (J.missing) { view.innerHTML = '<div class="note-msg">The journal needs supabase/migrations/20261027_journal.sql pasted into the Supabase SQL editor once.</div>'; return; }
+  if (!jPage(J.current)) J.current = J.pages[J.pages.length - 1]?.id ?? null;
+  view.innerHTML = `<div class="jr">
+    <div class="jr-side"><div class="jr-side-top"><button class="btn solid" id="jr-new">+ New page</button><button class="btn gold" id="jr-scan">Scan pages</button></div><div class="jr-list" id="jr-list"></div></div>
+    <div class="jr-main"><div class="jr-bar" id="jr-bar"></div><div class="jr-desk" id="jr-desk"></div></div>
+    <div class="jr-palette" id="jr-palette"></div>
+    <div class="jr-scanner" id="jr-scanner" hidden></div>
+  </div>`;
+  $('#jr-new').onclick = async () => { const p = await newJournalPage(); if (p) { J.current = p.id; J.selected = null; drawJournal(); } };
+  $('#jr-scan').onclick = scanPages;
+  JK.attach($('#jr-desk'), {
+    pageOf: jPage,
+    selected: () => J.selected,
+    onSelect: (pageId, itemId) => {
+      const changedPage = J.current !== pageId;
+      J.current = pageId; J.selected = itemId ? { page: pageId, item: itemId } : null;
+      if (changedPage) drawJournal(); else drawDesk();
+    },
+    onChange: (pageId) => { const p = jPage(pageId); if (p) saveJournalPage(p); drawDesk(); },
+    onTyping: (pageId) => { const p = jPage(pageId); if (p) saveJournalPage(p); },
+    onEditText: (pageId, itemId) => {
+      const p = jPage(pageId); const it = p.items.find((x) => x.id === itemId);
+      if (it.kind !== 'stamp' && it.kind !== 'cutout') return;
+      const v = prompt(it.kind === 'stamp' ? 'Stamp text' : 'Cutout text', it.text || ''); if (v == null) return;
+      it.text = it.kind === 'stamp' && it.shape !== 'letters' ? v.toUpperCase() : v;
+      saveJournalPage(p); drawDesk();
+    },
+  });
+  drawJournal();
+  drawPalette();
+}
+
+function drawJournal(){
+  const list = $('#jr-list'); if (!list) return;
+  list.innerHTML = [...J.pages].reverse().map((p) => `<button class="item ${p.id === J.current ? 'on' : ''}" data-id="${p.id}"><div class="tt">${esc(p.title || JK.dayLabel(p.day))}</div><div class="tg">${p.title ? JK.dayLabel(p.day) + ' · ' : ''}${p.scan_path ? 'scanned' : `${p.items.length} thing${p.items.length === 1 ? '' : 's'} on it`}</div></button>`).join('') || '<p class="note-msg">No pages yet. Start one, or scan the notebook.</p>';
+  list.onclick = (e) => { const b = e.target.closest('[data-id]'); if (!b) return; J.current = b.dataset.id; J.selected = null; drawJournal(); };
+  const page = jPage(J.current);
+  const bar = $('#jr-bar');
+  bar.innerHTML = page ? `
+    <input type="date" id="jr-day" value="${esc(String(page.day).slice(0, 10))}">
+    <input id="jr-title" placeholder="A title, if it wants one" value="${esc(page.title)}">
+    ${page.scan_path ? '<span class="status">Scanned page</span>' : `<select id="jr-paper">${Object.entries(JK.KIT.papers).map(([k, v]) => `<option value="${k}" ${page.paper === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`}
+    <span id="jr-sel"></span><span style="flex:1"></span><span class="status" id="jr-status"></span>
+    <button class="btn danger" id="jr-del">Delete page</button>` : '';
+  if (page) {
+    $('#jr-day').onchange = (e) => { page.day = e.target.value || page.day; saveJournalPage(page, ['day']); J.pages.sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position)); drawJournal(); };
+    $('#jr-title').oninput = (e) => { page.title = e.target.value; saveJournalPage(page, ['title']); const it = document.querySelector(`#jr-list [data-id="${page.id}"] .tt`); if (it) it.textContent = page.title || JK.dayLabel(page.day); };
+    const paper = $('#jr-paper'); if (paper) paper.onchange = (e) => { page.paper = e.target.value; saveJournalPage(page, ['paper']); drawDesk(); };
+    $('#jr-del').onclick = async () => {
+      if (!confirm('Move this page to the Trash? It can be restored from Trash on the phone.')) return;
+      const { error } = await sb.from('trash').insert({ user_id: userId, project_id: projectId, type: 'journal_page', payload: { page }, deleted_at: new Date().toISOString() });
+      if (error) return alert(error.code === '23514' ? 'The trash does not accept journal pages yet: paste supabase/migrations/20261027_journal.sql once. The page has not been touched.' : error.message);
+      await sb.from('journal_pages').delete().eq('id', page.id);
+      J.pages = J.pages.filter((p) => p !== page); J.current = J.pages[J.pages.length - 1]?.id ?? null; J.selected = null; drawJournal();
+    };
+  }
+  drawDesk();
+}
+
+// The open notebook: the page before on the left, the current page on the right. Both editable.
+function drawDesk(){
+  const desk = $('#jr-desk'); if (!desk) return;
+  const i = J.pages.findIndex((p) => p.id === J.current);
+  if (i < 0) { desk.innerHTML = '<div class="jr-empty">Start a page with + New page, or scan the notebook.</div>'; drawSelectionBar(); return; }
+  const left = J.pages[i - 1], right = J.pages[i];
+  const pageW = Math.max(160, Math.min((desk.clientWidth - 70) / 2, (desk.clientHeight - 50) / 1.4, 560));
+  const s = pageW / JK.JW;
+  const slot = (p, side) => `<div class="jr-page ${side}${p ? '' : ' blank'}" style="width:${pageW}px;height:${pageW * 1.4}px"><div class="jk-sheet paper-plain" ${p ? `data-page="${p.id}"` : ''} style="transform:scale(${s})"></div></div>`;
+  desk.innerHTML = `<div class="jr-book">${slot(left, 'left')}${slot(right, 'right')}<span class="jr-ring"></span></div>`;
+  const sheets = desk.querySelectorAll('.jk-sheet[data-page]');
+  sheets.forEach((sheet) => JK.renderSheet(sheet, jPage(sheet.dataset.page), { selectedId: J.selected?.item, urlFor: bucketUrl }));
+  sheets.forEach((sheet) => { sheet.style.transform = `scale(${s})`; });
+  drawSelectionBar();
+}
+
+function selectedItem(){
+  if (!J.selected) return null;
+  const page = jPage(J.selected.page); const it = page?.items.find((x) => x.id === J.selected.item);
+  return it ? { page, it } : null;
+}
+function drawSelectionBar(){
+  const el = $('#jr-sel'); if (!el) return;
+  const sel = selectedItem();
+  if (!sel) { el.innerHTML = '<span class="status">Click a thing to move it; double-click text to write.</span>'; return; }
+  const { it } = sel;
+  const colors = it.kind === 'tape' ? JK.KIT.tapeColors : JK.KIT.inks;
+  el.innerHTML = `<span class="jr-tools">
+    ${['text', 'stamp', 'tape'].includes(it.kind) ? colors.map((c) => `<button class="sw-b ${it.color === c ? 'on' : ''}" data-color="${c}" style="background:${c}"></button>`).join('') : ''}
+    ${it.kind === 'text' ? `<select data-k="font">${Object.entries(JK.KIT.fonts).map(([k, [, label]]) => `<option value="${k}" ${it.font === k ? 'selected' : ''}>${label}</option>`).join('')}</select>
+      <button class="btn" data-act="smaller">A−</button><button class="btn" data-act="bigger">A+</button>` : ''}
+    ${it.kind === 'tape' ? `<select data-k="pattern">${JK.KIT.tapePatterns.map((p) => `<option ${it.pattern === p ? 'selected' : ''}>${p}</option>`).join('')}</select>` : ''}
+    ${it.kind === 'image' ? `<select data-k="edge">${['deckle', 'torn', 'straight'].map((p) => `<option ${it.edge === p ? 'selected' : ''}>${p}</option>`).join('')}</select>` : ''}
+    <button class="btn" data-act="front" title="Bring to front">⬆</button><button class="btn" data-act="back" title="Send to back">⬇</button>
+    <button class="btn" data-act="dup" title="Duplicate">⧉</button><button class="btn danger" data-act="del" title="Take it off the page">✕</button></span>`;
+  el.onclick = (ev) => {
+    const b = ev.target.closest('[data-color],[data-act]'); if (!b) return;
+    const cur = selectedItem(); if (!cur) return; const { page, it: x } = cur;
+    if (b.dataset.color) x.color = b.dataset.color;
+    const act = b.dataset.act;
+    if (act === 'bigger') x.size = Math.round((x.size || 30) * 1.15);
+    if (act === 'smaller') x.size = Math.max(10, Math.round((x.size || 30) / 1.15));
+    if (act === 'front') x.z = Math.max(0, ...page.items.map((i) => i.z || 0)) + 1;
+    if (act === 'back') x.z = Math.min(0, ...page.items.map((i) => i.z || 0)) - 1;
+    if (act === 'dup') { const c = { ...x, id: JK.uid(), x: x.x + 18, y: x.y + 18, z: Math.max(0, ...page.items.map((i) => i.z || 0)) + 1 }; page.items.push(c); J.selected = { page: page.id, item: c.id }; }
+    if (act === 'del') { page.items = page.items.filter((i) => i !== x); J.selected = null; }
+    saveJournalPage(page); drawDesk(); countOnList(page);
+  };
+  el.onchange = (ev) => { const k = ev.target.dataset.k; const cur = selectedItem(); if (!k || !cur) return; cur.it[k] = ev.target.value; saveJournalPage(cur.page); drawDesk(); };
+}
+function countOnList(p){ const el = document.querySelector(`#jr-list [data-id="${p.id}"] .tg`); if (el) el.textContent = `${p.title ? JK.dayLabel(p.day) + ' · ' : ''}${p.scan_path ? 'scanned' : `${p.items.length} thing${p.items.length === 1 ? '' : 's'} on it`}`; }
+document.addEventListener('keydown', (ev) => {
+  if (tab !== 'journal' || !J.selected) return;
+  if (ev.target.closest && ev.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+  if (ev.key === 'Delete' || ev.key === 'Backspace') { const cur = selectedItem(); if (!cur) return; cur.page.items = cur.page.items.filter((i) => i !== cur.it); J.selected = null; saveJournalPage(cur.page); drawDesk(); countOnList(cur.page); ev.preventDefault(); }
+  if (ev.key === 'Escape') { J.selected = null; drawDesk(); }
+});
+
+// ---- the palette ------------------------------------------------------------------------
+function addItem(fields){
+  const page = jPage(J.current);
+  if (!page) return alert('Start a page first: + New page.');
+  const it = JK.newItem(page, fields);
+  page.items.push(it);
+  J.selected = { page: page.id, item: it.id };
+  saveJournalPage(page); drawDesk(); countOnList(page);
+}
+
+async function drawPalette(){
+  const pal = $('#jr-palette'); if (!pal) return;
+  const tabs = [['kit', 'Kit'], ['mine', 'Mine'], ['project', 'Project']];
+  let body = '';
+  if (J.palette === 'kit') {
+    body = `<h4>Write</h4><div class="pal-row">${Object.entries(JK.KIT.fonts).map(([k, [family, label]]) => `<button class="pal-text" data-add="text" data-font="${k}" style="font-family:${family}">${label}</button>`).join('')}</div>
+      <h4>Washi tape</h4><div class="pal-tapes">${JK.KIT.tapePatterns.flatMap((p, pi) => JK.KIT.tapeColors.filter((_, ci) => (ci + pi) % 2 === 0).slice(0, 4).map((c) => `<button class="pal-tape" data-add="tape" data-pattern="${p}" data-color="${c}" style="${JK.tapeStyle({ pattern: p, color: c })}"></button>`)).join('')}</div>
+      <h4>Stamps</h4><div class="pal-row">
+        <button class="pal-stamp date" data-add="stamp" data-shape="date" style="color:#7a2e24;border-color:#7a2e24">${esc(new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).toUpperCase())}</button>
+        <button class="pal-stamp letters" data-add="stamp" data-shape="letters" style="color:#2b2118">${JK.stampLetters('abc')}</button>
+        ${JK.KIT.stampWords.map((w, i) => { const c = JK.KIT.inks[(i + 2) % JK.KIT.inks.length]; const shape = i % 3 === 1 ? 'circle' : 'box'; return `<button class="pal-stamp ${shape}" data-add="stamp" data-shape="${shape}" data-text="${esc(w)}" data-color="${c}" style="color:${c};border-color:${c}">${esc(w)}</button>`; }).join('')}</div>
+      <h4>Stickers</h4><div class="pal-stickers">${Object.keys(JK.KIT.stickers).map((n) => `<button class="pal-sticker" data-add="sticker" data-name="${n}" title="${n}">${JK.stickerSvg(n)}</button>`).join('')}</div>`;
+  } else if (J.palette === 'mine') {
+    if (J.uploads === null) {
+      const { data } = await sb.storage.from('journal-images').list(userId, { limit: 300, sortBy: { column: 'created_at', order: 'desc' } });
+      J.uploads = (data || []).filter((f) => f.name && !f.name.startsWith('.') && !f.name.startsWith('scan-'));
+    }
+    body = `<button class="btn solid" id="pal-upload" style="width:100%">Upload pictures…</button>
+      <p class="pal-hint">Photographs, scraps, stickers with transparent backgrounds — PNG keeps the transparency.</p>
+      <div class="pal-imgs">${J.uploads.map((f) => `<button class="pal-img" data-add="upload" data-path="${esc(userId + '/' + f.name)}"><img data-bucket="journal-images" data-path="${esc(userId + '/' + f.name)}" alt=""></button>`).join('') || '<p class="pal-hint">Nothing uploaded yet.</p>'}</div>`;
+  } else {
+    if (!S.cast.length && !S.events.length) await loadBoard().catch(() => {});
+    if (!S.treatments.length) await loadSketches().catch(() => {});
+    if (!S.docs.length) await loadDocs().catch(() => {});
+    const q = J.projectQuery.toLowerCase();
+    const has = (t) => !q || String(t || '').toLowerCase().includes(q);
+    body = `<input id="pal-q" placeholder="Find in the project…" value="${esc(J.projectQuery)}" style="width:100%">
+      <h4>Characters</h4><div class="pal-list">${S.cast.filter((c) => has(c.name)).map((c) => `<button data-add="character" data-id="${c.id}"><span class="sw" style="background:${c.color}"></span> ${esc(c.name)}${c.image_path ? ' · picture' : ''}</button>`).join('') || '<p class="pal-hint">None.</p>'}</div>
+      <h4>Storyboard notes</h4><div class="pal-list">${S.events.filter((e) => has(e.title) || has(e.summary)).slice(0, 40).map((e) => `<button data-add="note" data-id="${e.id}">${esc(bookName(e.book))} · ${esc(e.title || 'Untitled')}</button>`).join('') || '<p class="pal-hint">None.</p>'}</div>
+      <h4>Scenes</h4><div class="pal-list">${S.treatments.filter((t) => has(sketchTitle(t))).slice(0, 40).map((t) => `<button data-add="scene" data-id="${t.id}">${esc(noPrefix(sketchTitle(t)))}</button>`).join('') || '<p class="pal-hint">None.</p>'}</div>
+      <h4>Documents</h4><div class="pal-list">${S.docs.filter((d) => docType(d.type) !== 'Archive' && has(d.title)).slice(0, 40).map((d) => `<button data-add="document" data-id="${d.id}">${esc(d.title)}</button>`).join('') || '<p class="pal-hint">None.</p>'}</div>`;
+  }
+  pal.innerHTML = `<div class="pal-tabs">${tabs.map(([k, l]) => `<button class="chip ${J.palette === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div class="pal-body">${body}</div>`;
+  pal.querySelectorAll('img[data-path]').forEach(async (img) => { const u = await bucketUrl(img.dataset.bucket, img.dataset.path); if (u) img.src = u; });
+  const qEl = $('#pal-q');
+  if (qEl) qEl.oninput = () => { J.projectQuery = qEl.value; clearTimeout(J.qTimer); J.qTimer = setTimeout(() => drawPalette().then(() => { const n = $('#pal-q'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }), 250); };
+  const up = $('#pal-upload'); if (up) up.onclick = uploadJournalPictures;
+  pal.onclick = async (ev) => {
+    const t = ev.target.closest('[data-tab]'); if (t && t.closest('.pal-tabs')) { J.palette = t.dataset.tab; return drawPalette(); }
+    const b = ev.target.closest('[data-add]'); if (!b) return;
+    const d = b.dataset;
+    if (d.add === 'text') return addItem({ kind: 'text', text: '', font: d.font, size: d.font === 'hand' ? 34 : 24, color: '#2b2118', align: 'left', w: 300, h: 120 });
+    if (d.add === 'tape') return addItem({ kind: 'tape', pattern: d.pattern, color: d.color, w: 170, h: 34 });
+    if (d.add === 'stamp') {
+      if (d.shape === 'date') return addItem({ kind: 'stamp', shape: 'date', text: new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase(), color: '#7a2e24', w: 190, h: 54 });
+      if (d.shape === 'letters') { const w = prompt('The word to stamp, letter by letter:', 'chapter'); if (!w) return; return addItem({ kind: 'stamp', shape: 'letters', text: w, color: '#2b2118', w: Math.min(560, 34 * w.length + 10), h: 46 }); }
+      return addItem({ kind: 'stamp', shape: d.shape, text: d.text, color: d.color, w: d.shape === 'circle' ? 110 : 150, h: d.shape === 'circle' ? 110 : 48 });
+    }
+    if (d.add === 'sticker') return addItem({ kind: 'sticker', name: d.name, w: 90, h: 90 });
+    if (d.add === 'upload') return addItem({ kind: 'image', bucket: 'journal-images', path: d.path, edge: 'deckle', w: 240, h: 240 });
+    if (d.add === 'character') {
+      const c = S.cast.find((x) => x.id === d.id);
+      if (c.image_path) return addItem({ kind: 'image', bucket: 'character-images', path: c.image_path, edge: 'deckle', w: 200, h: 270 });
+      return addItem({ kind: 'cutout', source: 'character', ref: c.id, title: c.name, text: c.description || '', paper: 'tag', w: 220, h: 130 });
+    }
+    if (d.add === 'note') { const e = S.events.find((x) => x.id === d.id); return addItem({ kind: 'cutout', source: 'note', ref: e.id, title: e.title || 'Untitled', text: e.summary || '', paper: 'newsprint', w: 240, h: 190 }); }
+    if (d.add === 'scene') {
+      const t = S.treatments.find((x) => x.id === d.id);
+      const text = (liveVersion(t.id)?.content || '').replace(/^#+.*\n/, '').replace(/[*_#>`]/g, '').trim().slice(0, 320);
+      return addItem({ kind: 'cutout', source: 'scene', ref: t.id, title: noPrefix(sketchTitle(t)), text, paper: 'lined', w: 260, h: 220 });
+    }
+    if (d.add === 'document') {
+      const { data: doc } = await sb.from('documents').select('id, title, content').eq('id', d.id).single();
+      const firstPara = String(doc?.content || '').split(/\n\s*\n/).map((p) => p.replace(/[*_#>`|]/g, '').trim()).find((p) => p.length > 40) || '';
+      return addItem({ kind: 'cutout', source: 'document', ref: d.id, title: doc?.title || '', text: firstPara.slice(0, 360), paper: 'grid', w: 270, h: 230 });
+    }
+  };
+}
+
+async function uploadJournalPictures(){
+  const files = await pickFile('image/*', true);
+  for (const file of files) {
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const { error } = await sb.storage.from('journal-images').upload(path, file, { contentType: file.type || 'image/' + ext });
+    if (error) { alert(/bucket/i.test(error.message) ? 'The journal\'s picture store needs supabase/migrations/20261027_journal.sql run once.' : error.message); return; }
+  }
+  J.uploads = null; drawPalette();
+}
+
+// ---- scanning the paper notebook ---------------------------------------------------------
+// Each photograph goes through the scanner (corners, rotation, a spread split at the binding);
+// each page that comes out is stored as it is and becomes a journal page dated today -- the date
+// can be changed in the bar. Nothing is read off the page or rewritten.
+async function scanPages(){
+  const files = await pickFile('image/*', true);
+  if (!files.length) return;
+  const host = $('#jr-scanner');
+  let made = 0;
+  for (const file of files) {
+    const url = URL.createObjectURL(file);
+    host.hidden = false;
+    const results = await new Promise((resolve) => JK.openScanner(host, url, { onDone: resolve, onCancel: () => resolve(null) }));
+    URL.revokeObjectURL(url);
+    if (!results) continue;
+    for (const r of results) {
+      const blob = await (await fetch(r.dataUrl)).blob();
+      const path = `${userId}/scan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+      const { error } = await sb.storage.from('journal-images').upload(path, blob, { contentType: 'image/jpeg' });
+      if (error) { host.hidden = true; host.innerHTML = ''; alert(/bucket/i.test(error.message) ? 'Scanning needs supabase/migrations/20261027_journal.sql run once.' : error.message); return; }
+      const page = await newJournalPage({ scan_path: path, paper: 'plain' });
+      if (page) { J.current = page.id; made++; }
+    }
+  }
+  host.hidden = true; host.innerHTML = '';
+  J.selected = null; drawJournal();
+  if (made) $('#jr-status').textContent = `${made} page${made === 1 ? '' : 's'} scanned in`;
+}
+window.addEventListener('resize', () => { if (tab === 'journal') drawDesk(); });
+
 /* ====================================================================== routing */
 async function go(next, opts = {}){
   if (tab === 'write' && next !== 'write' && !(await flushWrite()) && !confirm('A chapter could not be saved — it was changed somewhere else. Leave the Writer anyway?')) return;
@@ -1685,6 +2036,7 @@ async function go(next, opts = {}){
   view.innerHTML = '<div class="note-msg">Loading…</div>';
   try {
     if (tab === 'write') await renderWrite(opts);
+    else if (tab === 'journal') await renderJournal();
     else if (tab === 'storyboard') await renderStoryboard(opts);
     else if (tab === 'sketches') await renderSketches(opts);
     else if (tab === 'characters') await renderCharacters(opts);

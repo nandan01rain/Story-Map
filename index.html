@@ -1619,6 +1619,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <button class="btn hdr-collapsible" id="studio-storyboard-btn"><svg class="nav-icon"><use href="#icon-map"></use></svg> Storyboard</button>
         <button class="btn hdr-collapsible" id="studio-write-btn"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Prose</button>
         <button class="btn hdr-collapsible" id="reader-open-btn"><svg class="nav-icon"><use href="#icon-book-open"></use></svg> Read</button>
+        <button class="btn hdr-collapsible" id="studio-journal-btn"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Journal</button>
       </div>
 
       <!-- Search, Documents, Characters, the Braid in the phone's order (Chronology has no web
@@ -4570,7 +4571,7 @@ function renderDocumentsList(){
 // Documents open in the studio now: rendered reading, editing, the Archive filter and
 // "Import a patch" (2026-10-11). The old modal stays in the page for the editor's own uses.
 document.getElementById('documents-btn').addEventListener('click', () => openStudio('documents'));
-['write', 'storyboard', 'sketches', 'characters', 'report'].forEach(tab => {
+['write', 'storyboard', 'sketches', 'characters', 'report', 'journal'].forEach(tab => {
   document.getElementById('studio-' + tab + '-btn').addEventListener('click', () => openStudio(tab));
 });
 function openStudio(tab){
