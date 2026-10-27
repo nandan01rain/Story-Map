@@ -136,8 +136,10 @@ are inferred from chapters, and every list offers the next one.
 looks — Notes, Clippings (torn newspaper clippings taped to a kraft journal page) and Front page
 (each book as a broadsheet with sepia halftone photographs). Phone port pending the writer's verdict.
 
-**The journal (handoff §54, 2026-10-27):** a free-canvas writing diary in both apps (studio →
-Journal; phone → Write → Journal), plus **scanning pages from the paper notebook, kept exactly as
+**The journal (handoff §54, 2026-10-27):** a free-canvas writing diary in both apps, **one per
+account, the same in every project** (opened from the landing page on both, and from Write →
+Journal inside a project; "Copy to a project" puts a page's words into that project's Pages;
+pages are set aside, not trashed), plus **scanning pages from the paper notebook, kept exactly as
 written** — no OCR, no clean-up, mirror handwriting preserved. One renderer for both apps:
 `journal/journal-kit.js` (the phone inlines it via `node scripts/build-journal-html.mjs` → rerun
 after editing anything in `journal/`). Needs **`20261027_journal.sql`** (unrun; it also supersedes

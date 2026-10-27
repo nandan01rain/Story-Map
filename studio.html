@@ -218,6 +218,8 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
 .jr-side{border-right:1px solid var(--border-dim);display:flex;flex-direction:column;min-height:0}
 .jr-side-top{padding:10px;border-bottom:1px solid var(--border-dim);display:flex;gap:8px;flex-wrap:wrap}
 .jr-list{overflow:auto;flex:1}
+.jr-shelf{background:none;border:none;border-top:1px solid var(--border-dim);color:var(--faint);font-family:var(--hand-body);font-size:16px;padding:10px 12px;text-align:left;cursor:pointer}
+.jr-shelf:hover{color:var(--text)}
 .jr-list .item{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border-dim);color:var(--text);padding:9px 12px}
 .jr-list .item.on{background:var(--panel)}
 .jr-list .tt{font-family:var(--hand);font-weight:700;font-size:21px;line-height:1.1;padding-right:4px}
@@ -477,8 +479,15 @@ document.getElementById('close').onclick = async () => {
 const tellParent = (what) => { if (inFrame) window.parent.postMessage({ type: 'studio-changed', what }, location.origin); };
 
 const { data: { user } } = await sb.auth.getUser();
-if (!user || !projectId) {
-  view.innerHTML = `<div class="note-msg">${!user ? 'Sign in to StoryMap first, then open the studio from its menu.' : 'Open the studio from inside a project.'}</div>`;
+// The journal is the writer's own, the same in every project, so it is the one tab that opens with
+// no project at all (from the landing page). Everything else needs one.
+const journalOnly = !projectId;
+if (journalOnly) {
+  tab = 'journal';
+  document.querySelectorAll('.tab').forEach((b) => { if (b.dataset.tab !== 'journal') b.hidden = true; });
+}
+if (!user) {
+  view.innerHTML = '<div class="note-msg">Sign in to StoryMap first, then open the studio from its menu.</div>';
   return;
 }
 const userId = user.id;
@@ -1808,21 +1817,24 @@ function makeChapter(t){
 }
 
 /* ====================================================================== JOURNAL */
-// The writing journal (2026-10-27): the writer's own diary of making the saga, kept in the
-// project. Pages made here are free canvases; pages SCANNED from the paper notebook are stored as
+// The writing journal (2026-10-27): the writer's own diary of making the saga -- ONE journal for
+// the account, the same from every project and from the landing page. What a project needs from it
+// is copied there (to its Pages); the journal page stays. Pages made here are free canvases; pages SCANNED from the paper notebook are stored as
 // photographs of the page, straightened and otherwise exactly as written. How a page is drawn and
 // edited, and the scanner, live in journal/journal-kit.js -- shared with the phone. This section
 // is the studio's half: the notebook, the palette, saving.
 const JK = window.JournalKit;
-const J = { pages: [], current: null, selected: null, missing: false, palette: 'kit', saveTimers: new Map(), uploads: null, projectQuery: '' };
+const J = { pages: [], current: null, selected: null, missing: false, palette: 'kit', saveTimers: new Map(), uploads: null, projectQuery: '', shelf: false };
 
 async function loadJournal(){
-  const { data, error } = await sb.from('journal_pages').select('*').eq('project_id', projectId);
+  const { data, error } = await sb.from('journal_pages').select('*').eq('user_id', userId);
   J.missing = !!error;
   J.pages = (data || []).map((p) => ({ ...p, items: Array.isArray(p.items) ? p.items : [] }))
     .sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position));
 }
 const jPage = (id) => J.pages.find((p) => p.id === id);
+// The notebook, or the shelf of pages set aside -- never both at once.
+const jShown = () => J.pages.filter((p) => !p.set_aside_at === !J.shelf);
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 // Pictures in either private bucket, through signed links cached for most of their hour.
@@ -1849,8 +1861,8 @@ function saveJournalPage(page, fields = ['items']){
 }
 
 async function newJournalPage(fields = {}){
-  const last = J.pages[J.pages.length - 1];
-  const page = { id: uuid(), user_id: userId, project_id: projectId, day: todayISO(), title: '', paper: last ? last.paper : 'lined', scan_path: null, items: [], position: positionBetween(last ? Number(last.position) : null, null), ...fields };
+  const last = J.pages.filter((p) => !p.set_aside_at).pop();
+  const page = { id: uuid(), user_id: userId, day: todayISO(), title: '', paper: last ? last.paper : 'lined', scan_path: null, items: [], position: positionBetween(last ? Number(last.position) : null, null), ...fields };
   const { error } = await sb.from('journal_pages').insert(page);
   if (error) { alert(error.message); return null; }
   J.pages.push(page);
@@ -1861,14 +1873,15 @@ async function newJournalPage(fields = {}){
 async function renderJournal(){
   await loadJournal();
   if (J.missing) { view.innerHTML = '<div class="note-msg">The journal needs supabase/migrations/20261027_journal.sql pasted into the Supabase SQL editor once.</div>'; return; }
-  if (!jPage(J.current)) J.current = J.pages[J.pages.length - 1]?.id ?? null;
+  if (!jShown().some((p) => p.id === J.current)) J.current = jShown().pop()?.id ?? null;
   view.innerHTML = `<div class="jr">
-    <div class="jr-side"><div class="jr-side-top"><button class="btn solid" id="jr-new">+ New page</button><button class="btn gold" id="jr-scan">Scan pages</button></div><div class="jr-list" id="jr-list"></div></div>
+    <div class="jr-side"><div class="jr-side-top"><button class="btn solid" id="jr-new">+ New page</button><button class="btn gold" id="jr-scan">Scan pages</button></div><div class="jr-list" id="jr-list"></div><button class="jr-shelf" id="jr-shelf"></button></div>
     <div class="jr-main"><div class="jr-bar" id="jr-bar"></div><div class="jr-desk" id="jr-desk"></div></div>
     <div class="jr-palette" id="jr-palette"></div>
     <div class="jr-scanner" id="jr-scanner" hidden></div>
   </div>`;
-  $('#jr-new').onclick = async () => { const p = await newJournalPage(); if (p) { J.current = p.id; J.selected = null; drawJournal(); } };
+  $('#jr-new').onclick = async () => { const p = await newJournalPage(); if (p) { J.shelf = false; J.current = p.id; J.selected = null; drawJournal(); } };
+  $('#jr-shelf').onclick = () => { J.shelf = !J.shelf; J.current = jShown().pop()?.id ?? null; J.selected = null; drawJournal(); };
   $('#jr-scan').onclick = scanPages;
   JK.attach($('#jr-desk'), {
     pageOf: jPage,
@@ -1894,7 +1907,10 @@ async function renderJournal(){
 
 function drawJournal(){
   const list = $('#jr-list'); if (!list) return;
-  list.innerHTML = [...J.pages].reverse().map((p) => `<button class="item ${p.id === J.current ? 'on' : ''}" data-id="${p.id}"><div class="tt">${esc(p.title || JK.dayLabel(p.day))}</div><div class="tg">${p.title ? JK.dayLabel(p.day) + ' · ' : ''}${p.scan_path ? 'scanned' : `${p.items.length} thing${p.items.length === 1 ? '' : 's'} on it`}</div></button>`).join('') || '<p class="note-msg">No pages yet. Start one, or scan the notebook.</p>';
+  const shelfN = J.pages.filter((p) => p.set_aside_at).length;
+  $('#jr-shelf').textContent = J.shelf ? '← Back to the journal' : shelfN ? `Set aside (${shelfN})` : '';
+  $('#jr-shelf').hidden = !J.shelf && !shelfN;
+  list.innerHTML = [...jShown()].reverse().map((p) => `<button class="item ${p.id === J.current ? 'on' : ''}" data-id="${p.id}"><div class="tt">${esc(p.title || JK.dayLabel(p.day))}</div><div class="tg">${p.title ? JK.dayLabel(p.day) + ' · ' : ''}${p.scan_path ? 'scanned' : `${p.items.length} thing${p.items.length === 1 ? '' : 's'} on it`}</div></button>`).join('') || `<p class="note-msg">${J.shelf ? 'Nothing set aside.' : 'No pages yet. Start one, or scan the notebook.'}</p>`;
   list.onclick = (e) => { const b = e.target.closest('[data-id]'); if (!b) return; J.current = b.dataset.id; J.selected = null; drawJournal(); };
   const page = jPage(J.current);
   const bar = $('#jr-bar');
@@ -1902,19 +1918,23 @@ function drawJournal(){
     <input type="date" id="jr-day" value="${esc(String(page.day).slice(0, 10))}">
     <input id="jr-title" placeholder="A title, if it wants one" value="${esc(page.title)}">
     ${page.scan_path ? '<span class="status">Scanned page</span>' : `<select id="jr-paper">${Object.entries(JK.KIT.papers).map(([k, v]) => `<option value="${k}" ${page.paper === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`}
-    <span id="jr-sel"></span><span style="flex:1"></span><span class="status" id="jr-status"></span>
-    <button class="btn danger" id="jr-del">Delete page</button>` : '';
+    <span id="jr-sel"></span><span style="flex:1"></span><span class="status" id="jr-status"></span><span class="status" id="jr-copied"></span>
+    <button class="btn" id="jr-copy" title="Copy this page's words into a project's Pages">Copy to a project…</button>
+    ${page.set_aside_at ? '<button class="btn gold" id="jr-back">Bring back</button>' : '<button class="btn danger" id="jr-del">Set aside</button>'}` : '';
   if (page) {
     $('#jr-day').onchange = (e) => { page.day = e.target.value || page.day; saveJournalPage(page, ['day']); J.pages.sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position)); drawJournal(); };
     $('#jr-title').oninput = (e) => { page.title = e.target.value; saveJournalPage(page, ['title']); const it = document.querySelector(`#jr-list [data-id="${page.id}"] .tt`); if (it) it.textContent = page.title || JK.dayLabel(page.day); };
     const paper = $('#jr-paper'); if (paper) paper.onchange = (e) => { page.paper = e.target.value; saveJournalPage(page, ['paper']); drawDesk(); };
-    $('#jr-del').onclick = async () => {
-      if (!confirm('Move this page to the Trash? It can be restored from Trash on the phone.')) return;
-      const { error } = await sb.from('trash').insert({ user_id: userId, project_id: projectId, type: 'journal_page', payload: { page }, deleted_at: new Date().toISOString() });
-      if (error) return alert(error.code === '23514' ? 'The trash does not accept journal pages yet: paste supabase/migrations/20261027_journal.sql once. The page has not been touched.' : error.message);
-      await sb.from('journal_pages').delete().eq('id', page.id);
-      J.pages = J.pages.filter((p) => p !== page); J.current = J.pages[J.pages.length - 1]?.id ?? null; J.selected = null; drawJournal();
+    // Set aside, never deleted: the page leaves the notebook for a shelf of its own (in both apps).
+    const shelve = async (on) => {
+      const at = on ? new Date().toISOString() : null;
+      const { error } = await sb.from('journal_pages').update({ set_aside_at: at }).eq('id', page.id);
+      if (error) return alert(error.message);
+      page.set_aside_at = at; J.current = jShown().pop()?.id ?? null; J.selected = null; drawJournal();
     };
+    const del = $('#jr-del'); if (del) del.onclick = () => shelve(true);
+    const back = $('#jr-back'); if (back) back.onclick = () => shelve(false);
+    $('#jr-copy').onclick = () => copyJournalPage(page);
   }
   drawDesk();
 }
@@ -1922,9 +1942,10 @@ function drawJournal(){
 // The open notebook: the page before on the left, the current page on the right. Both editable.
 function drawDesk(){
   const desk = $('#jr-desk'); if (!desk) return;
-  const i = J.pages.findIndex((p) => p.id === J.current);
-  if (i < 0) { desk.innerHTML = '<div class="jr-empty">Start a page with + New page, or scan the notebook.</div>'; drawSelectionBar(); return; }
-  const left = J.pages[i - 1], right = J.pages[i];
+  const shown = jShown();
+  const i = shown.findIndex((p) => p.id === J.current);
+  if (i < 0) { desk.innerHTML = `<div class="jr-empty">${J.shelf ? 'Nothing set aside.' : 'Start a page with + New page, or scan the notebook.'}</div>`; drawSelectionBar(); return; }
+  const left = shown[i - 1], right = shown[i];
   const pageW = Math.max(160, Math.min((desk.clientWidth - 70) / 2, (desk.clientHeight - 50) / 1.4, 560));
   const s = pageW / JK.JW;
   const slot = (p, side) => `<div class="jr-page ${side}${p ? '' : ' blank'}" style="width:${pageW}px;height:${pageW * 1.4}px"><div class="jk-sheet paper-plain" ${p ? `data-page="${p.id}"` : ''} style="transform:scale(${s})"></div></div>`;
@@ -2007,6 +2028,8 @@ async function drawPalette(){
     body = `<button class="btn solid" id="pal-upload" style="width:100%">Upload pictures…</button>
       <p class="pal-hint">Photographs, scraps, stickers with transparent backgrounds — PNG keeps the transparency.</p>
       <div class="pal-imgs">${J.uploads.map((f) => `<button class="pal-img" data-add="upload" data-path="${esc(userId + '/' + f.name)}"><img data-bucket="journal-images" data-path="${esc(userId + '/' + f.name)}" alt=""></button>`).join('') || '<p class="pal-hint">Nothing uploaded yet.</p>'}</div>`;
+  } else if (journalOnly) {
+    body = '<p class="pal-hint">Open the journal from inside a project to cut its characters, notes, scenes and documents out onto a page.</p>';
   } else {
     if (!S.cast.length && !S.events.length) await loadBoard().catch(() => {});
     if (!S.treatments.length) await loadSketches().catch(() => {});
@@ -2056,6 +2079,24 @@ async function drawPalette(){
   };
 }
 
+// A journal page's words, copied into a project's Pages as a new page -- the stage a raw thought
+// enters a project by. The journal page itself is untouched.
+async function copyJournalPage(page){
+  const { data: projects, error } = await sb.from('projects').select('id, name').eq('user_id', userId).order('created_at', { ascending: true });
+  if (error) return alert(error.message);
+  const box = openOverlay(`<div class="sheet"><h3>COPY TO A PROJECT</h3>
+    <p class="pal-hint">The page's words become a new page in that project's Pages. Pictures, tape and stickers stay here; so does the journal page.</p>
+    <div class="pal-list" style="max-height:50vh">${(projects || []).map((p) => `<button data-p="${p.id}">${esc(p.name)}${p.id === projectId ? ' · this project' : ''}</button>`).join('')}</div>
+    <div class="row"><span style="flex:1"></span><button class="btn" data-x>Cancel</button></div></div>`);
+  box.onclick = async (ev) => {
+    if (ev.target.closest('[data-x]')) return closeOverlay();
+    const b = ev.target.closest('[data-p]'); if (!b) return;
+    const { error: e2 } = await sb.from('sticky_notes').insert({ id: uuid(), user_id: userId, project_id: b.dataset.p, content: JK.pageText(page), rotation: 0 });
+    closeOverlay();
+    const st = $('#jr-copied'); if (e2) alert(e2.message); else if (st) st.textContent = '· copied to ' + b.textContent.replace(' · this project', '') + "'s Pages";
+  };
+}
+
 async function uploadJournalPictures(){
   const files = await pickFile('image/*', true);
   for (const file of files) {
@@ -2088,7 +2129,7 @@ async function scanPages(){
       const { error } = await sb.storage.from('journal-images').upload(path, blob, { contentType: 'image/jpeg' });
       if (error) { host.hidden = true; host.innerHTML = ''; alert(/bucket/i.test(error.message) ? 'Scanning needs supabase/migrations/20261027_journal.sql run once.' : error.message); return; }
       const page = await newJournalPage({ scan_path: path, paper: 'plain' });
-      if (page) { J.current = page.id; made++; }
+      if (page) { J.shelf = false; J.current = page.id; made++; }
     }
   }
   host.hidden = true; host.innerHTML = '';
@@ -2102,7 +2143,7 @@ async function go(next, opts = {}){
   if (tab === 'write' && next !== 'write' && !(await flushWrite()) && !confirm('A chapter could not be saved — it was changed somewhere else. Leave the Writer anyway?')) return;
   tab = next;
   document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-  history.replaceState(null, '', `?project=${projectId}&tab=${tab}`);
+  history.replaceState(null, '', journalOnly ? '?tab=journal' : `?project=${projectId}&tab=${tab}`);
   view.innerHTML = '<div class="note-msg">Loading…</div>';
   try {
     if (tab === 'write') await renderWrite(opts);

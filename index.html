@@ -1520,6 +1520,7 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <h1><svg class="ph-logo-icon"><use href="#icon-compass"></use></svg> StoryMap<span id="project-home-tagline">Chart the past. Shape the future.</span></h1>
     <div id="project-home-header-actions">
       <span id="project-home-welcome"></span>
+      <button class="btn" id="project-home-journal-btn" title="Your journal: the same in every project"><svg class="nav-icon"><use href="#icon-feather"></use></svg> Journal</button>
       <button class="btn" id="project-home-settings-btn" title="Account settings"><svg class="nav-icon"><use href="#icon-gear"></use></svg> Settings</button>
       <button class="btn" id="project-home-signout-btn"><svg class="nav-icon"><use href="#icon-exit"></use></svg> Sign out</button>
     </div>
@@ -4574,10 +4575,18 @@ document.getElementById('documents-btn').addEventListener('click', () => openStu
 ['write', 'storyboard', 'sketches', 'characters', 'report', 'journal'].forEach(tab => {
   document.getElementById('studio-' + tab + '-btn').addEventListener('click', () => openStudio(tab));
 });
+// The journal is the writer's, not a project's: from the landing page it opens with no project.
+document.getElementById('project-home-journal-btn').addEventListener('click', () => {
+  document.getElementById('studio-frame').src = 'studio.html?tab=journal';
+  const view = document.getElementById('studio-view');
+  view.style.zIndex = '120'; // over the landing page (100), which stays underneath
+  view.style.display = 'block';
+});
 function openStudio(tab){
   if(!currentProjectId) return;
   const view = document.getElementById('studio-view');
   document.getElementById('studio-frame').src = 'studio.html?project=' + encodeURIComponent(currentProjectId) + '&tab=' + tab;
+  view.style.zIndex = '';
   view.style.display = 'block';
   document.getElementById('header-actions').classList.remove('menu-open');
 }

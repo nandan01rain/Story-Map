@@ -218,6 +218,16 @@ export default function LandingScreen({ navigation, route }: Props) {
               </Pressable>
             )}
 
+            {/* The journal is the writer's, not a project's: the same notebook from here and from
+                inside every project. */}
+            <Pressable style={styles.primaryCard} onPress={() => navigation.navigate('Journal')}>
+              <Icon name="pencil" size={22} color={palette.gold} />
+              <View style={styles.primaryCardText}>
+                <Text style={styles.cardTitle}>Your journal</Text>
+                <Text style={styles.cardMeta}>Write a page, or scan one from your notebook.</Text>
+              </View>
+            </Pressable>
+
             <Pressable style={styles.primaryCard} onPress={() => setTab('projects')}>
               <Icon name="books" size={22} color={palette.gold} />
               <View style={styles.primaryCardText}>

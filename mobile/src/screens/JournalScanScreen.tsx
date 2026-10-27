@@ -25,7 +25,7 @@ type Part = { dataUrl: string; width: number; height: number };
 // the page arrives as it was written. Photos are chosen from the phone's files and gallery; taking
 // one straight from the camera needs expo-image-picker, which waits for the next native build.
 export default function JournalScanScreen({ route, navigation }: Props) {
-  const { projectId } = route.params;
+  const projectId = route.params?.projectId;
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -75,7 +75,7 @@ export default function JournalScanScreen({ route, navigation }: Props) {
         queue.current = [];
         return finish();
       }
-      const { page, error } = await store.create({ projectId, userId: user.id, fields: { scan_path: up.path, paper: 'plain' } });
+      const { page, error } = await store.create({ userId: user.id, fields: { scan_path: up.path, paper: 'plain' } });
       if (error || !page) {
         Alert.alert('Scan stored, page not made', error ?? 'Try again.');
         queue.current = [];

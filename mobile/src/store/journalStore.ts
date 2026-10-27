@@ -6,8 +6,10 @@ import { positionBetween } from '../lib/sparseOrder';
 import { supabase } from '../lib/supabase';
 import { CHARACTER_BUCKET, useStoryboardStore } from './storyboardStore';
 
-// The writing journal (2026-10-27): the writer's diary of making the saga, inside the project.
-// Same rows as studio.html's Journal tab. A page is drawn and edited by journal/journal-kit.js in
+// The writing journal (2026-10-27): the writer's diary of making the saga. ONE journal for the
+// account -- the same from the landing page and from inside every project. What a project needs
+// from it is copied there (to its Pages); the journal page stays. Same rows as studio.html's
+// Journal tab. A page is drawn and edited by journal/journal-kit.js in
 // both apps -- here inside a WebView (lib/journalHtml.ts) -- so this store only loads, saves and
 // stores pictures. Needs supabase/migrations/20261027_journal.sql.
 //
@@ -22,7 +24,6 @@ export type JournalItem = { id: string; kind: string; x: number; y: number; w: n
 export type JournalPage = {
   id: string;
   user_id: string;
-  project_id: string;
   /** yyyy-mm-dd: the day the page is about, which the writer can change. */
   day: string;
   title: string;
@@ -31,6 +32,8 @@ export type JournalPage = {
   scan_path: string | null;
   items: JournalItem[];
   position: number;
+  /** Set aside rather than deleted: off the notebook, on a shelf of its own. */
+  set_aside_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -38,19 +41,22 @@ export type JournalPage = {
 type Result = { error: string | null };
 
 type JournalState = {
-  projectId: string | null;
+  userId: string | null;
   pages: JournalPage[];
   loading: boolean;
   /** The table is not there yet -- the migration has not been pasted. */
   missing: boolean;
   error: string | null;
-  fetch: (projectId: string) => Promise<void>;
-  create: (p: { projectId: string; userId: string; fields?: Partial<JournalPage> }) => Promise<{ page: JournalPage | null; error: string | null }>;
+  fetch: (userId: string) => Promise<void>;
+  create: (p: { userId: string; fields?: Partial<JournalPage> }) => Promise<{ page: JournalPage | null; error: string | null }>;
   /** Changes the page in memory at once and writes it a moment later; repeated calls coalesce. */
   update: (id: string, patch: Partial<JournalPage>) => void;
   /** Writes anything still waiting. Called on leaving a page. */
   flush: () => Promise<Result>;
-  trash: (p: { userId: string; page: JournalPage }) => Promise<Result>;
+  /** On or off the shelf of pages set aside. Nothing in the journal is ever deleted. */
+  setAside: (id: string, aside: boolean) => Promise<Result>;
+  /** The page's words as a new page in a project's Pages; the journal page is untouched. */
+  copyToProject: (p: { userId: string; projectId: string; text: string }) => Promise<Result>;
   /** A signed link to a picture in either private bucket. */
   urlFor: (bucket: string, path: string) => Promise<string | null>;
   /** Stores a picture (a file on the phone, or base64) and returns its path in the bucket. */
@@ -76,16 +82,16 @@ function missingBucket(message: string) {
 }
 
 export const useJournalStore = create<JournalState>((set, get) => ({
-  projectId: null,
+  userId: null,
   pages: [],
   loading: false,
   missing: false,
   error: null,
 
-  fetch: async (projectId) => {
-    if (get().projectId !== projectId) set({ projectId, pages: [] });
+  fetch: async (userId) => {
+    if (get().userId !== userId) set({ userId, pages: [] });
     set({ loading: true, error: null });
-    const { data, error } = await supabase.from('journal_pages').select('*').eq('project_id', projectId);
+    const { data, error } = await supabase.from('journal_pages').select('*').eq('user_id', userId);
     if (error) {
       const missing = error.code === '42P01' || error.code === 'PGRST205';
       set({ loading: false, missing, error: missing ? null : error.message });
@@ -97,12 +103,11 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     set({ loading: false, missing: false, pages });
   },
 
-  create: async ({ projectId, userId, fields }) => {
-    const last = get().pages[get().pages.length - 1];
+  create: async ({ userId, fields }) => {
+    const last = get().pages.filter((p) => !p.set_aside_at).pop();
     const page: JournalPage = {
       id: uuid(),
       user_id: userId,
-      project_id: projectId,
       day: todayISO(),
       title: '',
       paper: last ? last.paper : 'lined',
@@ -148,24 +153,20 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     return { error };
   },
 
-  trash: async ({ userId, page }) => {
+  setAside: async (id, aside) => {
     await get().flush();
-    const current = get().pages.find((p) => p.id === page.id) ?? page;
-    const { error } = await supabase.from('trash').insert({
-      user_id: userId,
-      project_id: current.project_id,
-      type: 'journal_page',
-      payload: { page: current },
-      deleted_at: new Date().toISOString(),
-    });
-    if (error?.code === '23514') {
-      return { error: 'The trash does not accept journal pages yet. Paste supabase/migrations/20261027_journal.sql once. The page has not been touched.' };
-    }
+    const at = aside ? new Date().toISOString() : null;
+    const { error } = await supabase.from('journal_pages').update({ set_aside_at: at }).eq('id', id);
     if (error) return { error: error.message };
-    const del = await supabase.from('journal_pages').delete().eq('id', page.id);
-    if (del.error) return { error: del.error.message };
-    set({ pages: get().pages.filter((p) => p.id !== page.id) });
+    set({ pages: get().pages.map((p) => (p.id === id ? { ...p, set_aside_at: at } : p)) });
     return { error: null };
+  },
+
+  copyToProject: async ({ userId, projectId, text }) => {
+    const { error } = await supabase
+      .from('sticky_notes')
+      .insert({ id: uuid(), user_id: userId, project_id: projectId, content: text, rotation: 0 });
+    return { error: error?.message ?? null };
   },
 
   urlFor: async (bucket, path) => {

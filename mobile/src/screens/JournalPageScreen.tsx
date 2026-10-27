@@ -23,6 +23,7 @@ import type { SignedInStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 import { documentType, useDocumentStore } from '../store/documentStore';
 import { type JournalItem, useJournalStore } from '../store/journalStore';
+import { useProjectStore } from '../store/projectStore';
 import { useStoryboardStore } from '../store/storyboardStore';
 import { treatmentTitle, useTreatmentStore } from '../store/treatmentStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
@@ -33,7 +34,7 @@ type Props = NativeStackScreenProps<SignedInStackParamList, 'JournalPage'>;
 const PAPERS: [string, string][] = [['lined', 'Lined'], ['grid', 'Grid'], ['dot', 'Dotted'], ['plain', 'Plain'], ['kraft', 'Kraft'], ['parchment', 'Parchment']];
 const SCENE_PREFIX = /^(Backstory|Prologue|B\d+|Skip|After|Unplaced) · /;
 
-// One journal page. The page itself -- drawing, moving, turning, sizing, the palette -- is
+// One journal page -- of the writer's one journal, the same from every project. The page itself -- drawing, moving, turning, sizing, the palette -- is
 // journal/journal-kit.js running in a WebView, the same code as the studio's Journal tab, so a
 // page looks the same in both apps by construction. This screen holds the data: it posts the page
 // in, mirrors every change into the store (which saves it), answers requests for picture links,
@@ -53,12 +54,16 @@ export default function JournalPageScreen({ route, navigation }: Props) {
   const [day, setDay] = useState(String(page?.day ?? '').slice(0, 10));
   const [editing, setEditing] = useState<JournalItem | null>(null);
   const [words, setWords] = useState('');
+  const [copying, setCopying] = useState(false);
+  const projects = useProjectStore((s) => s.projects);
 
   const send = useCallback((m: object) => web.current?.postMessage(JSON.stringify(m)), []);
 
   useEffect(() => {
-    if (!page) void journal.fetch(projectId);
-    // The palette's Project tab: whatever is not loaded yet is fetched once, quietly.
+    if (!page && user) void journal.fetch(user.id);
+    // The palette's Project tab cuts from the project the journal was opened in; from the landing
+    // page there is none, and the tab says so.
+    if (!projectId) return () => { void useJournalStore.getState().flush(); };
     const board = useStoryboardStore.getState();
     if (board.projectId !== projectId) void board.fetch(projectId).then(sendLibrary);
     if (!useTreatmentStore.getState().treatments.length) void useTreatmentStore.getState().fetchTreatments(projectId).then(sendLibrary);
@@ -70,6 +75,7 @@ export default function JournalPageScreen({ route, navigation }: Props) {
   const uploads = useRef<string[]>([]);
   async function sendLibrary() {
     if (!ready.current) return;
+    if (!projectId) return send({ type: 'library', library: { uploads: uploads.current, noProject: true } });
     const board = useStoryboardStore.getState();
     const tr = useTreatmentStore.getState();
     const docs = useDocumentStore.getState().documents;
@@ -117,6 +123,8 @@ export default function JournalPageScreen({ route, navigation }: Props) {
       if (!document) return;
       const firstPara = String(document.content ?? '').split(/\n\s*\n/).map((p) => p.replace(/[*_#>`|]/g, '').trim()).find((p) => p.length > 40) ?? '';
       send({ type: 'add', fields: { kind: 'cutout', source: 'document', ref: document.id, title: document.title, text: firstPara.slice(0, 360), paper: 'grid', w: 270, h: 230 } });
+    } else if (m.type === 'pageText') {
+      setCopyText(String(m.text ?? ''));
     } else if (m.type === 'uploadPictures') {
       if (!user) return;
       const res = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true, multiple: true });
@@ -146,20 +154,30 @@ export default function JournalPageScreen({ route, navigation }: Props) {
     send({ type: 'page', page: { ...page, paper } });
   }
 
-  function remove() {
-    if (!page || !user) return;
-    Alert.alert('Move this page to the Trash?', 'It can be restored from Trash, in either app.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Move to Trash',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await journal.trash({ userId: user.id, page });
-          if (error) Alert.alert('Not moved', error);
-          else navigation.goBack();
-        },
-      },
-    ]);
+  // Set aside, never deleted: the page goes to the journal's own shelf and comes back from there.
+  async function setAside() {
+    if (!page) return;
+    const aside = !page.set_aside_at;
+    const { error } = await journal.setAside(page.id, aside);
+    if (error) Alert.alert('Not changed', error);
+    else if (aside) navigation.goBack();
+  }
+
+  // Copy to a project: the page's words (read off the page by the kit, so both apps agree) become
+  // a new page in that project's Pages.
+  const [copyText, setCopyText] = useState<string | null>(null);
+  function startCopy() {
+    if (user && !projects.length) void useProjectStore.getState().fetchProjects(user.id);
+    setCopyText(null);
+    send({ type: 'pageText' });
+    setCopying(true);
+  }
+  async function copyTo(target: { id: string; name: string }) {
+    if (!user || copyText == null) return;
+    setCopying(false);
+    const { error } = await journal.copyToProject({ userId: user.id, projectId: target.id, text: copyText });
+    if (error) Alert.alert('Not copied', error);
+    else Alert.alert('Copied', `The page's words are a new page in ${target.name}'s Pages. Pictures, tape and stickers stay in the journal.`);
   }
 
   if (!page) {
@@ -197,8 +215,11 @@ export default function JournalPageScreen({ route, navigation }: Props) {
             keyboardType="numbers-and-punctuation"
           />
         </View>
-        <Pressable onPress={remove} hitSlop={10}>
-          <Text style={styles.trash}>Trash</Text>
+        <Pressable onPress={startCopy} hitSlop={10}>
+          <Text style={styles.trash}>Copy</Text>
+        </Pressable>
+        <Pressable onPress={setAside} hitSlop={10}>
+          <Text style={styles.trash}>{page.set_aside_at ? 'Bring back' : 'Set aside'}</Text>
         </Pressable>
       </View>
       {!page.scan_path && (
@@ -221,6 +242,24 @@ export default function JournalPageScreen({ route, navigation }: Props) {
         // A fixed local document; nothing on a page should navigate anywhere.
         onShouldStartLoadWithRequest={(r) => r.url === 'about:blank' || r.url.startsWith('data:')}
       />
+
+      <Modal visible={copying} transparent animationType="fade" onRequestClose={() => setCopying(false)}>
+        <View style={styles.sheetWrap}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCopying(false)} />
+          <View style={styles.sheet}>
+            <Text style={styles.sheetLabel}>Copy to a project</Text>
+            <Text style={styles.copyHint}>The page's words become a new page in that project's Pages. The journal page stays as it is.</Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {projects.map((p) => (
+                <Pressable key={p.id} style={styles.projectRow} onPress={() => void copyTo(p)} disabled={copyText == null}>
+                  <Text style={styles.projectName}>{p.name}{p.id === projectId ? '  · this project' : ''}</Text>
+                </Pressable>
+              ))}
+              {!projects.length && <ActivityIndicator color="#8a6420" />}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!editing} transparent animationType="fade" onRequestClose={saveWords}>
         <KeyboardAvoidingView style={styles.sheetWrap} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -271,5 +310,8 @@ function makeStyles(colors: ThemeColors) {
     wordsHand: { fontFamily: FONTS.handBold, fontSize: 24, minHeight: 120 },
     done: { alignSelf: 'flex-end', backgroundColor: '#c69a3a', borderRadius: 10, paddingHorizontal: 22, paddingVertical: 10 },
     doneText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 15 },
+    copyHint: { fontFamily: FONTS.body, fontSize: 14, color: '#6b5a44', lineHeight: 20 },
+    projectRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2d3b4' },
+    projectName: { fontFamily: FONTS.bodySemiBold, fontSize: 16, color: '#2b2118' },
   });
 }

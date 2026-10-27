@@ -36,11 +36,16 @@ export type SignedInStackParamList = {
    * created until the first character is typed, so opening a blank page costs nothing.
    */
   Page: { projectId: string; pageId?: string };
-  /** The writing journal: the writer's diary of making the saga, pages made here or scanned in. */
-  Journal: { projectId: string };
-  JournalPage: { projectId: string; pageId: string };
+  /**
+   * The writing journal: the writer's diary of making the saga, pages made here or scanned in.
+   * One per account, the same everywhere; `projectId` is only where it was opened from -- the
+   * project its palette cuts things out of and its "Copy to a project" offers first. Absent from
+   * the landing page.
+   */
+  Journal: { projectId?: string } | undefined;
+  JournalPage: { pageId: string; projectId?: string };
   /** Photographs of notebook pages, straightened and kept exactly as written. */
-  JournalScan: { projectId: string };
+  JournalScan: { projectId?: string } | undefined;
   /** No projectId searches every project -- the landing page's Explore tab. */
   Search: { projectId?: string } | undefined;
   Documents: { projectId: string };

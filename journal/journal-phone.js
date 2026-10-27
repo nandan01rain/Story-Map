@@ -5,16 +5,16 @@
    draws around them in its own window -- the bar under the page and the palette -- and the
    message bridge to the app, which holds the data and does every save and upload.
 
-   From the app:  page {page} · library {uploads, cast, notes, scenes, docs} · add {fields}
-                  patch {itemId, fields} · url {rid, url} · scan {src, spread} · deselect
+   From the app:  page {page} · library {uploads, cast, notes, scenes, docs, noProject} · add {fields}
+                  patch {itemId, fields} · url {rid, url} · scan {src, spread} · deselect · pageText
    To the app:    ready · url {rid, bucket, path} · changed {items} · editText {item}
-                  pickDocument {id} · uploadPictures · scanned {parts} · scanCancel */
+                  pickDocument {id} · uploadPictures · scanned {parts} · scanCancel · pageText {text} */
 (function () {
   'use strict';
   const JK = window.JournalKit;
   const $ = (s) => document.querySelector(s);
   const esc = JK.esc;
-  let page = null, selected = null, lib = { uploads: [], cast: [], notes: [], scenes: [], docs: [] };
+  let page = null, selected = null, lib = { uploads: [], cast: [], notes: [], scenes: [], docs: [], noProject: false };
   let palTab = 'kit', query = '';
 
   const post = (m) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(m));
@@ -124,6 +124,8 @@
       body = '<button class="go wide" data-act="upload">Add pictures from the phone…</button>' +
         '<p class="hint">Photographs, scraps, stickers — a PNG keeps its transparent background.</p>' +
         '<div class="imgs">' + (lib.uploads.map((p) => '<button class="p-img" data-add="upload" data-path="' + esc(p) + '"><img data-bucket="journal-images" data-path="' + esc(p) + '" alt=""></button>').join('') || '<p class="hint">Nothing added yet.</p>') + '</div>';
+    } else if (lib.noProject) {
+      body = '<p class="hint">Open the journal from inside a project to cut its characters, notes, scenes and documents out onto a page.</p>';
     } else {
       const q = query.toLowerCase(); const has = (t) => !q || String(t || '').toLowerCase().includes(q);
       const list = (rows, kind, label) => rows.map((r) => '<button data-add="' + kind + '" data-id="' + esc(r.id) + '">' + label(r) + '</button>').join('') || '<p class="hint">None.</p>';
@@ -176,6 +178,7 @@
     else if (m.type === 'add') add(m.fields, m.thenWrite);
     else if (m.type === 'patch') { const it = page && page.items.find((x) => x.id === m.itemId); if (it) { Object.assign(it, m.fields); draw(); changed(); } }
     else if (m.type === 'url') { const f = waiting.get(m.rid); waiting.delete(m.rid); if (f) f(m.url); }
+    else if (m.type === 'pageText') post({ type: 'pageText', text: page ? JK.pageText(page) : '' });
     else if (m.type === 'deselect') { selected = null; openPalette(false); draw(); }
     else if (m.type === 'scan') {
       const host = $('#scanner'); host.hidden = false;

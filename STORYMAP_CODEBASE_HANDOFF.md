@@ -5752,3 +5752,37 @@ WebView bridge):
 
 **Not yet checked:** the live project (the migration has not been run), a real device, or a
 real notebook photograph larger than the 1000px sample.
+
+### 54.1 One journal for the account, not one per project (same day)
+
+The writer asked for the journal to be **a core feature, the same in every project**, copying into
+a project whatever that project needs. So:
+
+- **`journal_pages` has no `project_id`.** The migration was still unrun, so it was changed in
+  place. Pages are the user's, and are loaded by `user_id`. For a database that ran an earlier
+  copy, a guarded block drops the column's `not null` and the old index.
+- **Opened from anywhere.** On the web landing page, a **Journal** button opens `studio.html?tab=journal`
+  with no project. The studio then shows only the Journal tab, and the studio overlay is lifted to
+  z-index 120, above the landing page's 100. On the phone, the Home tab has a **Your journal** card.
+  Inside a project, Write → Journal still opens it; the project it was opened from is only what the
+  palette's Project tab cuts from. With no project, that tab says to open the journal from one.
+- **Copy to a project** (both apps). The page's words become a new row in that project's Pages
+  (`sticky_notes`), and the journal page is untouched.
+  - The words come from `JournalKit.pageText(page)`: the title or date first, then text, stamps
+    and cut-outs in reading order.
+  - A scan is noted, not transcribed.
+  - The phone asks the WebView for the text (`pageText`), so the rule lives in one place.
+- **Set aside instead of Trash.** The trash is filed per project; a journal has no project. So a
+  page carries `set_aside_at`: it leaves the notebook for a shelf, "Set aside (n)", and comes back
+  with **Bring back**. Nothing is deleted. The trash's `journal_page` type and its restore were
+  removed again from both apps. The migration still restates the trash's types (without it), so
+  one paste also covers `20261011_trash_types.sql`.
+
+Checked in the harnesses, which now have `projects` and `sticky_notes` tables:
+- set aside, shelf and bring back;
+- copying into the other project, words in reading order;
+- the no-project studio (Journal tab only, the same pages, the palette hint, Copy listing every
+  project);
+- the phone document's `pageText` and its no-project hint.
+
+Typecheck clean.

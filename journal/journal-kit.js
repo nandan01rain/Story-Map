@@ -462,5 +462,20 @@
     prepare();
   }
 
-  global.JournalKit = { JW, JH, KIT, esc, uid, dayLabel, tornEdge, tapeStyle, stickerSvg, stampLetters, itemHtml, renderSheet, newItem, attach, homography, warpQuad, evenLight, openScanner };
+  /**
+   * A page's words, top to bottom, for copying into a project's Pages: the title or the date,
+   * then each piece of writing, stamp and cut-out in reading order. Tape, stickers and pictures
+   * have no words and stay in the journal; so does a scan, which is noted rather than transcribed.
+   */
+  function pageText(page) {
+    const words = (page.items || [])
+      .filter((it) => (it.kind === 'text' || it.kind === 'stamp' || it.kind === 'cutout') && (it.text || it.title))
+      .sort((a, b) => (Math.abs(a.y - b.y) > 30 ? a.y - b.y : a.x - b.x))
+      .map((it) => (it.kind === 'cutout' ? [it.title, it.text].filter(Boolean).join(' — ') : String(it.text)));
+    const head = page.title ? page.title + '\n' + dayLabel(page.day) : dayLabel(page.day);
+    const scan = page.scan_path ? ['(A scanned journal page. The page itself stays in the journal.)'] : [];
+    return [head, ...scan, ...words].join('\n\n');
+  }
+
+  global.JournalKit = { JW, JH, KIT, esc, uid, dayLabel, tornEdge, tapeStyle, stickerSvg, stampLetters, itemHtml, renderSheet, newItem, attach, homography, warpQuad, evenLight, openScanner, pageText };
 })(typeof window !== 'undefined' ? window : globalThis);

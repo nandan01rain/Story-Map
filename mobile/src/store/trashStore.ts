@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 import type { Chapter } from './chapterStore';
 import type { StoryDocument } from './documentStore';
 import type { Scene } from './sceneStore';
-import type { JournalPage } from './journalStore';
 import type { StoryEvent } from './storyboardStore';
 
 // Soft delete, shared with the PWA rather than invented again.
@@ -20,14 +19,11 @@ import type { StoryEvent } from './storyboardStore';
 //   document  { document }
 //   storyboard_event  { event, threadIds }   mobile-only; the threads it was strung on
 //                                            travel with it, since its links cascade away
-//   journal_page      { page }               both apps; the page whole, items and all. A
-//                                            scanned page's picture stays in storage, so a
-//                                            restore brings back the scan too
 //
 // graph_node / graph_edge rows may exist from the character web's era, with their own
 // payload shape. They are listed but not restorable from this screen -- see below.
 
-export type TrashType = 'chapter' | 'scene' | 'document' | 'storyboard_event' | 'journal_page' | 'graph_node' | 'graph_edge';
+export type TrashType = 'chapter' | 'scene' | 'document' | 'storyboard_event' | 'graph_node' | 'graph_edge';
 
 export type TrashEntry = {
   id: string;
@@ -41,7 +37,6 @@ export type TrashEntry = {
     document?: StoryDocument;
     event?: StoryEvent;
     threadIds?: string[];
-    page?: JournalPage;
     node?: { label?: string };
     edge?: unknown;
   };
@@ -96,10 +91,6 @@ export function describeTrash(entry: TrashEntry): { kind: string; title: string;
   if (entry.type === 'storyboard_event') {
     return { kind: 'Storyboard event', title: p.event?.title || 'Untitled event', detail: '' };
   }
-  if (entry.type === 'journal_page') {
-    const pg = p.page;
-    return { kind: 'Journal page', title: pg?.title || (pg?.day ? String(pg.day).slice(0, 10) : 'Untitled page'), detail: pg?.scan_path ? 'Scanned' : '' };
-  }
   if (entry.type === 'graph_node') {
     return { kind: 'Character', title: p.node?.label || 'Unnamed', detail: 'Restore from the web' };
   }
@@ -108,7 +99,7 @@ export function describeTrash(entry: TrashEntry): { kind: string; title: string;
 
 /** Only what this screen knows how to put back. */
 export function isRestorable(entry: TrashEntry): boolean {
-  return entry.type === 'chapter' || entry.type === 'scene' || entry.type === 'document' || entry.type === 'storyboard_event' || entry.type === 'journal_page';
+  return entry.type === 'chapter' || entry.type === 'scene' || entry.type === 'document' || entry.type === 'storyboard_event';
 }
 
 export const useTrashStore = create<TrashState>((set, get) => ({
@@ -258,9 +249,6 @@ export const useTrashStore = create<TrashState>((set, get) => ({
         }));
         if (rows.length > 0) await supabase.from('storyboard_links').insert(rows);
       }
-    } else if (entry.type === 'journal_page' && p.page) {
-      const { error } = await supabase.from('journal_pages').insert({ ...p.page, user_id: userId });
-      if (error) return { error: error.message };
     } else {
       return { error: 'This kind of item cannot be restored from here yet.' };
     }

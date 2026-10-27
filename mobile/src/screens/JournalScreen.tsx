@@ -17,32 +17,37 @@ export function journalDay(day: string): string {
 }
 
 // The writing journal: the writer's diary of making the saga (2026-10-27), the same pages as the
-// studio's Journal tab. Newest first. Two ways in: start a page here, or scan pages from the paper
-// notebook -- which keeps each one as written, mirror script and all.
+// studio's Journal tab -- and the same journal from the landing page and from every project.
+// Newest first. Two ways in: start a page here, or scan pages from the paper notebook -- which
+// keeps each one as written, mirror script and all. Pages set aside wait on a shelf of their own.
 export default function JournalScreen({ route, navigation }: Props) {
-  const { projectId } = route.params;
+  const projectId = route.params?.projectId;
   const user = useAuthStore((s) => s.user);
   const { pages, loading, missing, error, fetch, create } = useJournalStore();
+  const [shelf, setShelf] = useState(false);
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const unsub = navigation.addListener('focus', () => fetch(projectId));
-    fetch(projectId);
+    if (!user) return;
+    const unsub = navigation.addListener('focus', () => fetch(user.id));
+    fetch(user.id);
     return unsub;
-  }, [navigation, projectId, fetch]);
+  }, [navigation, user, fetch]);
 
-  const newest = useMemo(() => [...pages].reverse(), [pages]);
+  const newest = useMemo(() => pages.filter((p) => !p.set_aside_at === !shelf).reverse(), [pages, shelf]);
+  const asideCount = useMemo(() => pages.filter((p) => p.set_aside_at).length, [pages]);
 
   async function startPage() {
     if (!user || busy) return;
     setBusy(true);
-    const { page, error: e } = await create({ projectId, userId: user.id });
+    const { page, error: e } = await create({ userId: user.id });
     setBusy(false);
     if (e || !page) return Alert.alert('Page not started', e ?? 'Try again.');
     navigation.navigate('JournalPage', { projectId, pageId: page.id });
+    setShelf(false);
   }
 
   if (missing) {
@@ -66,8 +71,15 @@ export default function JournalScreen({ route, navigation }: Props) {
           loading ? (
             <ActivityIndicator color={colors.gold} style={{ marginTop: 40 }} />
           ) : (
-            <Text style={styles.empty}>{error ?? 'No pages yet. Start one, or scan pages from your notebook.'}</Text>
+            <Text style={styles.empty}>{error ?? (shelf ? 'Nothing set aside.' : 'No pages yet. Start one, or scan pages from your notebook.')}</Text>
           )
+        }
+        ListFooterComponent={
+          shelf || asideCount > 0 ? (
+            <Pressable onPress={() => setShelf(!shelf)} style={styles.shelf} hitSlop={8}>
+              <Text style={styles.shelfText}>{shelf ? '← Back to the journal' : `Set aside (${asideCount})`}</Text>
+            </Pressable>
+          ) : null
         }
         renderItem={({ item }) => (
           <Row page={item} styles={styles} onPress={() => navigation.navigate('JournalPage', { projectId, pageId: item.id })} />
@@ -106,6 +118,8 @@ function makeStyles(colors: ThemeColors) {
     row: { paddingVertical: 14 },
     rowTitle: { color: colors.text, fontFamily: FONTS.handBold, fontSize: 25, lineHeight: 29 },
     rowDate: { color: colors.textFaint, fontFamily: FONTS.handBody, fontSize: 15, marginTop: 2 },
+    shelf: { paddingVertical: 18 },
+    shelfText: { color: colors.textFaint, fontFamily: FONTS.handBody, fontSize: 16 },
     empty: {
       color: colors.textFaint,
       fontFamily: FONTS.literaryItalic,

@@ -1,5 +1,11 @@
 -- The writing journal (2026-10-27). Safe to re-run. Paste into the Supabase SQL editor once.
 --
+-- ONE JOURNAL PER WRITER, NOT PER PROJECT. The journal is the writer's own notebook, open from the
+-- landing page and from inside any project, and the same in all of them. Nothing in it belongs to
+-- a project; what is needed in one is COPIED there (to that project's Pages), and the journal page
+-- stays as it was. So a page carries no project_id, and setting a page aside is a column here
+-- rather than a trip to the trash, which is filed per project.
+--
 -- A journal page is a free canvas: a date, a paper, and a list of ITEMS placed on it -- text
 -- in the writer's hand, washi tape, stamps, stickers, pictures and cutouts of the project's own
 -- material. Items are one jsonb array on the page rather than rows of their own: a page is
@@ -24,7 +30,6 @@
 create table if not exists public.journal_pages (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users (id) on delete cascade,
-  project_id  uuid not null references public.projects (id) on delete cascade,
   day         date not null default current_date,
   title       text not null default '',
   paper       text not null default 'lined',
@@ -35,11 +40,13 @@ create table if not exists public.journal_pages (
   items       jsonb not null default '[]'::jsonb,
   -- Order within the notebook; pages are ordered by day, then by this.
   "position"  numeric not null default 1000,
+  -- Set aside rather than deleted: out of the notebook, on a shelf of its own, and back with a tap.
+  set_aside_at timestamptz,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
 
-create index if not exists journal_pages_project_idx on public.journal_pages (project_id, day, "position");
+create index if not exists journal_pages_user_idx on public.journal_pages (user_id, day, "position");
 
 alter table public.journal_pages enable row level security;
 
@@ -59,12 +66,22 @@ create policy "own journal images" on storage.objects
   using (bucket_id = 'journal-images' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'journal-images' and (storage.foldername(name))[1] = auth.uid()::text);
 
--- A deleted page goes to Trash, never away. This restates the trash's accepted types in full
--- (it supersedes 20261011_trash_types.sql, so running this one is enough for both).
+-- Not the journal's, but carried here so one paste does both: the trash's accepted types, restated
+-- in full (this supersedes 20261011_trash_types.sql, which lets the trash hold storyboard notes).
 alter table public.trash drop constraint if exists trash_type_check;
 alter table public.trash
   add constraint trash_type_check
-  check (type in ('chapter', 'scene', 'document', 'storyboard_event', 'graph_node', 'graph_edge', 'journal_page'));
+  check (type in ('chapter', 'scene', 'document', 'storyboard_event', 'graph_node', 'graph_edge'))
+  not valid;
 
--- (For a database that ran an earlier copy of this file.)
+-- (For a database that ran an earlier copy of this file, when pages belonged to a project.)
 alter table public.journal_pages add column if not exists scan_path text;
+alter table public.journal_pages add column if not exists set_aside_at timestamptz;
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'journal_pages' and column_name = 'project_id') then
+    alter table public.journal_pages alter column project_id drop not null;
+  end if;
+end $$;
+drop index if exists public.journal_pages_project_idx;
