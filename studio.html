@@ -20,7 +20,7 @@
   anything the phone does not also read.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700&family=Spectral:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700&family=Spectral:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono&family=UnifrakturMaguntia&family=Oswald:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0d1533; --panel:#17224c; --panel-2:#1e2b5c; --border:#33447c; --border-dim:#1e2b5c;
@@ -80,6 +80,101 @@ a{color:var(--gold)}
 .wnote .f{position:absolute;left:12px;right:10px;bottom:7px;font-family:var(--hand-body);font-size:13.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wnote.faded{opacity:.55}
 svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
+
+
+/* ---------- the storyboard's paper looks (2026-10-27) ----------
+   Newspaper, paper cut-out, scrapbook, journal. Three looks over the SAME notes, threads and
+   positions -- a look is how the board is drawn, never what it holds:
+     notes      the sticky-note wall (as before)
+     clippings  the same wall, each note a torn newspaper clipping taped to a kraft journal page
+     edition    each book as a newspaper front page: the lead note as the headline story, its
+                characters' pictures as sepia halftone photographs, the rest as articles. */
+:root{
+  --newsprint:#ebdfc4; --newsprint-dark:#d9c8a2; --news-ink:#1f1a13; --news-ink-soft:#463b2c; --news-rule:#2a231a;
+  --kraft:#a98257; --red-ink:#9b2a1f;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --fibres:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .6' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .05 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+.look-row{display:flex;gap:6px}
+/* The journal page the clippings are taped to: kraft paper, ruled faintly, darker at the edges. */
+.wall.scrap{background-color:var(--kraft);
+  background-image:var(--fibres),var(--grain),repeating-linear-gradient(0deg,transparent 0 31px,rgba(60,35,15,.13) 31px 32px);
+  background-size:300px 300px,240px 240px,auto;box-shadow:inset 0 0 120px rgba(40,22,8,.55),inset 0 0 0 10px #5b3d22,inset 0 0 0 12px #2e1f14}
+/* A clipping: the shadow lives on the outer box because the torn edge (a clip-path on the body)
+   would cut a box-shadow off with it. */
+.wnote.clip{background:none !important;box-shadow:none;padding:0;filter:drop-shadow(2px 4px 4px rgba(30,16,4,.45))}
+.wnote.clip.drag{filter:drop-shadow(6px 14px 12px rgba(30,16,4,.5))}
+.clip-body{position:absolute;inset:0;padding:14px 12px 10px;background-color:var(--newsprint);
+  background-image:var(--grain),linear-gradient(160deg,rgba(255,250,235,.35),rgba(120,85,40,.12));color:var(--news-ink)}
+.clip .kicker{font-family:'Old Standard TT',serif;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--news-ink-soft);
+  border-bottom:1px solid var(--news-rule);padding-bottom:2px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:26px}
+.clip .no{position:absolute;top:11px;right:15px;font-family:'Old Standard TT',serif;font-size:9.5px;color:var(--news-ink-soft)}
+.clip .hl{font-family:'Oswald',sans-serif;font-weight:600;font-size:17px;line-height:1.05;text-transform:uppercase;letter-spacing:.01em;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.clip .by{font-family:'Old Standard TT',serif;font-style:italic;font-size:10.5px;color:var(--news-ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clip .tx{font-family:'Old Standard TT',serif;font-size:10.5px;line-height:1.3;text-align:justify;hyphens:auto;margin-top:4px;
+  column-count:2;column-gap:9px;column-rule:1px solid rgba(42,35,26,.35);height:58px;overflow:hidden}
+/* The journal's own hand, in red ink, where the note says what it became. */
+.clip .ink{position:absolute;left:12px;right:8px;bottom:5px;font-family:var(--hand);font-weight:700;font-size:16px;color:var(--red-ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:rotate(-1.5deg)}
+.tape{position:absolute;width:62px;height:20px;background:rgba(236,226,196,.62);box-shadow:0 1px 2px rgba(0,0,0,.18);z-index:2;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 3px,transparent 3px 6px)}
+.tape.l{top:-7px;left:-14px;transform:rotate(-38deg)} .tape.r{top:-7px;right:-14px;transform:rotate(36deg)}
+
+/* THE EDITION. A broadsheet on aged newsprint: grain, foxing, a centre fold, darkened edges. */
+.herald-scroll{flex:1;overflow:auto;background:#2a1d12;background-image:var(--fibres);padding:28px 18px 60px}
+.herald{position:relative;max-width:1180px;margin:0 auto;padding:22px 30px 34px;color:var(--news-ink);
+  background-color:var(--newsprint);
+  background-image:var(--grain),
+    radial-gradient(ellipse at 18% 12%,rgba(150,105,45,.20),transparent 38%),
+    radial-gradient(ellipse at 82% 76%,rgba(140,95,40,.22),transparent 42%),
+    radial-gradient(circle at 64% 22%,rgba(120,80,30,.12),transparent 9%),
+    linear-gradient(90deg,transparent calc(50% - 1px),rgba(90,60,30,.16) 50%,transparent calc(50% + 1px)),
+    linear-gradient(0deg,transparent calc(50% - 1px),rgba(90,60,30,.12) 50%,transparent calc(50% + 1px));
+  box-shadow:inset 0 0 90px rgba(95,60,22,.55),inset 0 0 22px rgba(95,60,22,.5),0 16px 50px rgba(0,0,0,.6)}
+.herald .mast-row{display:grid;grid-template-columns:150px 1fr 150px;align-items:center;gap:16px}
+.herald .ear{border:1.5px solid var(--news-rule);padding:6px 8px;text-align:center;font-family:'Old Standard TT',serif;font-size:11px;letter-spacing:.08em;line-height:1.35;text-transform:uppercase}
+.herald .mast{font-family:'UnifrakturMaguntia',serif;font-size:clamp(40px,6.4vw,80px);line-height:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.herald .motto{text-align:center;font-family:'Old Standard TT',serif;font-size:11px;letter-spacing:.32em;text-transform:uppercase;margin-top:4px}
+.herald .dateline{display:flex;justify-content:space-between;gap:10px;border-top:3px double var(--news-rule);border-bottom:1px solid var(--news-rule);
+  margin-top:8px;padding:4px 2px;font-family:'Old Standard TT',serif;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.herald .banner-hl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;text-align:center;line-height:1.02;
+  font-size:clamp(34px,4.6vw,62px);letter-spacing:.005em;margin:14px 0 4px;cursor:pointer}
+.herald .banner-deck{text-align:center;font-family:'Old Standard TT',serif;font-size:clamp(16px,1.8vw,22px);margin-bottom:12px;color:var(--news-ink-soft)}
+.herald .front{display:grid;grid-template-columns:minmax(180px,1fr) minmax(300px,2.1fr) minmax(180px,1fr);gap:0;border-top:2px solid var(--news-rule)}
+.herald .front > *{padding:12px 14px 6px} .herald .front > * + *{border-left:1px solid var(--news-rule)}
+.herald .side-hl{font-family:'Oswald',sans-serif;font-weight:600;font-size:21px;line-height:1.08;text-transform:uppercase;margin:0 0 6px}
+.herald .side-deck{font-family:'Old Standard TT',serif;font-size:15px;line-height:1.3;border-bottom:1px solid var(--news-rule);padding-bottom:6px;margin-bottom:8px}
+.herald .body{font-family:'Old Standard TT',serif;font-size:13.5px;line-height:1.42;text-align:justify;hyphens:auto}
+.herald .body p{margin:0 0 7px}
+.herald .dl{font-variant:small-caps;letter-spacing:.04em}
+.herald .by{font-family:'Old Standard TT',serif;font-style:italic;font-size:12.5px;color:var(--news-ink-soft);margin:4px 0 6px}
+.herald .cont{font-family:'Old Standard TT',serif;font-style:italic;font-size:12px;margin-top:6px;color:var(--news-ink-soft)}
+.herald .cont a{color:var(--news-ink);cursor:pointer;text-decoration:underline}
+/* Photographs: the picture in sepia, a halftone screen over it, a plate border, a caption. */
+.herald figure{margin:0}
+.herald .photo{position:relative;border:1px solid var(--news-rule);background:#3a2f22;overflow:hidden}
+.herald .photo img{display:block;width:100%;height:100%;object-fit:cover;filter:grayscale(1) sepia(.55) contrast(1.12) brightness(.93)}
+.herald .photo::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55;
+  background-image:radial-gradient(circle,rgba(30,20,10,.55) .8px,transparent 1.3px);background-size:3px 3px}
+.herald .photo .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'UnifrakturMaguntia',serif;font-size:64px;color:rgba(235,223,196,.55)}
+.herald figcaption{font-family:'Old Standard TT',serif;font-size:11.5px;line-height:1.3;margin-top:4px;padding-top:3px;border-top:1px solid var(--news-rule)}
+.herald .lead-photo{height:clamp(300px,34vw,460px)}
+.herald .kicker{font-family:'Old Standard TT',serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:3px;color:var(--news-ink-soft)}
+.herald .columns{border-top:3px double var(--news-rule);margin-top:4px;padding-top:12px;column-width:230px;column-gap:26px;column-rule:1px solid var(--news-rule)}
+.herald .art{break-inside:avoid;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(42,35,26,.5);cursor:pointer}
+.herald .art:hover .art-hl, .herald .side-art:hover .side-hl{text-decoration:underline}
+.herald .art-hl{font-family:'Oswald',sans-serif;font-weight:600;font-size:18px;line-height:1.08;text-transform:uppercase;margin:0 0 4px}
+.herald .side-art{cursor:pointer;margin-bottom:12px}
+.herald .strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;border-top:3px double var(--news-rule);margin-top:6px;padding-top:12px}
+.herald .strip .photo{height:190px}
+.herald .empty{font-family:'Old Standard TT',serif;font-style:italic;text-align:center;padding:40px 10px;font-size:17px}
+.herald .lead-tools{display:flex;gap:16px;justify-content:center;margin-bottom:6px}
+.herald .lead-tools a{font-family:'Old Standard TT',serif;font-style:italic;font-size:13px;color:var(--news-ink-soft);cursor:pointer}
+@media (max-width:860px){
+  .herald{padding:16px 14px 24px} .herald .mast-row{grid-template-columns:1fr} .herald .ear{display:none}
+  .herald .front{grid-template-columns:1fr} .herald .front > * + *{border-left:none;border-top:1px solid var(--news-rule)}
+}
 
 /* ---------- overlays ---------- */
 #overlay{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:24px;
@@ -389,7 +484,10 @@ async function showFlashcard(member){
 }
 
 /* ====================================================================== STORYBOARD */
-const SB = { book: 0, stringing: null };
+const SB = { book: 0, stringing: null, lead: null,
+  // The look is this browser's preference; the board itself is shared with the phone.
+  look: (() => { try { return localStorage.getItem('studio-sb-look') || 'notes'; } catch (e) { return 'notes'; } })() };
+const LOOKS = [['notes', 'Notes'], ['clippings', 'Clippings'], ['edition', 'Front page']];
 const NOTE_W = 196, NOTE_H = 172, M = 34, GX = 34, GY = 54, TOP = 34;
 
 function jitter(id, salt){
@@ -409,14 +507,23 @@ async function renderStoryboard(opts = {}){
       <span class="label">THREADS</span><div class="group" id="sb-threads"></div>
       <span class="label">CHARACTERS</span><div class="group" id="sb-cast"></div>
       <span style="flex:1"></span>
+      <div class="look-row" id="sb-look"></div>
       <button class="btn" id="sb-order">Order</button>
       <button class="btn" id="sb-tidy">Tidy up</button>
       <button class="btn solid" id="sb-new">+ Note</button>
     </div>
     <div id="sb-banner"></div>
     ${wall.ok ? '' : '<div class="note-msg" style="padding:8px">Paste supabase/migrations/20261011b_storyboard_wall.sql once to keep notes where you drop them.</div>'}
-    <div class="wall-scroll"><div class="wall" id="wall"></div></div>
+    <div class="wall-scroll" id="wall-scroll"><div class="wall" id="wall"></div></div>
+    <div class="herald-scroll" id="herald-scroll" hidden></div>
   </div>`;
+  const drawLooks = () => { $('#sb-look').innerHTML = LOOKS.map(([k, label]) => `<button class="chip ${SB.look === k ? 'on' : ''}" data-look="${k}">${label}</button>`).join(''); };
+  drawLooks();
+  $('#sb-look').onclick = (e) => {
+    const b = e.target.closest('[data-look]'); if (!b) return;
+    SB.look = b.dataset.look; try { localStorage.setItem('studio-sb-look', SB.look); } catch (err) { /* a preference only */ }
+    drawLooks(); drawStoryboard();
+  };
   $('#sb-books').innerHTML = books.map((b) => `<button class="chip ${b === SB.book ? 'on' : ''}" data-b="${b}">${bookName(b)}</button>`).join('');
   $('#sb-books').onclick = (e) => { const b = e.target.closest('[data-b]'); if (b) { SB.book = Number(b.dataset.b); SB.stringing = null; drawStoryboard(); markBooks(); } };
   function markBooks(){ document.querySelectorAll('#sb-books .chip').forEach((c) => c.classList.toggle('on', Number(c.dataset.b) === SB.book)); }
@@ -452,7 +559,13 @@ function drawStoryboard(){
   $('#sb-banner').innerHTML = st ? `<div class="banner" style="border-color:${st.color}"><span class="sw" style="background:${st.color}"></span><span style="flex:1">Stringing <b>${esc(st.name)}</b> — click notes to pin it to them, or click again to unpin.</span><button class="btn gold" id="sb-done">Done</button></div>` : '';
   if (st) $('#sb-done').onclick = () => { SB.stringing = null; drawStoryboard(); };
 
+  const edition = SB.look === 'edition';
+  $('#wall-scroll').hidden = edition; $('#herald-scroll').hidden = !edition;
+  $('#sb-tidy').hidden = edition;
+  if (edition) { drawEdition(); return; }
+
   const w = $('#wall');
+  w.classList.toggle('scrap', SB.look === 'clippings');
   const events = bookEvents();
   const width = Math.max(w.parentElement.clientWidth, 900);
   const cols = Math.max(3, Math.floor((width - M * 2 + GX) / (NOTE_W + GX)));
@@ -467,10 +580,27 @@ function drawStoryboard(){
   const castOf = new Map(S.cast.map((c) => [c.id, c]));
   const onThread = (id) => SB.stringing && S.links.some((k) => k.thread_id === SB.stringing && k.event_id === id);
 
+  const clippings = SB.look === 'clippings';
   w.innerHTML = events.map((e, i) => {
     const s = spot.get(e.id); const m = castOf.get(e.cast_id);
     const ch = chapterLabel(e.chapter_id);
     const on = onThread(e.id);
+    if (clippings) {
+      const who = (e.character_ids || []).map((id) => castOf.get(id)?.name).filter(Boolean);
+      const kicker = threadsOf(e.id).map((t) => t.name).join(' · ') || bookName(SB.book);
+      // The tape takes the note's colour, where the sticky note took it whole.
+      const tape = m ? `background-color:color-mix(in srgb,${m.color} 70%,transparent)` : '';
+      return `<div class="wnote clip ${SB.stringing && !on ? 'faded' : ''}" data-id="${e.id}" style="left:${s.x}px;top:${s.y}px;transform:rotate(${jitter(e.id, 3) * 3}deg);${on && st ? `outline:3px solid ${st.color};` : ''}">
+        <div class="clip-body" style="clip-path:${tornEdge(e.id, NOTE_W, NOTE_H)}">
+          <div class="kicker">${esc(kicker)}</div><div class="no">No. ${i + 1}</div>
+          <div class="hl">${esc(e.title || 'Untitled')}</div>
+          ${who.length ? `<div class="by">With ${esc(who.join(', '))}</div>` : ''}
+          ${e.summary ? `<div class="tx">${esc(e.summary)}</div>` : ''}
+          <div class="ink">${e.treatment_id ? '↗ the full scene' : ch ? '→ ' + esc(ch) : ''}</div>
+        </div>
+        <span class="tape l" style="${tape}"></span><span class="tape r" style="${tape}"></span>
+      </div>`;
+    }
     return `<div class="wnote ${SB.stringing && !on ? 'faded' : ''}" data-id="${e.id}" style="left:${s.x}px;top:${s.y}px;background:${m ? m.color : NOTE_DEFAULT};transform:rotate(${jitter(e.id, 3) * 2.4}deg);${on && st ? `outline:3px solid ${st.color};` : ''}">
       <div class="num">#${i + 1}</div><div class="who">${esc(m ? m.name : '')}</div>
       <div class="t">${esc(e.title || 'Untitled')}</div>
@@ -480,6 +610,114 @@ function drawStoryboard(){
   }).join('') + `<svg class="strings" width="${bw}" height="${bh}"></svg>`;
   drawStrings(spot);
   wireNotes(spot);
+}
+
+
+/* ---- the paper looks --------------------------------------------------------------------- */
+// A clipping's torn edge: a polygon walked round the box with small, stable jags -- the same
+// note tears the same way every time it is drawn.
+const tornCache = new Map();
+function tornEdge(id, w, h){
+  const key = id + w + 'x' + h;
+  if (tornCache.has(key)) return tornCache.get(key);
+  let k = 0; const j = (amp) => jitter(id, ++k) * amp;
+  const pts = [];
+  for (let x = 0; x <= w; x += 9) pts.push([x, 2 + j(2)]);
+  for (let y = 9; y <= h; y += 11) pts.push([w - 2 + j(1.5), y]);
+  for (let x = w; x >= 0; x -= 7) pts.push([x, h - 3 + j(3)]);
+  for (let y = h - 11; y > 0; y -= 11) pts.push([2 + j(1.5), y]);
+  const out = `polygon(${pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(',')})`;
+  tornCache.set(key, out);
+  return out;
+}
+const ROMAN = (n) => [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']].reduce((out, [v, r]) => { while (n >= v) { out += r; n -= v; } return out; }, '');
+let projectTitle = null;
+async function loadProjectTitle(){
+  if (projectTitle !== null) return projectTitle;
+  const { data } = await sb.from('projects').select('name').eq('id', projectId).maybeSingle();
+  projectTitle = (data && data.name) || 'The Storyboard';
+  return projectTitle;
+}
+const paragraphs = (text) => esc(text || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+
+// THE EDITION: one book as a newspaper front page. The lead is the note last opened here (the
+// first note until then); clicking any article makes it the lead, and the lead's headline opens
+// the note itself. Pictures are the characters' own, printed in sepia through a halftone screen.
+async function drawEdition(){
+  const box = $('#herald-scroll');
+  const events = bookEvents();
+  const castOf = new Map(S.cast.map((c) => [c.id, c]));
+  const title = await loadProjectTitle();
+  if (!events.some((e) => e.id === SB.lead)) SB.lead = events[0]?.id ?? null;
+  const lead = events.find((e) => e.id === SB.lead);
+  const others = events.filter((e) => e !== lead);
+  const peopleOf = (e) => [...new Set([...(e.character_ids || []), ...(e.cast_id ? [e.cast_id] : [])])].map((id) => castOf.get(id)).filter(Boolean);
+  const inBook = [...new Set(events.flatMap((e) => peopleOf(e)))];
+  const pictured = await Promise.all(inBook.map(async (c) => ({ c, url: await imageUrl(c.image_path) })));
+  const urlOf = new Map(pictured.map(({ c, url }) => [c.id, url]));
+  const photo = (c, cls = '') => {
+    const url = c && urlOf.get(c.id);
+    return `<div class="photo ${cls}">${url ? `<img src="${esc(url)}" alt="">` : `<div class="none">${esc((c?.name || '?')[0])}</div>`}</div>`;
+  };
+  const kicker = (e) => { const t = threadsOf(e.id).map((x) => x.name); return t.length ? `<div class="kicker">${esc(t.join(' · '))}</div>` : ''; };
+  const byline = (e) => { const p = peopleOf(e).map((c) => c.name); return p.length ? `<div class="by">With ${esc(p.join(', '))}</div>` : ''; };
+  const cont = (e) => {
+    const bits = [];
+    if (e.chapter_id && chapterLabel(e.chapter_id)) bits.push(`Continued in <a data-chapter="${e.chapter_id}">${esc(chapterLabel(e.chapter_id))}</a>`);
+    if (e.treatment_id) bits.push(`<a data-scene="${e.treatment_id}">The full scene</a>`);
+    return bits.length ? `<div class="cont">${bits.join(' · ')}</div>` : '';
+  };
+  const n = events.length;
+
+  let front = '';
+  if (!lead) {
+    front = `<div class="empty">Nothing has been filed for ${esc(bookName(SB.book))} yet. Add a note with + Note, or pin a scene from Scenes.</div>`;
+  } else {
+    const people = peopleOf(lead);
+    const leadFace = people.find((c) => urlOf.get(c.id)) || people[0] || null;
+    const sides = others.slice(0, 3);
+    const rest = others.slice(3);
+    const sentences = (lead.summary || '').split(/(?<=[.!?])\s+/);
+    front = `
+      <h1 class="banner-hl" data-open="${lead.id}" title="Open this note">${esc(lead.title || 'Untitled')}</h1>
+      <div class="banner-deck">${esc(threadsOf(lead.id).map((t) => t.name).join(' · ') || (sentences.length > 1 ? sentences[0] : bookName(SB.book) + ', note ' + (events.indexOf(lead) + 1) + ' of ' + n))}</div>
+      <div class="lead-tools"><a data-open="${lead.id}">Edit this note</a>${lead.treatment_id ? `<a data-scene="${lead.treatment_id}">Read the full scene</a>` : ''}</div>
+      <div class="front">
+        <div>
+          <div class="side-hl">${esc(lead.title || 'Untitled')}</div>
+          ${byline(lead)}
+          <div class="body lead-body">${(paragraphs(lead.summary) || '<p><i>No summary written yet.</i></p>').replace(/^<p>/, `<p><span class="dl">${esc(bookName(SB.book))}, No. ${events.indexOf(lead) + 1}.</span> — `)}</div>
+          ${cont(lead)}
+        </div>
+        <figure>
+          ${photo(leadFace, 'lead-photo')}
+          <figcaption>${leadFace ? `${esc(leadFace.name)}${leadFace.description ? ` — ${esc(leadFace.description)}` : ''}${people.length > 1 ? `. Also in this scene: ${esc(people.filter((c) => c !== leadFace).map((c) => c.name).join(', '))}.` : '.'}` : 'No one has been placed in this scene yet.'}</figcaption>
+        </figure>
+        <div>
+          ${sides.map((e) => `<div class="side-art" data-lead="${e.id}">${kicker(e)}<div class="side-hl">${esc(e.title || 'Untitled')}</div>${e.summary ? `<div class="side-deck">${esc((e.summary.split(/(?<=[.!?])\s+/)[0] || '').slice(0, 160))}</div>` : ''}${byline(e)}</div>`).join('') || '<div class="body"><p><i>No other notes in this book yet.</i></p></div>'}
+        </div>
+      </div>
+      ${rest.length ? `<div class="columns">${rest.map((e) => `<article class="art" data-lead="${e.id}">${kicker(e)}<h3 class="art-hl">${esc(e.title || 'Untitled')}</h3>${byline(e)}<div class="body">${paragraphs(e.summary)}</div>${cont(e)}</article>`).join('')}</div>` : ''}`;
+  }
+  const strip = inBook.filter((c) => urlOf.get(c.id)).slice(0, 6);
+  box.innerHTML = `<div class="herald">
+    <div class="mast-row">
+      <div class="ear">${esc(bookName(SB.book))}<br>Edition</div>
+      <div class="mast">${esc(title)}</div>
+      <div class="ear">Scenes<br>Threads<br>People</div>
+    </div>
+    <div class="motto">A record of the story, in its own order</div>
+    <div class="dateline"><span>Vol. ${ROMAN(SB.book + 1)} &nbsp; No. ${n}</span><span>The Storyboard</span><span>${n} note${n === 1 ? '' : 's'}</span></div>
+    ${front}
+    ${strip.length ? `<div class="strip">${strip.map((c) => `<figure>${photo(c)}<figcaption><b>${esc(c.name)}.</b> ${esc(c.description || '')}</figcaption></figure>`).join('')}</div>` : ''}
+  </div>`;
+  box.onclick = (ev) => {
+    const t = ev.target.closest('[data-lead],[data-open],[data-chapter],[data-scene]'); if (!t) return;
+    if (t.dataset.chapter) return go('write', { chapter: t.dataset.chapter });
+    if (t.dataset.scene) return go('sketches', { sketch: t.dataset.scene });
+    if (t.dataset.open) return openNote(S.events.find((e) => e.id === t.dataset.open));
+    SB.lead = t.dataset.lead; drawEdition(); box.scrollTop = 0;
+  };
 }
 
 function threadsOf(eventId){
@@ -555,6 +793,7 @@ async function toggleLink(threadId, eventId){
 
 // A note, opened over blurred glass: heading, summary, colour, who is in it, threads, chapter.
 function openNote(e){
+  if (e) SB.lead = e.id;
   const isNew = !e;
   const draft = e ? { ...e } : { id: uuid(), project_id: projectId, book: SB.book, title: '', summary: '', chapter_id: null, cast_id: null, character_ids: [] };
   const involved = new Set(draft.character_ids || []);

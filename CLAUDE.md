@@ -1,6 +1,6 @@
 # StoryMap ("The Trail to Kailash")
 
-> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§52 first.**
+> **New session? Read "START HERE" below (2026-10-12) and handoff §47–§53 first.**
 
 A personal writing tool for a five-book mythological saga called "The Trail
 to Kailash" — the app itself is branded **StoryMap** throughout the UI (login
@@ -68,7 +68,7 @@ root); this repo is the migration of that sandbox into a real, independent app.
 ## START HERE — where things stand (2026-10-12)
 
 The rest of this file is the original brief with dated notes layered on; much of it is
-history. **This section and handoff §47–§52 are the current picture.** Handoff §36–§46 hold
+history. **This section and handoff §47–§53 are the current picture.** Handoff §36–§46 hold
 the detail behind each item.
 
 **Two apps, one Supabase project (Saga-01 is the saga).**
@@ -131,6 +131,10 @@ writer accepts in Assistant → Proposals. Tools, checks and the proposal queue 
 tested with no key; still undeployed. Needs `20261012_assistant_library.sql` (after
 `20260821_assistant_retrieval.sql`). **No fixed number of books** anywhere (handoff §52): books
 are inferred from chapters, and every list offers the next one.
+
+**The storyboard in paper (handoff §53, web only so far):** the studio's storyboard has three
+looks — Notes, Clippings (torn newspaper clippings taped to a kraft journal page) and Front page
+(each book as a broadsheet with sepia halftone photographs). Phone port pending the writer's verdict.
 
 **Rules the writer has set, beyond the design principles below:** always commit AND push;
 commands include their `cd`; ask before any database write and dry-run first; never use the

@@ -5638,3 +5638,35 @@ chapter carries an integer `book`, and books are inferred from chapters as acts 
 Checked: phone tsc, `deno check`, the 25 assistant tests (book 0 refused, any book from 1
 accepted), and the web list with no chapters, two books and a chapter in Book Nine.
 
+## 53. THE STORYBOARD IN PAPER: CLIPPINGS AND A FRONT PAGE (2026-10-27, web)
+
+The writer asked for a storyboard interface close to "newspaper + paper cutout + scrapbook +
+journal" (a 1941 broadsheet as the reference). Built in `studio.html` first, where the look is
+quick to iterate; the phone port waits on the writer's verdict.
+
+Three LOOKS over the same notes, threads and positions -- a look is how the board is drawn, never
+what it holds -- chosen from the storyboard toolbar and remembered per browser
+(`studio-sb-look`):
+- **Notes**: the sticky-note wall, unchanged.
+- **Clippings**: the same wall (drag, string, positions shared with the phone), each note a torn
+  newsprint clipping (a stable per-note `tornEdge` clip-path; the shadow on the outer box because
+  a clip-path would cut a box-shadow off) taped to a ruled kraft journal page. Kicker = the note's
+  threads, condensed headline (Oswald), "With …" byline from who is in it, two-column body (Old
+  Standard TT), "No. n", and the chapter or scene it became written in red handwriting (Caveat).
+  The tape carries the note's character colour, where the sticky note took it whole.
+- **Front page**: one book as a broadsheet. Blackletter masthead (UnifrakturMaguntia) of the
+  project name, edition ears, Vol. (book in roman) / No. (notes) dateline, the LEAD note as the
+  banner headline with its threads as the deck, a three-column front (lead story with wire-style
+  dateline, the lead's characters' picture as a sepia halftone photograph with caption, three
+  side stories), the rest as articles in ruled columns, and a photo strip of the book's pictured
+  characters. Click an article to make it the lead; the banner or "Edit this note" opens the note;
+  "Continued in Chapter n" opens Prose, "The full scene" opens Scenes. Aged newsprint is CSS only:
+  SVG grain, foxing, a centre fold, darkened edges.
+
+Textures and fonts are CSS and Google Fonts; nothing new is stored. Checked in the harness
+(`canon-import/studio-harness.html?tab=storyboard`, now with Dev's and Amara's portraits served
+from `canon-import/pictures/`): both looks render, articles and photos populate, no console
+errors. Not yet on the live project or the phone. A phone port needs the three fonts bundled
+(@expo-google-fonts, OTA-safe) and the sepia/halftone done differently (React Native has no CSS
+filters: an overlay, or a toned copy made at upload).
+
