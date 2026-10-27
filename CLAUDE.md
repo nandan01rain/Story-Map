@@ -136,6 +136,13 @@ are inferred from chapters, and every list offers the next one.
 looks — Notes, Clippings (torn newspaper clippings taped to a kraft journal page) and Front page
 (each book as a broadsheet with sepia halftone photographs). Phone port pending the writer's verdict.
 
+**The journal (handoff §54, 2026-10-27):** a free-canvas writing diary in both apps (studio →
+Journal; phone → Write → Journal), plus **scanning pages from the paper notebook, kept exactly as
+written** — no OCR, no clean-up, mirror handwriting preserved. One renderer for both apps:
+`journal/journal-kit.js` (the phone inlines it via `node scripts/build-journal-html.mjs` → rerun
+after editing anything in `journal/`). Needs **`20261027_journal.sql`** (unrun; it also supersedes
+`20261011_trash_types`). The storyboard's Clippings look is now **Scrapbook**, in colour.
+
 **Rules the writer has set, beyond the design principles below:** always commit AND push;
 commands include their `cd`; ask before any database write and dry-run first; never use the
 web app's JSON Import (it replaces the project); nothing is ever deleted outright — Trash or

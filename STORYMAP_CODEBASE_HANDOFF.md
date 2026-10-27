@@ -5670,3 +5670,85 @@ errors. Not yet on the live project or the phone. A phone port needs the three f
 (@expo-google-fonts, OTA-safe) and the sepia/halftone done differently (React Native has no CSS
 filters: an overlay, or a toned copy made at upload).
 
+
+## 54. THE WRITING JOURNAL, SCANNING THE PAPER NOTEBOOK, AND THE STORYBOARD IN COLOUR (2026-10-27)
+
+**The journal** is the writer's own diary of making the saga, kept inside the project, in both
+apps: studio.html → Journal, and the phone's drawer → Write → Journal (after Read; it is not a
+stage of the pipeline). Every page is a free canvas holding text in five hands (Caveat, Patrick
+Hand, Spectral, JetBrains Mono, Cinzel), washi tape (8 colours × 5 patterns), rubber stamps (box,
+circle, date, letter-by-letter), twelve drawn stickers, the writer's uploaded pictures, and
+cut-outs from the project: a character (their picture, or a kraft tag), a storyboard note
+(newsprint), a scene (lined paper), a document's first paragraph (grid paper). Each item can be
+dragged, turned, resized and pinched. The decisions: **writing journal** (not character diaries),
+**free canvas** (not a template), **both apps**, elements from **the built-in kit, the writer's
+uploads and the project**.
+
+**One source for both apps.** `journal/journal-kit.js` + `.css` draw a page, handle editing and
+run the scanner, and know nothing about Supabase. studio.html loads them with `<script src>`. The
+phone runs them in a WebView: `scripts/build-journal-html.mjs` inlines them, with
+`journal/journal-phone.js` (the phone's bar, palette and message bridge), into
+`mobile/src/lib/journalHtml.ts`. **Rerun the build after changing any journal/ file**, then
+commit the generated file. The app side (`JournalPageScreen`) holds the data, saves through
+`journalStore` (debounced and coalesced, flushed on leaving), signs picture links on request, and
+writes words in a native sheet. Double-tapping text on the phone opens that sheet rather than
+editing in place, because the system keyboard covers a WebView's inline editor. The web edits
+in place. The phone's palette is drawn in journal-phone.js, so item defaults (sizes, papers) are
+written twice: once there and once in studio.html's `drawPalette`. Keep them alike, or move them
+into the kit.
+
+**Scanning.** "Scan pages" picks photographs and puts each through the kit's scanner:
+- drag four corners, turn by quarter turns, and optionally split a spread at a draggable binding
+  line;
+- a homography warp then flattens the page (source capped at 3200px, output at 2600px, JPEG 0.9);
+- each page that comes out is stored in `journal-images` as `uid/scan-….jpg` and becomes a
+  journal page with `scan_path`, dated today. The date can be changed.
+
+**As-is capture is the requirement, not a limitation.** The writer uses mirror handwriting for
+some lines and asked that nothing be standardised. So there is no OCR and no clean-up. "Even out
+the light" is offered and off by default. A scanned page can carry kit items on top of it; the
+scan itself is never altered. On the phone, photos come from the file and gallery picker
+(expo-document-picker). **Taking one straight from the camera needs expo-image-picker**, which is
+a native module: bundle it into the 1.3.0 rebuild with expo-blur.
+
+**Data.** `supabase/migrations/20261027_journal.sql`, **not yet run**:
+- `journal_pages(id, user_id, project_id, day, title, paper, scan_path, items jsonb, position)`
+  with RLS;
+- the private bucket `journal-images` with a first-folder = uid policy;
+- the trash constraint restated to accept `journal_page`. This supersedes
+  `20261011_trash_types.sql`, so running this one is enough.
+
+Until it runs, both apps say what to paste and nothing else breaks. Trashed pages carry
+`{ page }` whole and restore in either app; a scan's picture stays in storage, so a restore
+brings the scan back too.
+
+**Fonts on the phone.** The WebView loads the five faces from Google Fonts. The journal needs the
+network for its pictures anyway, and the fallbacks are still a hand and a serif.
+
+**The storyboard in colour.** "Clippings" is now **Scrapbook**, after "it shouldn't be just black
+and white". The references were colourful travel-journal spreads and a Marauder's Map.
+- The board is a folded, stained parchment map.
+- Each note is a cut-out chosen by a hash of its id, so it is stable: newsprint, lined, grid, a
+  kraft tag with its hole, card in the character's colour, or a colour photograph of one of its
+  characters on a white print border (only when one has a picture).
+- Washi tape comes in the character's colour; the first thread is a rubber stamp in the thread's
+  colour; there is the odd sticker. All of it from the journal kit.
+- The front page keeps the broadsheet, with colour photographs taped in, thread-coloured dots on
+  the kickers and a red masthead. The sepia and halftone are gone.
+
+Rubber stamps in both looks and in the journal now use `--jk-ink`, a worn-ink mask that is mostly
+solid. The grain mask they had before let through about a third of the ink, so they barely
+showed.
+
+**Checked** in the harnesses (`canon-import/studio-harness.html?tab=journal` and
+`?tab=storyboard`; `canon-import/journal-phone-harness.html` plays the app's half of the
+WebView bridge):
+- every item kind renders and saves;
+- the phone palette adds from all three tabs;
+- a document cut-out round-trips through the app;
+- a double tap asks the app for words;
+- a scanned spread splits into two pages, at 260 to 815 ms;
+- the scrapbook draws every paper with photos hydrated, and the front page prints in colour.
+
+**Not yet checked:** the live project (the migration has not been run), a real device, or a
+real notebook photograph larger than the 1000px sample.
