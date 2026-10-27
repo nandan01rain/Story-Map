@@ -36,6 +36,11 @@ export type SignedInStackParamList = {
    * created until the first character is typed, so opening a blank page costs nothing.
    */
   Page: { projectId: string; pageId?: string };
+  /** The writing journal: the writer's diary of making the saga, pages made here or scanned in. */
+  Journal: { projectId: string };
+  JournalPage: { projectId: string; pageId: string };
+  /** Photographs of notebook pages, straightened and kept exactly as written. */
+  JournalScan: { projectId: string };
   /** No projectId searches every project -- the landing page's Explore tab. */
   Search: { projectId?: string } | undefined;
   Documents: { projectId: string };

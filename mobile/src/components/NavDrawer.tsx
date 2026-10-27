@@ -73,6 +73,7 @@ export default function NavDrawer({
   onOpenNotes,
   onOpenTreatments,
   onOpenStoryboard,
+  onOpenJournal,
   onOpenDocuments,
   onOpenCharacters,
   onOpenBraid,
@@ -95,6 +96,7 @@ export default function NavDrawer({
   onOpenNotes: () => void;
   onOpenTreatments: () => void;
   onOpenStoryboard: () => void;
+  onOpenJournal: () => void;
   onOpenDocuments: () => void;
   onOpenCharacters: () => void;
   onOpenBraid: () => void;
@@ -152,6 +154,8 @@ export default function NavDrawer({
     { key: 'storyboard', icon: 'map', label: 'Storyboard', onPress: onOpenStoryboard },
     { key: 'write', icon: 'feather', label: 'Prose', onPress: onOpenWriter },
     { key: 'read', icon: 'bookmark', label: 'Read', onPress: onOpenReader },
+    // Not a stage of the pipeline: the writer's diary of making the saga, kept beside it.
+    { key: 'journal', icon: 'pencil', label: 'Journal', onPress: onOpenJournal },
   ];
 
   // The assistant is not here: it is a toggle on the project's own page, and a button on every

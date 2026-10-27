@@ -30,6 +30,9 @@ import PageScreen from '../screens/PageScreen';
 import TreatmentScreen from '../screens/TreatmentScreen';
 import TreatmentsScreen from '../screens/TreatmentsScreen';
 import StoryboardScreen from '../screens/StoryboardScreen';
+import JournalScreen from '../screens/JournalScreen';
+import JournalPageScreen from '../screens/JournalPageScreen';
+import JournalScanScreen from '../screens/JournalScanScreen';
 import PagesScreen from '../screens/PagesScreen';
 import { useAuthStore } from '../store/authStore';
 import { FONTS, useTheme } from '../theme';
@@ -108,6 +111,9 @@ export default function RootNavigator() {
           <Stack.Screen name="Treatments" component={TreatmentsScreen} options={{ title: 'Scenes' }} />
           <Stack.Screen name="Treatment" component={TreatmentScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Storyboard" component={StoryboardScreen} options={{ title: 'Storyboard' }} />
+          <Stack.Screen name="Journal" component={JournalScreen} options={{ title: 'Journal' }} />
+          <Stack.Screen name="JournalPage" component={JournalPageScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="JournalScan" component={JournalScanScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Search" component={SearchScreen} />
         </Stack.Navigator>
       ) : (
