@@ -82,30 +82,40 @@ a{color:var(--gold)}
 svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
 
 
-/* ---------- the storyboard's paper looks (2026-10-27) ----------
-   Newspaper, paper cut-out, scrapbook, journal. Three looks over the SAME notes, threads and
-   positions -- a look is how the board is drawn, never what it holds:
+/* ---------- the storyboard's paper looks (2026-10-27, in colour the same day) ----------
+   Newspaper, paper cut-out, scrapbook, journal -- and in colour: a travel journal, not an archive.
+   Three looks over the SAME notes, threads and positions -- a look is how the board is drawn,
+   never what it holds:
      notes      the sticky-note wall (as before)
-     clippings  the same wall, each note a torn newspaper clipping taped to a kraft journal page
-     edition    each book as a newspaper front page: the lead note as the headline story, its
-                characters' pictures as sepia halftone photographs, the rest as articles. */
+     scrapbook  the same wall on a folded parchment map, each note a different cut-out -- newsprint,
+                lined and grid paper, a kraft tag, coloured card, or a photograph of the character
+                -- held by washi tape in the character's colour, threads stamped on in their own
+     edition    each book as a newspaper front page, its characters' pictures in colour. */
 :root{
-  --newsprint:#ebdfc4; --newsprint-dark:#d9c8a2; --news-ink:#1f1a13; --news-ink-soft:#463b2c; --news-rule:#2a231a;
-  --kraft:#a98257; --red-ink:#9b2a1f;
+  --newsprint:#efe4c8; --news-ink:#1f1a13; --news-ink-soft:#463b2c; --news-rule:#2a231a;
+  --red-ink:#a3271b; --map:#e6cc98;
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --fibres:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .6' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .05 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
 }
 .look-row{display:flex;gap:6px}
-/* The journal page the clippings are taped to: kraft paper, ruled faintly, darker at the edges. */
-.wall.scrap{background-color:var(--kraft);
-  background-image:var(--fibres),var(--grain),repeating-linear-gradient(0deg,transparent 0 31px,rgba(60,35,15,.13) 31px 32px);
-  background-size:300px 300px,240px 240px,auto;box-shadow:inset 0 0 120px rgba(40,22,8,.55),inset 0 0 0 10px #5b3d22,inset 0 0 0 12px #2e1f14}
-/* A clipping: the shadow lives on the outer box because the torn edge (a clip-path on the body)
+/* The board: a parchment map, folded in panels, stained, darker at the edges. */
+.wall.scrap{background-color:var(--map);
+  background-image:var(--grain),
+    linear-gradient(90deg,transparent calc(25% - 1px),rgba(110,70,25,.20) 25%,rgba(255,245,215,.35) calc(25% + 1px),transparent calc(25% + 3px)),
+    linear-gradient(90deg,transparent calc(50% - 1px),rgba(110,70,25,.24) 50%,rgba(255,245,215,.35) calc(50% + 1px),transparent calc(50% + 3px)),
+    linear-gradient(90deg,transparent calc(75% - 1px),rgba(110,70,25,.20) 75%,rgba(255,245,215,.35) calc(75% + 1px),transparent calc(75% + 3px)),
+    linear-gradient(0deg,transparent calc(50% - 1px),rgba(110,70,25,.20) 50%,rgba(255,245,215,.3) calc(50% + 1px),transparent calc(50% + 3px)),
+    radial-gradient(ellipse 380px 260px at 12% 18%,rgba(150,95,30,.30),transparent 70%),
+    radial-gradient(ellipse 300px 220px at 86% 72%,rgba(130,80,25,.30),transparent 70%),
+    radial-gradient(circle 70px at 64% 30%,rgba(120,70,20,.20),transparent 70%),
+    radial-gradient(circle 46px at 30% 80%,rgba(140,80,30,.18),transparent 70%);
+  background-size:240px 240px,auto,auto,auto,auto,auto,auto,auto,auto;
+  box-shadow:inset 0 0 140px rgba(110,62,18,.55),inset 0 0 0 10px #6a4526,inset 0 0 0 12px #3b2614}
+/* A cut-out: the shadow lives on the outer box because the torn edge (a clip-path on the body)
    would cut a box-shadow off with it. */
-.wnote.clip{background:none !important;box-shadow:none;padding:0;filter:drop-shadow(2px 4px 4px rgba(30,16,4,.45))}
-.wnote.clip.drag{filter:drop-shadow(6px 14px 12px rgba(30,16,4,.5))}
-.clip-body{position:absolute;inset:0;padding:14px 12px 10px;background-color:var(--newsprint);
-  background-image:var(--grain),linear-gradient(160deg,rgba(255,250,235,.35),rgba(120,85,40,.12));color:var(--news-ink)}
+.wnote.clip{background:none !important;box-shadow:none;padding:0;filter:drop-shadow(2px 4px 4px rgba(60,35,10,.4))}
+.wnote.clip.drag{filter:drop-shadow(6px 14px 12px rgba(60,35,10,.5))}
+.clip-body{position:absolute;inset:0;padding:14px 12px 10px;color:var(--news-ink);overflow:hidden}
 .clip .kicker{font-family:'Old Standard TT',serif;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--news-ink-soft);
   border-bottom:1px solid var(--news-rule);padding-bottom:2px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:26px}
 .clip .no{position:absolute;top:11px;right:15px;font-family:'Old Standard TT',serif;font-size:9.5px;color:var(--news-ink-soft)}
@@ -117,9 +127,33 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
 /* The journal's own hand, in red ink, where the note says what it became. */
 .clip .ink{position:absolute;left:12px;right:8px;bottom:5px;font-family:var(--hand);font-weight:700;font-size:16px;color:var(--red-ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:rotate(-1.5deg)}
-.tape{position:absolute;width:62px;height:20px;background:rgba(236,226,196,.62);box-shadow:0 1px 2px rgba(0,0,0,.18);z-index:2;
-  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 3px,transparent 3px 6px)}
-.tape.l{top:-7px;left:-14px;transform:rotate(-38deg)} .tape.r{top:-7px;right:-14px;transform:rotate(36deg)}
+/* The papers. Newsprint keeps the paper's columns; the others are written by hand. */
+.clip.p-news .clip-body{background-color:var(--newsprint);background-image:var(--grain),linear-gradient(160deg,rgba(255,250,235,.35),rgba(120,85,40,.12))}
+.clip.p-lined .clip-body{background:#fdf9ee;background-image:linear-gradient(transparent 0 21px,rgba(80,120,180,.32) 21px 22px),linear-gradient(90deg,transparent 22px,rgba(210,80,80,.45) 22px 23.5px,transparent 23.5px);background-size:100% 22px,100% 100%;padding-left:30px}
+.clip.p-grid .clip-body{background:#f9f6ea;background-image:linear-gradient(rgba(70,130,150,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(70,130,150,.25) 1px,transparent 1px);background-size:13px 13px}
+.clip.p-tag .clip-body{background-color:#d3ad78;background-image:var(--fibres),var(--grain);padding-left:30px}
+.clip.p-tag .clip-body::before{content:"";position:absolute;left:9px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:var(--map);box-shadow:inset 0 0 0 2px #b08550,inset 1px 1px 3px rgba(0,0,0,.35)}
+.clip.p-card .clip-body{background-image:var(--grain)}
+.clip:not(.p-news) .hand-t{font-family:var(--hand);font-weight:700;font-size:25px;line-height:1;color:#2b2118;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:22px}
+.clip.p-grid .hand-t{font-family:var(--hand-body);font-weight:400;font-size:21px}
+.clip .hand-s{font-family:var(--hand-body);font-size:14.5px;line-height:1.15;color:#4a3d2e;margin-top:3px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.clip.p-lined .hand-s{line-height:22px;margin-top:0;color:#1f3a5f}
+.clip .hand-w{font-family:var(--hand);font-size:16px;color:#6b5a44;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:30px}
+.clip .hand-no{position:absolute;top:7px;right:12px;font-family:var(--hand);font-weight:700;font-size:18px;color:rgba(43,33,24,.5)}
+/* A photograph of the character, in colour, on a white print border, captioned by hand. */
+.clip.p-photo .clip-body{background:#fdfbf4;padding:9px 9px 0}
+.clip .snap{height:104px;background:#cdbb98 center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.clip.p-photo .hand-t{font-size:21px;margin-top:5px;-webkit-line-clamp:1;padding-right:0;text-align:center}
+.clip.p-photo .hand-w{text-align:center;padding-right:0;font-size:14px}
+/* Washi tape, a rubber stamp for the threads, a sticker. */
+.tape{position:absolute;width:66px;height:20px;z-index:2;opacity:.88;box-shadow:0 1px 2px rgba(0,0,0,.15);
+  clip-path:polygon(0 10%,4% 0,8% 10%,92% 0,96% 10%,100% 0,100% 90%,96% 100%,92% 90%,8% 100%,4% 90%,0 100%)}
+.tape.l{top:-7px;left:-16px;transform:rotate(-38deg)} .tape.r{top:-7px;right:-16px;transform:rotate(36deg)}
+.tape.t{top:-9px;left:50%;margin-left:-38px;width:76px;transform:rotate(-3deg)}
+.scrap-stamp{position:absolute;right:8px;bottom:22px;width:62px;height:62px;border-radius:50%;border:3px double;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:'JetBrains Mono',monospace;font-weight:700;font-size:8.5px;letter-spacing:.08em;line-height:1.15;text-transform:uppercase;padding:6px;z-index:3;opacity:.82;
+  mix-blend-mode:multiply;-webkit-mask:var(--jk-ink);mask:var(--jk-ink);-webkit-mask-size:160px;mask-size:160px;pointer-events:none}
+.scrap-sticker{position:absolute;width:40px;height:40px;z-index:3;filter:drop-shadow(1px 2px 1px rgba(0,0,0,.25));pointer-events:none}
 
 /* THE EDITION. A broadsheet on aged newsprint: grain, foxing, a centre fold, darkened edges. */
 .herald-scroll{flex:1;overflow:auto;background:#2a1d12;background-image:var(--fibres);padding:28px 18px 60px}
@@ -134,7 +168,7 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
   box-shadow:inset 0 0 90px rgba(95,60,22,.55),inset 0 0 22px rgba(95,60,22,.5),0 16px 50px rgba(0,0,0,.6)}
 .herald .mast-row{display:grid;grid-template-columns:150px 1fr 150px;align-items:center;gap:16px}
 .herald .ear{border:1.5px solid var(--news-rule);padding:6px 8px;text-align:center;font-family:'Old Standard TT',serif;font-size:11px;letter-spacing:.08em;line-height:1.35;text-transform:uppercase}
-.herald .mast{font-family:'UnifrakturMaguntia',serif;font-size:clamp(40px,6.4vw,80px);line-height:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.herald .mast{font-family:'UnifrakturMaguntia',serif;color:#7a1f16;font-size:clamp(40px,6.4vw,80px);line-height:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .herald .motto{text-align:center;font-family:'Old Standard TT',serif;font-size:11px;letter-spacing:.32em;text-transform:uppercase;margin-top:4px}
 .herald .dateline{display:flex;justify-content:space-between;gap:10px;border-top:3px double var(--news-rule);border-bottom:1px solid var(--news-rule);
   margin-top:8px;padding:4px 2px;font-family:'Old Standard TT',serif;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
@@ -151,16 +185,16 @@ svg.strings{position:absolute;top:0;left:0;pointer-events:none;z-index:40}
 .herald .by{font-family:'Old Standard TT',serif;font-style:italic;font-size:12.5px;color:var(--news-ink-soft);margin:4px 0 6px}
 .herald .cont{font-family:'Old Standard TT',serif;font-style:italic;font-size:12px;margin-top:6px;color:var(--news-ink-soft)}
 .herald .cont a{color:var(--news-ink);cursor:pointer;text-decoration:underline}
-/* Photographs: the picture in sepia, a halftone screen over it, a plate border, a caption. */
-.herald figure{margin:0}
-.herald .photo{position:relative;border:1px solid var(--news-rule);background:#3a2f22;overflow:hidden}
-.herald .photo img{display:block;width:100%;height:100%;object-fit:cover;filter:grayscale(1) sepia(.55) contrast(1.12) brightness(.93)}
-.herald .photo::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55;
-  background-image:radial-gradient(circle,rgba(30,20,10,.55) .8px,transparent 1.3px);background-size:3px 3px}
-.herald .photo .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'UnifrakturMaguntia',serif;font-size:64px;color:rgba(235,223,196,.55)}
+/* Photographs: in colour, taped in, on a white print border, captioned. */
+.herald figure{margin:0;position:relative}
+.herald .photo{position:relative;border:7px solid #fdfbf4;box-shadow:0 2px 6px rgba(60,35,10,.35);background:#cdbb98;overflow:hidden}
+.herald .photo img{display:block;width:100%;height:100%;object-fit:cover;filter:saturate(1.05) contrast(1.03)}
+.herald figure .tape{top:-9px;left:50%;margin-left:-38px;width:76px;transform:rotate(-3deg)}
+.herald .photo .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'UnifrakturMaguntia',serif;font-size:64px;color:rgba(255,250,235,.85)}
 .herald figcaption{font-family:'Old Standard TT',serif;font-size:11.5px;line-height:1.3;margin-top:4px;padding-top:3px;border-top:1px solid var(--news-rule)}
 .herald .lead-photo{height:clamp(300px,34vw,460px)}
 .herald .kicker{font-family:'Old Standard TT',serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:3px;color:var(--news-ink-soft)}
+.herald .kicker i{font-style:normal;display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
 .herald .columns{border-top:3px double var(--news-rule);margin-top:4px;padding-top:12px;column-width:230px;column-gap:26px;column-rule:1px solid var(--news-rule)}
 .herald .art{break-inside:avoid;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(42,35,26,.5);cursor:pointer}
 .herald .art:hover .art-hl, .herald .side-art:hover .side-hl{text-decoration:underline}
@@ -548,7 +582,7 @@ async function showFlashcard(member){
 const SB = { book: 0, stringing: null, lead: null,
   // The look is this browser's preference; the board itself is shared with the phone.
   look: (() => { try { return localStorage.getItem('studio-sb-look') || 'notes'; } catch (e) { return 'notes'; } })() };
-const LOOKS = [['notes', 'Notes'], ['clippings', 'Clippings'], ['edition', 'Front page']];
+const LOOKS = [['notes', 'Notes'], ['clippings', 'Scrapbook'], ['edition', 'Front page']];
 const NOTE_W = 196, NOTE_H = 172, M = 34, GX = 34, GY = 54, TOP = 34;
 
 function jitter(id, salt){
@@ -646,22 +680,7 @@ function drawStoryboard(){
     const s = spot.get(e.id); const m = castOf.get(e.cast_id);
     const ch = chapterLabel(e.chapter_id);
     const on = onThread(e.id);
-    if (clippings) {
-      const who = (e.character_ids || []).map((id) => castOf.get(id)?.name).filter(Boolean);
-      const kicker = threadsOf(e.id).map((t) => t.name).join(' · ') || bookName(SB.book);
-      // The tape takes the note's colour, where the sticky note took it whole.
-      const tape = m ? `background-color:color-mix(in srgb,${m.color} 70%,transparent)` : '';
-      return `<div class="wnote clip ${SB.stringing && !on ? 'faded' : ''}" data-id="${e.id}" style="left:${s.x}px;top:${s.y}px;transform:rotate(${jitter(e.id, 3) * 3}deg);${on && st ? `outline:3px solid ${st.color};` : ''}">
-        <div class="clip-body" style="clip-path:${tornEdge(e.id, NOTE_W, NOTE_H)}">
-          <div class="kicker">${esc(kicker)}</div><div class="no">No. ${i + 1}</div>
-          <div class="hl">${esc(e.title || 'Untitled')}</div>
-          ${who.length ? `<div class="by">With ${esc(who.join(', '))}</div>` : ''}
-          ${e.summary ? `<div class="tx">${esc(e.summary)}</div>` : ''}
-          <div class="ink">${e.treatment_id ? '↗ the full scene' : ch ? '→ ' + esc(ch) : ''}</div>
-        </div>
-        <span class="tape l" style="${tape}"></span><span class="tape r" style="${tape}"></span>
-      </div>`;
-    }
+    if (clippings) return scrapNote(e, i, s, m, castOf, on, st, ch);
     return `<div class="wnote ${SB.stringing && !on ? 'faded' : ''}" data-id="${e.id}" style="left:${s.x}px;top:${s.y}px;background:${m ? m.color : NOTE_DEFAULT};transform:rotate(${jitter(e.id, 3) * 2.4}deg);${on && st ? `outline:3px solid ${st.color};` : ''}">
       <div class="num">#${i + 1}</div><div class="who">${esc(m ? m.name : '')}</div>
       <div class="t">${esc(e.title || 'Untitled')}</div>
@@ -671,6 +690,57 @@ function drawStoryboard(){
   }).join('') + `<svg class="strings" width="${bw}" height="${bh}"></svg>`;
   drawStrings(spot);
   wireNotes(spot);
+  if (clippings) hydrateFaces();
+}
+
+// THE SCRAPBOOK's cut-outs. Which paper a note is cut from is decided by its id, so a note keeps
+// its paper, tape and tilt every time it is drawn. A note whose characters have a picture is often
+// a photograph of one of them, in colour. The tape is the note's character colour where it has
+// one; the stamp is its first thread, in that thread's colour.
+const SCRAP_PAPERS = ['news', 'lined', 'grid', 'tag', 'card'];
+const SCRAP_STICKERS = ['sprig', 'flower', 'leaf', 'star', 'moon', 'heart', 'compass', 'key', 'mountain', 'sun', 'quill'];
+function scrapNote(e, i, s, m, castOf, on, st, ch){
+  const pick = (salt, n) => Math.floor(((jitter(e.id, salt) + 1) / 2) * n) % n;
+  const people = [...new Set([...(e.character_ids || []), ...(e.cast_id ? [e.cast_id] : [])])].map((id) => castOf.get(id)).filter(Boolean);
+  const face = people.find((c) => c.image_path);
+  const paper = face && jitter(e.id, 9) > 0.3 ? 'photo' : SCRAP_PAPERS[pick(8, SCRAP_PAPERS.length)];
+  const threads = threadsOf(e.id);
+  const who = people.map((c) => c.name);
+  const next = e.treatment_id ? '↗ the full scene' : ch ? '→ ' + ch : '';
+  const tapeColor = m ? m.color : JK.KIT.tapeColors[pick(10, JK.KIT.tapeColors.length)];
+  const tapeStyle = JK.tapeStyle({ color: tapeColor, pattern: JK.KIT.tapePatterns[pick(11, JK.KIT.tapePatterns.length)] }).replace(/;$/, '');
+  const tapes = paper === 'photo' || pick(12, 3) === 0 ? `<span class="tape t" style="${tapeStyle}"></span>` : `<span class="tape l" style="${tapeStyle}"></span><span class="tape r" style="${tapeStyle}"></span>`;
+  const stamp = threads.length && paper !== 'photo' ? `<span class="scrap-stamp" style="color:${threads[0].color};border-color:${threads[0].color};transform:rotate(${Math.round(jitter(e.id, 13) * 18)}deg)">${esc(threads.map((t) => t.name).join(' · ').slice(0, 34))}</span>` : '';
+  const sticker = jitter(e.id, 14) > 0.35 ? `<span class="scrap-sticker" style="${jitter(e.id, 15) > 0 ? 'left:-12px' : 'right:-12px'};bottom:-12px;transform:rotate(${Math.round(jitter(e.id, 16) * 25)}deg)">${JK.stickerSvg(SCRAP_STICKERS[pick(17, SCRAP_STICKERS.length)])}</span>` : '';
+  const card = paper === 'card' ? `background-color:color-mix(in srgb,${m ? m.color : JK.KIT.tapeColors[pick(18, JK.KIT.tapeColors.length)]} 55%,#fbf5e6);` : '';
+  let body;
+  if (paper === 'news') {
+    body = `<div class="kicker">${esc(threads.map((t) => t.name).join(' · ') || bookName(SB.book))}</div><div class="no">No. ${i + 1}</div>
+      <div class="hl">${esc(e.title || 'Untitled')}</div>
+      ${who.length ? `<div class="by">With ${esc(who.join(', '))}</div>` : ''}
+      ${e.summary ? `<div class="tx">${esc(e.summary)}</div>` : ''}`;
+  } else if (paper === 'photo') {
+    body = `<div class="snap" data-face="${esc(face.image_path)}"></div>
+      <div class="hand-t">${esc(e.title || 'Untitled')}</div>
+      <div class="hand-w">${esc(who.join(', '))}</div>`;
+  } else {
+    body = `<div class="hand-no">${i + 1}</div>
+      ${who.length ? `<div class="hand-w">${esc(who.join(', '))}</div>` : ''}
+      <div class="hand-t">${esc(e.title || 'Untitled')}</div>
+      ${e.summary ? `<div class="hand-s">${esc(e.summary)}</div>` : ''}`;
+  }
+  return `<div class="wnote clip p-${paper} ${SB.stringing && !on ? 'faded' : ''}" data-id="${e.id}" style="left:${s.x}px;top:${s.y}px;transform:rotate(${jitter(e.id, 3) * 3.4}deg);${on && st ? `outline:3px solid ${st.color};` : ''}">
+    <div class="clip-body" style="${card}clip-path:${paper === 'photo' ? 'none' : tornEdge(e.id, NOTE_W, NOTE_H)}">${body}
+      ${paper === 'photo' ? '' : `<div class="ink">${esc(next)}</div>`}
+    </div>${tapes}${stamp}${sticker}
+  </div>`;
+}
+// Photographs on the scrapbook arrive after the board is drawn: signed links are fetched once each.
+function hydrateFaces(){
+  document.querySelectorAll('#wall .snap[data-face]').forEach(async (el) => {
+    const url = await imageUrl(el.dataset.face);
+    if (url) el.style.backgroundImage = `url("${url}")`;
+  });
 }
 
 
@@ -703,7 +773,7 @@ const paragraphs = (text) => esc(text || '').split(/\n\s*\n/).map((p) => p.trim(
 
 // THE EDITION: one book as a newspaper front page. The lead is the note last opened here (the
 // first note until then); clicking any article makes it the lead, and the lead's headline opens
-// the note itself. Pictures are the characters' own, printed in sepia through a halftone screen.
+// the note itself. Pictures are the characters' own, in colour, taped in.
 async function drawEdition(){
   const box = $('#herald-scroll');
   const events = bookEvents();
@@ -720,7 +790,7 @@ async function drawEdition(){
     const url = c && urlOf.get(c.id);
     return `<div class="photo ${cls}">${url ? `<img src="${esc(url)}" alt="">` : `<div class="none">${esc((c?.name || '?')[0])}</div>`}</div>`;
   };
-  const kicker = (e) => { const t = threadsOf(e.id).map((x) => x.name); return t.length ? `<div class="kicker">${esc(t.join(' · '))}</div>` : ''; };
+  const kicker = (e) => { const t = threadsOf(e.id); return t.length ? `<div class="kicker">${t.map((x) => `<i style="background:${x.color}"></i>${esc(x.name)}`).join(' &nbsp; ')}</div>` : ''; };
   const byline = (e) => { const p = peopleOf(e).map((c) => c.name); return p.length ? `<div class="by">With ${esc(p.join(', '))}</div>` : ''; };
   const cont = (e) => {
     const bits = [];
@@ -751,7 +821,7 @@ async function drawEdition(){
           ${cont(lead)}
         </div>
         <figure>
-          ${photo(leadFace, 'lead-photo')}
+          ${photo(leadFace, 'lead-photo')}${leadFace ? `<span class="tape" style="${JK.tapeStyle({ color: leadFace.color, pattern: 'grid' }).replace(/;$/, '')}"></span>` : ''}
           <figcaption>${leadFace ? `${esc(leadFace.name)}${leadFace.description ? ` — ${esc(leadFace.description)}` : ''}${people.length > 1 ? `. Also in this scene: ${esc(people.filter((c) => c !== leadFace).map((c) => c.name).join(', '))}.` : '.'}` : 'No one has been placed in this scene yet.'}</figcaption>
         </figure>
         <div>
@@ -770,7 +840,7 @@ async function drawEdition(){
     <div class="motto">A record of the story, in its own order</div>
     <div class="dateline"><span>Vol. ${ROMAN(SB.book + 1)} &nbsp; No. ${n}</span><span>The Storyboard</span><span>${n} note${n === 1 ? '' : 's'}</span></div>
     ${front}
-    ${strip.length ? `<div class="strip">${strip.map((c) => `<figure>${photo(c)}<figcaption><b>${esc(c.name)}.</b> ${esc(c.description || '')}</figcaption></figure>`).join('')}</div>` : ''}
+    ${strip.length ? `<div class="strip">${strip.map((c, k) => `<figure>${photo(c)}<span class="tape" style="${JK.tapeStyle({ color: c.color, pattern: JK.KIT.tapePatterns[k % JK.KIT.tapePatterns.length] }).replace(/;$/, '')}"></span><figcaption><b>${esc(c.name)}.</b> ${esc(c.description || '')}</figcaption></figure>`).join('')}</div>` : ''}
   </div>`;
   box.onclick = (ev) => {
     const t = ev.target.closest('[data-lead],[data-open],[data-chapter],[data-scene]'); if (!t) return;

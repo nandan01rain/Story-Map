@@ -3,6 +3,8 @@
 :root{
   --jk-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --jk-fibres:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .6' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .05 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  /* A rubber stamp's ink: mostly solid, with the worn patches where it did not take. As a mask. */
+  --jk-ink:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='i'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -2.4 2.25'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23i)'/%3E%3C/svg%3E");
 }
 .jk-sheet{position:absolute;left:0;top:0;width:600px;height:840px;transform-origin:0 0;overflow:hidden;color:#2b2118}
 .jk-date{position:absolute;top:22px;right:30px;font-family:'Caveat',cursive;font-size:22px;color:rgba(60,40,20,.55)}
@@ -28,7 +30,7 @@
 .jk-tape{width:100%;height:100%;opacity:.86;box-shadow:0 1px 2px rgba(0,0,0,.15);
   clip-path:polygon(0 8%,3% 0,6% 10%,9% 0,12% 8%,15% 0,85% 0,88% 9%,91% 0,94% 8%,97% 0,100% 10%,100% 92%,97% 100%,94% 90%,91% 100%,88% 92%,85% 100%,15% 100%,12% 90%,9% 100%,6% 92%,3% 100%,0 90%)}
 .jk-stamp{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.12em;font-size:20px;opacity:.85;
-  border:3px solid;border-radius:4px;mix-blend-mode:multiply;text-transform:uppercase;-webkit-mask:var(--jk-grain);mask:var(--jk-grain);-webkit-mask-size:120px;mask-size:120px}
+  border:3px solid;border-radius:4px;mix-blend-mode:multiply;text-transform:uppercase;-webkit-mask:var(--jk-ink);mask:var(--jk-ink);-webkit-mask-size:160px;mask-size:160px}
 .jk-stamp.circle{border-radius:50%;font-size:17px;border-style:double;border-width:5px}
 .jk-stamp.date{border-style:double;border-width:5px;font-size:18px}
 .jk-stamp.letters{border:none;gap:3px;-webkit-mask:none;mask:none;mix-blend-mode:normal;opacity:1}
