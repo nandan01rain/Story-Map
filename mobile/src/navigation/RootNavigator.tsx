@@ -35,6 +35,7 @@ import JournalPageScreen from '../screens/JournalPageScreen';
 import JournalScanScreen from '../screens/JournalScanScreen';
 import PagesScreen from '../screens/PagesScreen';
 import { useAuthStore } from '../store/authStore';
+import { navigationRef } from './navigationRef';
 import { FONTS, useTheme } from '../theme';
 import type { SignedInStackParamList } from './types';
 
@@ -65,7 +66,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       {session ? (
         <Stack.Navigator
           screenOptions={{

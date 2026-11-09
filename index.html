@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>StoryMap</title>
 <link rel="manifest" href="manifest.json">
+<!-- The load screen: first, so the cover is up before anything else is parsed. -->
+<link rel="stylesheet" href="load/load-screen.css">
+<link rel="preload" as="image" href="load/load-rose.png">
 <link rel="preload" as="image" href="assets/auth-bg-environment.webp">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -1395,6 +1398,8 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 </style>
 </head>
 <body>
+<div id="load-screen"></div>
+<script src="load/load-screen.js"></script>
 <!-- Shared line-icon set (PRIORITY 3): one consistent stroke-based style,
      reused via <use> everywhere an emoji used to stand in. Deliberately
      simple/geometric — flagged in the handoff response as a placeholder
@@ -7095,6 +7100,8 @@ function requestGeoRefresh(){
 
   async function enterProject(projectId){
     currentProjectId = projectId;
+    // The load screen's wheel stops on this one next time.
+    try { localStorage.setItem('storymap-last-project', projectId); } catch(e) {}
     projectScreen.style.display = 'none';
     // The project page is its books, as on the phone; the braid is in Discover.
     appRoot.style.display = 'flex';
@@ -7289,7 +7296,25 @@ function requestGeoRefresh(){
     } else {
       showAuth();
     }
+    openLoadScreen(session);
   });
+
+  // The load screen (load/load-screen.js) spins until the first answer about the session: then
+  // the writer's projects go onto its wheel and it may stop -- on the last project opened -- and
+  // fade. A frame clicked on the wheel opens that project.
+  let loadScreenTold = false;
+  async function openLoadScreen(session){
+    const load = window.StoryMapLoad;
+    if(!load || loadScreenTold) return;
+    loadScreenTold = true;
+    try { load.setFront(localStorage.getItem('storymap-last-project')); } catch(e) {}
+    if(session){
+      load.onPick = (p) => enterProject(p.id);
+      const { data } = await sbClient.from('projects').select('id, name').eq('user_id', session.user.id).order('created_at', { ascending: true });
+      load.setProjects(data || []);
+    }
+    load.ready();
+  }
 })();
 </script>
 

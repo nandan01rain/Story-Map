@@ -116,3 +116,28 @@ if __name__ == '__main__':
     centre(Image.new('RGBA', (432, 432), (0, 0, 0, 0)), white).save(f'{OUT}/android-icon-monochrome.png')
     centre(parchment(64), fit(rose, 50)).save(f'{OUT}/favicon.png')
     print('icon set written to', OUT)
+
+    # The load screen's rose (2026-11-09): the same rose at its full source size, re-toned from
+    # the plate's brown ink to gold by a gradient map on its own luminance (dark -> bronze, mid ->
+    # gold, light -> highlight), so the engraving's shading survives the change of colour. And its
+    # silhouette, white on transparent, which masks the shine that sweeps across it.
+    # These ship in the JS bundle, so `eas update` carries them -- unlike the icons above.
+    arr = np.asarray(rose).astype(float)
+    lum = arr[:, :, :3].mean(axis=2) / 255.0
+    stops = [(0.0, (92, 60, 14)), (0.35, (168, 118, 34)), (0.65, (214, 168, 64)), (1.0, (246, 218, 140))]
+    t = np.clip((lum - lum[arr[:, :, 3] > 40].min()) / max(1e-6, np.ptp(lum[arr[:, :, 3] > 40])), 0, 1)
+    gold = np.zeros(arr.shape[:2] + (3,))
+    for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+        m = (t >= t0) & (t <= t1)
+        k = ((t - t0) / (t1 - t0))[m]
+        for i in range(3):
+            gold[:, :, i][m] = c0[i] + (c1[i] - c0[i]) * k
+    toned = Image.fromarray(np.dstack([gold, arr[:, :, 3]]).astype('uint8'), 'RGBA')
+    toned.save(f'{OUT}/load-rose.png')
+    silhouette = Image.new('RGBA', toned.size, (255, 255, 255, 255))
+    silhouette.putalpha(toned.getchannel('A'))
+    silhouette.save(f'{OUT}/load-rose-mask.png')
+    # The web app's load screen uses the same two (load/, beside index.html).
+    toned.save('load/load-rose.png')
+    silhouette.save('load/load-rose-mask.png')
+    print('load-screen rose', toned.size)

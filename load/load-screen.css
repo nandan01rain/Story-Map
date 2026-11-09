@@ -1,0 +1,49 @@
+/* The load screen (2026-11-09) -- the web app's twin of mobile/src/components/LoadScreen.tsx:
+   beige paper, the gold compass rose, and the writer's projects as frames on a spinning
+   zoetrope wheel beneath it. Always beige, day or night: it is the app's cover. */
+#load-screen{position:fixed;inset:0;z-index:10000;overflow:hidden;
+  background:radial-gradient(ellipse 75% 70% at 50% 38%,#f8edd1 0%,#f2e3bf 60%,#dfc792 100%);
+  transition:opacity .45s ease-in;font-family:'Spectral',Georgia,serif}
+#load-screen.gone{opacity:0;pointer-events:none}
+#load-screen .ls-logo{position:absolute;left:50%;transform:translateX(-50%)}
+#load-screen .ls-halo{position:absolute;inset:-25%;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,249,228,.95) 0%,rgba(255,240,200,.45) 45%,rgba(255,240,200,0) 72%);
+  animation:ls-halo 1.8s ease-in-out infinite alternate}
+#load-screen .ls-bezel{position:absolute;inset:-12%;animation:ls-turn 40s linear infinite;opacity:.55}
+#load-screen .ls-rose{position:absolute;inset:0;animation:ls-in .9s cubic-bezier(.2,.7,.3,1) both,ls-breath 2.4s ease-in-out .9s infinite alternate}
+#load-screen .ls-rose img{position:absolute;left:0;width:100%;top:50%;transform:translateY(-50%);filter:drop-shadow(0 1px 1px rgba(90,60,14,.4)) contrast(1.12) saturate(1.15)}
+/* The shine: a band of light, masked to the rose's own silhouette, crossing it every few seconds. */
+#load-screen .ls-shine{position:absolute;left:0;width:100%;top:50%;transform:translateY(-50%);aspect-ratio:383/363;
+  -webkit-mask:url(load-rose-mask.png) center/100% 100% no-repeat;mask:url(load-rose-mask.png) center/100% 100% no-repeat;overflow:hidden}
+#load-screen .ls-shine::before{content:"";position:absolute;top:-10%;bottom:-10%;width:45%;left:-60%;transform:skewX(-18deg);
+  background:linear-gradient(90deg,rgba(255,246,216,0),rgba(255,246,216,.95),rgba(255,246,216,0));
+  animation:ls-shine 2.9s ease-in-out .5s infinite}
+#load-screen .ls-words{position:absolute;left:0;right:0;text-align:center;animation:ls-in .9s cubic-bezier(.2,.7,.3,1) both}
+#load-screen .ls-word{font-family:'Cinzel',serif;font-weight:700;font-size:22px;letter-spacing:7px;color:#8a6420;margin-left:7px}
+#load-screen .ls-tag{font-style:italic;font-size:13px;color:#8a7355;margin-top:4px}
+#load-screen .ls-mote{position:absolute;border-radius:50%;background:#d9ad4c;opacity:0;animation:ls-mote 3.6s ease-out infinite}
+/* The drum: a track, and frames placed each animation frame by their angle on the wheel. */
+#load-screen .ls-track{position:absolute;left:50%;border:1px solid rgba(184,134,46,.35);border-radius:50%;transform:translateX(-50%)}
+#load-screen .ls-shadow{position:absolute;left:50%;border-radius:50%;background:rgba(120,80,20,.10);transform:translateX(-50%)}
+#load-screen .ls-wheel{position:absolute;left:50%;width:104px;height:80px;margin-left:-52px}
+#load-screen .ls-frame{position:absolute;inset:0;background:#2f2116;border-radius:3px;padding:3px 5px;display:flex;flex-direction:column;justify-content:space-between;
+  cursor:default;will-change:transform,opacity}
+#load-screen .ls-frame.has{cursor:pointer}
+#load-screen .ls-holes{display:flex;justify-content:space-between;padding:0 2px}
+#load-screen .ls-holes i{width:7px;height:5px;border-radius:1.5px;background:rgba(242,227,191,.75)}
+#load-screen .ls-win{position:relative;flex:1;margin:3px 0;background:#f4e6c3;border-radius:1px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#load-screen .ls-frame:not(.has) .ls-win{background:#e8d6ac}
+#load-screen .ls-face{padding:3px 6px;text-align:center;font-family:'Cinzel',serif;font-weight:600;font-size:11px;line-height:13px;color:#3a2415;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#load-screen .ls-no{position:absolute;top:2px;right:4px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#9a8466}
+#load-screen .ls-back{position:absolute;inset:0;background:#4a3524;opacity:0}
+#load-screen .ls-frame.lit{box-shadow:0 0 0 2px #e8c46a,0 0 14px rgba(232,196,106,.7)}
+@keyframes ls-in{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes ls-breath{from{transform:scale(1)}to{transform:scale(1.025)}}
+@keyframes ls-halo{from{opacity:.35;transform:scale(.92)}to{opacity:.7;transform:scale(1.04)}}
+@keyframes ls-turn{to{transform:rotate(360deg)}}
+@keyframes ls-shine{0%{left:-60%}45%{left:115%}100%{left:115%}}
+@keyframes ls-mote{0%{opacity:0;transform:translate(0,0)}50%{opacity:.7}100%{opacity:0;transform:translate(var(--dx),var(--rise))}}
+@media (prefers-reduced-motion:reduce){
+  #load-screen .ls-halo,#load-screen .ls-bezel,#load-screen .ls-rose,#load-screen .ls-shine::before,#load-screen .ls-mote{animation:none}
+}

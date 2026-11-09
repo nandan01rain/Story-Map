@@ -1,15 +1,20 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { ActivityIndicator, AppState, Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, Pressable, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DropProvider } from 'react-native-reanimated-dnd';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import LoadScreen, { type WheelProject } from './src/components/LoadScreen';
 import { flush } from './src/lib/outbox';
+import { loadLastProject } from './src/lib/writingPrefs';
 import { useWritingStats } from './src/lib/writingStats';
 import { useOtaUpdate } from './src/lib/useOtaUpdate';
+import { navigationRef } from './src/navigation/navigationRef';
 import RootNavigator from './src/navigation/RootNavigator';
-import { FONTS, NIGHT_COLORS, ThemeProvider, useAppFonts, useTheme } from './src/theme';
+import { useAuthStore } from './src/store/authStore';
+import { useProjectStore } from './src/store/projectStore';
+import { FONTS, ThemeProvider, useAppFonts, useTheme } from './src/theme';
 
 // Global default: every <Text> not given its own fontFamily falls back to the PWA's
 // --font-body (Inter) instead of the platform default, matching the "same font
@@ -23,7 +28,7 @@ TextAny.defaultProps.style = [{ fontFamily: FONTS.body }, TextAny.defaultProps.s
 // Theme (day/night) needs to wrap RootNavigator AND drive the OS status bar's own
 // icon color, so this inner component sits inside ThemeProvider and reads useTheme --
 // App itself renders before the persisted theme choice has loaded from AsyncStorage,
-// hence the plain NIGHT_COLORS-toned loading screen below (can't call useTheme there).
+// which is one reason the load screen below is always beige rather than themed.
 function AppShell() {
   const { mode, colors } = useTheme();
   const ota = useOtaUpdate();
@@ -75,26 +80,65 @@ function AppShell() {
   );
 }
 
+// The load screen stays over the app until the fonts are in and the session has been restored,
+// and for at least MIN_LOAD -- long enough to be seen as an opening rather than a flicker.
+const MIN_LOAD = 2400;
+
+function LoadGate({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const initializing = useAuthStore((s) => s.initializing);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const projects = useProjectStore((s) => s.projects);
+  const [minElapsed, setMinElapsed] = useState(false);
+  const [front, setFront] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMinElapsed(true), MIN_LOAD);
+    void loadLastProject().then((p) => setFront(p?.id ?? null));
+    return () => clearTimeout(t);
+  }, []);
+  // The wheel's frames are the writer's projects, from the device's cache first.
+  useEffect(() => {
+    if (userId) void useProjectStore.getState().fetchProjects(userId);
+  }, [userId]);
+
+  function open(p: WheelProject) {
+    // The navigator mounts under the load screen; by the time it has faded it is ready.
+    const go = (tries: number) => {
+      if (navigationRef.isReady()) navigationRef.navigate('ChapterList', { projectId: p.id, projectName: p.name });
+      else if (tries > 0) setTimeout(() => go(tries - 1), 100);
+    };
+    go(20);
+  }
+
+  if (gone) return null;
+  return (
+    <LoadScreen
+      ready={fontsLoaded && !initializing && minElapsed}
+      fontsLoaded={fontsLoaded}
+      projects={userId ? projects.map((p) => ({ id: p.id, name: p.name })) : []}
+      frontId={front}
+      onPick={open}
+      onFinished={() => setGone(true)}
+    />
+  );
+}
+
 export default function App() {
   const [fontsLoaded] = useAppFonts();
 
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: NIGHT_COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={NIGHT_COLORS.gold} />
-      </View>
-    );
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <DropProvider>
-            <AppShell />
-          </DropProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
+      {fontsLoaded && (
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <DropProvider>
+              <AppShell />
+            </DropProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      )}
+      <LoadGate fontsLoaded={fontsLoaded} />
     </GestureHandlerRootView>
   );
 }

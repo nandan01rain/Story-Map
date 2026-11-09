@@ -5786,3 +5786,56 @@ Checked in the harnesses, which now have `projects` and `sticky_notes` tables:
 - the phone document's `pageText` and its no-project hint.
 
 Typecheck clean.
+
+## 55. THE LOAD SCREEN (2026-11-09, both apps)
+
+Opening StoryMap now shows a cover until the app is ready. The writer asked for "beige
+background, golden logo, with some minor effects", and for the projects to "slide like frames
+in a wheel", like the frames spun round in early animation.
+
+- **The rose.** It is the same compass rose as the icon and the drawer.
+  `scripts/build-app-icon.py` now also writes `load-rose.png` (the rose at its full ~380px
+  source size, re-toned from brown to gold by a gradient map on its own luminance) and
+  `load-rose-mask.png` (its white silhouette). Both go to `mobile/assets/` and `load/`. They
+  are bundle assets, so they ship over the air.
+- **The effects:**
+  - a cream glow behind the rose, breathing;
+  - a bezel of ticks turning once every 40s;
+  - the rose fading up and then breathing;
+  - a band of light crossing the gold every ~3s, masked to the rose's silhouette (an SVG
+    `Mask` on the phone, a CSS mask on the web);
+  - nine specks of gold dust rising;
+  - the STORYMAP wordmark and tagline.
+
+  A gold glow was tried first and dropped, because it washed out the rose.
+- **The wheel** is a zoetrope drum with at least 10 frames and at most 16; frames past the
+  projects are blank film.
+  - Each frame faces outward from the drum: it turns edge-on at the sides (`scaleX = |cos|`)
+    and shows the back of the film as it passes behind.
+  - It spins up with a fast first turn, then runs at a steady turn every 7s.
+  - When the app is ready, it slows and stops with the last project opened at the front
+    (`loadLastProject` on the phone, `storymap-last-project` in localStorage on the web), lights
+    that frame, and the screen fades.
+  - Tapping a front-facing frame stops the wheel on it and opens that project once the app is
+    ready (the phone through `navigation/navigationRef.ts`, the web through `enterProject`).
+- **When it goes:** once the fonts are in, the session is known (the phone's existing 2.5s auth
+  deadline, the web's first `onAuthStateChange`) and at least 2.4s have passed. The web also
+  has an 8s cap in case the Supabase script never loads.
+- **Phone:** `src/components/LoadScreen.tsx`, mounted by `LoadGate` in `App.tsx` over the app.
+  It replaced the two spinners that used to show while fonts loaded and while auth started.
+  Reanimated drives it. It is always beige and always uses dark status-bar icons.
+- **Web:** `load/load-screen.css` + `load/load-screen.js`, included at the very top of
+  `index.html`'s `<body>` so the cover paints before the rest of the page parses. They are in
+  the service worker's shell (cache v10), so the cover works offline.
+
+**Still to do:** the phone's NATIVE splash, the moment before JavaScript runs, is still Expo's
+default. Giving it the same beige and rose (`expo-splash-screen` config in `app.json`) makes the
+hand-off seamless, but it is native: bundle it into the 1.3.0 rebuild with `expo-blur` and
+`expo-image-picker`.
+
+**Checked:** typecheck clean. The web version was run in `canon-import/load-harness.html`
+(`?hold=ms&front=pN&timer=1`; `timer` drives the wheel off a timer, because a hidden preview
+pane gets no animation frames). It stopped on the last project and lit it, and a click stopped
+the wheel within 0.7s and waited for ready before opening the project. `index.html` loaded with
+no console errors. The phone version shares the geometry and timings but has not been seen on a
+device.

@@ -2,7 +2,7 @@
 // data calls or the supabase-js CDN script — those are never intercepted
 // below, by construction (only exact app-shell URLs are matched).
 
-const CACHE_VERSION = 'storymap-shell-v9';
+const CACHE_VERSION = 'storymap-shell-v10';
 
 const APP_SHELL_PATHS = [
   './',
@@ -23,6 +23,11 @@ const APP_SHELL_PATHS = [
   // with the document on every deploy and could never be cached separately. As a file it is
   // fetched once and revalidated like anything else.
   'assets/list-bg.jpg',
+  // The load screen: it is the first thing drawn, so it must not wait on the network.
+  'load/load-screen.css',
+  'load/load-screen.js',
+  'load/load-rose.png',
+  'load/load-rose-mask.png',
   'icons/icon-192.png',
   'icons/icon-512.png'
 ];
