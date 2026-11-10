@@ -19,7 +19,8 @@ import { FONTS } from '../theme';
 // edge-on at the sides and shows the back of the film as it passes behind.
 //
 // Swipe to turn it (it carries on a little and settles on a project); tap the front frame to open
-// it, or a side frame to bring it round. It opens with a turn of the wheel that comes to rest on
+// it, or a side frame to bring it round; hold a frame for its options (rename, move, delete).
+// Touch and swipe only -- there are no buttons. It opens with a turn of the wheel that comes to rest on
 // the last project opened. Frames past the projects are blank film, so a writer with two projects
 // still has a drum; the wheel never settles on a blank one.
 
@@ -34,6 +35,7 @@ export default function ProjectWheel({
   frontId,
   onFront,
   onOpen,
+  onHold,
 }: {
   projects: WheelProject[];
   /**
@@ -44,6 +46,8 @@ export default function ProjectWheel({
   /** The project now at the front, whenever the wheel settles. */
   onFront: (p: WheelProject) => void;
   onOpen: (p: WheelProject) => void;
+  /** A frame held down: the host offers that project's options. */
+  onHold?: (p: WheelProject) => void;
 }) {
   const { width } = useWindowDimensions();
   const slots = Math.max(10, projects.length);
@@ -142,7 +146,7 @@ export default function ProjectWheel({
         </Svg>
         <View style={[styles.hub, { left: width / 2 - FW / 2, top: 30 + TILT }]} pointerEvents="box-none">
           {frames.map((i) => (
-            <Frame key={i} index={i} step={step} R={R} rot={rot} project={projects[i] ?? null} onPress={() => tap(i)} />
+            <Frame key={i} index={i} step={step} R={R} rot={rot} project={projects[i] ?? null} onPress={() => tap(i)} onLongPress={() => projects[i] && onHold?.(projects[i])} />
           ))}
         </View>
       </View>
@@ -150,13 +154,14 @@ export default function ProjectWheel({
   );
 }
 
-function Frame({ index, step, R, rot, project, onPress }: {
+function Frame({ index, step, R, rot, project, onPress, onLongPress }: {
   index: number;
   step: number;
   R: number;
   rot: SharedValue<number>;
   project: WheelProject | null;
   onPress: () => void;
+  onLongPress: () => void;
 }) {
   const style = useAnimatedStyle(() => {
     const a = rot.value + index * step;
@@ -182,7 +187,7 @@ function Frame({ index, step, R, rot, project, onPress }: {
   const holes = [0, 1, 2, 3, 4, 5];
   return (
     <Animated.View style={[StyleSheet.absoluteFill, style]}>
-      <Pressable style={styles.film} onPress={onPress} disabled={!project}>
+      <Pressable style={styles.film} onPress={onPress} onLongPress={onLongPress} delayLongPress={450} disabled={!project}>
         {project && <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none" />}
         <View style={styles.holes}>{holes.map((h) => <View key={h} style={styles.hole} />)}</View>
         <View style={[styles.window, !project && styles.windowBlank]}>

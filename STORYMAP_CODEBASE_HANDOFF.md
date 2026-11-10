@@ -5886,3 +5886,26 @@ instead of the raw error.
 `index.html` loaded with the logo-only cover and no console errors. The phone wheel has not been
 seen on a device.
 
+### 55.2 Touch and swipe only; no demo section; "like a library" (2026-11-10)
+
+- **No buttons on the Projects page, in either app.** Swipe or drag to turn, tap the front frame
+  to open, and **hold a frame** (or right-click it on the web) for **Rename · Move earlier · Move
+  later · Delete**.
+  - The phone does this with a sheet, through `onHold` on `ProjectWheel` and `Pressable`'s
+    `onLongPress` at 450ms.
+  - The web uses a small `#project-menu`: a 500ms hold, cancelled by movement, or `contextmenu`.
+    Its button row is hidden but kept, because its Rename and Delete handlers do the work and its
+    select holds the chosen project. Each menu action sets the select itself as it runs, since
+    the wheel may settle on another project in the meantime.
+- **The "Load the demo project" section is gone**, along with its "keep only the newest demo"
+  tidy-up. A demo project that already exists stays on the wheel like any other.
+  `mobile/src/lib/demoImport.ts` and `demoFixture.ts` are now imported by nothing. They are kept,
+  in case the loader is wanted back; Metro does not bundle them.
+- **For the future:** the writer wants the Projects section eventually **arranged like a
+  library**. It is noted, not asked for yet. Ask what that means to them before building, and
+  keep it gesture-driven.
+
+**Checked** in `canon-import/wheel-harness.html`: a hold gives the options without opening, a
+right-click on a side frame does the same, and a quick tap still opens. `index.html` loads with
+the row hidden and no console errors. Typecheck clean. Shell cache v12.
+

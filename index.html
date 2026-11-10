@@ -1374,6 +1374,12 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 @media (max-width:640px){ #project-wheel{margin:0 0 4px;width:100%} }
 #project-front-name{text-align:center;font-family:var(--font-heading);font-weight:700;font-size:18px;color:var(--ph-text);margin:0 0 12px;min-height:24px}
 #project-wheel-hint{text-align:center;font-size:11.5px;color:var(--ph-text-dim);margin-top:10px}
+#project-menu{position:fixed;z-index:300;min-width:170px;background:var(--ph-input-bg);border:1px solid var(--ph-border);border-radius:10px;
+  box-shadow:0 10px 30px rgba(60,35,10,.25);padding:6px;font-family:var(--font-literary)}
+#project-menu .pm-title{font-family:var(--font-heading);font-weight:700;font-size:13px;color:var(--ph-text);padding:6px 10px 8px;border-bottom:1px solid var(--ph-border);margin-bottom:4px}
+#project-menu button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ph-text);font:inherit;font-size:14px;padding:8px 10px;border-radius:6px;cursor:pointer}
+#project-menu button:hover{background:rgba(217,154,43,.15)}
+#project-menu button.danger{color:#a3271b}
 #project-select-row select{flex:1 1 100%;min-width:0;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:var(--font-literary);}
 #project-select-row select:focus{outline:none;border-color:var(--ph-accent);}
 #project-select-row button:disabled{opacity:0.4;cursor:not-allowed;}
@@ -1551,15 +1557,16 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
         <h2>Your projects</h2>
         <div id="project-wheel"></div>
         <div id="project-front-name"></div>
-        <div id="project-select-row">
-          <select id="project-select" hidden></select>
-          <button class="btn" id="project-move-left" title="Move earlier">‹</button>
+        <!-- Not shown: the wheel is touch and swipe only. These still do the work for the held
+             frame's menu (Rename, Delete), and hold the chosen project in the select. -->
+        <div id="project-select-row" hidden>
+          <select id="project-select"></select>
           <button class="btn primary" id="project-open-btn"><svg class="nav-icon"><use href="#icon-folder"></use></svg> Open</button>
-          <button class="btn" id="project-move-right" title="Move later">›</button>
           <button class="btn" id="project-rename-btn"><svg class="nav-icon"><use href="#icon-pencil"></use></svg> Rename</button>
           <button class="btn danger" id="project-delete-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Delete</button>
         </div>
-        <div id="project-wheel-hint">Drag or scroll to turn the wheel · click the front frame to open</div>
+        <div id="project-wheel-hint">Drag or scroll to turn · click the front frame to open · hold or right-click a frame for more</div>
+        <div id="project-menu" hidden></div>
         <div id="project-rename-host" style="display:none;">
           <div class="mini-label">Renaming</div>
           <div id="project-rename-target"></div>
@@ -7196,9 +7203,9 @@ function requestGeoRefresh(){
         onFront: (p) => {
           projectSelect.value = p.id;
           document.getElementById('project-front-name').textContent = p.name;
-          updateMoveButtons();
         },
         onOpen: (p) => enterProject(p.id),
+        onHold: (p, x, y) => openProjectMenu(p, x, y),
       });
     }
     let front = previousValue;
@@ -7206,25 +7213,44 @@ function requestGeoRefresh(){
     projectWheel.setProjects(lastProjects, front || null);
     if(!lastProjects.length) document.getElementById('project-front-name').textContent = '';
   }
-  function updateMoveButtons(){
-    const i = lastProjects.findIndex(p => p.id === projectSelect.value);
-    document.getElementById('project-move-left').disabled = i <= 0;
-    document.getElementById('project-move-right').disabled = i < 0 || i >= lastProjects.length - 1;
-  }
-  // ‹ › move the front project one place in the order, saved account-wide like the phone's.
-  function moveProject(dir){
-    const i = lastProjects.findIndex(p => p.id === projectSelect.value);
+  // Move a project one place in the order, saved account-wide like the phone's; the wheel turns to it.
+  function moveProject(id, dir){
+    const i = lastProjects.findIndex(p => p.id === id);
     const j = i + dir;
     if(i < 0 || j < 0 || j >= lastProjects.length) return;
     const next = lastProjects.slice();
     [next[i], next[j]] = [next[j], next[i]];
     lastProjects = next;
-    projectWheel.setProjects(lastProjects, next[j].id);
-    updateMoveButtons();
+    projectWheel.setProjects(lastProjects, id);
     sbClient.auth.updateUser({ data: { project_order: next.map(p => p.id) } });
   }
-  document.getElementById('project-move-left').addEventListener('click', () => moveProject(-1));
-  document.getElementById('project-move-right').addEventListener('click', () => moveProject(1));
+  // A held (or right-clicked) frame's options. Each action names its project as it runs, since the
+  // wheel may settle on another in the meantime.
+  const projectMenu = document.getElementById('project-menu');
+  function closeProjectMenu(){ projectMenu.hidden = true; }
+  function openProjectMenu(p, x, y){
+    const i = lastProjects.findIndex(q => q.id === p.id);
+    projectMenu.innerHTML = `<div class="pm-title">${escapeHtml(p.name)}</div>
+      <button data-a="rename">Rename</button>
+      ${i > 0 ? '<button data-a="earlier">Move earlier</button>' : ''}
+      ${i < lastProjects.length - 1 ? '<button data-a="later">Move later</button>' : ''}
+      <button data-a="delete" class="danger">Delete</button>`;
+    projectMenu.hidden = false;
+    const r = projectMenu.getBoundingClientRect();
+    projectMenu.style.left = Math.min(x, window.innerWidth - r.width - 8) + 'px';
+    projectMenu.style.top = Math.min(y, window.innerHeight - r.height - 8) + 'px';
+    projectMenu.onclick = (ev) => {
+      const a = ev.target.closest('[data-a]'); if(!a) return;
+      closeProjectMenu();
+      projectSelect.value = p.id;
+      if(a.dataset.a === 'rename') projectRenameBtn.click();
+      if(a.dataset.a === 'delete') projectDeleteBtn.click();
+      if(a.dataset.a === 'earlier') moveProject(p.id, -1);
+      if(a.dataset.a === 'later') moveProject(p.id, 1);
+    };
+  }
+  document.addEventListener('pointerdown', (ev) => { if(!projectMenu.hidden && !projectMenu.contains(ev.target)) closeProjectMenu(); });
+  document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') closeProjectMenu(); });
 
   projectOpenBtn.addEventListener('click', () => {
     const projectId = projectSelect.value;

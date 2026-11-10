@@ -4,13 +4,6 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import ProjectWheel, { type WheelProject } from '../components/ProjectWheel';
 import type { SignedInStackParamList } from '../navigation/types';
-import {
-  type ImportProgress,
-  demoSummary,
-  importDemoProject,
-  isDemoProject,
-  removeStaleDemoProjects,
-} from '../lib/demoImport';
 import { supabase } from '../lib/supabase';
 import { forgetLastProject, loadLastProject } from '../lib/writingPrefs';
 import { useAuthStore } from '../store/authStore';
@@ -39,10 +32,10 @@ function applyProjectOrder(projects: Project[], orderIds: string[]): Project[] {
 // 'writing'), rename, delete (type-the-name-to-confirm, hard delete, no trash -- see
 // deleteConfirmBtn's handler and its warning copy).
 //
-// The projects are shown as THE WHEEL (2026-11-09): frames on a zoetrope drum, swiped round and
-// tapped to open (components/ProjectWheel.tsx). It opens on the last project opened. Beneath it,
-// the project at the front: Open, Rename, Delete, and ‹ › to move it earlier or later in the order
-// -- which is what the drag handles of the old list did.
+// The projects are shown as THE WHEEL (2026-11-09): frames on a zoetrope drum
+// (components/ProjectWheel.tsx). Touch and swipe only, by the writer's choice: swipe to turn,
+// tap the front frame to open, hold a frame for Rename / Move earlier / Move later / Delete. It
+// opens on the last project opened, with that project's name beneath it.
 export default function ProjectPickerScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
@@ -51,7 +44,6 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const demo = useMemo(() => demoSummary(), []);
   const projectOrder = (user?.user_metadata?.project_order as string[] | undefined) ?? [];
   const orderedProjects = useMemo(() => applyProjectOrder(projects, projectOrder), [projects, projectOrder]);
 
@@ -69,15 +61,15 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   }, []);
   const front = items.find((p) => p.id === frontId) ?? null;
 
-  // ‹ › move the front project one place in the order, saved account-wide as before.
-  function move(dir: -1 | 1) {
-    if (!front) return;
-    const i = items.indexOf(front);
+  // Move a project one place in the order, saved account-wide as before. The wheel turns to it.
+  function move(project: Project, dir: -1 | 1) {
+    const i = items.findIndex((p) => p.id === project.id);
     const j = i + dir;
-    if (j < 0 || j >= items.length) return;
+    if (i < 0 || j < 0 || j >= items.length) return;
     const next = [...items];
     [next[i], next[j]] = [next[j], next[i]];
     setItems(next);
+    setFrontId(project.id);
     void supabase.auth.updateUser({ data: { project_order: next.map((p) => p.id) } });
   }
 
@@ -88,9 +80,8 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [actionError, setActionError] = useState('');
-  const [demoProgress, setDemoProgress] = useState<ImportProgress | null>(null);
-  const [demoNote, setDemoNote] = useState('');
-  const [tidying, setTidying] = useState(false);
+  // The project whose frame is being held: its options sheet is open.
+  const [menuTarget, setMenuTarget] = useState<Project | null>(null);
 
   useEffect(() => {
     if (user) fetchProjects(user.id);
@@ -133,53 +124,6 @@ export default function ProjectPickerScreen({ navigation }: Props) {
     setDeleteConfirmText('');
   }
 
-  // Loads the bundled demo pack into a fresh project. Deliberately additive: each run makes
-  // a new project, so it can be loaded, broken while testing, and loaded again with nothing
-  // to clean up first.
-  async function handleLoadDemo() {
-    if (!user || demoProgress) return;
-    setActionError('');
-    setDemoNote('');
-    setDemoProgress({ step: 'Starting', done: 0, total: 1 });
-    const { projectId, projectName, removed, error: err } = await importDemoProject(
-      user.id,
-      setDemoProgress,
-    );
-    setDemoProgress(null);
-    // The list changes either way: a successful load replaces the older copies, a failed one
-    // removes its own half-built project.
-    await fetchProjects(user.id);
-    if (err) {
-      setActionError(err);
-      return;
-    }
-    // Said out loud rather than assumed. The old code reported a number it had not checked,
-    // so copies could pile up with the app insisting it had cleaned them.
-    if (removed) setDemoNote(`Replaced ${removed} older cop${removed === 1 ? 'y' : 'ies'}.`);
-    if (projectId) navigation.navigate('ChapterList', { projectId, projectName });
-  }
-
-  // Every demo project, newest first. The demo is meant to leave exactly one behind; this is
-  // how the writer clears a pile that accumulated before it did, without re-importing.
-  const demoProjects = useMemo(
-    () =>
-      projects
-        .filter((p) => isDemoProject(p.name))
-        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
-    [projects],
-  );
-
-  async function handleTidyDemos() {
-    if (!user || tidying || demoProjects.length < 2) return;
-    setActionError('');
-    setDemoNote('');
-    setTidying(true);
-    const { removed, error: err } = await removeStaleDemoProjects(user.id, demoProjects[0].id);
-    setTidying(false);
-    await fetchProjects(user.id);
-    if (err) setActionError(err);
-    else setDemoNote(`Removed ${removed} older cop${removed === 1 ? 'y' : 'ies'}.`);
-  }
 
   async function confirmDelete() {
     if (!deleteTarget || deleteConfirmText !== deleteTarget.name) return;
@@ -219,72 +163,17 @@ export default function ProjectPickerScreen({ navigation }: Props) {
             frontId={frontId}
             onFront={(p: WheelProject) => setFrontId(p.id)}
             onOpen={(p) => navigation.navigate('ChapterList', { projectId: p.id, projectName: p.name })}
+            onHold={(p) => setMenuTarget(items.find((x) => x.id === p.id) ?? null)}
           />
         </View>
       )}
       {front && (
         <View style={styles.frontBox}>
           <Text style={styles.frontName} numberOfLines={2}>{front.name}</Text>
-          <View style={styles.frontRow}>
-            <Pressable onPress={() => move(-1)} hitSlop={10} disabled={items.indexOf(front) === 0}>
-              <Text style={[styles.moveText, items.indexOf(front) === 0 && styles.dim]}>‹</Text>
-            </Pressable>
-            <Pressable style={styles.openBtn} onPress={() => navigation.navigate('ChapterList', { projectId: front.id, projectName: front.name })}>
-              <Text style={styles.openText}>Open</Text>
-            </Pressable>
-            <Pressable onPress={() => move(1)} hitSlop={10} disabled={items.indexOf(front) === items.length - 1}>
-              <Text style={[styles.moveText, items.indexOf(front) === items.length - 1 && styles.dim]}>›</Text>
-            </Pressable>
-          </View>
-          <View style={styles.frontLinks}>
-            <Pressable onPress={() => openRename(front)} hitSlop={8}>
-              <Text style={styles.linkText}>Rename</Text>
-            </Pressable>
-            <Pressable onPress={() => openDelete(front)} hitSlop={8}>
-              <Text style={[styles.linkText, styles.linkDanger]}>Delete</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.hint}>Swipe to turn the wheel · tap the front frame to open</Text>
+          <Text style={styles.hint}>Swipe to turn · tap the front frame to open · hold a frame for more</Text>
         </View>
       )}
 
-      <Pressable style={styles.demoRow} onPress={handleLoadDemo} disabled={!!demoProgress}>
-        {demoProgress ? (
-          <>
-            <ActivityIndicator color={colors.gold} size="small" />
-            <Text style={styles.demoText}>
-              {demoProgress.step} — {demoProgress.done} of {demoProgress.total}
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.demoTitle}>Load the demo project</Text>
-            <Text style={styles.demoText}>
-              {demo.chapters} chapters · {demo.scenes} scenes · {demo.documents} documents ·{' '}
-              {demo.words.toLocaleString()} words
-            </Text>
-            <Text style={styles.demoText}>
-              {demo.characters} cast · {demo.relationships} relationships · {demo.pairs}{' '}
-              plant/reveal pairs
-            </Text>
-            {!!demoNote && <Text style={styles.demoNote}>{demoNote}</Text>}
-          </>
-        )}
-      </Pressable>
-
-      {/* Only shown when there is actually a pile. Loading the demo already leaves one copy
-          behind; this exists for the ones that accumulated before it did. */}
-      {demoProjects.length > 1 && !demoProgress && (
-        <Pressable style={styles.tidyRow} onPress={handleTidyDemos} disabled={tidying}>
-          <Text style={styles.tidyText}>
-            {tidying
-              ? 'Removing…'
-              : `Keep only the newest demo — delete ${demoProjects.length - 1} older cop${
-                  demoProjects.length - 1 === 1 ? 'y' : 'ies'
-                }`}
-          </Text>
-        </Pressable>
-      )}
 
       <View style={styles.newRow}>
         <TextInput
@@ -299,6 +188,42 @@ export default function ProjectPickerScreen({ navigation }: Props) {
           {creating ? <ActivityIndicator color="#2b1a05" /> : <Text style={styles.newBtnText}>Create</Text>}
         </Pressable>
       </View>
+
+      {/* A held frame's options. Each closes the sheet first, then acts -- a second Modal opening in
+          the same instant as this one closes is the Android fault noted at confirmDelete. */}
+      <Modal visible={!!menuTarget} transparent animationType="fade" onRequestClose={() => setMenuTarget(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setMenuTarget(null)}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle} numberOfLines={2}>{menuTarget?.name}</Text>
+            {(() => {
+              const p = menuTarget;
+              if (!p) return null;
+              const i = items.findIndex((x) => x.id === p.id);
+              const after = (fn: () => void) => () => { setMenuTarget(null); setTimeout(fn, 250); };
+              return (
+                <>
+                  <Pressable style={styles.menuRow} onPress={after(() => openRename(p))}>
+                    <Text style={styles.menuText}>Rename</Text>
+                  </Pressable>
+                  {i > 0 && (
+                    <Pressable style={styles.menuRow} onPress={() => { move(p, -1); setMenuTarget(null); }}>
+                      <Text style={styles.menuText}>Move earlier</Text>
+                    </Pressable>
+                  )}
+                  {i < items.length - 1 && (
+                    <Pressable style={styles.menuRow} onPress={() => { move(p, 1); setMenuTarget(null); }}>
+                      <Text style={styles.menuText}>Move later</Text>
+                    </Pressable>
+                  )}
+                  <Pressable style={styles.menuRow} onPress={after(() => openDelete(p))}>
+                    <Text style={[styles.menuText, styles.modalDanger]}>Delete</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Rename */}
       <Modal visible={!!renameTarget} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
@@ -381,41 +306,9 @@ function makeStyles(colors: ThemeColors) {
     wheelBleed: { marginHorizontal: -20, marginTop: 4 },
     frontBox: { alignItems: 'center', marginTop: 4, marginBottom: 18 },
     frontName: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 18, textAlign: 'center' },
-    frontRow: { flexDirection: 'row', alignItems: 'center', gap: 22, marginTop: 10 },
-    moveText: { color: colors.gold, fontSize: 30, lineHeight: 32, paddingHorizontal: 6 },
-    dim: { opacity: 0.25 },
-    openBtn: { backgroundColor: colors.gold, borderRadius: 8, paddingHorizontal: 30, paddingVertical: 9 },
-    openText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 15 },
-    frontLinks: { flexDirection: 'row', gap: 22, marginTop: 10 },
-    linkText: { color: colors.textDim, fontSize: 13 },
-    linkDanger: { color: colors.error },
+    menuRow: { paddingVertical: 13, borderTopWidth: 1, borderTopColor: colors.borderDim },
+    menuText: { color: colors.text, fontFamily: FONTS.bodySemiBold, fontSize: 15 },
     hint: { color: colors.textFaint, fontSize: 11.5, marginTop: 10 },
-    demoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginHorizontal: 16,
-      marginBottom: 10,
-      paddingVertical: 11,
-      paddingHorizontal: 14,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors.borderDim,
-    },
-    demoTitle: { color: colors.gold, fontFamily: FONTS.bodySemiBold, fontSize: 13.5 },
-    demoText: { color: colors.textFaint, fontSize: 11.5, flexShrink: 1 },
-    demoNote: { color: colors.gold, fontSize: 11.5, marginTop: 4 },
-    tidyRow: {
-      marginTop: 8,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.borderDim,
-    },
-    tidyText: { color: colors.textDim, fontSize: 12.5 },
     newRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
     newInput: {
       flex: 1,

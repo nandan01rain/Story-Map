@@ -4,9 +4,10 @@
    passes behind. Frames past the projects are blank film; the wheel never settles on one.
 
    Drag (or swipe) to turn it, and it settles on a project; the mouse wheel and the arrow keys
-   turn it a frame at a time; click the front frame to open it, or another to bring it round.
+   turn it a frame at a time; click the front frame to open it, or another to bring it round;
+   hold a frame (or right-click it) for its options. Touch and swipe -- there are no buttons.
 
-     const wheel = ProjectWheel.mount(el, { onFront(p), onOpen(p) });
+     const wheel = ProjectWheel.mount(el, { onFront(p), onOpen(p), onHold(p, x, y) });
      wheel.setProjects([{ id, name }], frontId)   // the first call opens with a turn to frontId
      wheel.setFront(id)                            // turn to a project                          */
 (function (global) {
@@ -90,15 +91,29 @@
 
     // Dragging: the frames follow the pointer, then the wheel carries on a little and settles.
     let drag = null;
+    const frameAt = (target) => { const f = target.closest && target.closest('.pw-frame.has'); return f && el.contains(f) ? projects[Number(f.dataset.i)] : null; };
     el.addEventListener('pointerdown', (ev) => {
       if (!projects.length) return;
-      drag = { x0: ev.clientX, r0: rot, last: ev.clientX, t: performance.now(), v: 0, moved: false };
+      drag = { x0: ev.clientX, r0: rot, last: ev.clientX, t: performance.now(), v: 0, moved: false, held: false };
       if (anim) { cancelAnimationFrame(anim.id); anim = null; }
+      // Held still on a frame: its options, and the press is not also a click.
+      const p = frameAt(ev.target);
+      if (p && opts.onHold) {
+        const d = drag;
+        d.timer = setTimeout(() => { if (drag === d && !d.moved) { d.held = true; opts.onHold(p, ev.clientX, ev.clientY); } }, 500);
+      }
+    });
+    el.addEventListener('contextmenu', (ev) => {
+      const p = frameAt(ev.target);
+      if (!p || !opts.onHold) return;
+      ev.preventDefault();
+      if (drag) { clearTimeout(drag.timer); drag.held = true; }
+      opts.onHold(p, ev.clientX, ev.clientY);
     });
     window.addEventListener('pointermove', (ev) => {
       if (!drag) return;
       const dx = ev.clientX - drag.x0;
-      if (Math.abs(dx) > 4) drag.moved = true;
+      if (Math.abs(dx) > 4) { drag.moved = true; clearTimeout(drag.timer); }
       const now = performance.now();
       drag.v = (ev.clientX - drag.last) / Math.max(1, now - drag.t) * 1000;
       drag.last = ev.clientX; drag.t = now;
@@ -108,6 +123,8 @@
     window.addEventListener('pointerup', (ev) => {
       if (!drag) return;
       const d = drag; drag = null;
+      clearTimeout(d.timer);
+      if (d.held) return settleOn(nearest(rot), 300);
       if (d.moved) { settleOn(nearest(rot + (d.v / R()) * 0.25), 700); return; }
       // A click, not a drag: open the front frame, or bring another round.
       const f = ev.target.closest && ev.target.closest('.pw-frame.has');
