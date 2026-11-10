@@ -1833,6 +1833,10 @@ async function loadJournal(){
     .sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position));
 }
 const jPage = (id) => J.pages.find((p) => p.id === id);
+// A database that ran the first copy of the journal migration (pages tied to a project, no shelf).
+const journalError = (e) => ((e.code === '23502' && /project_id/.test(e.message)) || /set_aside_at/.test(e.message)
+  ? 'The journal changed: paste supabase/migrations/20261027_journal.sql into the Supabase SQL editor again (it is safe to re-run). Nothing was lost.'
+  : e.message);
 // The notebook, or the shelf of pages set aside -- never both at once.
 const jShown = () => J.pages.filter((p) => !p.set_aside_at === !J.shelf);
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -1864,7 +1868,7 @@ async function newJournalPage(fields = {}){
   const last = J.pages.filter((p) => !p.set_aside_at).pop();
   const page = { id: uuid(), user_id: userId, day: todayISO(), title: '', paper: last ? last.paper : 'lined', scan_path: null, items: [], position: positionBetween(last ? Number(last.position) : null, null), ...fields };
   const { error } = await sb.from('journal_pages').insert(page);
-  if (error) { alert(error.message); return null; }
+  if (error) { alert(journalError(error)); return null; }
   J.pages.push(page);
   J.pages.sort((a, b) => String(a.day).localeCompare(String(b.day)) || Number(a.position) - Number(b.position));
   return page;
@@ -1929,7 +1933,7 @@ function drawJournal(){
     const shelve = async (on) => {
       const at = on ? new Date().toISOString() : null;
       const { error } = await sb.from('journal_pages').update({ set_aside_at: at }).eq('id', page.id);
-      if (error) return alert(error.message);
+      if (error) return alert(journalError(error));
       page.set_aside_at = at; J.current = jShown().pop()?.id ?? null; J.selected = null; drawJournal();
     };
     const del = $('#jr-del'); if (del) del.onclick = () => shelve(true);

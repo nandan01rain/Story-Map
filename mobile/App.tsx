@@ -5,15 +5,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DropProvider } from 'react-native-reanimated-dnd';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import LoadScreen, { type WheelProject } from './src/components/LoadScreen';
+import LoadScreen from './src/components/LoadScreen';
 import { flush } from './src/lib/outbox';
-import { loadLastProject } from './src/lib/writingPrefs';
 import { useWritingStats } from './src/lib/writingStats';
 import { useOtaUpdate } from './src/lib/useOtaUpdate';
-import { navigationRef } from './src/navigation/navigationRef';
 import RootNavigator from './src/navigation/RootNavigator';
 import { useAuthStore } from './src/store/authStore';
-import { useProjectStore } from './src/store/projectStore';
 import { FONTS, ThemeProvider, useAppFonts, useTheme } from './src/theme';
 
 // Global default: every <Text> not given its own fontFamily falls back to the PWA's
@@ -86,42 +83,16 @@ const MIN_LOAD = 2400;
 
 function LoadGate({ fontsLoaded }: { fontsLoaded: boolean }) {
   const initializing = useAuthStore((s) => s.initializing);
-  const userId = useAuthStore((s) => s.user?.id ?? null);
-  const projects = useProjectStore((s) => s.projects);
   const [minElapsed, setMinElapsed] = useState(false);
-  const [front, setFront] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setMinElapsed(true), MIN_LOAD);
-    void loadLastProject().then((p) => setFront(p?.id ?? null));
     return () => clearTimeout(t);
   }, []);
-  // The wheel's frames are the writer's projects, from the device's cache first.
-  useEffect(() => {
-    if (userId) void useProjectStore.getState().fetchProjects(userId);
-  }, [userId]);
-
-  function open(p: WheelProject) {
-    // The navigator mounts under the load screen; by the time it has faded it is ready.
-    const go = (tries: number) => {
-      if (navigationRef.isReady()) navigationRef.navigate('ChapterList', { projectId: p.id, projectName: p.name });
-      else if (tries > 0) setTimeout(() => go(tries - 1), 100);
-    };
-    go(20);
-  }
 
   if (gone) return null;
-  return (
-    <LoadScreen
-      ready={fontsLoaded && !initializing && minElapsed}
-      fontsLoaded={fontsLoaded}
-      projects={userId ? projects.map((p) => ({ id: p.id, name: p.name })) : []}
-      frontId={front}
-      onPick={open}
-      onFinished={() => setGone(true)}
-    />
-  );
+  return <LoadScreen ready={fontsLoaded && !initializing && minElapsed} onFinished={() => setGone(true)} />;
 }
 
 export default function App() {

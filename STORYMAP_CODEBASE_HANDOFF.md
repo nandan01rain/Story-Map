@@ -5839,3 +5839,50 @@ pane gets no animation frames). It stopped on the last project and lit it, and a
 the wheel within 0.7s and waited for ready before opening the project. `index.html` loaded with
 no console errors. The phone version shares the geometry and timings but has not been seen on a
 device.
+
+### 55.1 The wheel moves to the Projects page (2026-11-10)
+
+The writer's correction: the load screen is **the rose and its effects only**, with no wheel
+and no wordmark or tagline, and the projects are shown **as the wheel on the Projects page**.
+
+- **Load screens:**
+  - Phone: `LoadScreen.tsx`, with the rose centred, fading out once ready.
+  - Web: `load/`, with the old `setProjects`/`setFront`/`onPick` API gone; it only has
+    `ready()`.
+  - `navigation/navigationRef.ts` was deleted, because nothing outside a screen navigates any
+    more.
+- **Phone:** `components/ProjectWheel.tsx` replaces the drag-to-reorder list in
+  `ProjectPickerScreen`.
+  - Swipe to turn, with a short carry and a snap to a project (never a blank frame). Tapping
+    the front frame opens it; tapping another brings it round.
+  - It opens with a turn that rests on the last project opened.
+  - Beneath it are the front project's name, ‹ Open ›, and Rename / Delete. ‹ › move the front
+    project in the account-wide `project_order` (user_metadata), which is the job the drag
+    handles used to do.
+  - The page now scrolls, since it is taller than the list was.
+- **Web:** `wheel/project-wheel.js` + `.css`, which follow the same rules. Drag, the mouse wheel
+  and the arrow keys turn it; Enter opens.
+  - `index.html`'s Projects panel keeps the `<select>` hidden as the state the existing
+    Open / Rename / Delete handlers read, and adds ‹ ›.
+  - The web now honours the phone's `project_order` too; it used to list by creation date.
+  - A ResizeObserver re-lays the wheel out when its tab is first shown, because it is built
+    while hidden, at zero width.
+  - Shell cache v11.
+
+**Also fixed (2026-11-10):** "page not started: null value in column project_id". A read-only
+probe of the live project showed that `journal_pages` has `project_id` but no `set_aside_at`,
+which means the FIRST copy of `20261027_journal.sql` was run. The current file fixes both, so
+the writer needs to re-paste it; it is safe to re-run. Until then, both apps say exactly that
+instead of the raw error.
+
+**Checked:** typecheck clean. The web wheel was run in `canon-import/wheel-harness.html`
+(`?timer=1&front=pN`):
+- it opened on the given project;
+- a side click brought that frame round;
+- a front click opened it;
+- a drag settled on a project;
+- a scroll notch turned one frame.
+
+`index.html` loaded with the logo-only cover and no console errors. The phone wheel has not been
+seen on a device.
+

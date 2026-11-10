@@ -1,0 +1,17 @@
+/* The project wheel (2026-11-09) -- the web twin of mobile/src/components/ProjectWheel.tsx. */
+.pw{position:relative;width:100%;height:172px;touch-action:pan-y;user-select:none;-webkit-user-select:none;outline:none;cursor:grab}
+.pw:active{cursor:grabbing}
+.pw-track{position:absolute;left:50%;transform:translateX(-50%);border:1px solid rgba(184,134,46,.35);border-radius:50%}
+.pw-shadow{position:absolute;left:50%;transform:translateX(-50%);border-radius:50%;background:rgba(120,80,20,.10)}
+.pw-hub{position:absolute;left:50%;top:46px;width:104px;height:80px;margin-left:-52px}
+.pw-frame{position:absolute;inset:0;background:#2f2116;border-radius:3px;padding:3px 5px;display:flex;flex-direction:column;justify-content:space-between;will-change:transform,opacity}
+.pw-frame.has{cursor:pointer}
+.pw-frame.lit{box-shadow:0 0 0 2px #e8c46a,0 0 14px rgba(232,196,106,.7)}
+.pw-holes{display:flex;justify-content:space-between;padding:0 2px}
+.pw-holes i{width:7px;height:5px;border-radius:1.5px;background:rgba(242,227,191,.75)}
+.pw-win{position:relative;flex:1;margin:3px 0;background:#f4e6c3;border-radius:1px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.pw-frame:not(.has) .pw-win{background:#e8d6ac}
+.pw-face{padding:3px 6px;text-align:center;font-family:'Cinzel',serif;font-weight:600;font-size:11px;line-height:13px;color:#3a2415;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pw-no{position:absolute;top:2px;right:4px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#9a8466}
+.pw-back{position:absolute;inset:0;background:#4a3524;opacity:0;pointer-events:none}

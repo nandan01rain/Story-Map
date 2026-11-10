@@ -77,6 +77,14 @@ const pending = new Map<string, Set<keyof JournalPage>>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 const urlCache = new Map<string, { url: string; at: number }>();
 
+// A database that ran the first copy of the journal migration (pages tied to a project, no
+// shelf) answers with a null project_id or a missing set_aside_at. The file is safe to re-run.
+const OLD_JOURNAL = 'The journal changed: paste supabase/migrations/20261027_journal.sql into the Supabase SQL editor again (it is safe to re-run). Nothing was lost.';
+function journalError(e: { code?: string; message: string }): string {
+  if ((e.code === '23502' && /project_id/.test(e.message)) || /set_aside_at/.test(e.message)) return OLD_JOURNAL;
+  return e.message;
+}
+
 function missingBucket(message: string) {
   return /bucket/i.test(message) ? 'The journal\'s picture store needs supabase/migrations/20261027_journal.sql pasted once.' : message;
 }
@@ -117,7 +125,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       ...fields,
     };
     const { error } = await supabase.from('journal_pages').insert(page);
-    if (error) return { page: null, error: error.message };
+    if (error) return { page: null, error: journalError(error) };
     set({ pages: [...get().pages, page].sort(byDay) });
     return { page, error: null };
   },
@@ -157,7 +165,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     await get().flush();
     const at = aside ? new Date().toISOString() : null;
     const { error } = await supabase.from('journal_pages').update({ set_aside_at: at }).eq('id', id);
-    if (error) return { error: error.message };
+    if (error) return { error: journalError(error) };
     set({ pages: get().pages.map((p) => (p.id === id ? { ...p, set_aside_at: at } : p)) });
     return { error: null };
   },

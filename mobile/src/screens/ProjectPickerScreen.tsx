@@ -1,9 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { DropProvider, SortableItem, useSortableList } from 'react-native-reanimated-dnd';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import ProjectWheel, { type WheelProject } from '../components/ProjectWheel';
 import type { SignedInStackParamList } from '../navigation/types';
 import {
   type ImportProgress,
@@ -13,15 +12,12 @@ import {
   removeStaleDemoProjects,
 } from '../lib/demoImport';
 import { supabase } from '../lib/supabase';
-import { useSortablePositions } from '../lib/useSortablePositions';
-import { forgetLastProject } from '../lib/writingPrefs';
+import { forgetLastProject, loadLastProject } from '../lib/writingPrefs';
 import { useAuthStore } from '../store/authStore';
 import { type Project, useProjectStore } from '../store/projectStore';
 import { FONTS, type ThemeColors, useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<SignedInStackParamList, 'ProjectPicker'>;
-
-const ROW_HEIGHT = 56;
 
 // The PWA has no project reordering at all -- `projects` has no `order` column (handoff
 // doc §4) and this session has no schema/DDL access to add one (same anon-key-only
@@ -39,9 +35,14 @@ function applyProjectOrder(projects: Project[], orderIds: string[]): Project[] {
   });
 }
 
-// Matches the PWA's project-screen flow (index.html): list, create (name only,
-// project_type always 'writing'), rename (inline), delete (type-the-name-to-confirm,
-// hard delete, no trash -- see deleteConfirmBtn's handler and its warning copy).
+// Matches the PWA's project-screen flow (index.html): create (name only, project_type always
+// 'writing'), rename, delete (type-the-name-to-confirm, hard delete, no trash -- see
+// deleteConfirmBtn's handler and its warning copy).
+//
+// The projects are shown as THE WHEEL (2026-11-09): frames on a zoetrope drum, swiped round and
+// tapped to open (components/ProjectWheel.tsx). It opens on the last project opened. Beneath it,
+// the project at the front: Open, Rename, Delete, and ‹ › to move it earlier or later in the order
+// -- which is what the drag handles of the old list did.
 export default function ProjectPickerScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
@@ -54,32 +55,31 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   const projectOrder = (user?.user_metadata?.project_order as string[] | undefined) ?? [];
   const orderedProjects = useMemo(() => applyProjectOrder(projects, projectOrder), [projects, projectOrder]);
 
-  // Drag-to-reorder, same mechanism as List view's chapter reordering (ChapterListScreen)
-  // for consistency -- useSortableList rather than the higher-level <Sortable>, matching
-  // that screen's fix for the nested-VirtualizedList-in-ScrollView warning, even though
-  // this screen's list isn't nested in another ScrollView today; keeping one pattern
-  // rather than two avoids a screen silently breaking if a wrapping ScrollView is ever
-  // added around it later.
   const [items, setItems] = useState(orderedProjects);
   useEffect(() => {
     setItems(orderedProjects);
   }, [orderedProjects]);
 
-  const handleMove = useCallback((id: string, from: number, to: number) => {
-    setItems((prev) => {
-      const idx = prev.findIndex((p) => p.id === id);
-      if (idx === -1 || from === to) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
+  // The project at the front of the wheel. Null until the last-opened one has been looked up, so
+  // the wheel's opening turn knows where to come to rest.
+  const [frontId, setFrontId] = useState<string | null>(null);
+  const [frontLoaded, setFrontLoaded] = useState(false);
+  useEffect(() => {
+    void loadLastProject().then((p) => { setFrontId(p?.id ?? null); setFrontLoaded(true); });
   }, []);
+  const front = items.find((p) => p.id === frontId) ?? null;
 
-  const handleDrop = useCallback(() => {
-    supabase.auth.updateUser({ data: { project_order: items.map((p) => p.id) } });
-  }, [items]);
-
+  // ‹ › move the front project one place in the order, saved account-wide as before.
+  function move(dir: -1 | 1) {
+    if (!front) return;
+    const i = items.indexOf(front);
+    const j = i + dir;
+    if (j < 0 || j >= items.length) return;
+    const next = [...items];
+    [next[i], next[j]] = [next[j], next[i]];
+    setItems(next);
+    void supabase.auth.updateUser({ data: { project_order: next.map((p) => p.id) } });
+  }
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -197,7 +197,7 @@ export default function ProjectPickerScreen({ navigation }: Props) {
   }
 
   return (
-    <View style={styles.screen}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenBody} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={styles.title}>Your Projects</Text>
         <Pressable onPress={signOut}>
@@ -212,16 +212,40 @@ export default function ProjectPickerScreen({ navigation }: Props) {
         <Text style={styles.empty}>No projects yet — create one below.</Text>
       )}
 
-      {items.length > 0 && (
-        <ProjectSortableList
-          items={items}
-          styles={styles}
-          onOpen={(item) => navigation.navigate('ChapterList', { projectId: item.id, projectName: item.name })}
-          onRename={openRename}
-          onDelete={openDelete}
-          onMove={handleMove}
-          onDrop={handleDrop}
-        />
+      {items.length > 0 && frontLoaded && (
+        <View style={styles.wheelBleed}>
+          <ProjectWheel
+            projects={items}
+            frontId={frontId}
+            onFront={(p: WheelProject) => setFrontId(p.id)}
+            onOpen={(p) => navigation.navigate('ChapterList', { projectId: p.id, projectName: p.name })}
+          />
+        </View>
+      )}
+      {front && (
+        <View style={styles.frontBox}>
+          <Text style={styles.frontName} numberOfLines={2}>{front.name}</Text>
+          <View style={styles.frontRow}>
+            <Pressable onPress={() => move(-1)} hitSlop={10} disabled={items.indexOf(front) === 0}>
+              <Text style={[styles.moveText, items.indexOf(front) === 0 && styles.dim]}>‹</Text>
+            </Pressable>
+            <Pressable style={styles.openBtn} onPress={() => navigation.navigate('ChapterList', { projectId: front.id, projectName: front.name })}>
+              <Text style={styles.openText}>Open</Text>
+            </Pressable>
+            <Pressable onPress={() => move(1)} hitSlop={10} disabled={items.indexOf(front) === items.length - 1}>
+              <Text style={[styles.moveText, items.indexOf(front) === items.length - 1 && styles.dim]}>›</Text>
+            </Pressable>
+          </View>
+          <View style={styles.frontLinks}>
+            <Pressable onPress={() => openRename(front)} hitSlop={8}>
+              <Text style={styles.linkText}>Rename</Text>
+            </Pressable>
+            <Pressable onPress={() => openDelete(front)} hitSlop={8}>
+              <Text style={[styles.linkText, styles.linkDanger]}>Delete</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.hint}>Swipe to turn the wheel · tap the front frame to open</Text>
+        </View>
       )}
 
       <Pressable style={styles.demoRow} onPress={handleLoadDemo} disabled={!!demoProgress}>
@@ -337,82 +361,15 @@ export default function ProjectPickerScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
-
-// The sortable list lives in its own component, mounted only once there are projects to
-// show. That is the whole fix for rows drawing on top of each other on a fresh sign-in:
-// useSortableList seeds its positions map with useSharedValue, which keeps whatever it was
-// given on the FIRST render forever, and each row then reads its offset from that map in a
-// useMemo with empty deps when it mounts. Mounting this while the fetch was still in flight
-// meant the map was {} and every row read 0. Gating the mount on real data means the map is
-// built from that data, the way the library assumes.
-//
-// (ChapterListScreen never hit this: its screen early-returns a spinner while loading, so
-// its own sortable child has always mounted with chapters already in hand.)
-function ProjectSortableList({
-  items,
-  styles,
-  onOpen,
-  onRename,
-  onDelete,
-  onMove,
-  onDrop,
-}: {
-  items: Project[];
-  styles: ReturnType<typeof makeStyles>;
-  onOpen: (project: Project) => void;
-  onRename: (project: Project) => void;
-  onDelete: (project: Project) => void;
-  onMove: (id: string, from: number, to: number) => void;
-  onDrop: () => void;
-}) {
-  const { positions, scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentHeight, getItemProps } =
-    useSortableList({ data: items, itemHeight: ROW_HEIGHT });
-  // Still needed for the add/remove case: creating or deleting a project changes the set
-  // without remounting this component.
-  const listKey = useSortablePositions(items, positions);
-
-  return (
-    <DropProvider key={listKey} ref={dropProviderRef}>
-      <Animated.ScrollView
-        ref={scrollViewRef}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ height: contentHeight }}
-        onScrollEndDrag={handleScrollEnd}
-        onMomentumScrollEnd={handleScrollEnd}
-      >
-        {items.map((item, index) => (
-          <SortableItem key={item.id} data={item} {...getItemProps(item, index)} onMove={onMove} onDrop={onDrop}>
-            <View style={styles.row}>
-              <SortableItem.Handle style={styles.dragHandle}>
-                <Text style={styles.dragHandleText}>⠿</Text>
-              </SortableItem.Handle>
-              <Pressable style={styles.rowMain} onPress={() => onOpen(item)}>
-                <Text style={styles.rowText}>{item.name}</Text>
-              </Pressable>
-              <View style={styles.rowActions}>
-                <Pressable onPress={() => onRename(item)} hitSlop={10}>
-                  <Text style={styles.rowActionText}>Rename</Text>
-                </Pressable>
-                <Pressable onPress={() => onDelete(item)} hitSlop={10}>
-                  <Text style={[styles.rowActionText, styles.rowActionDanger]}>Delete</Text>
-                </Pressable>
-              </View>
-            </View>
-          </SortableItem>
-        ))}
-      </Animated.ScrollView>
-    </DropProvider>
-  );
-}
 
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.bg, padding: 20, paddingTop: 60 },
+    screen: { flex: 1, backgroundColor: colors.bg },
+    screenBody: { padding: 20, paddingTop: 60, paddingBottom: 40 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     title: { fontFamily: FONTS.headingBold, fontSize: 22, color: colors.text },
     signOut: { color: colors.gold, fontSize: 13 },
@@ -420,25 +377,19 @@ function makeStyles(colors: ThemeColors) {
     spinner: { marginTop: 20 },
     error: { color: colors.error, fontSize: 13, marginBottom: 12 },
     empty: { color: colors.textDim, fontSize: 13, marginTop: 20 },
-    row: {
-      backgroundColor: colors.panel,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 6,
-      height: ROW_HEIGHT - 8,
-      marginBottom: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      gap: 6,
-    },
-    dragHandle: { width: 28, alignItems: 'center', justifyContent: 'center' },
-    dragHandleText: { color: colors.textFaint, fontSize: 16 },
-    rowMain: { flex: 1 },
-    rowText: { color: colors.text, fontFamily: FONTS.heading, fontSize: 15.5 },
-    rowActions: { flexDirection: 'row', gap: 16 },
-    rowActionText: { color: colors.textDim, fontSize: 12 },
-    rowActionDanger: { color: colors.error },
+    // The wheel runs the full width of the screen, past this screen's padding.
+    wheelBleed: { marginHorizontal: -20, marginTop: 4 },
+    frontBox: { alignItems: 'center', marginTop: 4, marginBottom: 18 },
+    frontName: { color: colors.text, fontFamily: FONTS.headingBold, fontSize: 18, textAlign: 'center' },
+    frontRow: { flexDirection: 'row', alignItems: 'center', gap: 22, marginTop: 10 },
+    moveText: { color: colors.gold, fontSize: 30, lineHeight: 32, paddingHorizontal: 6 },
+    dim: { opacity: 0.25 },
+    openBtn: { backgroundColor: colors.gold, borderRadius: 8, paddingHorizontal: 30, paddingVertical: 9 },
+    openText: { color: '#2b1a05', fontFamily: FONTS.bodySemiBold, fontSize: 15 },
+    frontLinks: { flexDirection: 'row', gap: 22, marginTop: 10 },
+    linkText: { color: colors.textDim, fontSize: 13 },
+    linkDanger: { color: colors.error },
+    hint: { color: colors.textFaint, fontSize: 11.5, marginTop: 10 },
     demoRow: {
       flexDirection: 'row',
       alignItems: 'center',

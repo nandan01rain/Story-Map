@@ -9,6 +9,8 @@
 <link rel="manifest" href="manifest.json">
 <!-- The load screen: first, so the cover is up before anything else is parsed. -->
 <link rel="stylesheet" href="load/load-screen.css">
+<link rel="stylesheet" href="wheel/project-wheel.css">
+<script src="wheel/project-wheel.js"></script>
 <link rel="preload" as="image" href="load/load-rose.png">
 <link rel="preload" as="image" href="assets/auth-bg-environment.webp">
 <style>
@@ -1366,7 +1368,12 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
 .ph-tab-cta svg{width:22px;height:22px;}
 .ph-tab-cta:hover{filter:brightness(1.08);}
 #project-home-panel h2{font-family:var(--font-heading);font-size:16px;letter-spacing:.03em;color:var(--ph-text);margin:0 0 18px;}
-#project-select-row{display:flex;flex-wrap:wrap;gap:8px;}
+#project-select-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+/* The wheel runs past the panel's width on a wide screen; the frames need the room. */
+#project-wheel{margin:0 -60px 4px;width:calc(100% + 120px)}
+@media (max-width:640px){ #project-wheel{margin:0 0 4px;width:100%} }
+#project-front-name{text-align:center;font-family:var(--font-heading);font-weight:700;font-size:18px;color:var(--ph-text);margin:0 0 12px;min-height:24px}
+#project-wheel-hint{text-align:center;font-size:11.5px;color:var(--ph-text-dim);margin-top:10px}
 #project-select-row select{flex:1 1 100%;min-width:0;background:var(--ph-input-bg);border:1px solid var(--ph-border);color:var(--ph-text);border-radius:6px;padding:10px 12px;font-size:14px;font-family:var(--font-literary);}
 #project-select-row select:focus{outline:none;border-color:var(--ph-accent);}
 #project-select-row button:disabled{opacity:0.4;cursor:not-allowed;}
@@ -1542,12 +1549,17 @@ mark.hl-highlight{background:rgba(212,175,55,0.38);color:var(--text);border-radi
     <div class="ph-tab-panel" data-ph-panel="projects">
       <div id="project-home-panel">
         <h2>Your projects</h2>
+        <div id="project-wheel"></div>
+        <div id="project-front-name"></div>
         <div id="project-select-row">
-          <select id="project-select"></select>
+          <select id="project-select" hidden></select>
+          <button class="btn" id="project-move-left" title="Move earlier">‹</button>
           <button class="btn primary" id="project-open-btn"><svg class="nav-icon"><use href="#icon-folder"></use></svg> Open</button>
+          <button class="btn" id="project-move-right" title="Move later">›</button>
           <button class="btn" id="project-rename-btn"><svg class="nav-icon"><use href="#icon-pencil"></use></svg> Rename</button>
           <button class="btn danger" id="project-delete-btn"><svg class="nav-icon"><use href="#icon-trash"></use></svg> Delete</button>
         </div>
+        <div id="project-wheel-hint">Drag or scroll to turn the wheel · click the front frame to open</div>
         <div id="project-rename-host" style="display:none;">
           <div class="mini-label">Renaming</div>
           <div id="project-rename-target"></div>
@@ -7160,7 +7172,12 @@ function requestGeoRefresh(){
       projectErrorEl.textContent = error.message;
       return;
     }
-    lastProjects = data || [];
+    // The same account-wide order as the phone (user_metadata.project_order); projects not in it
+    // follow, oldest first.
+    const order = (user.user_metadata && user.user_metadata.project_order) || [];
+    const rank = new Map(order.map((id, i) => [id, i]));
+    lastProjects = (data || []).slice().sort((a, b) => (rank.has(a.id) ? rank.get(a.id) : 1e9) - (rank.has(b.id) ? rank.get(b.id) : 1e9));
+    drawProjectWheel(previousValue);
     if(lastProjects.length === 0){
       projectSelect.innerHTML = '<option value="">No projects yet — create one below</option>';
       return;
@@ -7169,6 +7186,45 @@ function requestGeoRefresh(){
     setProjectControlsEnabled(true);
     if(previousValue && lastProjects.some(p => p.id === previousValue)) projectSelect.value = previousValue;
   }
+
+  // THE WHEEL (2026-11-09; wheel/project-wheel.js): the projects as frames on a zoetrope drum.
+  // The hidden select still holds the chosen project, so Open / Rename / Delete work unchanged.
+  let projectWheel = null;
+  function drawProjectWheel(previousValue){
+    if(!projectWheel){
+      projectWheel = window.ProjectWheel.mount(document.getElementById('project-wheel'), {
+        onFront: (p) => {
+          projectSelect.value = p.id;
+          document.getElementById('project-front-name').textContent = p.name;
+          updateMoveButtons();
+        },
+        onOpen: (p) => enterProject(p.id),
+      });
+    }
+    let front = previousValue;
+    if(!front){ try { front = localStorage.getItem('storymap-last-project'); } catch(e) {} }
+    projectWheel.setProjects(lastProjects, front || null);
+    if(!lastProjects.length) document.getElementById('project-front-name').textContent = '';
+  }
+  function updateMoveButtons(){
+    const i = lastProjects.findIndex(p => p.id === projectSelect.value);
+    document.getElementById('project-move-left').disabled = i <= 0;
+    document.getElementById('project-move-right').disabled = i < 0 || i >= lastProjects.length - 1;
+  }
+  // ‹ › move the front project one place in the order, saved account-wide like the phone's.
+  function moveProject(dir){
+    const i = lastProjects.findIndex(p => p.id === projectSelect.value);
+    const j = i + dir;
+    if(i < 0 || j < 0 || j >= lastProjects.length) return;
+    const next = lastProjects.slice();
+    [next[i], next[j]] = [next[j], next[i]];
+    lastProjects = next;
+    projectWheel.setProjects(lastProjects, next[j].id);
+    updateMoveButtons();
+    sbClient.auth.updateUser({ data: { project_order: next.map(p => p.id) } });
+  }
+  document.getElementById('project-move-left').addEventListener('click', () => moveProject(-1));
+  document.getElementById('project-move-right').addEventListener('click', () => moveProject(1));
 
   projectOpenBtn.addEventListener('click', () => {
     const projectId = projectSelect.value;
@@ -7296,24 +7352,12 @@ function requestGeoRefresh(){
     } else {
       showAuth();
     }
-    openLoadScreen(session);
+    openLoadScreen();
   });
 
-  // The load screen (load/load-screen.js) spins until the first answer about the session: then
-  // the writer's projects go onto its wheel and it may stop -- on the last project opened -- and
-  // fade. A frame clicked on the wheel opens that project.
-  let loadScreenTold = false;
-  async function openLoadScreen(session){
-    const load = window.StoryMapLoad;
-    if(!load || loadScreenTold) return;
-    loadScreenTold = true;
-    try { load.setFront(localStorage.getItem('storymap-last-project')); } catch(e) {}
-    if(session){
-      load.onPick = (p) => enterProject(p.id);
-      const { data } = await sbClient.from('projects').select('id, name').eq('user_id', session.user.id).order('created_at', { ascending: true });
-      load.setProjects(data || []);
-    }
-    load.ready();
+  // The load screen (load/load-screen.js) stays up until the first answer about the session.
+  function openLoadScreen(){
+    if(window.StoryMapLoad) window.StoryMapLoad.ready();
   }
 })();
 </script>
